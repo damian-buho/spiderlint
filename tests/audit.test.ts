@@ -187,4 +187,16 @@ describe("audit options", () => {
         await assert.rejects(audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["missing"] } } }), /ruleset missing: not defined/);
         assert.equal(site.requested.length, requests);
     });
+
+    it("drops a --disabled-rules rule entirely, across every group", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, disabledRules: ["html/one-h1"] });
+        assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 0);
+    });
+
+    it("applies a --error/--warning/--info override on top of the ruleset severity", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false, overrides: { "html/one-h1": "info" } });
+        const findings = report.findings.filter((finding) => finding.rule === "html/one-h1");
+        assert.equal(findings.length, 5);
+        assert.ok(findings.every((finding) => finding.severity === "info"));
+    });
 });

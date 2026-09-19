@@ -8,7 +8,7 @@ import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { builtin } from "./builtin.ts";
 import { compileRule } from "./declarative.ts";
-import type { Rule, RuleSpec, RulesetConfig } from "./types.ts";
+import type { Rule, RuleSpec, RulesetConfig, Severity } from "./types.ts";
 
 const PRESETS = new URL("../../presets/", import.meta.url);
 const PREFIX = "spiderlint:";
@@ -50,17 +50,19 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     return merged;
 }
 
-// Union of the named rulesets, compiled; `off` rules are dropped.
-export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>): Rule[] {
+// Union of the named rulesets, compiled; `off` rules — including `--disabled-rules` and a
+// `--error`/`--warning`/`--info` override landing on `off` — are dropped (AGENTS.md ## Rules).
+export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>, disabledRules: Set<string> = new Set(), overrides: Record<string, Exclude<Severity, "off">> = {}): Rule[] {
     const specs: Record<string, RuleSpec> = {};
     for (const name of names) Object.assign(specs, resolveRuleset(name, rulesets));
     const rules: Rule[] = [];
     for (const [id, spec] of Object.entries(specs)) {
-        if (spec.severity === "off") {
+        const severity: Severity | undefined = disabledRules.has(id) ? "off" : (overrides[id] ?? spec.severity);
+        if (severity === "off") {
             log.debug({ rule: id }, "rule off");
             continue;
         }
-        rules.push(compileRule(id, spec));
+        rules.push(compileRule(id, severity === spec.severity ? spec : { ...spec, severity }));
     }
     return rules;
 }

@@ -40,7 +40,8 @@ export async function audit(overrides: Partial<Config>): Promise<Report> {
     const config: Config = { ...defaults(), ...overrides };
     const groups = groupsOf(config);
     const matchers = compileGroups(groups);
-    const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets)]));
+    const disabledRules = new Set(config.disabledRules);
+    const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     const store = new MemoryStore();
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
     log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, groups: Object.keys(groups) }, "audit start");
