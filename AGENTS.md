@@ -11,9 +11,14 @@ request (HTML, headers, TLS, timings, sizes), and lints those facts against
 rulesets scoped by URL group. One template with a missing `<h1>` is one
 finding, not a finding per page.
 
-Status: DESIGN. Nothing is implemented; this document is the specification the
-first implementation is built from. Sections marked *v1* are in scope for the
-first release; *later* rows are recorded so the v1 shape does not block them.
+Status: v1 in progress. Implemented: http crawl with link discovery, scope,
+depth and glob limits; groups; declarative rules, presets `seo`,
+`security-headers`, `links`, `recommended`; site-wide `unique`; folding;
+`human` and `json`; the fixture site. Not yet: sitemap, `pf-cli` config,
+store, transport and TLS facts, resources, browser mode, `sarif`. The rest of
+this document is the specification the remaining parts are built from.
+Sections marked *v1* are in scope for the first release; *later* rows are
+recorded so the v1 shape does not block them.
 
 ## Key facts
 
@@ -183,7 +188,7 @@ groups:
     rules: [recommended]
 ```
 
-- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that.
+- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing.
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
 - `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables. Stream mode takes the first three arrivals; accumulate mode the three lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
@@ -215,7 +220,9 @@ rulesets:
 ```
 
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
-- `when` is a map of fact path to constant; the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts.
+- `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
+- A page rule whose extractor did not run — the fact path’s top-level key is absent, as `html` is on a JSON or RSS document — is skipped, not failed. Only a key present with a missing field is a finding.
+- A rule entry with neither `fact` nor `unique` names a built-in TypeScript rule by ID (`links/broken-internal: error`); an unknown ID is a config error.
 - `scope: page` (default) runs per page. `scope: group` and `scope: site` receive every facts document of that group or of the crawl; `unique: <fact>` is the only built-in aggregate, anything else is a TypeScript rule.
 
 ### Site-wide rules
@@ -437,12 +444,12 @@ projectfile.yaml
 - `org.projectfile.image.org: damian-buho`, `flatpath: ${name}`, `sinks.ghcr.selfref` — the account-is-org shape every personal image carries.
 - The Dockerfile installs Chromium at build (`npx playwright install --with-deps chromium`) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime.
 - Self-test in `test.d/`: audit the bundled fixture site served from inside the container and expect the known findings.
-- `make` runs the m6e gates; lint, format, audit and outdated checks come from the node fragment with no project-level tooling.
+- `make` runs the m6e gates; lint, format, audit and outdated checks come from the node fragment. The node fragment wires no test tool, so `npm-test` is declared in the projectfile under `org.projectfile.ci.tools` and joined to `source-is-tested`; `NODE_TOOL_IMAGE.series` is overridden to `26` there because the fragment pins `24` while the base image follows `B19_NODE_SERIES`.
 
 ## Testing
 
 - `node --test --experimental-strip-types tests/**/*.test.ts`, no other runner.
-- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt` and `sitemap.xml`, served by `node:http` on an ephemeral port. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end.
+- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Fixture files carry inline SPDX comments, no `.license` sidecars.
 - Formatter output is snapshot-tested; SARIF is validated against the 2.1.0 schema.
 - No test reaches the network. External-link probes point at the same local server.
 
