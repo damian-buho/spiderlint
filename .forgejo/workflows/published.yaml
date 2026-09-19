@@ -470,7 +470,17 @@ jobs:
   source-is-tested:
     runs-on: docker
     steps:
-      - run: echo source-is-tested
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: npm-test
+        if: vars.CI_SKIP_SOURCE_IS_TESTED != 'true' && vars.CI_SKIP_NPM_TEST != 'true'
+        uses: projectfile/actions/run-tool@v1
+        with:
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: npm test
   source-passes-lint:
     runs-on: docker
     needs: ["deps-installed"]
@@ -490,7 +500,7 @@ jobs:
         if: vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true'
         uses: projectfile/actions/run-tool@v1
         with:
-          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-24', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ env.M6E_TAG }}
           run: npm ci
           mounts: /app/data/ci-cache/npm:/app/.cache/npm:rw

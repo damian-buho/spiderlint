@@ -50,6 +50,21 @@ org:
     build:
       args:
         B19_NODE_SERIES: 26
+    ci:
+      nodes:
+        source-is-tested:
+          needs:
+            npm-test: true
+      tools:
+        npm-test:
+          image: NODE_TOOL_IMAGE
+          run: npm test
+          description: Run the node:test suite against the fixture site
+          guard: package.json
+          inputs: ["src/**", "tests/**", "presets/**", "package.json"]
+          needs:
+            deps-installed: true
+          tags: [node]
     conventions:
       fragments:
         parents:
@@ -62,6 +77,9 @@ org:
     image:
       org: damian-buho
       flatpath: ${name}
+    images:
+      NODE_TOOL_IMAGE:
+        series: "26"
     forge:
       org: damian-buho
       flatpath: ${name}
