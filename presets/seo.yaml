@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+when:
+  http.status: {minimum: 200, maximum: 299}
+rules:
+  html/lang:
+    fact: html.lang
+    expect: {type: string, minLength: 2}
+    severity: error
+    docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
+  html/title-length:
+    fact: html.title
+    expect: {type: string, minLength: 30, maxLength: 60}
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/title-link
+  html/description-length:
+    fact: html.meta.description
+    expect: {type: string, minLength: 50, maxLength: 160}
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/snippet
+  html/one-h1:
+    fact: html.h1
+    expect: {type: array, minItems: 1, maxItems: 1}
+    severity: error
+  html/canonical:
+    fact: html.canonical
+    expect: {type: string, pattern: "^https?://"}
+    severity: warning
+    docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+  html/img-alt:
+    fact: html.images
+    expect: {type: array, items: {required: [alt]}}
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/google-images
+  html/og-title:
+    fact: html.property.og:title
+    expect: {type: string, minLength: 10, maxLength: 90}
+    severity: warning
+    docs: https://ogp.me/#metadata
+  html/og-description:
+    fact: html.property.og:description
+    expect: {type: string, minLength: 50, maxLength: 200}
+    severity: warning
+    docs: https://ogp.me/#optional
+  html/og-image:
+    fact: html.property.og:image
+    expect: {type: string, pattern: "^https?://"}
+    severity: warning
+    docs: https://ogp.me/#metadata
+  html/og-type:
+    fact: html.property.og:type
+    expect: {type: string, minLength: 1}
+    severity: info
+    docs: https://ogp.me/#types
+  html/og-url:
+    fact: html.property.og:url
+    expect: {type: string, pattern: "^https?://"}
+    severity: info
+    docs: https://ogp.me/#metadata
+  html/unique-title:
+    unique: html.title
+    scope: site
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/title-link
+  html/unique-description:
+    unique: html.meta.description
+    scope: site
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/snippet
+  html/unique-og-title:
+    unique: html.property.og:title
+    scope: site
+    severity: warning
+    docs: https://ogp.me/#metadata
+  html/unique-og-description:
+    unique: html.property.og:description
+    scope: site
+    severity: warning
+    docs: https://ogp.me/#optional
