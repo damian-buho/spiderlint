@@ -31,10 +31,21 @@ describe("audit", () => {
     const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
 
     it("crawls every linked page in scope, and only those", () => {
-        assert.deepEqual(paths(), ["/", "/about", "/app/", "/duplicate", "/feed.xml", "/missing", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
+        assert.deepEqual(paths(), ["/", "/about", "/app/", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
         assert.ok(!site.requested.includes("/private/secret"), "robots.txt disallow is honoured");
         assert.ok(!site.requested.includes("/tmp/skipme"), "--exclude is applied before enqueue");
-        assert.ok(!site.requested.includes("/orphan"), "the orphan is reachable only through the sitemap");
+    });
+
+    it("fetches a sitemap-only page and facts every page against the sitemap", () => {
+        const orphan = report.pages.find((page) => page.url.pathname === "/orphan");
+        assert.equal(orphan?.crawl.depth, 0);
+        assert.equal(orphan?.crawl.discoveredVia, "sitemap");
+        assert.deepEqual(orphan?.sitemap, { listed: true });
+        const home = report.pages.find((page) => page.url.pathname === "/");
+        assert.equal(home?.crawl.discoveredVia, "seed");
+        assert.deepEqual(home?.sitemap, { listed: true });
+        const duplicate = report.pages.find((page) => page.url.pathname === "/duplicate");
+        assert.deepEqual(duplicate?.sitemap, { listed: false });
     });
 
     it("records links, depth and referrers as facts", () => {
@@ -50,7 +61,7 @@ describe("audit", () => {
     it("assigns each page to the first matching group", () => {
         const counts: Record<string, number> = {};
         for (const page of report.pages) counts[page.group] = (counts[page.group] ?? 0) + 1;
-        assert.deepEqual(counts, { default: 5, app: 1, posts: 5, tags: 3 });
+        assert.deepEqual(counts, { default: 6, app: 1, posts: 5, tags: 3 });
     });
 
     it("reports a dead in-scope link once, with its referrers", () => {
@@ -58,8 +69,8 @@ describe("audit", () => {
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${site.origin}/missing`);
         assert.equal(dead?.severity, "error");
-        assert.equal(dead?.urls?.length, 11);
-        assert.equal(dead?.message, "http.status is 404; linked from 11 pages");
+        assert.equal(dead?.urls?.length, 12);
+        assert.equal(dead?.message, "http.status is 404; linked from 12 pages");
     });
 
     it("judges no SEO fact on a page outside 2xx", () => {
@@ -133,7 +144,7 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n14 pages, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
+        assert.match(text, /\n15 pages, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
     });
 });
 
@@ -151,11 +162,17 @@ describe("audit options", () => {
         assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 5);
     });
 
+    it("leaves a sitemap-only page unfetched with --no-sitemap", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], sitemap: false });
+        assert.ok(report.pages.every((page) => page.url.pathname !== "/orphan"));
+        assert.equal(report.pages.find((page) => page.url.pathname === "/")?.sitemap, undefined);
+    });
+
     it("skips a when-guarded rule instead of failing it", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } } });
         assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts").length, 0);
         const csp = report.findings.find((finding) => finding.rule === "http/csp");
-        assert.equal(csp?.occurrences, 15);
+        assert.equal(csp?.occurrences, 16);
     });
 
     it("stops at --max-pages", async () => {

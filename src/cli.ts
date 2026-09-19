@@ -17,7 +17,7 @@ const USAGE = [
     "       spiderlint facts  <url>   [options]   one page’s facts document as JSON",
     "       spiderlint groups <url…> [options]   page count per group",
     "options: --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N",
-    "         --include GLOB… --exclude GLOB…  --no-robots  --no-fold",
+    "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold",
     "         --format human|json  --fail-on error|warning|info|never",
 ].join("\n");
 
@@ -54,6 +54,7 @@ async function main(argv: string[]): Promise<number> {
             include: { type: "string", multiple: true, default: [] },
             exclude: { type: "string", multiple: true, default: [] },
             robots: { type: "boolean", default: true },
+            sitemap: { type: "boolean", default: true },
             fold: { type: "boolean", default: true },
             format: { type: "string", default: "human" },
             "fail-on": { type: "string", default: "error" },
@@ -84,6 +85,7 @@ async function main(argv: string[]): Promise<number> {
             include: values.include,
             exclude: values.exclude,
             robots: values.robots,
+            sitemap: values.sitemap,
             fold: values.fold ? { threshold: 0.8, min: 3 } : false,
             groups: command === "facts" ? { default: { rules: [] } } : {},
         });

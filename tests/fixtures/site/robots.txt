@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: MIT
 User-agent: *
 Disallow: /private/
-Sitemap: /sitemap.xml
+Sitemap: http://fixture.test/sitemap.xml

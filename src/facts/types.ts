@@ -17,6 +17,13 @@ export interface CrawlFacts {
     referrers: string[];
 }
 
+export interface SitemapFacts {
+    listed: boolean;
+    lastmod?: string;
+    changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+    priority?: number;
+}
+
 export interface HttpFacts {
     status: number;
     headers: Record<string, string | string[]>;
@@ -40,6 +47,7 @@ export interface Facts {
     url: UrlFacts;
     group: string;
     crawl: CrawlFacts;
+    sitemap?: SitemapFacts;
     http: HttpFacts;
     html?: HtmlFacts;
 }

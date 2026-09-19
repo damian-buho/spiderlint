@@ -28,6 +28,7 @@ export interface Config {
     include: string[];
     exclude: string[];
     robots: boolean;
+    sitemap: boolean;
     fold: FoldConfig | false;
     failOn: FailOn;
     groups: Record<string, GroupConfig>;
@@ -45,6 +46,7 @@ export function defaults(): Config {
         include: [],
         exclude: [],
         robots: true,
+        sitemap: true,
         fold: { threshold: 0.8, min: 3 },
         failOn: "error",
         groups: {},

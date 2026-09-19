@@ -12,11 +12,12 @@ rulesets scoped by URL group. One template with a missing `<h1>` is one
 finding, not a finding per page.
 
 Status: v1 in progress. Implemented: http crawl with link discovery, scope,
-depth and glob limits; groups; declarative rules, presets `seo`,
-`security-headers`, `links`, `recommended`; site-wide `unique`; folding;
-`human` and `json`; the fixture site. Not yet: sitemap, `pf-cli` config,
-store, transport and TLS facts, resources, browser mode, `sarif`. The rest of
-this document is the specification the remaining parts are built from.
+depth and glob limits; sitemap discovery and facts; groups; declarative
+rules, presets `seo`, `security-headers`, `links`, `recommended`; site-wide
+`unique`; folding; `human` and `json`; the fixture site. Not yet: `pf-cli`
+config, store, transport and TLS facts, resources, browser mode, `sarif`,
+`sitemap/orphan` and `sitemap/unlisted` rules. The rest of this document is
+the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
 recorded so the v1 shape does not block them.
 
