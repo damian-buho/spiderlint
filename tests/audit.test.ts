@@ -31,7 +31,7 @@ describe("audit", () => {
     const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
 
     it("crawls every linked page in scope, and only those", () => {
-        assert.deepEqual(paths(), ["/", "/about", "/app/", "/feed.xml", "/missing", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
+        assert.deepEqual(paths(), ["/", "/about", "/app/", "/duplicate", "/feed.xml", "/missing", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
         assert.ok(!site.requested.includes("/private/secret"), "robots.txt disallow is honoured");
         assert.ok(!site.requested.includes("/tmp/skipme"), "--exclude is applied before enqueue");
         assert.ok(!site.requested.includes("/orphan"), "the orphan is reachable only through the sitemap");
@@ -50,7 +50,7 @@ describe("audit", () => {
     it("assigns each page to the first matching group", () => {
         const counts: Record<string, number> = {};
         for (const page of report.pages) counts[page.group] = (counts[page.group] ?? 0) + 1;
-        assert.deepEqual(counts, { default: 4, app: 1, posts: 5, tags: 3 });
+        assert.deepEqual(counts, { default: 5, app: 1, posts: 5, tags: 3 });
     });
 
     it("reports a dead in-scope link once, with its referrers", () => {
@@ -107,6 +107,15 @@ describe("audit", () => {
         }
     });
 
+    it("catches a templated title or description that repeats the same value twice", () => {
+        const [title, ...restTitle] = of("html/title-redundant");
+        assert.equal(restTitle.length, 0);
+        assert.equal(title?.url, `${site.origin}/duplicate`);
+        assert.match(title?.message ?? "", /html\.title must match pattern/);
+        const description = of("html/description-redundant").find((finding) => finding.url === `${site.origin}/duplicate`);
+        assert.match(description?.message ?? "", /html\.meta\.description must match pattern/);
+    });
+
     it("reports a value shared by two pages once, listing both", () => {
         for (const rule of ["html/unique-title", "html/unique-description", "html/unique-og-title", "html/unique-og-description"]) {
             const [finding, ...rest] = of(rule);
@@ -124,7 +133,7 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n13 pages, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
+        assert.match(text, /\n14 pages, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
     });
 });
 
@@ -146,7 +155,7 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } } });
         assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts").length, 0);
         const csp = report.findings.find((finding) => finding.rule === "http/csp");
-        assert.equal(csp?.occurrences, 14);
+        assert.equal(csp?.occurrences, 15);
     });
 
     it("stops at --max-pages", async () => {
