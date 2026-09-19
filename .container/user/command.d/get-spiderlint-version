@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+# Reports the spiderlint version from package.json.
+set -eo pipefail
+
+cd "${B19_HOME}"
+node --print "require('./package.json').version" 2>/dev/null || echo "unknown"

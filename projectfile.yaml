@@ -1,0 +1,82 @@
+---
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+$schema: https://projectfile.org/schema/v1.json
+identity:
+  created: "2026-09-19"
+  name: spiderlint
+  namespace: me.dbuho
+  summary:
+    en: Site-wide linter for SEO tags, security headers, TLS and links
+    es: Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlaces
+    uk: Лінтер усього сайту для SEO-тегів, заголовків безпеки, TLS і посилань
+  title: Spiderlint
+  description:
+    en: Spiderlint crawls every page a site serves, collects facts about each request (HTML, headers, TLS, timings, sizes) and lints them against rulesets scoped by URL group, so a template missing a heading is one finding rather than one per page. Built on Node and Crawlee.
+    es: Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petición (HTML, cabeceras, TLS, tiempos, tamaños) y los valida contra conjuntos de reglas por grupo de URL, de modo que una plantilla sin encabezado es un solo hallazgo y no uno por página. Construido sobre Node y Crawlee.
+    uk: Spiderlint обходить кожну сторінку сайту, збирає факти про кожен запит (HTML, заголовки, TLS, таймінги, розміри) і перевіряє їх за наборами правил для груп URL, тож шаблон без заголовка — це один результат, а не по одному на сторінку. Побудовано на Node і Crawlee.
+  version: 0.1.0
+includes:
+  - .makefile/b19/ci.yaml
+  - .makefile/b19/images/node.yaml
+  - .makefile/library/languages/node.yaml
+  - .makefile/library/vulnerabilities/npm/stream-json.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+keywords:
+  - spiderlint
+  - linter
+  - crawler
+  - seo
+  - security-headers
+  - sarif
+kind: SoftwareSourceCode
+license:
+  covers: project
+  spdx: MIT
+links:
+  - label:
+      en: Spiderlint on kiota.ch
+      es: Spiderlint en kiota.ch
+      uk: Spiderlint на kiota.ch
+    preferred: true
+    priority: 10
+    type: source-code
+    url: https://kiota.ch/damian-buho/spiderlint
+org:
+  projectfile:
+    architecture:
+      - amd64
+    conventions:
+      fragments:
+        parents:
+          - url: ssh://git@kiota.ch/b19/ubuntu.git
+    ignores:
+      git:
+        include:
+          - .spiderlint/
+          - storage/
+    image:
+      org: damian-buho
+      flatpath: ${name}
+    forge:
+      org: damian-buho
+      flatpath: ${name}
+    sinks:
+      ghcr:
+        selfref: ghcr.io/damian-buho/${name}:${tag}
+    operating-system:
+      - linux
+    status: experimental
+  spiderlint: {}
+repositories:
+  - branch: main
+    role: origin
+    type: git
+    url: ssh://git@kiota.ch/damian-buho/spiderlint.git
+technologies:
+  - node
+  - typescript
+requirements:
+  runtime:
+    node: '>=24'

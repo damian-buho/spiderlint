@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+[submodule ".makefile/core"]
+	path = .makefile/core
+	url = https://kiota.ch/m6e/core.git
+	branch = main
+[submodule ".makefile/b19"]
+	path = .makefile/b19
+	url = https://kiota.ch/m6e/b19.git
+[submodule ".makefile/container"]
+	path = .makefile/container
+	url = https://kiota.ch/m6e/container.git
+[submodule ".makefile/library"]
+	path = .makefile/library
+	url = https://kiota.ch/m6e/library.git
