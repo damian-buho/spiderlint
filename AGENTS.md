@@ -308,7 +308,7 @@ so outsiders need no projectfile.
 ```yaml
 org:
   spiderlint:
-    targets: [https://dbuho.me/]       # optional; links[homepage,documentation] otherwise
+    targets: [https://f.dbuho.me/]     # optional; links[homepage,documentation] otherwise
     fetch: auto                        # auto | http | browser | adaptive
     scope: origin                      # origin | host | domain
     concurrency: 0                     # 0 = NUMPROCS
@@ -457,4 +457,4 @@ projectfile.yaml
 
 ## Open decisions
 
-- Fold threshold `0.8` and minimum `3` are guesses. The fixture site and the first audit of dbuho.me decide.
+- Fold threshold `0.8` and minimum `3` are guesses. The fixture site and the first audit of f.dbuho.me decide.
