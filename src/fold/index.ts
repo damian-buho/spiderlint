@@ -2,11 +2,40 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { FoldConfig } from "../config/index.ts";
 import { log } from "../logger.ts";
+import { cell, type RuleRun } from "../rules/run.ts";
 import type { Finding } from "../rules/types.ts";
 
-// Identity until saturation folding exists.
-export function fold(findings: Finding[]): Finding[] {
-    log.debug({ before: findings.length, after: findings.length }, "fold");
-    return findings;
+const HETEROGENEOUS = 0.2;
+
+// Per (group, rule): one template-level finding once failures saturate the group.
+export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
+    const out = run.findings.filter((finding) => finding.scope !== "page");
+    const byCell = new Map<string, Finding[]>();
+    for (const finding of run.findings) {
+        if (finding.scope !== "page") continue;
+        const key = cell(finding.group as string, finding.rule);
+        byCell.set(key, [...(byCell.get(key) ?? []), finding]);
+    }
+    for (const [key, findings] of byCell) {
+        const [group, rule] = key.split("\t") as [string, string];
+        const failed = new Set(findings.map((finding) => finding.url)).size;
+        const applicable = run.applicable.get(key) ?? failed;
+        const ratio = failed / applicable;
+        const isFolded = options !== false && applicable >= options.min && ratio >= options.threshold;
+        log.debug({ group, rule, failed, applicable, ratio: Number(ratio.toFixed(2)), folded: isFolded }, "fold");
+        if (!isFolded) {
+            out.push(...findings);
+            if (options !== false && applicable >= options.min && ratio > HETEROGENEOUS) {
+                out.push({ rule: "groups/heterogeneous", severity: "info", scope: "group", url: findings[0]?.url as string, group, message: `${rule} fails on ${failed} of ${applicable} pages; the group likely spans two templates` });
+            }
+            continue;
+        }
+        const samples = [...new Set(findings.map((finding) => finding.url))].slice(0, 3);
+        const first = findings[0] as Finding;
+        out.push({ ...first, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string });
+    }
+    log.debug({ before: run.findings.length, after: out.length }, "fold done");
+    return out;
 }
