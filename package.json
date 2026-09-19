@@ -6,7 +6,7 @@
   "description": "Site-wide linter for SEO tags, security headers, TLS and links",
   "license": "MIT",
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   },
   "bin": {
     "spiderlint": "src/cli.ts"

@@ -47,6 +47,9 @@ org:
   projectfile:
     architecture:
       - amd64
+    build:
+      args:
+        B19_NODE_SERIES: 26
     conventions:
       fragments:
         parents:
@@ -79,4 +82,4 @@ technologies:
   - typescript
 requirements:
   runtime:
-    node: '>=24'
+    node: '>=26'

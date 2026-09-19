@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node-24:latest
+ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node-26:latest
 
 FROM ${B19_NODE_BASE_IMAGE} AS spiderlint
 

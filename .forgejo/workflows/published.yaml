@@ -24,7 +24,7 @@ name: published
         default: "Y"
       B19_NODE_SERIES:
         type: string
-        default: "24"
+        default: "26"
       B19_OFFGRID_MODE:
         type: string
         default: "N"
@@ -176,8 +176,8 @@ jobs:
       B19_COLOR: ${{ inputs.B19_COLOR || vars.B19_COLOR || '1' }}
       B19_FETCH_DOCKER_CACHE: ${{ inputs.B19_FETCH_DOCKER_CACHE || vars.B19_FETCH_DOCKER_CACHE || 'Y' }}
       B19_FETCH_LOCAL_CACHE: ${{ inputs.B19_FETCH_LOCAL_CACHE || vars.B19_FETCH_LOCAL_CACHE || 'Y' }}
-      B19_NODE_BASE_IMAGE: ${{ vars.B19_NODE_BASE_IMAGE || format('{0}/b19/node-{1}:{2}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '24', vars.BASE_IMAGE_DEFAULT_VERSION || 'latest') }}
-      B19_NODE_SERIES: ${{ inputs.B19_NODE_SERIES || vars.B19_NODE_SERIES || '24' }}
+      B19_NODE_BASE_IMAGE: ${{ vars.B19_NODE_BASE_IMAGE || format('{0}/b19/node-{1}:{2}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26', vars.BASE_IMAGE_DEFAULT_VERSION || 'latest') }}
+      B19_NODE_SERIES: ${{ inputs.B19_NODE_SERIES || vars.B19_NODE_SERIES || '26' }}
       B19_OFFGRID_MODE: ${{ inputs.B19_OFFGRID_MODE || vars.B19_OFFGRID_MODE || 'N' }}
       B19_VERBOSITY: ${{ inputs.B19_VERBOSITY || vars.B19_VERBOSITY || 'info' }}
       DESTINATION_DOCKER_REGISTRY: ${{ inputs.DESTINATION_DOCKER_REGISTRY || vars.DESTINATION_DOCKER_REGISTRY }}
@@ -203,8 +203,8 @@ jobs:
             B19_COLOR=${{ inputs.B19_COLOR || vars.B19_COLOR || '1' }}
             B19_FETCH_DOCKER_CACHE=${{ inputs.B19_FETCH_DOCKER_CACHE || vars.B19_FETCH_DOCKER_CACHE || 'Y' }}
             B19_FETCH_LOCAL_CACHE=${{ inputs.B19_FETCH_LOCAL_CACHE || vars.B19_FETCH_LOCAL_CACHE || 'Y' }}
-            B19_NODE_BASE_IMAGE=${{ vars.B19_NODE_BASE_IMAGE || format('{0}/b19/node-{1}:{2}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '24', env.M6E_TAG) }}
-            B19_NODE_SERIES=${{ inputs.B19_NODE_SERIES || vars.B19_NODE_SERIES || '24' }}
+            B19_NODE_BASE_IMAGE=${{ vars.B19_NODE_BASE_IMAGE || format('{0}/b19/node-{1}:{2}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26', env.M6E_TAG) }}
+            B19_NODE_SERIES=${{ inputs.B19_NODE_SERIES || vars.B19_NODE_SERIES || '26' }}
             B19_OFFGRID_MODE=${{ inputs.B19_OFFGRID_MODE || vars.B19_OFFGRID_MODE || 'N' }}
             B19_VERBOSITY=${{ inputs.B19_VERBOSITY || vars.B19_VERBOSITY || 'info' }}
             DESTINATION_DOCKER_REGISTRY=${{ inputs.DESTINATION_DOCKER_REGISTRY || vars.DESTINATION_DOCKER_REGISTRY }}

@@ -17,7 +17,7 @@ first release; *later* rows are recorded so the v1 shape does not block them.
 
 ## Key facts
 
-- Base: `b19/node-24`, TypeScript run directly by Node (`--experimental-strip-types`), no build step — same as [textlint-server](../textlint-server/AGENTS.md)
+- Base: `b19/node-26`, TypeScript run directly by Node (`--experimental-strip-types`), no build step — same as [textlint-server](../textlint-server/AGENTS.md)
 - Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, `AdaptivePlaywrightCrawler` to decide per page
 - Image: `damian-buho/spiderlint` with Chromium baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
@@ -432,6 +432,7 @@ projectfile.yaml
 
 ## Build and CI
 
+- `B19_NODE_SERIES: 26` under `org.projectfile.build.args` picks the series; the Dockerfile `ARG` default is only the fallback name.
 - `projectfile.yaml` includes `.makefile/b19/ci.yaml`, `.makefile/b19/images/node.yaml`, `.makefile/library/languages/node.yaml`, and the `damian-buho/metadata` include plus the `forge/github.yaml`, `forge/codeberg.yaml`, `registry/ghcr.yaml` fragments — copy ignorelint’s block, swap the language.
 - `org.projectfile.image.org: damian-buho`, `flatpath: ${name}`, `sinks.ghcr.selfref` — the account-is-org shape every personal image carries.
 - The Dockerfile installs Chromium at build (`npx playwright install --with-deps chromium`) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime.
