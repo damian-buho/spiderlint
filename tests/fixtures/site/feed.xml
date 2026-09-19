@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+
+SPDX-License-Identifier: MIT
+-->
+<rss version="2.0"><channel><title>Fixture feed</title><link>http://fixture.test/</link><item><title>Post 1</title><link>http://fixture.test/posts/1</link></item></channel></rss>
