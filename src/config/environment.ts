@@ -8,7 +8,7 @@ import type { Settings } from "./policy.ts";
 const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
 const SCOPES = ["origin", "host", "domain"] as const;
 const FAIL_ONS = ["error", "warning", "info", "never"] as const;
-const FORMATS = ["human", "json"] as const;
+const FORMATS = ["human", "json", "sarif"] as const;
 
 function isTruthy(name: string, raw: string): boolean {
     const value = raw.trim().toLowerCase();

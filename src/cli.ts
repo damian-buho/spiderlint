@@ -13,6 +13,7 @@ import { resolveDefaultTargets } from "./config/targets.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
 import { formatJson } from "./report/json.ts";
+import { formatSarif } from "./report/sarif.ts";
 import { log } from "./logger.ts";
 
 const USAGE = [
@@ -21,13 +22,13 @@ const USAGE = [
     "       spiderlint groups [url…] [options]   page count per group",
     "options: --config PATH  --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N",
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold",
-    "         --format human|json  --fail-on error|warning|info|never",
+    "         --format human|json|sarif  --fail-on error|warning|info|never",
     "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",
     "with no url, audits the projectfile’s homepage and documentation links",
 ].join("\n");
 
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS = { human: formatHuman, json: formatJson };
+const FORMATTERS = { human: formatHuman, json: formatJson, sarif: formatSarif };
 
 // 1 once any finding reaches --fail-on; 3 when nothing was fetched.
 function exitCode(report: Report, failOn: FailOn): number {

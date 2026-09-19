@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "version", "runs"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": "2.1.0" },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "results"],
+        "properties": {
+          "tool": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["driver"],
+            "properties": {
+              "driver": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "version", "rules"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "version": { "type": "string" },
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["id", "shortDescription"],
+                      "properties": {
+                        "id": { "type": "string" },
+                        "shortDescription": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["text"],
+                          "properties": { "text": { "type": "string" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ruleId", "level", "message", "locations"],
+              "properties": {
+                "ruleId": { "type": "string" },
+                "level": { "enum": ["error", "warning", "note"] },
+                "message": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["text"],
+                  "properties": { "text": { "type": "string" } }
+                },
+                "locations": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/definitions/location" }
+                },
+                "occurrenceCount": { "type": "integer", "minimum": 1 },
+                "relatedLocations": {
+                  "type": "array",
+                  "items": {
+                    "allOf": [
+                      { "$ref": "#/definitions/location" },
+                      {
+                        "type": "object",
+                        "required": ["id"],
+                        "properties": { "id": { "type": "integer", "minimum": 0 } }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "location": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["physicalLocation"],
+      "properties": {
+        "physicalLocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifactLocation"],
+          "properties": {
+            "artifactLocation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["uri"],
+              "properties": { "uri": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

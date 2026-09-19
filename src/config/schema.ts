@@ -54,7 +54,7 @@ const schema = {
             properties: { pages: { type: "object", additionalProperties: false, properties: { ttl } }, probes: { type: "object", additionalProperties: false, properties: { ttl } }, robots: { type: "object", additionalProperties: false, properties: { ttl } } },
         },
         "fail-on": { enum: ["error", "warning", "info", "never"] },
-        format: { enum: ["human", "json"] },
+        format: { enum: ["human", "json", "sarif"] },
         plugins: { type: "array", items: { type: "string" } },
         "disabled-rules": { type: "array", items: { type: "string" } },
         override: {
