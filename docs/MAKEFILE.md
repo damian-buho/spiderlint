@@ -1069,6 +1069,14 @@ Audit npm dependencies for vulnerabilities
 
 > Image: D9T_JS_TOOLS_IMAGE
 
+### `npm-test`
+
+Run the node:test suite against the fixture site
+
+`npm test`
+
+> Image: NODE_TOOL_IMAGE
+
 ### `pf-bridge-browserslistrc-check`
 
 Verify .browserslistrc still matches the projectfile
