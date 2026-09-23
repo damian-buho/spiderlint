@@ -144,7 +144,17 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n15 pages, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
+        assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
+    });
+
+    it("sums bytes, pages per group and per status into the run summary", () => {
+        const { summary } = report;
+        assert.equal(summary.pages, 15);
+        assert.equal(summary.bytes, report.pages.reduce((sum, page) => sum + page.http.size.body, 0));
+        assert.deepEqual(summary.groups, { default: 6, app: 1, posts: 5, tags: 3 });
+        assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
+        assert.equal(summary.findings, report.findings.length);
+        assert.ok(summary.durationMs >= 0);
     });
 });
 

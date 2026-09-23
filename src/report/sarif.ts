@@ -37,6 +37,12 @@ function toRules(findings: Finding[]) {
     return ids.map((id) => ({ id, shortDescription: { text: id } }));
 }
 
+// The run's totals as a SARIF invocation; the summary rides in its property bag.
+function toInvocation({ started, ...summary }: Report["summary"]) {
+    const endTimeUtc = new Date(Date.parse(started) + summary.durationMs).toISOString();
+    return { executionSuccessful: true, startTimeUtc: started, endTimeUtc, properties: summary };
+}
+
 // SARIF 2.1.0: one run, one tool. Folded findings carry occurrenceCount + relatedLocations (AGENTS.md ## Folding).
 export function formatSarif(report: Report): string {
     const version = (createRequire(import.meta.url)("../../package.json") as { version: string }).version;
@@ -46,6 +52,7 @@ export function formatSarif(report: Report): string {
         runs: [
             {
                 tool: { driver: { name: "spiderlint", version, rules: toRules(report.findings) } },
+                invocations: [toInvocation(report.summary)],
                 results: report.findings.map((finding) => toResult(finding)),
             },
         ],

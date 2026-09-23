@@ -14,6 +14,20 @@
         "additionalProperties": false,
         "required": ["tool", "results"],
         "properties": {
+          "invocations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["executionSuccessful"],
+              "properties": {
+                "executionSuccessful": { "type": "boolean" },
+                "startTimeUtc": { "type": "string" },
+                "endTimeUtc": { "type": "string" },
+                "properties": { "type": "object" }
+              }
+            }
+          },
           "tool": {
             "type": "object",
             "additionalProperties": false,

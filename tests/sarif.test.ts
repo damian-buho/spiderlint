@@ -64,6 +64,15 @@ describe("formatSarif", () => {
         );
     });
 
+    it("embeds the run summary as the invocation", () => {
+        const [invocation] = sarif.runs[0].invocations;
+        assert.equal(invocation.executionSuccessful, true);
+        assert.equal(invocation.startTimeUtc, report.summary.started);
+        assert.equal(Date.parse(invocation.endTimeUtc) - Date.parse(invocation.startTimeUtc), report.summary.durationMs);
+        assert.deepEqual(invocation.properties.statuses, { "200": 14, "404": 1 });
+        assert.equal(invocation.properties.pages, 15);
+    });
+
     it("maps severity to the SARIF level vocabulary", () => {
         const info = report.findings.find((finding) => finding.severity === "info");
         const result = sarif.runs[0].results.find((entry: { ruleId: string; locations: { physicalLocation: { artifactLocation: { uri: string } } }[] }) => entry.ruleId === info?.rule && entry.locations[0]?.physicalLocation.artifactLocation.uri === info?.url);

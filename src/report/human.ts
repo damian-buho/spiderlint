@@ -7,6 +7,8 @@ import type { Finding } from "../rules/types.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2 };
 const LIST = 5;
+const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilobyte", maximumFractionDigits: 1 });
+const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
 
 // At most LIST URLs on the detail line, the rest as a count.
 function list(urls: string[]): string {
@@ -39,6 +41,8 @@ export function formatHuman(report: Report): string {
         for (const finding of findings) out.push(...line(finding));
     }
     const counts = Object.keys(ORDER).map((severity) => `${report.findings.filter((finding) => finding.severity === severity).length} ${severity}`);
-    out.push(`${report.pages.length} pages, ${report.findings.length} findings (${counts.join(", ")})`);
+    const { pages, bytes, durationMs, statuses } = report.summary;
+    const answers = Object.entries(statuses).map(([status, count]) => `${count} × ${status}`);
+    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")})`);
     return out.join("\n");
 }
