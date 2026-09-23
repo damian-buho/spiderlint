@@ -394,7 +394,7 @@ export default definePlugin({
 
 ## Security
 
-- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)`.
+- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page and resource request, and `robots.txt` groups are matched for `spiderlint`. Crawlee fetches `robots.txt` and sitemap files with its own headers and exposes no option to change them.
 - Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { createRequire } from "node:module";
+import { VERSION } from "../agent.ts";
 import type { Report } from "../index.ts";
 import type { Finding, Severity } from "../rules/types.ts";
 
@@ -45,13 +45,12 @@ function toInvocation({ started, ...summary }: Report["summary"]) {
 
 // SARIF 2.1.0: one run, one tool. Folded findings carry occurrenceCount + relatedLocations (AGENTS.md ## Folding).
 export function formatSarif(report: Report): string {
-    const version = (createRequire(import.meta.url)("../../package.json") as { version: string }).version;
     const sarif = {
         $schema: SCHEMA,
         version: "2.1.0",
         runs: [
             {
-                tool: { driver: { name: "spiderlint", version, rules: toRules(report.findings) } },
+                tool: { driver: { name: "spiderlint", version: VERSION, rules: toRules(report.findings) } },
                 invocations: [toInvocation(report.summary)],
                 results: report.findings.map((finding) => toResult(finding)),
             },

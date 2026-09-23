@@ -4,6 +4,7 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { VERSION } from "../src/agent.ts";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { formatHuman } from "../src/report/human.ts";
@@ -241,6 +242,13 @@ describe("audit options", () => {
         assert.deepEqual(http?.cookies, [{ name: "session", secure: false, httpOnly: true, sameSite: "Lax" }]);
         assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]"]);
         assert.ok(!JSON.stringify(report).includes("s3cr3t"));
+    });
+
+    it("names itself in the user agent of every page and resource request", async () => {
+        const before = site.headers.length;
+        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false });
+        const agents = new Set(site.headers.slice(before).filter((_, index) => site.requested[before + index] !== "/robots.txt").map((headers) => headers["user-agent"]));
+        assert.deepEqual([...agents], [`spiderlint/${VERSION} (+https://kiota.ch/damian-buho/spiderlint)`]);
     });
 
     it("asks for a fresh connection per page with --no-keepalive", async () => {

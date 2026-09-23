@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 import { parseArgs } from "node:util";
-import { createRequire } from "node:module";
+import { VERSION } from "./agent.ts";
 import { audit, type Report } from "./index.ts";
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
@@ -111,7 +111,7 @@ async function main(argv: string[]): Promise<number> {
         return 0;
     }
     if (values.version) {
-        console.log(createRequire(import.meta.url)("../package.json").version);
+        console.log(VERSION);
         return 0;
     }
     const [command, ...seeds] = positionals;

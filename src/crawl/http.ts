@@ -5,6 +5,7 @@
 import { CheerioCrawler, Configuration, type RequestTransform } from "crawlee";
 import type { Readable } from "node:stream";
 import picomatch from "picomatch";
+import { USER_AGENT } from "../agent.ts";
 import type { Config } from "../config/index.ts";
 import { capped, isParsed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
@@ -85,9 +86,10 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
             additionalMimeTypes: ["*/*"],
             maxRequestsPerCrawl: config.maxPages || undefined,
             maxCrawlDepth: config.maxDepth || undefined,
-            respectRobotsTxtFile: config.robots,
+            respectRobotsTxtFile: config.robots && { userAgent: "spiderlint" },
             preNavigationHooks: [
                 (_context, gotOptions) => {
+                    Object.assign(gotOptions, { headers: { ...gotOptions.headers, "user-agent": USER_AGENT } });
                     if (config.keepalive) return;
                     Object.assign(gotOptions, { http2: false, headers: { ...gotOptions.headers, connection: "close" } });
                 },
