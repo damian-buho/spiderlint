@@ -6,7 +6,7 @@
 import { parseArgs } from "node:util";
 import { createRequire } from "node:module";
 import { audit, type Report } from "./index.ts";
-import { overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
+import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { resolveDefaultTargets } from "./config/targets.ts";
@@ -73,7 +73,7 @@ function flagSettings(values: Record<string, unknown>): Settings {
     };
 }
 
-// Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched.
+// Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched, 4 the run failed.
 async function main(argv: string[]): Promise<number> {
     const { values, positionals } = parseArgs({
         args: argv,
@@ -136,8 +136,9 @@ async function main(argv: string[]): Promise<number> {
         else console.log(format(report));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     } catch (error) {
-        log.error({ error: error instanceof Error ? error.message : String(error) }, "audit aborted");
-        return 2;
+        const isConfig = error instanceof ConfigError;
+        log.error({ error: error instanceof Error ? error.message : String(error), isConfig }, "audit aborted");
+        return isConfig ? 2 : 4;
     }
 }
 
