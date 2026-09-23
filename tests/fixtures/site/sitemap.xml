@@ -6,9 +6,8 @@ SPDX-License-Identifier: MIT
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>http://fixture.test/</loc></url>
-  <url><loc>http://fixture.test/about</loc></url>
   <url><loc>http://fixture.test/app/</loc></url>
-  <url><loc>http://fixture.test/orphan</loc></url>
+  <url><loc>http://fixture.test/orphan</loc><lastmod>2026-09-01</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>
   <url><loc>http://fixture.test/posts/1</loc></url>
   <url><loc>http://fixture.test/posts/2</loc></url>
   <url><loc>http://fixture.test/posts/3</loc></url>

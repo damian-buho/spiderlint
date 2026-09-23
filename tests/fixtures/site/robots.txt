@@ -5,3 +5,4 @@ User-agent: *
 Disallow: /private/
 Sitemap: http://fixture.test/sitemap-broken.xml
 Sitemap: http://fixture.test/sitemap.xml
+Sitemap: http://fixture.test/sitemap-extra.xml.gz

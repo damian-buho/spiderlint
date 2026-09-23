@@ -40,10 +40,12 @@ describe("audit", () => {
         const orphan = report.pages.find((page) => page.url.pathname === "/orphan");
         assert.equal(orphan?.crawl.depth, 0);
         assert.equal(orphan?.crawl.discoveredVia, "sitemap");
-        assert.deepEqual(orphan?.sitemap, { listed: true });
+        assert.deepEqual(orphan?.sitemap, { listed: true, lastmod: "2026-09-01T00:00:00.000Z", changefreq: "monthly", priority: 0.3 });
         const home = report.pages.find((page) => page.url.pathname === "/");
         assert.equal(home?.crawl.discoveredVia, "seed");
         assert.deepEqual(home?.sitemap, { listed: true });
+        const about = report.pages.find((page) => page.url.pathname === "/about");
+        assert.deepEqual(about?.sitemap, { listed: true, lastmod: "2026-08-15T00:00:00.000Z" }, "listed only in the gzipped sitemap");
         const duplicate = report.pages.find((page) => page.url.pathname === "/duplicate");
         assert.deepEqual(duplicate?.sitemap, { listed: false });
     });
