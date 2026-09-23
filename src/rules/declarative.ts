@@ -113,7 +113,7 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
 
 // A built-in page rule honours `when` as a declarative one does.
 function guarded(rule: Rule, isSkipped: Guard): Rule {
-    return isPageRule(rule) ? { ...rule, check: (page) => (isSkipped(page) ? undefined : rule.check(page)) } : rule;
+    return isPageRule(rule) ? { ...rule, check: (page: Facts) => (isSkipped(page) ? undefined : rule.check(page)) } : rule;
 }
 
 // `fact` + `expect` is a page rule, `unique` an aggregate, a bare ID a built-in; else a config error.

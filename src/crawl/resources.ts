@@ -8,6 +8,7 @@ import { USER_AGENT } from "../agent.ts";
 import type { Config } from "../config/index.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
+import type { ResourceResults } from "../store/disk.ts";
 import { log } from "../logger.ts";
 
 type ResourceHttp = NonNullable<ResourceFacts["http"]>;
@@ -68,12 +69,18 @@ async function fetchOne(url: string, max: number): Promise<ResourceHttp> {
     return { status: 0, headers: {}, size: { body: 0 }, timing: {}, error: failure };
 }
 
-// GETs every distinct resource URL once and hangs the shared result off each page entry that names it.
-export async function fetchResources(pages: Facts[], config: Config): Promise<void> {
+// Hangs each fetched result off every page entry that names its URL.
+export function attachResources(pages: Facts[], results: ResourceResults): void {
+    const entries = pages.flatMap((page) => page.resources ?? []);
+    for (const entry of entries) entry.http = results[entry.url];
+}
+
+// GETs every distinct resource URL the pages name, once each.
+export async function fetchResources(pages: Facts[], config: Config): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
     log.info({ resources: urls.length, references: entries.length, fetch: config.fetchResources }, "resources found");
-    if (!config.fetchResources || urls.length === 0) return;
+    if (!config.fetchResources || urls.length === 0) return {};
     const results = new Map<string, ResourceHttp>();
     const queue = urls.values();
     const worker = async () => {
@@ -81,7 +88,7 @@ export async function fetchResources(pages: Facts[], config: Config): Promise<vo
     };
     const workers = Array.from({ length: Math.min(width(), urls.length) }, worker);
     await Promise.all(workers);
-    for (const entry of entries) entry.http = results.get(entry.url);
     const failed = results.values().filter((result) => result.status === 0).toArray().length;
     log.info({ resources: urls.length, failed }, "resources fetched");
+    return Object.fromEntries(results);
 }

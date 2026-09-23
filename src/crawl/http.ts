@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { CheerioCrawler, Configuration, type RequestTransform } from "crawlee";
+import { CheerioCrawler, Configuration, type RequestQueue, type RequestTransform } from "crawlee";
 import type { Readable } from "node:stream";
 import picomatch from "picomatch";
 import { USER_AGENT } from "../agent.ts";
@@ -17,7 +17,13 @@ import { bridgeCrawleeLog } from "./log.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
 import { loadSitemap, type SitemapIndex } from "./sitemap.ts";
 
-export type OnPage = (facts: Facts) => Promise<void> | void;
+export type OnPage = (facts: Facts, body: string) => Promise<void> | void;
+
+// Persistent crawl state a store lends the crawler; absent, everything stays in memory.
+export interface CrawlStorage {
+    config: Configuration;
+    requestQueue: RequestQueue;
+}
 
 // Only these document types carry html.* facts and links to follow.
 const HTML = new Set(["text/html", "application/xhtml+xml"]);
@@ -71,7 +77,7 @@ function socketOf(source: unknown): Transport["socket"] {
 }
 
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
+export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlStorage): Promise<void> {
     bridgeCrawleeLog();
     const sitemap: SitemapIndex = config.sitemap ? await loadSitemap(config.seeds) : new Map();
     const seeds = new Set(config.seeds);
@@ -84,6 +90,7 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
     const crawler = new CheerioCrawler(
         {
             additionalMimeTypes: ["*/*"],
+            ...(storage && { requestQueue: storage.requestQueue }),
             maxRequestsPerCrawl: config.maxPages || undefined,
             maxCrawlDepth: config.maxDepth || undefined,
             respectRobotsTxtFile: config.robots && { userAgent: "spiderlint" },
@@ -152,13 +159,13 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                     ...(isHtml && { html: extractHtml($, url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
                 };
                 log.debug({ url: url.href, status: facts.http.status, type: contentType.type, bytes: facts.http.size.body, depth: facts.crawl.depth }, "page fetched");
-                await onPage(facts);
+                await onPage(facts, body.toString());
                 if (!isHtml) return;
                 const { processedRequests } = await enqueueLinks({ strategy: STRATEGY[config.scope], transformRequestFunction });
                 log.debug({ url: url.href, enqueued: processedRequests.filter((entry) => !entry.wasAlreadyPresent).length }, "links enqueued");
             },
         },
-        new Configuration({ persistStorage: false }),
+        storage?.config ?? new Configuration({ persistStorage: false }),
     );
     await crawler.run(config.seeds);
     const stragglers = sitemapStragglers(config, sitemap, visited);

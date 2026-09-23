@@ -278,9 +278,9 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
-- Crawlee storage under `.spiderlint/` (`CRAWLEE_STORAGE_DIR`): `Dataset` holds one facts record per page, `KeyValueStore` holds bodies keyed by URL hash, `RequestQueue` holds the frontier so `--resume` continues a killed run.
-- Facts are always kept; bodies only with `--store`. So `report` works after a stream run, and only re-extraction needs bodies.
-- `manifest.json`: tool version, seeds, config hash, started, finished. A config hash mismatch on `lint --store` warns.
+- Crawlee storage under `--store DIR`: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
+- A run without `--store` writes nothing to disk. Groups, referrers and resource results are re-derived on every `lint --store`, so a changed group config needs no re-crawl; `report --store` re-formats the last stored report.
+- `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint --store` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
 - Authorization, cookie and proxy-auth headers are redacted before anything is written.
 - `.spiderlint/` is in the generated `.gitignore`.

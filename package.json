@@ -23,6 +23,7 @@
     "crawlee": "3.18.1",
     "picomatch": "4.0.7",
     "pino": "10.3.1",
+    "proper-lockfile": "4.1.2",
     "tldts": "7.4.13",
     "yaml": "2.9.1"
   },
@@ -30,6 +31,7 @@
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.1",
     "@types/picomatch": "4.0.3",
+    "@types/proper-lockfile": "4.1.4",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-import-x": "4.17.1",

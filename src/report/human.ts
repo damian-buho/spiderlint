@@ -35,7 +35,7 @@ export function formatHuman(report: Report): string {
         groups.set(key, [...(groups.get(key) ?? []), finding]);
     }
     for (const [group, findings] of groups) {
-        const pages = report.pages.filter((page) => page.group === group).length;
+        const pages = report.summary.groups[group] ?? 0;
         out.push(group === "site" ? "site" : `${group} (${pages} pages)`);
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
         for (const finding of findings) out.push(...line(finding));

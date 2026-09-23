@@ -36,7 +36,7 @@ const frameOptions: Make = (severity) => ({
         const options = header(page, "x-frame-options").trim();
         const isDenied = hasAncestors || /^(?:deny|sameorigin)$/i.test(options);
         log.debug({ rule: "http/frame-options", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
-        return isDenied ? [] : [{ rule: "http/frame-options", severity, scope: "page", url: page.url.href, group: page.group, message: `neither content-security-policy frame-ancestors nor x-frame-options refuses framing (x-frame-options: ${options || "absent"})`, value: options || undefined }];
+        return isDenied ? [] : [{ rule: "http/frame-options", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `neither content-security-policy frame-ancestors nor x-frame-options refuses framing (x-frame-options: ${options || "absent"})`, value: options || undefined }];
     },
 });
 
@@ -58,7 +58,7 @@ function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string 
             const target = resolve(raw, page.url.href);
             const here = resolve(page.url.href, page.url.href);
             log.debug({ rule: id, url: page.url.href, target, matches: target === here }, "self reference checked");
-            return target === here ? [] : [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, message: `${fact} names ${target}, not this page`, value: raw }];
+            return target === here ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${fact} names ${target}, not this page`, value: raw }];
         },
     });
 }

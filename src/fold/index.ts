@@ -18,8 +18,9 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         const key = cell(finding.group as string, finding.rule);
         byCell.set(key, [...(byCell.get(key) ?? []), finding]);
     }
-    for (const [key, findings] of byCell) {
+    for (const [key, unordered] of byCell) {
         const [group, rule] = key.split("\t") as [string, string];
+        const findings = unordered.toSorted((a, b) => a.url.localeCompare(b.url));
         const failed = new Set(findings.map((finding) => finding.url)).size;
         const applicable = run.applicable.get(key) ?? failed;
         const ratio = failed / applicable;

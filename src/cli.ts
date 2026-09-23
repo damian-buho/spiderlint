@@ -5,7 +5,8 @@
 
 import { parseArgs } from "node:util";
 import { VERSION } from "./agent.ts";
-import { audit, type Report } from "./index.ts";
+import { cacheStatus } from "./cache/status.ts";
+import { audit, crawl, lintStore, reportStore, type Report } from "./index.ts";
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
@@ -17,16 +18,21 @@ import { formatSarif } from "./report/sarif.ts";
 import { log } from "./logger.ts";
 
 const USAGE = [
-    "usage: spiderlint audit  [url…] [options]   crawl and lint",
+    "usage: spiderlint audit  [url…] [--store DIR] [options]   crawl and lint",
+    "       spiderlint crawl  [url…]  --store DIR  [options]   crawl into a store, lint nothing",
+    "       spiderlint lint           --store DIR  [options]   rules over stored facts, no network",
+    "       spiderlint report         --store DIR  [options]   re-format the stored report",
     "       spiderlint facts  <url>   [options]   one page’s facts document as JSON",
     "       spiderlint groups [url…] [options]   page count per group",
+    "       spiderlint cache status  [--store DIR]   entries, bytes and age per bucket (default .spiderlint)",
     "options: --config PATH  --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
-    "         --format human|json|sarif  --fail-on error|warning|info|never",
+    "         --format human|json|sarif  --fail-on error|warning|info|never  --resume",
     "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",
     "with no url, audits the projectfile’s homepage and documentation links",
 ].join("\n");
 
+const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
 const FORMATTERS = { human: formatHuman, json: formatJson, sarif: formatSarif };
 
@@ -86,6 +92,8 @@ async function main(argv: string[]): Promise<number> {
             help: { type: "boolean", short: "h" },
             version: { type: "boolean", short: "V" },
             config: { type: "string" },
+            store: { type: "string" },
+            resume: { type: "boolean" },
             fetch: { type: "string" },
             scope: { type: "string" },
             "max-pages": { type: "string" },
@@ -114,12 +122,19 @@ async function main(argv: string[]): Promise<number> {
         console.log(VERSION);
         return 0;
     }
-    const [command, ...seeds] = positionals;
-    if (!["audit", "facts", "groups"].includes(command ?? "") || (command === "facts" && seeds.length === 0)) {
+    const [command = "", ...seeds] = positionals;
+    const store = values.store;
+    const isStored = ["crawl", "lint", "report"].includes(command);
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && seeds[0] !== "status")) {
         console.error(USAGE);
         return 2;
     }
     try {
+        if (command === "cache") {
+            const buckets = await cacheStatus(store ?? ".spiderlint");
+            for (const bucket of buckets) console.log(`${bucket.bucket.padEnd(9)} ${String(bucket.entries).padStart(7)} entries ${String(bucket.bytes).padStart(11)} bytes  ${bucket.oldest} … ${bucket.newest}`);
+            return 0;
+        }
         const { settings: fileSettings, document } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
@@ -128,15 +143,27 @@ async function main(argv: string[]): Promise<number> {
         else if (document !== undefined && config.seeds.length === 0) config.seeds = resolveDefaultTargets(document);
         const format = FORMATTERS[config.format];
         const failOn = RANK[config.failOn];
-        if (!format || failOn === undefined || (command !== "facts" && config.seeds.length === 0)) {
+        const requiresSeeds = ["audit", "crawl", "groups"].includes(command);
+        if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0)) {
             console.error(USAGE);
             return 2;
         }
+        if (command === "crawl") {
+            const pages = await crawl(config, store as string, values.resume === true);
+            console.log(`${pages.length} pages stored in ${store}`);
+            return pages.length === 0 ? 3 : 0;
+        }
+        if (command === "lint" || command === "report") {
+            const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
+            console.log(format(stored));
+            return exitCode(stored, config.failOn);
+        }
+        const options = command === "audit" ? { store, resume: values.resume === true } : {};
         const report = await audit({
             ...config,
             maxPages: command === "facts" ? 1 : config.maxPages,
             groups: command === "facts" ? { default: { rules: [] } } : config.groups,
-        });
+        }, options);
         if (command === "facts") console.log(JSON.stringify(report.pages[0], undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
         else console.log(format(report));

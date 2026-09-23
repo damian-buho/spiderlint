@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import { defaults, type Config, type GroupConfig } from "./config/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import { crawlHttp } from "./crawl/http.ts";
-import { fetchResources } from "./crawl/resources.ts";
+import { attachResources, fetchResources } from "./crawl/resources.ts";
 import type { Facts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
@@ -13,6 +14,7 @@ import { log } from "./logger.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
+import { DiskStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 
 export interface Summary {
@@ -38,9 +40,10 @@ function groupsOf(config: Config): Record<string, Required<Pick<GroupConfig, "ru
     return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: group.rules ?? ["recommended"] }]));
 }
 
-// A page's referrers are the stored pages linking to it.
+// A page's referrers are the stored pages linking to it; recomputed from scratch on every lint.
 function referrers(pages: Facts[]): void {
     const byHref = new Map(pages.map((page) => [page.url.href, page]));
+    for (const page of pages) page.crawl.referrers = [];
     for (const page of pages) {
         const internal = page.html?.links.internal ?? [];
         for (const href of internal) byHref.get(href)?.crawl.referrers.push(page.url.href);
@@ -76,26 +79,107 @@ function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void 
     }
 }
 
-// crawl → facts → group → rules → fold; stream mode with an in-memory store.
-export async function audit(overrides: Partial<Config>): Promise<Report> {
-    const started = new Date();
-    const config: Config = { ...defaults(), ...overrides };
+// What a crawl fetched with; a re-lint against a store crawled otherwise warns.
+function crawlHash(config: Config): string {
+    const { fetch, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
+    const shape = { fetch, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
+    return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
+}
+
+type Lint = (pages: Facts[], started: Date) => Report;
+
+// Compiles groups and rules up front, so a config error fails before the first request.
+function linter(config: Config): Lint {
     const groups = groupsOf(config);
     const matchers = compileGroups(groups);
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     warnUnknown(config, groups);
-    const store = new MemoryStore();
+    return (pages, started) => {
+        for (const page of pages) page.group = assignGroup(page, matchers);
+        referrers(pages);
+        const findings = fold(runRules(pages, rulesByGroup), config.fold);
+        const summary = summarize(pages, findings, started);
+        log.info(summary, "lint done");
+        return { pages, findings, summary };
+    };
+}
+
+// Fetches pages and their resources; a store also keeps facts, bodies, resource results and the frontier.
+async function crawlPages(config: Config, store?: DiskStore): Promise<Facts[]> {
+    const memory = new MemoryStore();
+    const earlier = store ? await store.pages() : [];
+    for (const facts of earlier) memory.add(facts);
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
-    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, groups: Object.keys(groups) }, "audit start");
-    await crawl(config, (facts) => {
-        facts.group = assignGroup(facts, matchers);
-        store.add(facts);
+    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
+    await crawl(
+        config,
+        async (facts, body) => {
+            if (memory.add(facts)) await store?.add(facts, body);
+        },
+        store && { config: store.config, requestQueue: store.frontier },
+    );
+    const results = await fetchResources(memory.pages, config);
+    await store?.saveResources(results);
+    attachResources(memory.pages, results);
+    return memory.pages;
+}
+
+// Runs `work` against a locked store, stamping it finished only when `work` succeeds.
+async function withStore<T>(directory: string, mode: Parameters<typeof DiskStore.open>[1], work: (store: DiskStore) => Promise<T>): Promise<T> {
+    const store = await DiskStore.open(directory, mode);
+    let isFinished = false;
+    try {
+        const result = await work(store);
+        isFinished = true;
+        return result;
+    } finally {
+        await store.close(isFinished);
+    }
+}
+
+export interface StoreOptions {
+    store?: string;
+    resume?: boolean;
+}
+
+// crawl → facts → group → rules → fold; `store` keeps everything on disk for `lint` and `report`.
+export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
+    const started = new Date();
+    const config: Config = { ...defaults(), ...overrides };
+    const lint = linter(config);
+    const persist = async (store: DiskStore) => {
+        const report = lint(await crawlPages(config, store), started);
+        await store.saveReport({ findings: report.findings, summary: report.summary });
+        return report;
+    };
+    return options.store ? withStore(options.store, { fresh: !options.resume, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config), started);
+}
+
+// Accumulate only: fetch into `directory` and lint nothing.
+export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
+    const config: Config = { ...defaults(), ...overrides };
+    return withStore(directory, { fresh: !isResumed, seeds: config.seeds, configHash: crawlHash(config) }, (store) => crawlPages(config, store));
+}
+
+// Rules over stored facts with no network; the report is stored for `report`.
+export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
+    const started = new Date();
+    const config: Config = { ...defaults(), ...overrides };
+    const lint = linter(config);
+    return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
+        const pages = await store.pages();
+        attachResources(pages, await store.resources());
+        const report = lint(pages, started);
+        await store.saveReport({ findings: report.findings, summary: report.summary });
+        return report;
     });
-    referrers(store.pages);
-    await fetchResources(store.pages, config);
-    const findings = fold(runRules(store.pages, rulesByGroup), config.fold);
-    const summary = summarize(store.pages, findings, started);
-    log.info(summary, "audit done");
-    return { pages: store.pages, findings, summary };
+}
+
+// The last stored report, with the stored facts, for re-formatting.
+export async function reportStore(directory: string): Promise<Report> {
+    return withStore(directory, { fresh: false }, async (store) => {
+        const stored = await store.report();
+        return { pages: await store.pages(), findings: stored.findings, summary: stored.summary };
+    });
 }
