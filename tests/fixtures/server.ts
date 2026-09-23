@@ -17,6 +17,9 @@ const SITE = new URL("site/", import.meta.url);
 const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml" };
 
 
+// Size of `/big.bin`, a binary no crawl should download.
+const BIG = 50_000_000;
+
 // Response headers a page sends beyond content-type.
 const HEADERS: Record<string, Record<string, string>> = {
     "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'" },
@@ -47,6 +50,11 @@ export async function serveFixture(): Promise<Fixture> {
     const server: Server = createServer(async (request, response) => {
         const pathname = new URL(request.url ?? "/", "http://fixture").pathname;
         requested.push(pathname);
+        if (pathname === "/big.bin") {
+            response.writeHead(200, { "content-type": "application/octet-stream", "content-length": BIG });
+            response.end(Buffer.alloc(BIG));
+            return;
+        }
         const isGzip = pathname.endsWith(".gz");
         const found = await body(isGzip ? pathname.slice(0, -3) : pathname, `http://${request.headers.host}`);
         if (!found) {

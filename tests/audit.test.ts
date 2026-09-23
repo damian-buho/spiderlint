@@ -205,6 +205,25 @@ describe("audit options", () => {
         assert.ok(!framed.includes("/about") && !framed.includes("/posts/1"));
     });
 
+    it("judges a binary by its headers without downloading it", async () => {
+        const report = await audit({ seeds: [`${site.origin}/big.bin`], maxPages: 1 });
+        const size = report.pages[0]?.http.size;
+        assert.equal(size?.declared, 50_000_000);
+        assert.equal(size?.decoded, 0);
+        assert.equal(size?.truncated, true);
+        assert.ok((size?.body ?? 0) < 50_000_000, `received ${size?.body} bytes`);
+    });
+
+    it("truncates a parsed body at --max-body-size", async () => {
+        const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, maxBodySize: 200 });
+        const size = report.pages[0]?.http.size;
+        assert.equal(size?.decoded, 200);
+        assert.equal(size?.truncated, true);
+        const whole = await audit({ seeds: [`${site.origin}/about`], maxPages: 1 });
+        assert.equal(whole.pages[0]?.http.size.truncated, undefined);
+        assert.equal(whole.pages[0]?.http.size.decoded, whole.pages[0]?.http.size.body);
+    });
+
     it("stops at --max-pages", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1 });
         assert.equal(report.pages.length, 1);

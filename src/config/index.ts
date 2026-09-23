@@ -27,6 +27,7 @@ export interface Config {
     scope: Scope;
     maxPages: number;
     maxDepth: number;
+    maxBodySize: number;
     include: string[];
     exclude: string[];
     robots: boolean;
@@ -47,6 +48,7 @@ export function defaults(): Config {
         scope: "origin",
         maxPages: 0,
         maxDepth: 0,
+        maxBodySize: 10_000_000,
         include: [],
         exclude: [],
         robots: true,

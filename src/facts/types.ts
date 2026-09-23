@@ -27,7 +27,7 @@ export interface SitemapFacts {
 export interface HttpFacts {
     status: number;
     headers: Record<string, string | string[]>;
-    size: { body: number };
+    size: { body: number; decoded: number; declared?: number; truncated?: true };
     contentType: string;
     charset?: string;
 }

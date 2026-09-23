@@ -37,6 +37,7 @@ const schema = {
         rate: { type: "integer", minimum: 0 },
         "max-pages": { type: "integer", minimum: 0 },
         "max-depth": { type: "integer", minimum: 0 },
+        "max-body-size": { type: "integer", minimum: 0 },
         include: { type: "array", items: { type: "string" } },
         exclude: { type: "array", items: { type: "string" } },
         resources: {

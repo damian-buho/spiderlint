@@ -46,6 +46,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),
         ...(environment.SPIDERLINT_MAX_PAGES !== undefined && { maxPages: parseInteger("SPIDERLINT_MAX_PAGES", environment.SPIDERLINT_MAX_PAGES) }),
         ...(environment.SPIDERLINT_MAX_DEPTH !== undefined && { maxDepth: parseInteger("SPIDERLINT_MAX_DEPTH", environment.SPIDERLINT_MAX_DEPTH) }),
+        ...(environment.SPIDERLINT_MAX_BODY_SIZE !== undefined && { maxBodySize: parseInteger("SPIDERLINT_MAX_BODY_SIZE", environment.SPIDERLINT_MAX_BODY_SIZE) }),
         ...(environment.SPIDERLINT_INCLUDE !== undefined && { include: list(environment.SPIDERLINT_INCLUDE) }),
         ...(environment.SPIDERLINT_EXCLUDE !== undefined && { exclude: list(environment.SPIDERLINT_EXCLUDE) }),
         ...(environment.SPIDERLINT_ROBOTS !== undefined && { robots: isTruthy("SPIDERLINT_ROBOTS", environment.SPIDERLINT_ROBOTS) }),

@@ -90,6 +90,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 - Off-scope LINKS (`<a href>`) are recorded as facts and probed with `HEAD` by `links/*` rules for existence only.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
 - Limits: `--max-pages` (`maxRequestsPerCrawl`), `--max-depth` (`maxCrawlDepth`), `--include` / `--exclude` globs applied before enqueue.
+- Bodies: HTML, XML and JSON are read up to `--max-body-size` (10 MB); any other type is judged by its headers and its download aborted once they arrive — one round trip, where `HEAD` then `GET` would cost two. `http.size.truncated` marks both.
 - `rel=nofollow` and `<meta name=robots content=nofollow>` are facts, not crawl barriers — the owner audits their own site.
 
 ## Fetch
@@ -151,7 +152,7 @@ sitemap:  { listed, lastmod, changefreq, priority }
 http:     { status, version, method, redirects: [{ url, status }],
             headers: { name: value | [value] }, remote: { address, family },
             timing: { dns, tcp, tls, ttfb, download, total },
-            size: { header, body, decoded }, contentType, charset,
+            size: { body, decoded, declared, truncated }, contentType, charset,
             cookies: [{ name, secure, httpOnly, sameSite }] }
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
             cert: { subject, issuer, notBefore, notAfter, daysLeft, san: [], fingerprint256 } }

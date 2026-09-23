@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 import { CheerioCrawler, Configuration, type RequestTransform } from "crawlee";
+import type { Readable } from "node:stream";
 import picomatch from "picomatch";
 import type { Config } from "../config/index.ts";
+import { capped, isParsed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
 import type { Facts, SitemapFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -54,6 +56,11 @@ function sitemapStragglers(config: Config, index: SitemapIndex, visited: Set<str
     return extra;
 }
 
+// Wire bytes received so far, from got's progress on the original response stream.
+function transferred(source: unknown): number | undefined {
+    return (source as { downloadProgress?: { transferred?: number } }).downloadProgress?.transferred;
+}
+
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
 export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
     bridgeCrawleeLog();
@@ -64,12 +71,24 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     let handled = 0;
     const transformRequestFunction = filter(config, skipped);
+    const bodies = new WeakMap<object, Capped & { source: unknown }>();
     const crawler = new CheerioCrawler(
         {
             additionalMimeTypes: ["*/*"],
             maxRequestsPerCrawl: config.maxPages || undefined,
             maxCrawlDepth: config.maxDepth || undefined,
             respectRobotsTxtFile: config.robots,
+            postNavigationHooks: [
+                (context) => {
+                    const source = context.response as unknown as Readable & { headers: Record<string, string | undefined> };
+                    const contentType = source.headers["content-type"];
+                    const max = isParsed(contentType) ? config.maxBodySize : 0;
+                    const cap = capped(source, max);
+                    log.debug({ url: context.request.url, contentType, max }, "body capped");
+                    bodies.set(context.request, { ...cap, source });
+                    Object.assign(context, { response: cap.stream });
+                },
+            ],
             onSkippedRequest({ url, reason }) {
                 log[skipped.has(url) ? "debug" : "info"]({ url, reason }, "link skipped");
                 skipped.add(url);
@@ -84,6 +103,9 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                 const url = new URL(request.loadedUrl ?? request.url);
                 visited.add(url.href);
                 const isHtml = HTML.has(contentType.type);
+                const cap = bodies.get(request);
+                const decoded = Buffer.byteLength(body);
+                const declared = Number(response.headers["content-length"]);
                 const listing: SitemapFacts | undefined = sitemap.get(request.url);
                 const facts: Facts = {
                     url: { href: url.href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: url.search },
@@ -93,7 +115,12 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                     http: {
                         status: response.statusCode ?? 0,
                         headers: response.headers as Record<string, string | string[]>,
-                        size: { body: Buffer.byteLength(body) },
+                        size: {
+                            body: transferred(cap?.source) ?? decoded,
+                            decoded,
+                            ...(Number.isSafeInteger(declared) && { declared }),
+                            ...(cap?.isTruncated() && { truncated: true as const }),
+                        },
                         contentType: contentType.type,
                         ...(contentType.encoding && { charset: contentType.encoding }),
                     },
