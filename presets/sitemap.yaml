@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+when:
+  http.status: {minimum: 200, maximum: 299}
+rules:
+  sitemap/orphan:
+    fact: crawl.referrers
+    expect: {type: array, minItems: 1}
+    when: {crawl.discoveredVia: sitemap}
+    severity: warning
+    docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
+  sitemap/unlisted:
+    fact: sitemap.listed
+    expect: {const: true}
+    when: {html: {type: object}}
+    severity: info
+    docs: https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview

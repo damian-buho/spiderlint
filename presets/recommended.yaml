@@ -9,5 +9,6 @@ extends:
   - spiderlint:tls
   - spiderlint:cookies
   - spiderlint:redirects
+  - spiderlint:sitemap
 rules:
   http/consistent-origin: info

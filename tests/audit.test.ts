@@ -262,6 +262,13 @@ describe("audit options", () => {
         assert.deepEqual(report.findings, []);
     });
 
+    it("reports a sitemap page nothing links to, and a linked page no sitemap lists", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], groups: { default: { rules: ["sitemap"] } }, fold: false });
+        const paths = (rule: string) => report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
+        assert.deepEqual(paths("sitemap/orphan"), ["/orphan"]);
+        assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
+    });
+
     it("stops at --max-pages", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1 });
         assert.equal(report.pages.length, 1);
