@@ -7,6 +7,39 @@ SPDX-License-Identifier: MIT
 
 # Features
 
+## Project Features
+
+### One finding per template, not per page
+
+- Pages are grouped by URL pattern, so a defect every post shares is reported once for the post template, with sample pages.
+- A group whose pages disagree on a rule gets an advisory that it likely mixes two templates.
+- Values that must be unique across the site, such as titles and descriptions, are reported once per duplicate with every URL that shares it.
+- Results come as text, JSON or SARIF, so code-scanning views show one row per defect.
+
+### Page dependencies fetched once
+
+- Scripts, style sheets, images and frames the pages load are fetched once per run, whatever their origin.
+- A broken or insecure dependency is one finding listing the pages that use it, not one finding per page.
+- Cross-origin scripts without integrity hashes and plain-HTTP resources on HTTPS pages are reported.
+
+### Rules as data, with presets
+
+- A rule is a fact path plus a JSON Schema, so a new check needs no code.
+- Bundled presets cover SEO, security headers, TLS, cookies, redirects, sitemaps, links and page resources.
+- Each URL group runs its own rule sets, and any rule’s severity can be changed or switched off from the command line, the environment or the projectfile.
+
+### Crawl once, lint many times
+
+- A crawl can be kept on disk and linted again with changed rules or groups, with no network access.
+- An interrupted crawl resumes where it stopped.
+- Binary downloads are judged by their headers and never fetched in full, so a linked archive or video costs no bandwidth.
+
+### Transport checked per page, not per host
+
+- Certificate, TLS protocol and remote address are read from the connection that served each page, so two backends behind one name are reported instead of hidden.
+- Certificates close to expiry, rejected certificates and outdated TLS versions are findings.
+- Timings, redirect chains and cookie flags are recorded for every page, and cookie values never leave the crawler.
+
 ## Inherited from B19 / Ubuntu
 
 ### Persistent APT cache across builds

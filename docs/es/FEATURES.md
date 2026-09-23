@@ -9,6 +9,39 @@ SPDX-License-Identifier: MIT
 
 # Características
 
+## Características del proyecto
+
+### Un hallazgo por plantilla, no por página
+
+- Las páginas se agrupan por patrón de URL, así que un defecto que comparten todas las entradas se informa una sola vez para su plantilla, con páginas de ejemplo.
+- Un grupo cuyas páginas discrepan en una regla recibe un aviso de que probablemente mezcla dos plantillas.
+- Los valores que deben ser únicos en todo el sitio, como títulos y descripciones, se informan una vez por duplicado con todas las URL que lo comparten.
+- Los resultados salen en texto, JSON o SARIF, así que las vistas de análisis de código muestran una fila por defecto.
+
+### Dependencias de página descargadas una sola vez
+
+- Los scripts, hojas de estilo, imágenes y marcos que cargan las páginas se descargan una vez por ejecución, sea cual sea su origen.
+- Una dependencia rota o insegura es un solo hallazgo con la lista de páginas que la usan, no un hallazgo por página.
+- Se informan los scripts de otro origen sin hash de integridad y los recursos HTTP sin cifrar en páginas HTTPS.
+
+### Reglas como datos, con preajustes
+
+- Una regla es una ruta de hecho más un JSON Schema, así que una comprobación nueva no requiere código.
+- Los preajustes incluidos cubren SEO, cabeceras de seguridad, TLS, cookies, redirecciones, sitemaps, enlaces y recursos de página.
+- Cada grupo de URL ejecuta sus propios conjuntos de reglas, y la severidad de cualquier regla se puede cambiar o desactivar desde la línea de órdenes, el entorno o el projectfile.
+
+### Rastrear una vez, analizar muchas
+
+- Un rastreo se puede guardar en disco y analizar de nuevo con reglas o grupos cambiados, sin acceso a la red.
+- Un rastreo interrumpido se reanuda donde se detuvo.
+- Las descargas binarias se juzgan por sus cabeceras y nunca se descargan completas, así que un archivo comprimido o un vídeo enlazado no consume ancho de banda.
+
+### Transporte comprobado por página, no por host
+
+- El certificado, el protocolo TLS y la dirección remota se leen de la conexión que sirvió cada página, así que dos backends tras un mismo nombre se informan en lugar de quedar ocultos.
+- Los certificados a punto de caducar, los certificados rechazados y las versiones de TLS obsoletas son hallazgos.
+- Los tiempos, las cadenas de redirección y los atributos de las cookies se registran para cada página, y los valores de las cookies nunca salen del rastreador.
+
 ## Heredado de B19 / Ubuntu
 
 ### Caché APT persistente entre compilaciones
