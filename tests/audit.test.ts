@@ -127,6 +127,17 @@ describe("audit", () => {
         assert.match(description?.message ?? "", /html\.meta\.description must match pattern/);
     });
 
+    it("reports a canonical or og:url naming another page", () => {
+        const [canonical, ...restCanonical] = of("html/canonical-self");
+        assert.equal(restCanonical.length, 0);
+        assert.equal(canonical?.url, `${site.origin}/about`);
+        assert.equal(canonical?.message, `html.canonical names ${site.origin}/about/, not this page`);
+        const [ogUrl, ...restOgUrl] = of("html/og-url-self");
+        assert.equal(restOgUrl.length, 0);
+        assert.equal(ogUrl?.url, `${site.origin}/orphan`);
+        assert.equal(ogUrl?.severity, "info");
+    });
+
     it("reports a value shared by two pages once, listing both", () => {
         for (const rule of ["html/unique-title", "html/unique-description", "html/unique-og-title", "html/unique-og-description"]) {
             const [finding, ...rest] = of(rule);

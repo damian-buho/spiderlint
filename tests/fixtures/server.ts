@@ -15,8 +15,6 @@ export interface Fixture {
 const SITE = new URL("site/", import.meta.url);
 const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml" };
 
-// `robots.txt` and `sitemap.xml` name the site under the placeholder `fixture.test`, rewritten to the real origin so their URLs are fetchable.
-const REWRITTEN = new Set(["robots.txt", "sitemap.xml"]);
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
 async function body(pathname: string, origin: string): Promise<[string, Buffer] | undefined> {
@@ -26,10 +24,9 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
         try {
             const type = TYPES[candidate.split(".").pop() as string] ?? "application/octet-stream";
             const raw = await readFile(new URL(candidate.slice(1), SITE));
-            if (!REWRITTEN.has(candidate.slice(1))) return [type, raw];
             // eslint-disable-next-line unicorn/prefer-https -- fixture.test mirrors the plain-http origin the fixture server runs on
             const placeholder = "http://fixture.test";
-            return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin))];
+            return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin))]; // Every file names the site as `fixture.test`; the real origin replaces it.
         } catch {
             continue;
         }
@@ -46,7 +43,7 @@ export async function serveFixture(): Promise<Fixture> {
         const found = await body(pathname, `http://${request.headers.host}`);
         if (!found) {
             response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
-            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title></head><body><h1>Not found</h1></body></html>");
+            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");
             return;
         }
         response.writeHead(200, { "content-type": found[0] });

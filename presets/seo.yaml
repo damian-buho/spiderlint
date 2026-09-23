@@ -39,6 +39,8 @@ rules:
     expect: {type: string, pattern: "^https?://"}
     severity: warning
     docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+  html/canonical-self: warning
+  html/og-url-self: info
   html/img-alt:
     fact: html.images
     expect: {type: array, items: {required: [alt]}}
