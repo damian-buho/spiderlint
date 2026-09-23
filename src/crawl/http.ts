@@ -8,6 +8,7 @@ import picomatch from "picomatch";
 import type { Config } from "../config/index.ts";
 import { capped, isParsed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
+import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts, SitemapFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -146,7 +147,7 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                         ...(contentType.encoding && { charset: contentType.encoding }),
                     },
                     ...(cap?.tls && { tls: cap.tls }),
-                    ...(isHtml && { html: extractHtml($, url, config.scope) }),
+                    ...(isHtml && { html: extractHtml($, url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
                 };
                 log.debug({ url: url.href, status: facts.http.status, type: contentType.type, bytes: facts.http.size.body, depth: facts.crawl.depth }, "page fetched");
                 await onPage(facts);

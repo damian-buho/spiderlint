@@ -5,6 +5,7 @@
 import { defaults, type Config, type GroupConfig } from "./config/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import { crawlHttp } from "./crawl/http.ts";
+import { fetchResources } from "./crawl/resources.ts";
 import type { Facts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
@@ -92,6 +93,7 @@ export async function audit(overrides: Partial<Config>): Promise<Report> {
         store.add(facts);
     });
     referrers(store.pages);
+    await fetchResources(store.pages, config);
     const findings = fold(runRules(store.pages, rulesByGroup), config.fold);
     const summary = summarize(store.pages, findings, started);
     log.info(summary, "audit done");

@@ -64,6 +64,15 @@ export interface HtmlFacts {
     images: { src: string; alt?: string }[];
 }
 
+export interface ResourceFacts {
+    url: string;
+    kind: "script" | "style" | "image" | "font" | "iframe" | "preload";
+    origin: "same" | "cross";
+    integrity?: string;
+    crossorigin?: string;
+    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string };
+}
+
 export interface Facts {
     url: UrlFacts;
     group: string;
@@ -72,4 +81,5 @@ export interface Facts {
     http: HttpFacts;
     tls?: TlsFacts;
     html?: HtmlFacts;
+    resources?: ResourceFacts[];
 }

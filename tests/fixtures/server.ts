@@ -38,7 +38,10 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
             const raw = await readFile(new URL(candidate.slice(1), SITE));
             // eslint-disable-next-line unicorn/prefer-https -- fixture.test mirrors the plain-http origin the fixture server runs on
             const placeholder = "http://fixture.test";
-            return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin))]; // Every file names the site as `fixture.test`; the real origin replaces it.
+            const cdn = origin.replace("//127.0.0.1:", "//localhost:");
+            // eslint-disable-next-line unicorn/prefer-https -- the CDN placeholder mirrors the same plain-http server
+            const cdnPlaceholder = "http://fixture-cdn.test";
+            return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin).replaceAll(cdnPlaceholder, () => cdn))]; // `fixture.test` is the site, `fixture-cdn.test` the same server under another origin.
         } catch {
             continue;
         }

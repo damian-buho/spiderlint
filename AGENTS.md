@@ -247,7 +247,7 @@ Bundled presets (v1): `recommended`, `seo`, `security-headers`, `tls`,
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
 SameSite), `redirects` (chain length, http→https→www hops, mixed content).
 
-`resources` (in `recommended`): `resources/status` (a dependency that is
+`resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
 not `2xx`), `resources/cache-control` (a hashed or `immutable` asset without
 a long `max-age`), `resources/sri` (cross-origin script or style without
 `integrity`), `resources/mixed-content` (`http:` on an `https:` page),

@@ -12,7 +12,7 @@ import { validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets">>;
+export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -53,6 +53,9 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     for (const [key, field] of KEYS) {
         if (subtree[key] !== undefined) (settings as Record<string, unknown>)[field] = subtree[key];
     }
+    const resources = subtree.resources as { fetch?: boolean; "max-per-page"?: number } | undefined;
+    if (resources?.fetch !== undefined) settings.fetchResources = resources.fetch;
+    if (resources?.["max-per-page"] !== undefined) settings.maxResourcesPerPage = resources["max-per-page"];
     if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
     return settings;
 }

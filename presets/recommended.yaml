@@ -10,5 +10,6 @@ extends:
   - spiderlint:cookies
   - spiderlint:redirects
   - spiderlint:sitemap
+  - spiderlint:resources
 rules:
   http/consistent-origin: info

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Facts, HtmlFacts } from "../facts/types.ts";
+import type { Facts, HtmlFacts, ResourceFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Rule, Severity } from "./types.ts";
 
@@ -94,11 +94,56 @@ const consistentOrigin: Make = (severity) => ({
     },
 });
 
+type Verdict = (resource: ResourceFacts, pages: number) => string | undefined;
+
+// A site rule keyed by resource URL: one finding per offending resource, its pages as `urls`.
+function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict): Make {
+    return (severity) => ({
+        meta: { id, severity, scope: "site", facts: ["resources"] },
+        check(pages: Facts[]) {
+            const usedBy = new Map<string, { resource: ResourceFacts; urls: string[] }>();
+            const uses = pages.flatMap((page) => (page.resources ?? []).filter((resource) => isUsed(page, resource)).map((resource) => ({ page, resource })));
+            for (const { page, resource } of uses) {
+                const entry = usedBy.get(resource.url) ?? { resource, urls: [] };
+                entry.urls.push(page.url.href);
+                usedBy.set(resource.url, entry);
+            }
+            const findings: Finding[] = [];
+            for (const [url, { resource, urls }] of usedBy) {
+                const message = verdict(resource, urls.length);
+                log.debug({ rule: id, resource: url, pages: urls.length, isFinding: message !== undefined }, "resource judged");
+                if (message) findings.push({ rule: id, severity, scope: "site", url, message, value: resource.http?.status, urls });
+            }
+            return findings;
+        },
+    });
+}
+
+const isAnyUse = () => true;
+
+// A fetched resource answering outside 2xx, or not at all.
+const resourceStatus: Verdict = (resource, pages) => {
+    const http = resource.http;
+    if (!http || (http.status >= 200 && http.status < 300)) return;
+    return http.status === 0 ? `${resource.kind} could not be fetched (${http.error}); used by ${pages} pages` : `${resource.kind} answers ${http.status}; used by ${pages} pages`;
+};
+
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
     "http/frame-options": frameOptions,
     "http/consistent-origin": consistentOrigin,
+    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus),
+    "resources/mixed-content": resourceRule(
+        "resources/mixed-content",
+        (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
+        (resource, pages) => `${resource.kind} loads over http: on ${pages} https: pages`,
+    ),
+    "resources/sri": resourceRule(
+        "resources/sri",
+        (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
+        (resource, pages) => (resource.integrity ? undefined : `cross-origin ${resource.kind} without integrity; used by ${pages} pages`),
+    ),
     "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", (html) => html.canonical),
     "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", (html) => html.property["og:url"]),
 };

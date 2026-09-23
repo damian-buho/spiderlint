@@ -269,6 +269,27 @@ describe("audit options", () => {
         assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
     });
 
+    it("fetches a resource every page loads once, and reports it once", async () => {
+        const before = site.requested.filter((path) => path === "/cdn/lib.js").length;
+        const report = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"] });
+        assert.equal(site.requested.filter((path) => path === "/cdn/lib.js").length - before, 1);
+        const statuses = report.findings.filter((finding) => finding.rule === "resources/status");
+        assert.deepEqual(statuses.map((finding) => finding.message).toSorted((a, b) => a.localeCompare(b)), ["image answers 404; used by 2 pages", "script answers 404; used by 13 pages"]);
+        const status = statuses.find((finding) => finding.url.endsWith("/cdn/lib.js"));
+        assert.match(status?.url ?? "", /^http:\/\/localhost:\d+\/cdn\/lib\.js$/);
+        assert.equal(status?.message, "script answers 404; used by 13 pages");
+        assert.equal(status?.urls?.length, 13);
+        const sri = report.findings.filter((finding) => finding.rule === "resources/sri");
+        assert.deepEqual(sri.map((finding) => finding.message), ["cross-origin script without integrity; used by 13 pages"]);
+    });
+
+    it("skips resource fetches with --no-resources", async () => {
+        const before = site.requested.filter((path) => path === "/cdn/lib.js").length;
+        const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, fetchResources: false });
+        assert.equal(site.requested.filter((path) => path === "/cdn/lib.js").length, before);
+        assert.equal(report.pages[0]?.resources?.[0]?.http, undefined);
+    });
+
     it("stops at --max-pages", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1 });
         assert.equal(report.pages.length, 1);
