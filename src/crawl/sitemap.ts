@@ -17,14 +17,20 @@ export async function loadSitemap(seeds: string[]): Promise<SitemapIndex> {
         return index;
     }
     log.info({ seeds, files }, "sitemap discovered");
-    const sources = files.map((url) => ({ type: "url" as const, url }));
-    for await (const entry of parseSitemap(sources)) {
-        index.set(entry.loc, {
-            listed: true,
-            ...(entry.lastmod && { lastmod: entry.lastmod.toISOString() }),
-            ...(entry.changefreq && { changefreq: entry.changefreq }),
-            ...(entry.priority !== undefined && { priority: entry.priority }),
-        });
+    for (const file of files) {
+        try {
+            const entries = parseSitemap([{ type: "url", url: file }]);
+            for await (const entry of entries) {
+                index.set(entry.loc, {
+                    listed: true,
+                    ...(entry.lastmod && { lastmod: entry.lastmod.toISOString() }),
+                    ...(entry.changefreq && { changefreq: entry.changefreq }),
+                    ...(entry.priority !== undefined && { priority: entry.priority }),
+                });
+            }
+        } catch (error) {
+            log.warn({ file, error: error instanceof Error ? error.message : String(error) }, "sitemap unreadable, skipped");
+        }
     }
     log.info({ files: files.length, urls: index.size }, "sitemap parsed");
     return index;
