@@ -7,7 +7,7 @@ import { ConfigError } from "../config/index.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { builtin } from "./builtin.ts";
-import type { AggregateRule, Finding, PageRule, Rule, RuleSpec, Severity } from "./types.ts";
+import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
 
 // strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it.
 const ajv = new Ajv2020({ strictTypes: false });
@@ -111,13 +111,18 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
     };
 }
 
+// A built-in page rule honours `when` as a declarative one does.
+function guarded(rule: Rule, isSkipped: Guard): Rule {
+    return isPageRule(rule) ? { ...rule, check: (page) => (isSkipped(page) ? undefined : rule.check(page)) } : rule;
+}
+
 // `fact` + `expect` is a page rule, `unique` an aggregate, a bare ID a built-in; else a config error.
 export function compileRule(id: string, spec: RuleSpec): Rule {
     if (spec.unique) return compileUnique(id, spec, spec.unique);
     if (!spec.fact && !spec.expect) {
         const make = builtin[id];
         if (!make) throw new ConfigError(`rule ${id}: needs fact and expect, or unique, or a built-in ID`);
-        return make(severityOf(id, spec, "warning"));
+        return guarded(make(severityOf(id, spec, "warning")), guard(id, spec.when));
     }
     if (!spec.fact || !spec.expect) throw new ConfigError(`rule ${id}: needs both fact and expect`);
     try {
