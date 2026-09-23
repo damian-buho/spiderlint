@@ -71,7 +71,8 @@ export async function serveFixture(): Promise<Fixture> {
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");
             return;
         }
-        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], ...HEADERS[pathname] });
+        const server = pathname.startsWith("/posts/") ? "fixture-b" : "fixture-a";
+        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], server, ...HEADERS[pathname] });
         response.end(isGzip ? gzipSync(found[1]) : found[1]);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

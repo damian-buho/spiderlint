@@ -63,10 +63,42 @@ function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string 
     });
 }
 
+// Per-connection facts that should not differ between pages of one host.
+const ORIGIN: [string, (page: Facts) => string | undefined][] = [
+    ["tls.cert.fingerprint256", (page) => page.tls?.cert.fingerprint256],
+    ["tls.protocol", (page) => page.tls?.protocol],
+    ["http.remote.address", (page) => page.http.remote?.address],
+    ["http.headers.server", (page) => header(page, "server") || undefined],
+];
+
+// The finding for one host and fact when its value varies across the host's pages.
+function varies(severity: Exclude<Severity, "off">, host: string, members: Facts[], fact: string, read: (page: Facts) => string | undefined): Finding | undefined {
+    const byValue = Map.groupBy(
+        members.filter((page) => read(page) !== undefined),
+        (page) => read(page) as string,
+    );
+    log.debug({ rule: "http/consistent-origin", host, fact, values: byValue.size }, "origin fact compared");
+    if (byValue.size < 2) return undefined;
+    const entries = byValue.entries().toArray();
+    const urls = entries.flatMap(([, group]) => group.map((page) => page.url.href));
+    const message = `${fact} varies across ${host}: ${entries.map(([value, group]) => `${value} (${group.length})`).join(", ")}`;
+    return { rule: "http/consistent-origin", severity, scope: "site", url: urls[0] as string, message, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
+}
+
+// One finding per host and fact whose value varies across its pages, with the URL count per value.
+const consistentOrigin: Make = (severity) => ({
+    meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact) },
+    check(pages: Facts[]) {
+        const hosts = Map.groupBy(pages, (page) => page.url.host).entries().toArray();
+        return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, read]) => varies(severity, host, members, fact, read)).filter((finding) => finding !== undefined));
+    },
+});
+
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
     "http/frame-options": frameOptions,
+    "http/consistent-origin": consistentOrigin,
     "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", (html) => html.canonical),
     "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", (html) => html.property["og:url"]),
 };

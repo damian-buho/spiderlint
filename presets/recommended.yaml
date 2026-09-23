@@ -6,3 +6,8 @@ extends:
   - spiderlint:seo
   - spiderlint:security-headers
   - spiderlint:links
+  - spiderlint:tls
+  - spiderlint:cookies
+  - spiderlint:redirects
+rules:
+  http/consistent-origin: info

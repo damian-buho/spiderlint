@@ -249,6 +249,19 @@ describe("audit options", () => {
         assert.ok(site.headers.slice(before).some((headers) => headers.connection === "close"));
     });
 
+    it("reports one host answering from two backends once", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`] });
+        const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/consistent-origin");
+        assert.equal(rest.length, 0);
+        assert.match(origin?.message ?? "", /^http\.headers\.server varies across 127\.0\.0\.1:\d+: fixture-a \(9\), fixture-b \(5\)$/);
+        assert.equal(origin?.urls?.length, 14);
+    });
+
+    it("passes the tls, cookies and redirects presets on a clean page", async () => {
+        const report = await audit({ seeds: [`${site.origin}/orphan`], maxPages: 1, sitemap: false, groups: { default: { rules: ["tls", "cookies", "redirects"] } } });
+        assert.deepEqual(report.findings, []);
+    });
+
     it("stops at --max-pages", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1 });
         assert.equal(report.pages.length, 1);

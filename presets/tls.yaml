@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+when:
+  url.protocol: "https:"
+rules:
+  tls/authorized:
+    fact: tls.authorized
+    expect: {const: true}
+    severity: error
+    docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
+  tls/protocol:
+    fact: tls.protocol
+    expect: {enum: [TLSv1.2, TLSv1.3]}
+    severity: warning
+    docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
+  tls/cert-expiry:
+    fact: tls.cert.daysLeft
+    expect: {type: integer, minimum: 14}
+    severity: warning
+    docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security

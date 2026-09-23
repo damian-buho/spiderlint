@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+rules:
+  redirects/chain-length:
+    fact: http.redirects
+    expect: {type: array, maxItems: 2}
+    severity: warning
+    docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
