@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Facts, HtmlFacts, ResourceFacts } from "../facts/types.ts";
+import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Rule, Severity } from "./types.ts";
 
@@ -19,6 +19,16 @@ const brokenInternal: Make = (severity) => ({
             findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `http.status is ${page.http.status}; linked from ${page.crawl.referrers.length} pages`, value: page.http.status, urls: page.crawl.referrers });
         }
         return findings;
+    },
+});
+
+// Every sitemap file that failed to fetch, failed to parse, or named no URL.
+const sitemapUnreadable: Make = (severity) => ({
+    meta: { id: "sitemap/unreadable", severity, scope: "site", facts: ["site.sitemaps"], docs: "https://www.sitemaps.org/protocol.html" },
+    check(_pages: Facts[], _group?: string, site?: SiteFacts) {
+        const files = site?.sitemaps ?? [];
+        log.debug({ rule: "sitemap/unreadable", files: files.length }, "sitemap files judged");
+        return files.filter((file) => file.error).map((file) => ({ rule: "sitemap/unreadable", severity, scope: "site" as const, url: file.url, message: `sitemap ${file.error}`, value: file.status }));
     },
 });
 
@@ -133,6 +143,7 @@ export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
     "http/frame-options": frameOptions,
     "http/consistent-origin": consistentOrigin,
+    "sitemap/unreadable": sitemapUnreadable,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",

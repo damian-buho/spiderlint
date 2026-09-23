@@ -17,3 +17,4 @@ rules:
     when: {html: {type: object}}
     severity: info
     docs: https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview
+  sitemap/unreadable: warning

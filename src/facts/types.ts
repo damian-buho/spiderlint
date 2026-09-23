@@ -24,6 +24,20 @@ export interface SitemapFacts {
     priority?: number;
 }
 
+// One sitemap file as fetched: its status, how many page and nested sitemap URLs it names, why it failed.
+export interface SitemapFileFacts {
+    url: string;
+    status: number;
+    urls: number;
+    sitemaps: number;
+    error?: string;
+}
+
+// Facts about the site rather than any one page, read by group and site rules.
+export interface SiteFacts {
+    sitemaps: SitemapFileFacts[];
+}
+
 export interface CookieFacts {
     name: string;
     secure: boolean;

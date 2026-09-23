@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Facts } from "../facts/types.ts";
+import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule } from "./types.ts";
 
@@ -29,7 +29,7 @@ function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleR
 }
 
 // Page and group rules run within their group; site rules run once over the crawl.
-export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>): RuleRun {
+export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, facts: SiteFacts): RuleRun {
     const run: RuleRun = { findings: [], applicable: new Map() };
     const site = new Map<string, AggregateRule>();
     for (const [group, rules] of rulesByGroup) {
@@ -37,13 +37,13 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>): Rul
         for (const rule of rules) {
             const before = run.findings.length;
             if (isPageRule(rule)) runPageRule(rule, members, group, run);
-            else if (rule.meta.scope === "group") run.findings.push(...rule.check(members, group));
+            else if (rule.meta.scope === "group") run.findings.push(...rule.check(members, group, facts));
             else if (!site.has(rule.meta.id)) site.set(rule.meta.id, rule);
             log.debug({ rule: rule.meta.id, group, pages: members.length, findings: run.findings.length - before }, "rule ran");
         }
     }
     for (const rule of site.values()) {
-        const found = rule.check(pages);
+        const found = rule.check(pages, undefined, facts);
         log.debug({ rule: rule.meta.id, scope: "site", pages: pages.length, findings: found.length }, "rule ran");
         run.findings.push(...found);
     }

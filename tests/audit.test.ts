@@ -275,6 +275,19 @@ describe("audit options", () => {
         const paths = (rule: string) => report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(paths("sitemap/orphan"), ["/orphan"]);
         assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
+        const unreadable = report.findings.filter((finding) => finding.rule === "sitemap/unreadable").map((finding) => [new URL(finding.url).pathname, finding.message, finding.value]);
+        assert.deepEqual(unreadable, [
+            ["/sitemap-broken.xml", "sitemap does not parse: Unexpected close tag", 200],
+            ["/sitemap-gone.xml", "sitemap answers 404", 404],
+            ["/about.html", "sitemap is text/html, not a sitemap", 200],
+        ]);
+    });
+
+    it("fetches sitemap files with the spiderlint user agent", async () => {
+        const before = site.headers.length;
+        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, fetchResources: false });
+        const agents = new Set(site.headers.slice(before).filter((_, index) => site.requested[before + index]?.startsWith("/sitemap-")).map((headers) => headers["user-agent"]));
+        assert.deepEqual([...agents], [`spiderlint/${VERSION} (+https://kiota.ch/damian-buho/spiderlint)`]);
     });
 
     it("fetches a resource every page loads once, and reports it once", async () => {

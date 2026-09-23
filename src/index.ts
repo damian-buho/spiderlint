@@ -7,7 +7,7 @@ import { defaults, type Config, type GroupConfig } from "./config/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import { crawlHttp } from "./crawl/http.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
-import type { Facts } from "./facts/types.ts";
+import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log } from "./logger.ts";
@@ -86,7 +86,7 @@ function crawlHash(config: Config): string {
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
-type Lint = (pages: Facts[], started: Date) => Report;
+type Lint = (crawled: Crawled, started: Date) => Report;
 
 // Compiles groups and rules up front, so a config error fails before the first request.
 function linter(config: Config): Lint {
@@ -95,24 +95,29 @@ function linter(config: Config): Lint {
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     warnUnknown(config, groups);
-    return (pages, started) => {
+    return ({ pages, site }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
         referrers(pages);
-        const findings = fold(runRules(pages, rulesByGroup), config.fold);
+        const findings = fold(runRules(pages, rulesByGroup, site), config.fold);
         const summary = summarize(pages, findings, started);
         log.info(summary, "lint done");
         return { pages, findings, summary };
     };
 }
 
-// Fetches pages and their resources; a store also keeps facts, bodies, resource results and the frontier.
-async function crawlPages(config: Config, store?: DiskStore): Promise<Facts[]> {
+export interface Crawled {
+    pages: Facts[];
+    site: SiteFacts;
+}
+
+// Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
+async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
     for (const facts of earlier) memory.add(facts);
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
     log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
-    await crawl(
+    const site = await crawl(
         config,
         async (facts, body) => {
             if (memory.add(facts)) await store?.add(facts, body);
@@ -121,8 +126,9 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Facts[]> {
     );
     const results = await fetchResources(memory.pages, config);
     await store?.saveResources(results);
+    await store?.saveSite(site);
     attachResources(memory.pages, results);
-    return memory.pages;
+    return { pages: memory.pages, site };
 }
 
 // Runs `work` against a locked store, stamping it finished only when `work` succeeds.
@@ -159,7 +165,10 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
     const config: Config = { ...defaults(), ...overrides };
-    return withStore(directory, { fresh: !isResumed, seeds: config.seeds, configHash: crawlHash(config) }, (store) => crawlPages(config, store));
+    return withStore(directory, { fresh: !isResumed, seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
+        const { pages } = await crawlPages(config, store);
+        return pages;
+    });
 }
 
 // Rules over stored facts with no network; the report is stored for `report`.
@@ -170,7 +179,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
     return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
         attachResources(pages, await store.resources());
-        const report = lint(pages, started);
+        const report = lint({ pages, site: await store.site() }, started);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });

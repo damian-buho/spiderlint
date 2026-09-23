@@ -88,7 +88,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 ## Discovery
 
 - Seeds: CLI URLs, then projectfile `links`, then `spiderlint.targets`.
-- Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`; Crawlee `Sitemap` utility parses index files and gzip. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed).
+- Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
 - Robots: `respectRobotsTxtFile: true` — disallowed URLs are skipped and logged through `onSkippedRequest`; `Crawl-delay` maps to `sameDomainDelaySecs`. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
 - Off-scope LINKS (`<a href>`) are recorded as facts and probed with `HEAD` by `links/*` rules for existence only.
@@ -172,6 +172,13 @@ browser:  { timing: { domContentLoaded, load }, console: { errors, warnings },
             weight: { script, style, image, font } }
 ```
 
+Facts about the site rather than one page form a second document, handed to
+group and site rules beside the pages:
+
+```yaml
+site:     { sitemaps: [{ url, status, urls, sitemaps, error }] }
+```
+
 Plugins add their own top-level key (`lighthouse`, `axe`, `htmlvalidate`).
 Header names are lower-cased; repeated headers become arrays. Absent is
 absent, never `null`, so `{ type: string }` doubles as an existence check.
@@ -240,7 +247,7 @@ because facts are always retained even when bodies are not.
 
 - `unique: <fact>` at `scope: site` groups pages by the fact’s value and reports every value held by two or more DISTINCT URLs, one finding per value with the URL list. A redirect and its target count once. `html/unique-title`, `html/unique-description` and `html/unique-h1` are the SEO trio; `scope: group` narrows the same check to one template when a site legitimately repeats a title across sections.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
-- Other site-scoped built-ins: `links/broken-internal`, `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
+- Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), `links/broken-internal`, `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.
 - Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--disabled-rules` override per ID, as in ignorelint.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
@@ -282,7 +289,7 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
-- Crawlee storage under `--store DIR`: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
+- Crawlee storage under `--store DIR`: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
 - A run without `--store` writes nothing to disk. Groups, referrers and resource results are re-derived on every `lint --store`, so a changed group config needs no re-crawl; `report --store` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint --store` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
@@ -398,7 +405,7 @@ export default definePlugin({
 
 ## Security
 
-- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page and resource request, and `robots.txt` groups are matched for `spiderlint`. Crawlee fetches `robots.txt` and sitemap files with its own headers and exposes no option to change them.
+- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. Crawlee fetches `robots.txt` and probes the common sitemap names with its own headers and exposes no option to change them.
 - Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.

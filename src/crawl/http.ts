@@ -11,11 +11,11 @@ import { capped, isParsed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
-import type { Facts, SitemapFacts } from "../facts/types.ts";
+import type { Facts, SiteFacts, SitemapFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
-import { loadSitemap, type SitemapIndex } from "./sitemap.ts";
+import { loadSitemap, type Sitemaps } from "./sitemap.ts";
 
 export type OnPage = (facts: Facts, body: string) => Promise<void> | void;
 
@@ -47,7 +47,7 @@ function filter(config: Config, skipped: Set<string>): RequestTransform {
 }
 
 // A sitemap URL still unvisited once the link crawl settles joins the frontier as its own root.
-function sitemapStragglers(config: Config, index: SitemapIndex, visited: Set<string>): string[] {
+function sitemapStragglers(config: Config, index: Sitemaps["index"], visited: Set<string>): string[] {
     if (index.size === 0 || config.seeds.length === 0) return [];
     const reference = new URL(config.seeds[0] as string);
     const { include, exclude } = globMatchers(config);
@@ -77,9 +77,9 @@ function socketOf(source: unknown): Transport["socket"] {
 }
 
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlStorage): Promise<void> {
+export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlStorage): Promise<SiteFacts> {
     bridgeCrawleeLog();
-    const sitemap: SitemapIndex = config.sitemap ? await loadSitemap(config.seeds) : new Map();
+    const { index: sitemap, files }: Sitemaps = config.sitemap ? await loadSitemap(config.seeds) : { index: new Map(), files: [] };
     const seeds = new Set(config.seeds);
     const visited = new Set<string>();
     const skipped = new Set<string>();
@@ -171,4 +171,5 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
     const stragglers = sitemapStragglers(config, sitemap, visited);
     const isOverBudget = config.maxPages > 0 && handled >= config.maxPages;
     if (!isOverBudget && stragglers.length > 0) await crawler.run(stragglers, { purgeRequestQueue: false });
+    return { sitemaps: files };
 }

@@ -6,3 +6,5 @@ Disallow: /private/
 Sitemap: http://fixture.test/sitemap-broken.xml
 Sitemap: http://fixture.test/sitemap.xml
 Sitemap: http://fixture.test/sitemap-extra.xml.gz
+Sitemap: http://fixture.test/sitemap-gone.xml
+Sitemap: http://fixture.test/about.html

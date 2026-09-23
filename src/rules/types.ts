@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Facts } from "../facts/types.ts";
+import type { Facts, SiteFacts } from "../facts/types.ts";
 
 export type Severity = "error" | "warning" | "info" | "off";
 export type Scope = "page" | "group" | "site";
@@ -37,7 +37,7 @@ export interface PageRule {
 
 export interface AggregateRule {
     meta: RuleMeta & { scope: "group" | "site" };
-    check(pages: Facts[], group?: string): Finding[];
+    check(pages: Facts[], group?: string, site?: SiteFacts): Finding[];
 }
 
 export type Rule = PageRule | AggregateRule;

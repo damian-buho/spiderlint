@@ -9,7 +9,7 @@ import { Configuration, Dataset, KeyValueStore, RequestQueue } from "crawlee";
 import lockfile from "proper-lockfile";
 import { VERSION } from "../agent.ts";
 import { ConfigError } from "../config/index.ts";
-import type { Facts, ResourceFacts } from "../facts/types.ts";
+import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import type { Summary } from "../index.ts";
 import { log } from "../logger.ts";
 import type { Finding } from "../rules/types.ts";
@@ -31,6 +31,7 @@ export interface StoredReport {
 
 const RESOURCES = "resources";
 const REPORT = "report";
+const SITE = "site";
 
 function key(url: string): string {
     return createHash("sha256").update(url).digest("hex");
@@ -125,6 +126,14 @@ export class DiskStore {
 
     async resources(): Promise<ResourceResults> {
         return (await this.records.getValue<ResourceResults>(RESOURCES)) ?? {};
+    }
+
+    async saveSite(site: SiteFacts): Promise<void> {
+        await this.records.setValue(SITE, site);
+    }
+
+    async site(): Promise<SiteFacts> {
+        return (await this.records.getValue<SiteFacts>(SITE)) ?? { sitemaps: [] };
     }
 
     async saveReport(report: StoredReport): Promise<void> {
