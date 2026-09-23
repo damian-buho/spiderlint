@@ -9,7 +9,7 @@ import type { Facts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log } from "./logger.ts";
-import { compileRulesets } from "./rules/rulesets.ts";
+import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
 import { MemoryStore } from "./store/memory.ts";
@@ -67,6 +67,14 @@ function summarize(pages: Facts[], findings: Finding[], started: Date): Summary 
     };
 }
 
+// A --disabled-rules or severity override naming no rule of any group matches nothing; say so.
+function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void {
+    const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
+    for (const id of [...config.disabledRules, ...Object.keys(config.overrides)]) {
+        if (!known.has(id)) log.warn({ rule: id, known: known.size }, "rule option names no known rule");
+    }
+}
+
 // crawl → facts → group → rules → fold; stream mode with an in-memory store.
 export async function audit(overrides: Partial<Config>): Promise<Report> {
     const started = new Date();
@@ -75,6 +83,7 @@ export async function audit(overrides: Partial<Config>): Promise<Report> {
     const matchers = compileGroups(groups);
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
+    warnUnknown(config, groups);
     const store = new MemoryStore();
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
     log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, groups: Object.keys(groups) }, "audit start");
