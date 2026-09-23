@@ -224,6 +224,31 @@ describe("audit options", () => {
         assert.equal(whole.pages[0]?.http.size.decoded, whole.pages[0]?.http.size.body);
     });
 
+    it("records the transport of each response", async () => {
+        const report = await audit({ seeds: [`${site.origin}/old-about`], maxPages: 1 });
+        const http = report.pages[0]?.http;
+        assert.equal(report.pages[0]?.url.pathname, "/about");
+        assert.deepEqual(http?.redirects, [{ url: `${site.origin}/about` }]);
+        assert.equal(http?.version, "1.1");
+        assert.equal(http?.remote?.address, "127.0.0.1");
+        assert.ok((http?.timing.total ?? -1) >= 0);
+        assert.equal(report.pages[0]?.tls, undefined);
+    });
+
+    it("keeps cookie flags and redacts cookie values", async () => {
+        const report = await audit({ seeds: [`${site.origin}/orphan`], maxPages: 1, sitemap: false });
+        const http = report.pages[0]?.http;
+        assert.deepEqual(http?.cookies, [{ name: "session", secure: false, httpOnly: true, sameSite: "Lax" }]);
+        assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]"]);
+        assert.ok(!JSON.stringify(report).includes("s3cr3t"));
+    });
+
+    it("asks for a fresh connection per page with --no-keepalive", async () => {
+        const before = site.headers.length;
+        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, keepalive: false });
+        assert.ok(site.headers.slice(before).some((headers) => headers.connection === "close"));
+    });
+
     it("stops at --max-pages", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1 });
         assert.equal(report.pages.length, 1);

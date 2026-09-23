@@ -24,12 +24,33 @@ export interface SitemapFacts {
     priority?: number;
 }
 
+export interface CookieFacts {
+    name: string;
+    secure: boolean;
+    httpOnly: boolean;
+    sameSite?: string;
+}
+
 export interface HttpFacts {
     status: number;
+    version?: string;
+    redirects: { url: string }[];
     headers: Record<string, string | string[]>;
+    remote?: { address: string; family?: string };
+    timing: Partial<Record<"wait" | "dns" | "tcp" | "tls" | "request" | "ttfb" | "download" | "total", number>>;
+    cookies: CookieFacts[];
     size: { body: number; decoded: number; declared?: number; truncated?: true };
     contentType: string;
     charset?: string;
+}
+
+export interface TlsFacts {
+    protocol?: string;
+    cipher?: string;
+    alpn?: string;
+    authorized: boolean;
+    error?: string;
+    cert: { subject?: string; issuer?: string; notBefore?: string; notAfter?: string; daysLeft?: number; san: string[]; fingerprint256?: string };
 }
 
 export interface HtmlFacts {
@@ -49,5 +70,6 @@ export interface Facts {
     crawl: CrawlFacts;
     sitemap?: SitemapFacts;
     http: HttpFacts;
+    tls?: TlsFacts;
     html?: HtmlFacts;
 }

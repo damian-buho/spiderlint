@@ -28,6 +28,7 @@ export interface Config {
     maxPages: number;
     maxDepth: number;
     maxBodySize: number;
+    keepalive: boolean;
     include: string[];
     exclude: string[];
     robots: boolean;
@@ -49,6 +50,7 @@ export function defaults(): Config {
         maxPages: 0,
         maxDepth: 0,
         maxBodySize: 10_000_000,
+        keepalive: true,
         include: [],
         exclude: [],
         robots: true,

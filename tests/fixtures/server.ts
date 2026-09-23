@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import { readFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import type { AddressInfo } from "node:net";
@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 export interface Fixture {
     origin: string;
     requested: string[];
+    headers: IncomingHttpHeaders[];
     close(): Promise<void>;
 }
 
@@ -24,6 +25,7 @@ const BIG = 50_000_000;
 const HEADERS: Record<string, Record<string, string>> = {
     "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'" },
     "/posts/1": { "x-frame-options": "DENY" },
+    "/orphan": { "set-cookie": "session=s3cr3t; Path=/; HttpOnly; SameSite=Lax" },
 };
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
@@ -47,9 +49,16 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
 // Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, and records every path asked for.
 export async function serveFixture(): Promise<Fixture> {
     const requested: string[] = [];
+    const headers: IncomingHttpHeaders[] = [];
     const server: Server = createServer(async (request, response) => {
         const pathname = new URL(request.url ?? "/", "http://fixture").pathname;
         requested.push(pathname);
+        headers.push(request.headers);
+        if (pathname === "/old-about") {
+            response.writeHead(301, { location: "/about" });
+            response.end();
+            return;
+        }
         if (pathname === "/big.bin") {
             response.writeHead(200, { "content-type": "application/octet-stream", "content-length": BIG });
             response.end(Buffer.alloc(BIG));
@@ -69,6 +78,7 @@ export async function serveFixture(): Promise<Fixture> {
     return {
         origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
         requested,
+        headers,
         close: () => new Promise<void>((resolve) => server.close(() => resolve())),
     };
 }

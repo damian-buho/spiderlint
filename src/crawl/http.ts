@@ -8,6 +8,7 @@ import picomatch from "picomatch";
 import type { Config } from "../config/index.ts";
 import { capped, isParsed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
+import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts, SitemapFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { bridgeCrawleeLog } from "./log.ts";
@@ -61,6 +62,12 @@ function transferred(source: unknown): number | undefined {
     return (source as { downloadProgress?: { transferred?: number } }).downloadProgress?.transferred;
 }
 
+// The response's own connection, read while it is still attached.
+function socketOf(source: unknown): Transport["socket"] {
+    const stream = source as { socket?: Transport["socket"]; request?: { socket?: Transport["socket"] } };
+    return stream.socket ?? stream.request?.socket;
+}
+
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
 export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
     bridgeCrawleeLog();
@@ -71,13 +78,19 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     let handled = 0;
     const transformRequestFunction = filter(config, skipped);
-    const bodies = new WeakMap<object, Capped & { source: unknown }>();
+    const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
     const crawler = new CheerioCrawler(
         {
             additionalMimeTypes: ["*/*"],
             maxRequestsPerCrawl: config.maxPages || undefined,
             maxCrawlDepth: config.maxDepth || undefined,
             respectRobotsTxtFile: config.robots,
+            preNavigationHooks: [
+                (_context, gotOptions) => {
+                    if (config.keepalive) return;
+                    Object.assign(gotOptions, { http2: false, headers: { ...gotOptions.headers, connection: "close" } });
+                },
+            ],
             postNavigationHooks: [
                 (context) => {
                     const source = context.response as unknown as Readable & { headers: Record<string, string | undefined> };
@@ -85,7 +98,10 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                     const max = isParsed(contentType) ? config.maxBodySize : 0;
                     const cap = capped(source, max);
                     log.debug({ url: context.request.url, contentType, max }, "body capped");
-                    bodies.set(context.request, { ...cap, source });
+                    const socket = socketOf(source);
+                    const address = socket?.remoteAddress ?? (source as Transport).ip;
+                    const remote = address ? { address, ...(socket?.remoteFamily && { family: socket.remoteFamily }) } : undefined;
+                    bodies.set(context.request, { ...cap, source: source as Transport, tls: tlsFacts(socket), remote });
                     Object.assign(context, { response: cap.stream });
                 },
             ],
@@ -114,7 +130,12 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                     ...(sitemap.size > 0 && { sitemap: listing ?? { listed: false } }),
                     http: {
                         status: response.statusCode ?? 0,
-                        headers: response.headers as Record<string, string | string[]>,
+                        ...(cap?.source.httpVersion && { version: cap.source.httpVersion }),
+                        redirects: (cap?.source.redirectUrls ?? []).map((redirect) => ({ url: String(redirect) })),
+                        headers: redactHeaders(response.headers),
+                        ...(cap?.remote && { remote: cap.remote }),
+                        timing: cap ? timingFacts(cap.source) : {},
+                        cookies: cookieFacts(response.headers["set-cookie"]),
                         size: {
                             body: transferred(cap?.source) ?? decoded,
                             decoded,
@@ -124,6 +145,7 @@ export async function crawlHttp(config: Config, onPage: OnPage): Promise<void> {
                         contentType: contentType.type,
                         ...(contentType.encoding && { charset: contentType.encoding }),
                     },
+                    ...(cap?.tls && { tls: cap.tls }),
                     ...(isHtml && { html: extractHtml($, url, config.scope) }),
                 };
                 log.debug({ url: url.href, status: facts.http.status, type: contentType.type, bytes: facts.http.size.body, depth: facts.crawl.depth }, "page fetched");

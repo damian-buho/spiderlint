@@ -12,7 +12,7 @@ import { validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets">>;
+export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -23,6 +23,7 @@ const KEYS: [string, keyof Settings][] = [
     ["max-pages", "maxPages"],
     ["max-depth", "maxDepth"],
     ["max-body-size", "maxBodySize"],
+    ["keepalive", "keepalive"],
     ["include", "include"],
     ["exclude", "exclude"],
     ["robots", "robots"],

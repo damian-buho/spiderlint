@@ -149,7 +149,7 @@ group:    posts
 crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree }
 robots:   { allowed, xRobotsTag }
 sitemap:  { listed, lastmod, changefreq, priority }
-http:     { status, version, method, redirects: [{ url, status }],
+http:     { status, version, redirects: [{ url }],
             headers: { name: value | [value] }, remote: { address, family },
             timing: { dns, tcp, tls, ttfb, download, total },
             size: { body, decoded, declared, truncated }, contentType, charset,

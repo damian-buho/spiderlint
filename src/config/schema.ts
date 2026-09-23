@@ -38,6 +38,7 @@ const schema = {
         "max-pages": { type: "integer", minimum: 0 },
         "max-depth": { type: "integer", minimum: 0 },
         "max-body-size": { type: "integer", minimum: 0 },
+        keepalive: { type: "boolean" },
         include: { type: "array", items: { type: "string" } },
         exclude: { type: "array", items: { type: "string" } },
         resources: {
