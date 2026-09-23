@@ -20,6 +20,14 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 
 ## Características
 
+- Un hallazgo por plantilla, no por página
+- Dependencias de página descargadas una sola vez
+- Reglas como datos, con preajustes
+- Rastrear una vez, analizar muchas
+- Transporte comprobado por página, no por host
+
+### Heredado de B19 / Ubuntu
+
 - Caché APT persistente entre compilaciones
 - Gestión de procesos de servicio con enrutado de logs (b19-exec)
 - Descargas de artefactos con caché y verificación de integridad (b19-fetch)

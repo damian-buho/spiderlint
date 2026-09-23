@@ -18,6 +18,14 @@ Site-wide linter for SEO tags, security headers, TLS and links
 
 ## Features
 
+- One finding per template, not per page
+- Page dependencies fetched once
+- Rules as data, with presets
+- Crawl once, lint many times
+- Transport checked per page, not per host
+
+### Inherited from B19 / Ubuntu
+
 - Persistent APT cache across builds
 - Service process management with log routing (b19-exec)
 - Cached artifact downloads with integrity verification
