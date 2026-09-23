@@ -193,7 +193,14 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } } });
         assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts").length, 0);
         const csp = report.findings.find((finding) => finding.rule === "http/csp");
-        assert.equal(csp?.occurrences, 16);
+        assert.equal(csp?.occurrences, 15);
+    });
+
+    it("accepts either CSP frame-ancestors or X-Frame-Options against framing", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } }, fold: false });
+        const framed = report.findings.filter((finding) => finding.rule === "http/frame-options").map((finding) => new URL(finding.url).pathname);
+        assert.equal(framed.length, 14);
+        assert.ok(!framed.includes("/about") && !framed.includes("/posts/1"));
     });
 
     it("stops at --max-pages", async () => {

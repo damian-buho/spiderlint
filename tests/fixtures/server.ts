@@ -16,6 +16,12 @@ const SITE = new URL("site/", import.meta.url);
 const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml" };
 
 
+// Response headers a page sends beyond content-type.
+const HEADERS: Record<string, Record<string, string>> = {
+    "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'" },
+    "/posts/1": { "x-frame-options": "DENY" },
+};
+
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
 async function body(pathname: string, origin: string): Promise<[string, Buffer] | undefined> {
     const bare = pathname.endsWith("/") ? `${pathname}index.html` : pathname;
@@ -46,7 +52,7 @@ export async function serveFixture(): Promise<Fixture> {
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");
             return;
         }
-        response.writeHead(200, { "content-type": found[0] });
+        response.writeHead(200, { "content-type": found[0], ...HEADERS[pathname] });
         response.end(found[1]);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

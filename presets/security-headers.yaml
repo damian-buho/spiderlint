@@ -24,8 +24,4 @@ rules:
     expect: {type: string, minLength: 1}
     severity: warning
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
-  http/frame-options:
-    fact: http.headers.x-frame-options
-    expect: {type: string, pattern: "^(?i:deny|sameorigin)$"}
-    severity: info
-    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options
+  http/frame-options: info

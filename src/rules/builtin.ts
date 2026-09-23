@@ -22,6 +22,24 @@ const brokenInternal: Make = (severity) => ({
     },
 });
 
+// A header's value, repeated fields joined; absent is empty.
+function header(page: Facts, name: string): string {
+    const value = page.http.headers[name] ?? "";
+    return Array.isArray(value) ? value.join(", ") : value;
+}
+
+// Framing refused by CSP `frame-ancestors` or by `X-Frame-Options` DENY or SAMEORIGIN.
+const frameOptions: Make = (severity) => ({
+    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.headers.content-security-policy", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors" },
+    check(page: Facts) {
+        const hasAncestors = /(?:^|[;,])\s*frame-ancestors\s/i.test(header(page, "content-security-policy"));
+        const options = header(page, "x-frame-options").trim();
+        const isDenied = hasAncestors || /^(?:deny|sameorigin)$/i.test(options);
+        log.debug({ rule: "http/frame-options", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
+        return isDenied ? [] : [{ rule: "http/frame-options", severity, scope: "page", url: page.url.href, group: page.group, message: `neither content-security-policy frame-ancestors nor x-frame-options refuses framing (x-frame-options: ${options || "absent"})`, value: options || undefined }];
+    },
+});
+
 // Fragment-free absolute form of a URL relative to the page; an unparsable value stays as written.
 function resolve(raw: string, base: string): string {
     if (!URL.canParse(raw, base)) return raw;
@@ -48,6 +66,7 @@ function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string 
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
+    "http/frame-options": frameOptions,
     "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", (html) => html.canonical),
     "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", (html) => html.property["og:url"]),
 };
