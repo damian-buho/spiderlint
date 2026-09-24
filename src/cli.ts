@@ -17,7 +17,7 @@ import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
-import { log } from "./logger.ts";
+import { log, logColor } from "./logger.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
 
@@ -198,6 +198,7 @@ async function main(argv: string[]): Promise<number> {
             info: { type: "string", multiple: true },
         },
     });
+    logColor(values.color);
     if (values.help) {
         console.log(usage(painter(process.stdout, values.color)));
         return 0;

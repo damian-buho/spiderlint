@@ -430,7 +430,7 @@ export default definePlugin({
 
 ## Observability
 
-- `pino` JSON logs to stderr, `--log-level` (`info` default). Crawlee’s own log is bridged into the same stream.
+- `pino` JSON logs to stderr, `--log-level` (`info` default). On a terminal each entry is one line: message, URL, error; its other fields show only when it has neither, or at `debug`. Crawlee’s own log is bridged into the same stream.
 - When every seed shares one origin, that origin is logged once and every logged URL under it prints as its path; other origins, and runs with mixed-origin seeds, stay absolute. `human` does the same with the origin every page shares, printed once on top; `json`, `sarif` and the store always carry absolute URLs.
 - Every decision logs its variables: group assignment (`url`, `group`, `matched`), rule skip (`rule`, `when`, `actual`), fold (`group`, `rule`, `failed`, `applicable`, `ratio`), sampling (`group`, `extractor`, `taken`, `cap`), robots skip (`url`, `rule`).
 - The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts — printed by `human`, embedded in `json` and `sarif` `invocations`.
