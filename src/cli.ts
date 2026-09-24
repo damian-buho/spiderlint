@@ -54,14 +54,20 @@ function splitIds(raw: string): string[] {
     return raw.split(/[\s,]+/).filter((entry) => entry.length > 0);
 }
 
-// One `--error`/`--warning`/`--info` flag's repeated occurrences, each possibly comma-separated.
-function overrideBucket(raw: string[] | undefined, severity: "error" | "warning" | "info"): Record<string, "error" | "warning" | "info"> {
-    return raw === undefined ? {} : Object.fromEntries(raw.flatMap((entry) => splitIds(entry)).map((id) => [id, severity]));
+type Severity = "error" | "warning" | "info";
+type Token = { kind: string; name?: string; value?: string };
+
+const SEVERITIES = new Set<string>(["error", "warning", "info"]);
+
+// `--error`/`--warning`/`--info` in argv order, so the last flag naming a rule wins.
+function overridesInOrder(tokens: Token[]): Record<string, Severity> {
+    const flags = tokens.filter((token) => token.kind === "option" && SEVERITIES.has(token.name ?? "") && token.value !== undefined);
+    return Object.fromEntries(flags.flatMap((token) => splitIds(token.value as string).map((id) => [id, token.name as Severity])));
 }
 
 // Flags actually passed become a Settings patch; an unset flag leaves the ladder's lower tiers alone.
-function flagSettings(values: Record<string, unknown>): Settings {
-    const overrideFlags = [values.error, values.warning, values.info] as (string[] | undefined)[];
+function flagSettings(values: Record<string, unknown>, tokens: Token[]): Settings {
+    const overrides = overridesInOrder(tokens);
     return {
         ...(values.fetch !== undefined && { fetch: values.fetch as FetchMode }),
         ...(values.scope !== undefined && { scope: values.scope as Scope }),
@@ -78,14 +84,15 @@ function flagSettings(values: Record<string, unknown>): Settings {
         ...(values["fail-on"] !== undefined && { failOn: values["fail-on"] as FailOn }),
         ...(values.format !== undefined && { format: values.format as Config["format"] }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
-        ...(overrideFlags.some((value) => value !== undefined) && { overrides: { ...overrideBucket(overrideFlags[0], "error"), ...overrideBucket(overrideFlags[1], "warning"), ...overrideBucket(overrideFlags[2], "info") } }),
+        ...(Object.keys(overrides).length > 0 && { overrides }),
     };
 }
 
 // Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched, 4 the run failed.
 async function main(argv: string[]): Promise<number> {
-    const { values, positionals } = parseArgs({
+    const { values, positionals, tokens } = parseArgs({
         args: argv,
+        tokens: true,
         allowPositionals: true,
         allowNegative: true,
         options: {
@@ -138,7 +145,7 @@ async function main(argv: string[]): Promise<number> {
         const { settings: fileSettings, document } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
-        config = overlay(config, flagSettings(values));
+        config = overlay(config, flagSettings(values, tokens));
         if (seeds.length > 0) config.seeds = seeds;
         else if (document !== undefined && config.seeds.length === 0) config.seeds = resolveDefaultTargets(document);
         const format = FORMATTERS[config.format];
