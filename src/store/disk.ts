@@ -65,7 +65,8 @@ export class DiskStore {
         const previous = await DiskStore.#readManifest(directory);
         let storages = await openStorages(config);
         if (mode.fresh) {
-            await Promise.all(storages.map((storage) => storage.drop()));
+            const crawlerState = await KeyValueStore.open(undefined, { config });
+            await Promise.all([...storages, crawlerState].map((storage) => storage.drop()));
             storages = await openStorages(config);
         }
         const { configHash, fresh, seeds = [] } = mode;

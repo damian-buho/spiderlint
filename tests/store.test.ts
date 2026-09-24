@@ -80,6 +80,14 @@ describe("store", () => {
         }
     });
 
+    it("re-crawls a capped audit into a store that already holds one", async () => {
+        const again = path.join(directory, "again");
+        const options = { seeds: [`${site.origin}/`], maxPages: 2, fetchResources: false };
+        await audit(options, { store: again });
+        const second = await audit(options, { store: again });
+        assert.equal(second.pages.length, 2);
+    });
+
     it("measures every bucket present", async () => {
         const buckets = await cacheStatus(directory);
         const pages = buckets.find((bucket) => bucket.bucket === "pages");
