@@ -83,6 +83,8 @@ function discover(): string | undefined {
 function runPfCli(document: string): { raw?: unknown; error?: string } | undefined {
     const result = spawnSync("pf-cli", ["get", "-f", document, SUBTREE, "--format", "json", "--quiet"], { encoding: "utf8" });
     if (result.error) return undefined;
+    // pf-cli answers a path the document lacks with `null` and exit 1.
+    if (result.stdout.trim() === "null" && result.stderr.trim() === "") return { raw: {} };
     return result.status === 0 ? { raw: (JSON.parse(result.stdout || "null") ?? {}) as unknown } : { error: (result.stderr || result.stdout).trim() };
 }
 

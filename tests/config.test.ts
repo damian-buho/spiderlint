@@ -216,6 +216,14 @@ describe("loadSettings", () => {
         });
     });
 
+    it("reads a projectfile without org.spiderlint as no settings", () => {
+        const file = path.join(directory, "bare.yaml");
+        writeFileSync(file, "identity:\n  name: demo\n");
+        withFakePfCli("echo null; exit 1", () => {
+            assert.deepEqual(loadSettings(file).settings, {});
+        });
+    });
+
     it("surfaces a pf-cli failure as a ConfigError", () => {
         const file = path.join(directory, "broken.yaml");
         writeFileSync(file, "org:\n  spiderlint:\n    fetch: browser\n");
