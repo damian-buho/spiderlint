@@ -8,7 +8,6 @@ import { painter, type Style } from "./color.ts";
 import { relative, singleOrigin } from "./crawl/scope.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
-const isVerbose = level === "debug" || level === "trace";
 
 // The single seed origin trimmed from logged URLs; empty logs them absolute.
 const base = { origin: "" };
@@ -40,6 +39,7 @@ export function oneLine(entry: Record<string, unknown>, messageKey: string): str
     const message = text(entry[messageKey] ?? "").replaceAll(URL_IN_TEXT, (url) => paint("cyan", url));
     const fields = Object.entries(entry).filter(([key]) => key !== messageKey && !RESERVED.has(key));
     const hasSubject = entry.url !== undefined || entry.error !== undefined;
+    const isVerbose = log.isLevelEnabled("debug");
     return [
         message,
         entry.url !== undefined && paint("cyan", text(entry.url)),
@@ -55,6 +55,11 @@ export const log = pino(
         ? pretty({ destination: 2, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } })
         : pino.destination(2),
 );
+
+// Whether pino knows `name`, as --log-level must name one.
+export function isLogLevel(name: string): boolean {
+    return name === "silent" || log.levels.values[name] !== undefined;
+}
 
 // Forces or disables terminal log colors, as --[no-]color does for the report.
 export function logColor(hasColor: boolean | undefined): void {

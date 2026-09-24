@@ -95,6 +95,23 @@ describe("cli", () => {
         assert.match(run.stderr, /usage: spiderlint/i);
     });
 
+    it("rejects an unknown flag in one line, with no stack trace", async () => {
+        const run = await spiderlint(directory, "lint", "https://a.test/", "--log-levl", "error");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /^spiderlint: Unknown option '--log-levl' \(see spiderlint --help\)\n$/);
+    });
+
+    it("keeps stderr empty at --log-level silent", async () => {
+        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--no-cache", "--log-level", "silent");
+        assert.equal(run.stderr, "");
+    });
+
+    it("rejects an unknown --log-level", async () => {
+        const run = await spiderlint(directory, "lint", "https://a.test/", "--log-level", "loud");
+        assert.equal(run.code, 2);
+        assert.equal(run.stderr, "spiderlint: --log-level: unknown level loud (see spiderlint --help)\n");
+    });
+
     it("colors the help only when --color forces it", async () => {
         const forced = await spiderlint(directory, "--help", "--color");
         const detected = await spiderlint(directory, "--help");

@@ -19,7 +19,7 @@ import { formatHuman } from "./report/human.ts";
 import { formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
-import { log, logColor } from "./logger.ts";
+import { isLogLevel, log, logColor } from "./logger.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
 
@@ -66,6 +66,7 @@ Output:
   --format FORMAT       human, json or sarif (human)
   --fail-on LEVEL       error, warning, info or never (error)
   --[no-]color          force or disable color (auto)
+  --log-level LEVEL     trace, debug, info, warn, error or silent (info)
 
 Store and cache:
   --store DIR           store directory (the site’s, under $XDG_CACHE_HOME/spiderlint)
@@ -172,47 +173,68 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     };
 }
 
+// One line naming the bad flag, pointing at --help; exit code 2.
+function usageError(message: string): number {
+    console.error(`spiderlint: ${message} (see spiderlint --help)`);
+    return 2;
+}
+
+// argv parsed, or the parse error an unknown or malformed flag raises.
+function parseFlags(argv: string[]) {
+    try {
+        return parseArgs({
+            args: argv,
+            tokens: true,
+            allowPositionals: true,
+            allowNegative: true,
+            options: {
+                help: { type: "boolean", short: "h" },
+                color: { type: "boolean" },
+                version: { type: "boolean", short: "V" },
+                config: { type: "string" },
+                store: { type: "string" },
+                resume: { type: "boolean" },
+                cache: { type: "boolean" },
+                refresh: { type: "boolean" },
+                offline: { type: "boolean" },
+                "older-than": { type: "string" },
+                "canonical-origin": { type: "string" },
+                fetch: { type: "string" },
+                browser: { type: "string" },
+                scope: { type: "string" },
+                "max-pages": { type: "string" },
+                "max-depth": { type: "string" },
+                "max-body-size": { type: "string" },
+                include: { type: "string", multiple: true },
+                exclude: { type: "string", multiple: true },
+                robots: { type: "boolean" },
+                sitemap: { type: "boolean" },
+                keepalive: { type: "boolean" },
+                resources: { type: "boolean" },
+                unfold: { type: "boolean" },
+                format: { type: "string" },
+                "fail-on": { type: "string" },
+                "disabled-rules": { type: "string" },
+                rules: { type: "string", multiple: true },
+                error: { type: "string", multiple: true },
+                warning: { type: "string", multiple: true },
+                info: { type: "string", multiple: true },
+                "log-level": { type: "string" },
+            },
+        });
+    } catch (error) {
+        if (error instanceof TypeError && "code" in error && String(error.code).startsWith("ERR_PARSE_ARGS_")) return error;
+        throw error;
+    }
+}
+
 // Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched or an --offline miss, 4 the run failed.
 async function main(argv: string[]): Promise<number> {
-    const { values, positionals, tokens } = parseArgs({
-        args: argv,
-        tokens: true,
-        allowPositionals: true,
-        allowNegative: true,
-        options: {
-            help: { type: "boolean", short: "h" },
-            color: { type: "boolean" },
-            version: { type: "boolean", short: "V" },
-            config: { type: "string" },
-            store: { type: "string" },
-            resume: { type: "boolean" },
-            cache: { type: "boolean" },
-            refresh: { type: "boolean" },
-            offline: { type: "boolean" },
-            "older-than": { type: "string" },
-            "canonical-origin": { type: "string" },
-            fetch: { type: "string" },
-            browser: { type: "string" },
-            scope: { type: "string" },
-            "max-pages": { type: "string" },
-            "max-depth": { type: "string" },
-            "max-body-size": { type: "string" },
-            include: { type: "string", multiple: true },
-            exclude: { type: "string", multiple: true },
-            robots: { type: "boolean" },
-            sitemap: { type: "boolean" },
-            keepalive: { type: "boolean" },
-            resources: { type: "boolean" },
-            unfold: { type: "boolean" },
-            format: { type: "string" },
-            "fail-on": { type: "string" },
-            "disabled-rules": { type: "string" },
-            rules: { type: "string", multiple: true },
-            error: { type: "string", multiple: true },
-            warning: { type: "string", multiple: true },
-            info: { type: "string", multiple: true },
-        },
-    });
+    const parsed = parseFlags(argv);
+    if (parsed instanceof Error) return usageError(parsed.message.split(". ", 1)[0] ?? parsed.message);
+    const { values, positionals, tokens } = parsed;
+    if (values["log-level"] !== undefined && !isLogLevel(values["log-level"])) return usageError(`--log-level: unknown level ${values["log-level"]}`);
+    if (values["log-level"] !== undefined) log.level = values["log-level"];
     logColor(values.color);
     if (values.help) {
         console.log(usage(painter(process.stdout, values.color)));
