@@ -4,6 +4,7 @@
 
 import { isIP } from "node:net";
 import type { Request, Response } from "playwright";
+import { log } from "../logger.ts";
 import type { BrowserFacts, HttpFacts, ResourceFacts, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
@@ -98,14 +99,23 @@ export function observedResources(declared: ResourceFacts[], requests: Request[]
     return found.values().take(max).toArray();
 }
 
+// Body bytes on the wire; Chromium’s size goes negative on some responses, where Content-Length stands in, else `fallback`.
+export async function wireSize(request: Request, fallback = 0): Promise<number> {
+    const { responseBodySize } = await request.sizes();
+    if (responseBodySize >= 0) return responseBodySize;
+    const response = await request.response();
+    const declared = Number((await response?.headerValue("content-length")) ?? NaN);
+    log.debug({ url: request.url(), responseBodySize, declared, fallback }, "wire size unknown, using Content-Length or fallback");
+    return Number.isSafeInteger(declared) ? declared : fallback;
+}
+
 // Bytes the network log received per resource kind, keyed as `browser.weight` names them; failed requests weigh nothing.
 export async function weightFacts(requests: Request[]): Promise<BrowserFacts["weight"]> {
     const weight: BrowserFacts["weight"] = {};
     for (const request of requests) {
         const kind = KINDS[request.resourceType()];
         if (request.failure() || (kind !== "script" && kind !== "style" && kind !== "image" && kind !== "font")) continue;
-        const { responseBodySize } = await request.sizes();
-        weight[kind] = (weight[kind] ?? 0) + responseBodySize;
+        weight[kind] = (weight[kind] ?? 0) + (await wireSize(request));
     }
     return weight;
 }

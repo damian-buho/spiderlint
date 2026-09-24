@@ -4,10 +4,10 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chromium, firefox, type BrowserType } from "playwright";
+import { chromium, firefox, type BrowserType, type Request } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
-import { tlsFacts } from "../src/facts/browser.ts";
+import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -30,6 +30,20 @@ describe("browser tls facts", () => {
         assert.equal(tlsFacts({ protocol: "TLS 1.2" })?.protocol, "TLSv1.2");
         assert.equal(tlsFacts({ protocol: "QUIC" })?.protocol, "TLSv1.3");
         assert.equal(tlsFacts({}), undefined, "a plain-http response has no protocol");
+    });
+});
+
+// A request whose sizes and Content-Length are what the test names.
+function sized(responseBodySize: number, contentLength?: string): Request {
+    return { url: () => "https://example.test/", sizes: async () => ({ responseBodySize }), response: async () => ({ headerValue: async () => contentLength }) } as unknown as Request;
+}
+
+describe("browser wire size", () => {
+    it("trusts a measured size and replaces a negative one with Content-Length, else the fallback", async () => {
+        assert.equal(await wireSize(sized(16_407, "15635")), 16_407);
+        assert.equal(await wireSize(sized(-1110, "13936"), 80_836), 13_936);
+        assert.equal(await wireSize(sized(-1110), 80_836), 80_836);
+        assert.equal(await wireSize(sized(-1110)), 0);
     });
 });
 

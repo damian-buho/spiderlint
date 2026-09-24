@@ -8,7 +8,7 @@ import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type P
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
 import { USER_AGENT } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
-import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts } from "../facts/browser.ts";
+import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize } from "../facts/browser.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
@@ -228,8 +228,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                 const settled = isHtml && (await didSettle(page));
                 const { raw, text } = await bodyOf(page, response, observation, type);
                 const body = text.slice(0, config.maxBodySize);
-                const sizes = observation.isDownload ? undefined : await response.request().sizes();
-                const wire = sizes?.responseBodySize ?? 0;
+                const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
                 const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing)) };
