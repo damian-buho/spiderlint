@@ -9,6 +9,9 @@ import type { HtmlFacts } from "./types.ts";
 // The crawler's own cheerio instance type, so the CJS and ESM typings never split.
 type CheerioAPI = CheerioCrawlingContext["$"];
 
+// Only these document types carry html.* facts and links to follow.
+export const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+
 // First value wins on repeated meta names and og properties.
 function firstAttribute($: CheerioAPI, selector: string, key: string): Record<string, string> {
     const out: Record<string, string> = {};
