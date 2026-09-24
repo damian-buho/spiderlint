@@ -84,7 +84,7 @@ export interface ResourceFacts {
     origin: "same" | "cross";
     integrity?: string;
     crossorigin?: string;
-    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string };
+    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true };
 }
 
 export interface Facts {

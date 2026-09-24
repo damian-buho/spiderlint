@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import { readFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
@@ -49,7 +50,7 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
     return undefined;
 }
 
-// Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, and records every path asked for.
+// Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for.
 export async function serveFixture(): Promise<Fixture> {
     const requested: string[] = [];
     const headers: IncomingHttpHeaders[] = [];
@@ -75,7 +76,13 @@ export async function serveFixture(): Promise<Fixture> {
             return;
         }
         const server = pathname.startsWith("/posts/") ? "fixture-b" : "fixture-a";
-        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], server, ...HEADERS[pathname] });
+        const etag = `"${createHash("sha256").update(found[1]).digest("hex").slice(0, 16)}"`;
+        if (request.headers["if-none-match"] === etag) {
+            response.writeHead(304, { etag, server });
+            response.end();
+            return;
+        }
+        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], etag, server, ...HEADERS[pathname] });
         response.end(isGzip ? gzipSync(found[1]) : found[1]);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

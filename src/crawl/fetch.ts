@@ -28,12 +28,12 @@ export function reason(error: unknown): string {
 }
 
 // One GET with timeout and the spiderlint user agent; network errors, 429 and 503 retry, the last failure throws.
-export async function fetchRetrying<T>(url: string, consume: (response: Response) => Promise<T>): Promise<Fetched<T>> {
+export async function fetchRetrying<T>(url: string, consume: (response: Response) => Promise<T>, headers: Record<string, string> = {}): Promise<Fetched<T>> {
     for (let attempt = 0; ; attempt += 1) {
         const started = performance.now();
         const isLast = attempt === ATTEMPTS - 1;
         try {
-            const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+            const response = await fetch(url, { headers: { ...headers, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
             const value = await consume(response);
             log.debug({ url, status: response.status, attempt }, "fetched");
             if (isLast || !RETRY_STATUS.has(response.status)) return { response, value, ms: Math.round(performance.now() - started) };

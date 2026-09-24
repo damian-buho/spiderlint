@@ -7,19 +7,26 @@ import { mkdtemp, rm, utimes, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
+import { fetchCached, type Stored } from "../src/cache/http.ts";
 import { Bucket, OfflineMiss, bucketDirectory, parseDuration } from "../src/cache/index.ts";
 import { purgeCache } from "../src/cache/purge.ts";
 import { cacheStatus } from "../src/cache/status.ts";
+import { serveFixture, type Fixture } from "./fixtures/server.ts";
+
+const text = async (response: Response) => response.text();
 
 describe("cache", () => {
     let root: string;
+    let site: Fixture;
 
     before(async () => {
         root = await mkdtemp(path.join(tmpdir(), "spiderlint-cache-"));
         process.env.XDG_CACHE_HOME = path.join(root, "user");
+        site = await serveFixture();
     });
 
     after(async () => {
+        await site.close();
         await rm(root, { recursive: true, force: true });
     });
 
@@ -77,5 +84,25 @@ describe("cache", () => {
         assert.deepEqual(await purgeCache(store, "resources", 0), { resources: 1 });
         const emptied = await cacheStatus(store);
         assert.equal(emptied.find((status) => status.bucket === "resources"), undefined);
+    });
+
+    it("serves a fresh entry without a request and revalidates a stale one to 304", async () => {
+        const directory = path.join(root, "http");
+        const url = `${site.origin}/feed.xml`;
+        const count = () => site.requested.filter((pathname) => pathname === "/feed.xml").length;
+        const fresh = new Bucket<Stored<string>>("resources", directory, 60, "use");
+        const first = await fetchCached(fresh, url, text);
+        assert.equal(first.status, 200);
+        assert.ok(first.value.length > 0);
+        const requests = count();
+        const second = await fetchCached(fresh, url, text);
+        assert.equal(second.cached, true);
+        assert.equal(count(), requests);
+        const stale = new Bucket<Stored<string>>("resources", directory, 0, "use");
+        const third = await fetchCached(stale, url, text);
+        assert.equal(third.revalidated, true);
+        assert.equal(third.status, 200);
+        assert.equal(third.value, first.value);
+        assert.equal(site.headers.at(-1)?.["if-none-match"], first.headers.etag);
     });
 });

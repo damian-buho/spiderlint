@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 import { availableParallelism } from "node:os";
+import { OfflineMiss, type Bucket } from "../cache/index.ts";
+import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
-import { fetchRetrying, reason } from "./fetch.ts";
+import { reason } from "./fetch.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import type { ResourceResults } from "../store/disk.ts";
@@ -33,14 +35,17 @@ async function drain(response: Response, max: number): Promise<number> {
     return bytes;
 }
 
-// One retried GET; a final failure is status 0 with its error.
-async function fetchOne(url: string, max: number): Promise<ResourceHttp> {
+export type ResourceBucket = Bucket<Stored<number>>;
+
+// One cached or retried GET; a final failure is status 0 with its error.
+async function fetchOne(url: string, max: number, bucket: ResourceBucket): Promise<ResourceHttp> {
     try {
-        const { response, value: bytes, ms } = await fetchRetrying(url, (response) => drain(response, max));
-        log.debug({ url, status: response.status, bytes }, "resource fetched");
-        const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
-        return { status: response.status, headers: redactHeaders(Object.fromEntries(response.headers)), ...(contentType && { contentType }), size: { body: bytes }, timing: { total: ms } };
+        const { status, headers, value: bytes, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => drain(response, max));
+        log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
+        const contentType = String(headers["content-type"] ?? "").split(";", 1)[0]?.trim();
+        return { status, headers: redactHeaders(headers), ...(contentType && { contentType }), size: { body: bytes }, timing: { total: ms }, ...(cached && { cached }), ...(revalidated && { revalidated }) };
     } catch (error) {
+        if (error instanceof OfflineMiss) throw error;
         return { status: 0, headers: {}, size: { body: 0 }, timing: {}, error: reason(error) };
     }
 }
@@ -52,7 +57,7 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
 }
 
 // GETs every distinct resource URL the pages name, once each.
-export async function fetchResources(pages: Facts[], config: Config): Promise<ResourceResults> {
+export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
     log.info({ resources: urls.length, references: entries.length, fetch: config.fetchResources }, "resources found");
@@ -60,11 +65,12 @@ export async function fetchResources(pages: Facts[], config: Config): Promise<Re
     const results = new Map<string, ResourceHttp>();
     const queue = urls.values();
     const worker = async () => {
-        for (const url of queue) results.set(url, await fetchOne(url, config.maxBodySize));
+        for (const url of queue) results.set(url, await fetchOne(url, config.maxBodySize, bucket));
     };
     const workers = Array.from({ length: Math.min(width(), urls.length) }, worker);
     await Promise.all(workers);
-    const failed = results.values().filter((result) => result.status === 0).toArray().length;
-    log.info({ resources: urls.length, failed }, "resources fetched");
+    const all = results.values().toArray();
+    const [failed, cached, revalidated] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length];
+    log.info({ resources: urls.length, failed, cached, revalidated }, "resources fetched");
     return Object.fromEntries(results);
 }

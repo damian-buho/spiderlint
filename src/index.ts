@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import { defaults, type Config, type GroupConfig } from "./config/index.ts";
+import { openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import { crawlHttp } from "./crawl/http.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
@@ -125,7 +126,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
         },
         store && { config: store.config, requestQueue: store.frontier },
     );
-    const results = await fetchResources(memory.pages, config);
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
     await store?.saveResources(results);
     await store?.saveSite(site);
     attachResources(memory.pages, results);
