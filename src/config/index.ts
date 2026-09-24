@@ -25,6 +25,7 @@ export type Format = "human" | "json" | "sarif";
 
 export interface Config {
     seeds: string[];
+    canonicalOrigin?: string;
     fetch: FetchMode;
     browser: BrowserName;
     scope: Scope;
@@ -82,6 +83,13 @@ export function defaults(): Config {
 
 // Thrown for anything that maps to exit code 2.
 export class ConfigError extends Error {}
+
+// The origin of an absolute http(s) URL; anything else names `name` in the error.
+export function originOf(name: string, raw: string): string {
+    const url = URL.canParse(raw) ? new URL(raw) : undefined;
+    if (!url || !["http:", "https:"].includes(url.protocol)) throw new ConfigError(`${name}: invalid value ${raw} (expected an absolute http or https URL)`);
+    return url.origin;
+}
 
 // Applies every defined key of `patch` over `base`; undefined keys leave `base` untouched.
 // This is the merge step of the flags > env > file > defaults precedence ladder.

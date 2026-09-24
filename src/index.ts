@@ -9,6 +9,7 @@ import { OfflineMiss, openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import type { Earlier } from "./crawl/frontier.ts";
 import { crawlHttp } from "./crawl/http.ts";
+import { onOrigin } from "./crawl/scope.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
@@ -69,6 +70,16 @@ function referrers(pages: Facts[]): void {
         const internal = page.html?.links.internal ?? [];
         for (const href of internal) byHref.get(href)?.crawl.referrers.push(page.url.href);
     }
+}
+
+// Each page’s URL on the canonical origin, when there is one and the page is elsewhere; recomputed on every lint.
+function twins(pages: Facts[], canonical: string | undefined): void {
+    for (const page of pages) {
+        const twin = onOrigin(page.url.href, page.url.origin, canonical ?? page.url.origin);
+        if (twin === page.url.href) delete page.url.twin;
+        else page.url.twin = twin;
+    }
+    log.debug({ canonical, pages: pages.length }, "twins set");
 }
 
 // Occurrences of each key, in first-seen order.
@@ -153,8 +164,8 @@ function fetchMode(config: Config): "http" | "browser" {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
-    const shape = { fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
+    const shape = { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -172,6 +183,7 @@ function linter(config: Config): Lint {
     return ({ pages, site, cost }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
         referrers(pages);
+        twins(pages, config.canonicalOrigin);
         const run = runRules(pages, rulesByGroup, site);
         const findings = fold(run, config.fold);
         const summary = summarize(pages, run, rules, started, cost, rulesets);
@@ -309,7 +321,7 @@ export async function warmCache(overrides: Partial<Config>, directory: string): 
     try {
         logRelativeTo(config.seeds);
         const robots = robotsLoader(openBucket("robots", config, directory));
-        const { index, files } = await loadSitemap(config.seeds, robots, openBucket("sitemaps", config, directory));
+        const { index, files } = await loadSitemap(config.seeds, robots, openBucket("sitemaps", config, directory), config.canonicalOrigin);
         const warmed = { origins: new Set(config.seeds.map((seed) => new URL(seed).origin)).size, sitemaps: files.length, urls: index.size };
         log.info(warmed, "cache warmed");
         return warmed;

@@ -25,6 +25,13 @@ export function singleOrigin(urls: Iterable<string>): string {
     return origins.size === 1 ? ([...origins][0] as string) : "";
 }
 
+// `href` under `from` moved onto `to`, path and query kept; any other URL passes through.
+export function onOrigin(href: string, from: string | undefined, to: string): string {
+    if (!from || from === to || !URL.canParse(href)) return href;
+    const url = new URL(href);
+    return url.origin === from ? new URL(`${url.pathname}${url.search}${url.hash}`, to).href : href;
+}
+
 // A URL under `origin` becomes its path; any other passes through.
 export function relative(href: string, origin: string): string {
     return origin && href.startsWith(`${origin}/`) ? href.slice(origin.length) : href;

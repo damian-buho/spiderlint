@@ -7,13 +7,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { parseDuration, type BucketName } from "../cache/index.ts";
 import { log } from "../logger.ts";
-import { ConfigError, type Config } from "./index.ts";
+import { ConfigError, originOf, type Config } from "./index.ts";
 import { validateSubtree } from "./schema.ts";
 
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "browser" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "cacheMode" | "cacheTtl">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "cacheMode" | "cacheTtl">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -72,6 +72,7 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     const resources = subtree.resources as { fetch?: boolean; "max-per-page"?: number } | undefined;
     if (resources?.fetch !== undefined) settings.fetchResources = resources.fetch;
     if (resources?.["max-per-page"] !== undefined) settings.maxResourcesPerPage = resources["max-per-page"];
+    if (subtree["canonical-origin"] !== undefined) settings.canonicalOrigin = originOf("org.spiderlint/canonical-origin", subtree["canonical-origin"] as string);
     if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);
     if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
     return settings;

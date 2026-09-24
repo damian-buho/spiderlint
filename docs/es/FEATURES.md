@@ -46,6 +46,7 @@ SPDX-License-Identifier: MIT
 - Un rastreo interrumpido se reanuda donde se detuvo.
 - Un rastreo repetido solo pregunta al sitio si cada página, script y sitemap cambió, y reutiliza lo que no cambió.
 - Las descargas binarias se juzgan por sus cabeceras y nunca se descargan completas, así que un archivo comprimido o un vídeo enlazado no consume ancho de banda.
+- Una copia de staging se audita como el sitio para el que está construida, así que sus enlaces y su sitemap que nombran la dirección de producción no se informan como errores.
 
 ### Transporte comprobado por página, no por host
 

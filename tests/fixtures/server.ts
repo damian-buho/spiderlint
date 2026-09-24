@@ -60,8 +60,8 @@ function isolateUserCache(): string | undefined {
     return process.env.XDG_CACHE_HOME;
 }
 
-// Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for.
-export async function serveFixture(): Promise<Fixture> {
+// Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for; `builtFor` bakes pages for another origin.
+export async function serveFixture(builtFor?: string): Promise<Fixture> {
     const userCache = isolateUserCache();
     const requested: string[] = [];
     const headers: IncomingHttpHeaders[] = [];
@@ -85,7 +85,7 @@ export async function serveFixture(): Promise<Fixture> {
             return;
         }
         const isGzip = pathname.endsWith(".gz");
-        const found = await body(isGzip ? pathname.slice(0, -3) : pathname, `http://${request.headers.host}`);
+        const found = await body(isGzip ? pathname.slice(0, -3) : pathname, builtFor ?? `http://${request.headers.host}`);
         if (!found) {
             response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");

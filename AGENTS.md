@@ -164,7 +164,7 @@ The single contract between extractors and rules. Dump it for any page with
 schema against it.
 
 ```yaml
-url:      { href, origin, protocol, host, pathname, search }
+url:      { href, origin, protocol, host, pathname, search, twin }   # twin: the same URL on canonical-origin
 group:    posts
 crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree, requested }
 robots:   { allowed, xRobotsTag }
@@ -249,6 +249,7 @@ rulesets:
       html/canonical-self: off
 ```
 
+- `canonical-origin` audits a staging twin serving pages built for another origin: `html/canonical-self` and `html/og-url-self` accept the page’s `url.twin`, and sitemap URLs on that origin, from `robots.txt` and `<loc>`, are read from the crawled one. A self reference to the wrong path still fails.
 - A ruleset entry for a rule it extends overrides it field by field, and `expect` keyword by keyword, so `html/title-length: {expect: {minLength: 25}}` keeps the preset’s `fact`, `when` and `maxLength`.
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
 - `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
@@ -356,6 +357,7 @@ so outsiders need no projectfile.
 org:
   spiderlint:
     targets: [https://f.dbuho.me/]     # optional; the command-line urls win
+    canonical-origin: https://dbuho.me # optional; the origin a staging twin’s pages are built for
     rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
     browser: chromium                  # chromium | firefox | webkit
@@ -399,7 +401,7 @@ spiderlint explain <rule>                 docs, default severity, fact it reads
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
-Flags mirror the config keys (`--rules`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
+Flags mirror the config keys (`--rules`, `--canonical-origin`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--format`, `--output`, `--fail-on`, `--unfold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,

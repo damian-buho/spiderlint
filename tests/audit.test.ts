@@ -212,6 +212,32 @@ describe("audit", () => {
     });
 });
 
+describe("staging twin", () => {
+    const production = "https://production.test";
+    let site: Fixture;
+
+    before(async () => {
+        site = await serveFixture(production);
+    });
+
+    after(() => site.close());
+
+    it("reports every self reference to the production origin without canonical-origin", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], sitemap: false });
+        assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical-self").length > 1);
+    });
+
+    it("accepts the page’s twin, still flags a wrong path, and reads the production sitemap from the twin", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], canonicalOrigin: production, fold: false });
+        const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
+        assert.deepEqual(of("html/canonical-self").map((finding) => [finding.url, finding.message]), [[`${site.origin}/about`, `html.canonical names ${production}/about/, not this page`]]);
+        assert.deepEqual(of("html/og-url-self").map((finding) => finding.url), [`${site.origin}/orphan`]);
+        assert.ok(site.requested.includes("/sitemap.xml"));
+        assert.equal(report.pages.find((page) => page.url.href === `${site.origin}/orphan`)?.sitemap?.listed, true);
+        assert.equal(report.pages[0]?.url.twin, `${production}/`);
+    });
+});
+
 describe("audit options", () => {
     let site: Fixture;
 

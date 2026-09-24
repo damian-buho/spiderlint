@@ -56,7 +56,7 @@ function resolve(raw: string, base: string): string {
     return url.href;
 }
 
-// A page whose `fact` names a URL other than its own; a page without the fact is skipped.
+// A page whose `fact` names a URL other than its own or its twin on the canonical origin; a page without the fact is skipped.
 function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string | undefined): Make {
     return (severity) => ({
         meta: { id, severity, scope: "page", facts: [fact] },
@@ -64,9 +64,10 @@ function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string 
             const raw = page.html && read(page.html);
             if (raw === undefined) return;
             const target = resolve(raw, page.url.href);
-            const here = resolve(page.url.href, page.url.href);
-            log.debug({ rule: id, url: page.url.href, target, matches: target === here }, "self reference checked");
-            return target === here ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${fact} names ${target}, not this page`, value: raw }];
+            const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
+            const matches = here.includes(target);
+            log.debug({ rule: id, url: page.url.href, twin: page.url.twin, target, matches }, "self reference checked");
+            return matches ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${fact} names ${target}, not this page`, value: raw }];
         },
     });
 }

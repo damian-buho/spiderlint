@@ -9,6 +9,7 @@ export interface UrlFacts {
     host: string;
     pathname: string;
     search: string;
+    twin?: string;
 }
 
 export interface CrawlFacts {

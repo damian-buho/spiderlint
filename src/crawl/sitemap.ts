@@ -10,6 +10,7 @@ import type { SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import type { RobotsFor } from "./robots.ts";
+import { onOrigin } from "./scope.ts";
 
 export type SitemapIndex = Map<string, SitemapFacts>;
 
@@ -50,10 +51,11 @@ async function* entries(url: string, contentType: string | undefined, content: s
     }
 }
 
-// Parses one fetched body into `file` counts: page entries land in `index`, same-host nested sitemaps in `queue`.
-async function collect(file: SitemapFileFacts, contentType: string | undefined, body: Buffer, index: SitemapIndex, queue: string[]): Promise<void> {
+// Parses one fetched body into `file` counts: page entries land in `index`, same-host nested sitemaps in `queue`; `canonical` URLs move onto the file’s origin.
+async function collect(file: SitemapFileFacts, contentType: string | undefined, body: Buffer, index: SitemapIndex, queue: string[], canonical?: string): Promise<void> {
     const found = entries(file.url, contentType, decode(body));
-    for await (const entry of found) {
+    for await (const listed of found) {
+        const entry = { ...listed, loc: onOrigin(listed.loc, canonical, new URL(file.url).origin) };
         if (entry.originSitemapUrl === null) {
             file.sitemaps += 1;
             const isSameHost = new URL(entry.loc).hostname === new URL(file.url).hostname;
@@ -72,7 +74,7 @@ async function collect(file: SitemapFileFacts, contentType: string | undefined, 
 }
 
 // Fetches and parses one file into its facts; `error` says which step failed.
-async function readSitemap(url: string, index: SitemapIndex, queue: string[], bucket: SitemapBucket): Promise<SitemapFileFacts> {
+async function readSitemap(url: string, index: SitemapIndex, queue: string[], bucket: SitemapBucket, canonical?: string): Promise<SitemapFileFacts> {
     const file: SitemapFileFacts = { url, status: 0, urls: 0, sitemaps: 0 };
     try {
         const { status, headers, value } = await fetchCached(bucket, url, base64);
@@ -80,7 +82,7 @@ async function readSitemap(url: string, index: SitemapIndex, queue: string[], bu
         const contentType = String(headers["content-type"] ?? "").split(";", 1)[0]?.trim() || undefined;
         if (status < 200 || status >= 300) file.error = `answers ${status}`;
         else if (contentType === "text/html") file.error = `is ${contentType}, not a sitemap`;
-        else await collect(file, contentType, Buffer.from(value, "base64"), index, queue);
+        else await collect(file, contentType, Buffer.from(value, "base64"), index, queue, canonical);
         if (!file.error && file.urls + file.sitemaps === 0) file.error = `names no URL (${contentType ?? "no content-type"})`;
     } catch (error) {
         if (error instanceof OfflineMiss) throw error;
@@ -103,34 +105,34 @@ async function isAnswering(url: string, bucket: SitemapBucket): Promise<boolean>
     }
 }
 
-// Per origin: its robots.txt `Sitemap:` lines, then the seeds naming a sitemap, else the common names that answer.
-async function discover(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket): Promise<string[]> {
+// Per origin: its robots.txt `Sitemap:` lines, `canonical` ones read from this origin, then the seeds naming a sitemap, else the common names that answer.
+async function discover(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket, canonical?: string): Promise<string[]> {
     const found = new Set<string>();
     const origins = new Set(seeds.map((seed) => new URL(seed).origin));
     for (const origin of origins) {
         const robots = await robotsFor(origin);
-        const listed = robots.getSitemaps({ enqueueStrategy: "all" });
+        const listed = robots.getSitemaps({ enqueueStrategy: "all" }).map((url) => onOrigin(url, canonical, origin));
         for (const url of listed) found.add(url);
         const named = seeds.filter((seed) => new URL(seed).origin === origin && SITEMAP_NAME.test(seed));
         const candidates = named.length > 0 ? [] : CANDIDATES.map((pathname) => new URL(pathname, origin).href);
         for (const url of named) found.add(url);
         for (const url of candidates) if (await isAnswering(url, bucket)) found.add(url);
-        log.debug({ origin, found: found.size, named: named.length, probed: candidates.length }, "sitemaps discovered for origin");
+        log.debug({ origin, canonical, listed, found: found.size, named: named.length, probed: candidates.length }, "sitemaps discovered for origin");
     }
     return [...found];
 }
 
 // robots.txt `Sitemap:` lines plus the common `/sitemap.xml` names, each file and its nested files read once.
-export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket): Promise<Sitemaps> {
+export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket, canonical?: string): Promise<Sitemaps> {
     const index: SitemapIndex = new Map();
-    const queue = await discover(seeds, robotsFor, bucket);
+    const queue = await discover(seeds, robotsFor, bucket, canonical);
     log.info({ seeds, files: queue }, queue.length > 0 ? "sitemap discovered" : "no sitemap discovered");
     const seen = new Set<string>();
     const files: SitemapFileFacts[] = [];
     for (const url of queue) {
         if (seen.has(url)) continue;
         seen.add(url);
-        files.push(await readSitemap(url, index, queue, bucket));
+        files.push(await readSitemap(url, index, queue, bucket, canonical));
     }
     log.info({ files: files.length, failed: files.filter((file) => file.error).length, urls: index.size }, "sitemap parsed");
     return { index, files };

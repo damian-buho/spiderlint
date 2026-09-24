@@ -58,7 +58,7 @@ interface Runnable {
 // What every fetch mode shares: seeds, sitemap, globs, robots, the page budget and the visited set.
 export class Frontier {
     static async open(config: Config, cache: CrawlCache): Promise<Frontier> {
-        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps) : { index: new Map(), files: [] });
+        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps, config.canonicalOrigin) : { index: new Map(), files: [] });
     }
 
     readonly #config: Config;

@@ -10,7 +10,7 @@ import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cac
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
-import { ConfigError, overlay, defaults, type BrowserName, type Config, type FailOn, type FetchMode } from "./config/index.ts";
+import { ConfigError, originOf, overlay, defaults, type BrowserName, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import type { Scope } from "./crawl/scope.ts";
@@ -50,6 +50,7 @@ Crawl:
   --no-sitemap          skip sitemap discovery
   --no-keepalive        one connection per request
   --no-resources        skip scripts, styles, images and fonts
+  --canonical-origin U  origin the pages are built for; its URLs count as the crawled one’s
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
@@ -147,6 +148,7 @@ function overridesInOrder(tokens: Token[]): Record<string, Severity> {
 function flagSettings(values: Record<string, unknown>, tokens: Token[]): Settings {
     const overrides = overridesInOrder(tokens);
     return {
+        ...(values["canonical-origin"] !== undefined && { canonicalOrigin: originOf("--canonical-origin", values["canonical-origin"] as string) }),
         ...(values.fetch !== undefined && { fetch: values.fetch as FetchMode }),
         ...(values.browser !== undefined && { browser: values.browser as BrowserName }),
         ...(values.scope !== undefined && { scope: values.scope as Scope }),
@@ -187,6 +189,7 @@ async function main(argv: string[]): Promise<number> {
             refresh: { type: "boolean" },
             offline: { type: "boolean" },
             "older-than": { type: "string" },
+            "canonical-origin": { type: "string" },
             fetch: { type: "string" },
             browser: { type: "string" },
             scope: { type: "string" },

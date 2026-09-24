@@ -31,6 +31,7 @@ const schema = {
     additionalProperties: false,
     properties: {
         targets: { type: "array", items: { type: "string" } },
+        "canonical-origin": { type: "string" },
         rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
         browser: { enum: ["chromium", "firefox", "webkit"] },

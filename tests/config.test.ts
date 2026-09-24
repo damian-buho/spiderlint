@@ -120,6 +120,12 @@ describe("environmentSettings", () => {
         assert.throws(() => environmentSettings({ SPIDERLINT_MAX_DEPTH: "deep" }), /SPIDERLINT_MAX_DEPTH: invalid value deep/);
     });
 
+    it("keeps only the origin of canonical-origin and rejects anything but an absolute http URL", () => {
+        assert.deepEqual(environmentSettings({ SPIDERLINT_CANONICAL_ORIGIN: "https://dbuho.me/posts/?x=1" }), { canonicalOrigin: "https://dbuho.me" });
+        assert.throws(() => environmentSettings({ SPIDERLINT_CANONICAL_ORIGIN: "dbuho.me" }), /SPIDERLINT_CANONICAL_ORIGIN: invalid value dbuho\.me/);
+        assert.throws(() => environmentSettings({ SPIDERLINT_CANONICAL_ORIGIN: "ftp://dbuho.me" }), ConfigError);
+    });
+
     it("parses disabled rules and merges the three override buckets", () => {
         const settings = environmentSettings({
             SPIDERLINT_DISABLED_RULES: "html/canonical-self,http/hsts",
