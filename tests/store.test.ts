@@ -89,6 +89,20 @@ describe("store", () => {
         assert.equal(second.pages.length, 2);
     });
 
+    it("revalidates a re-crawl and keeps the content facts of every 304", async () => {
+        const again = path.join(directory, "revalidate");
+        const options = { seeds: [`${site.origin}/`], exclude: ["/tmp/**"], fetchResources: false };
+        const first = await audit(options, { store: again });
+        const second = await audit(options, { store: again });
+        const revalidated = second.pages.filter((page) => page.http.revalidated);
+        assert.ok(revalidated.length > 10, `${revalidated.length} pages revalidated`);
+        assert.equal(second.pages.length, first.pages.length);
+        assert.deepEqual(keys(second.findings), keys(first.findings));
+        for (const page of revalidated) assert.deepEqual(page.html, first.pages.find((earlier) => earlier.url.href === page.url.href)?.html);
+        const refreshed = await audit({ ...options, cacheMode: "refresh" }, { store: again });
+        assert.equal(refreshed.pages.filter((page) => page.http.revalidated).length, 0);
+    });
+
     it("audits offline from the store without a single request", async () => {
         const before = site.requested.length;
         const offline = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], cacheMode: "offline" }, { store: directory });

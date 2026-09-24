@@ -150,7 +150,7 @@ schema against it.
 ```yaml
 url:      { href, origin, protocol, host, pathname, search }
 group:    posts
-crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree }
+crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree, requested }
 robots:   { allowed, xRobotsTag }
 sitemap:  { listed, lastmod, changefreq, priority }
 http:     { status, version, redirects: [{ url }],

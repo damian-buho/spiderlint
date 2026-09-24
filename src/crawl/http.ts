@@ -7,7 +7,7 @@ import type { Readable } from "node:stream";
 import picomatch from "picomatch";
 import { USER_AGENT } from "../agent.ts";
 import type { Config } from "../config/index.ts";
-import { capped, isParsed, type Capped } from "./body.ts";
+import { capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
@@ -40,10 +40,41 @@ class Crawler extends CheerioCrawler {
     }
 }
 
+// A page as the previous crawl stored it.
+export interface Earlier {
+    facts: Facts;
+    body: string;
+}
+
 // Persistent crawl state a store lends the crawler; absent, everything stays in memory.
 export interface CrawlStorage {
     config: Configuration;
     requestQueue: RequestQueue;
+    earlier?: (href: string) => Promise<Earlier | undefined>;
+}
+
+// The first value of a header that may repeat.
+function first(value: string | string[] | undefined): string | undefined {
+    return Array.isArray(value) ? value[0] : value;
+}
+
+// `If-None-Match` and `If-Modified-Since` from a stored page’s `ETag` and `Last-Modified`.
+function validators(headers: Facts["http"]["headers"]): Record<string, string> {
+    const etag = first(headers.etag);
+    const modified = first(headers["last-modified"]);
+    return { ...(etag && { "if-none-match": etag }), ...(modified && { "if-modified-since": modified }) };
+}
+
+// A 304 keeps the stored status, size and cookies and merges its headers over the stored ones.
+function revalidated(earlier: Facts, fresh: Facts): Facts["http"] {
+    const cookies = fresh.http.cookies.length > 0 ? fresh.http.cookies : earlier.http.cookies;
+    const headers = { ...earlier.http.headers, ...fresh.http.headers };
+    return { ...fresh.http, status: earlier.http.status, size: earlier.http.size, headers, cookies, revalidated: true };
+}
+
+// The stored `Content-Type` header, else one rebuilt from the stored type and charset.
+function storedContentType(facts: Facts): string {
+    return first(facts.http.headers["content-type"]) ?? `${facts.http.contentType}${facts.http.charset ? `; charset=${facts.http.charset}` : ""}`;
 }
 
 // Only these document types carry html.* facts and links to follow.
@@ -107,6 +138,8 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     let handled = 0;
     const transformRequestFunction = filter(config, skipped);
+    const revalidating = new WeakMap<object, Earlier>();
+    let revalidatedPages = 0;
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
     const crawler = new Crawler(
         {
@@ -116,8 +149,15 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
             maxCrawlDepth: config.maxDepth || undefined,
             respectRobotsTxtFile: config.robots && { userAgent: "spiderlint" },
             preNavigationHooks: [
-                (_context, gotOptions) => {
+                async ({ request }, gotOptions) => {
                     Object.assign(gotOptions, { headers: { ...gotOptions.headers, "user-agent": USER_AGENT } });
+                    const earlier = config.cacheMode === "use" ? await storage?.earlier?.(request.url) : undefined;
+                    const conditional = earlier ? validators(earlier.facts.http.headers) : {};
+                    log.debug({ url: request.url, isStored: earlier !== undefined, conditional: Object.keys(conditional) }, "page revalidation decided");
+                    if (earlier && Object.keys(conditional).length > 0) {
+                        revalidating.set(request, earlier);
+                        Object.assign(gotOptions, { headers: { ...gotOptions.headers, ...conditional } });
+                    }
                     if (config.keepalive) return;
                     Object.assign(gotOptions, { http2: false, headers: { ...gotOptions.headers, connection: "close" } });
                 },
@@ -133,7 +173,9 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                     const address = socket?.remoteAddress ?? (source as Transport).ip;
                     const remote = address ? { address, ...(socket?.remoteFamily && { family: socket.remoteFamily }) } : undefined;
                     bodies.set(context.request, { ...cap, source: source as Transport, tls: tlsFacts(socket), remote });
-                    Object.assign(context, { response: cap.stream });
+                    const earlier = (source as unknown as { statusCode?: number }).statusCode === 304 ? revalidating.get(context.request) : undefined;
+                    log.debug({ url: context.request.url, isReplayed: earlier !== undefined }, "page body chosen");
+                    Object.assign(context, { response: earlier ? replayed(cap.stream, earlier.body, storedContentType(earlier.facts)) : cap.stream });
                 },
             ],
             onSkippedRequest({ url, reason }) {
@@ -149,6 +191,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                 visited.add(request.url);
                 const url = new URL(request.loadedUrl ?? request.url);
                 visited.add(url.href);
+                const earlier = response.statusCode === 304 ? revalidating.get(request) : undefined;
                 const isHtml = HTML.has(contentType.type);
                 const cap = bodies.get(request);
                 const decoded = Buffer.byteLength(body);
@@ -157,7 +200,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                 const facts: Facts = {
                     url: { href: url.href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: url.search },
                     group: "default",
-                    crawl: { depth: request.crawlDepth, discoveredVia: request.crawlDepth > 0 ? "link" : seeds.has(request.url) ? "seed" : "sitemap", referrers: [] },
+                    crawl: { depth: request.crawlDepth, discoveredVia: request.crawlDepth > 0 ? "link" : seeds.has(request.url) ? "seed" : "sitemap", referrers: [], ...(request.url !== url.href && { requested: request.url }) },
                     ...(sitemap.size > 0 && { sitemap: listing ?? { listed: false } }),
                     http: {
                         status: response.statusCode ?? 0,
@@ -179,7 +222,9 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                     ...(cap?.tls && { tls: cap.tls }),
                     ...(isHtml && { html: extractHtml($, url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
                 };
-                log.debug({ url: url.href, status: facts.http.status, type: contentType.type, bytes: facts.http.size.body, depth: facts.crawl.depth }, "page fetched");
+                if (earlier) facts.http = revalidated(earlier.facts, facts);
+                revalidatedPages += earlier ? 1 : 0;
+                log.debug({ url: url.href, status: facts.http.status, type: facts.http.contentType, bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
                 await onPage(facts, body.toString());
                 if (!isHtml) return;
                 const { processedRequests } = await enqueueLinks({ strategy: STRATEGY[config.scope], transformRequestFunction });
@@ -193,6 +238,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     const stragglers = sitemapStragglers(config, sitemap, visited);
     const isOverBudget = config.maxPages > 0 && handled >= config.maxPages;
     if (!isOverBudget && stragglers.length > 0) await crawler.run(stragglers, { purgeRequestQueue: false });
+    if (revalidatedPages > 0) log.info({ revalidated: revalidatedPages, handled }, "pages revalidated");
     const reasons = Object.groupBy(skipped.values(), (reason) => reason);
     if (skipped.size > 0) log.info({ skipped: skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
     return { sitemaps: files };

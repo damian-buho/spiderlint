@@ -21,6 +21,16 @@ export function isParsed(contentType: string | undefined): boolean {
     return !type || PARSED.test(type);
 }
 
+// `body` under `contentType` in place of `source`’s own, its other response fields kept.
+export function replayed(source: Readable, body: string, contentType: string): Readable {
+    const stream = new PassThrough();
+    for (const field of FIELDS) Object.assign(stream, { [field]: (source as unknown as Record<string, unknown>)[field] });
+    Object.assign(stream, { headers: { ...(source as unknown as { headers: Record<string, unknown> }).headers, "content-type": contentType } });
+    source.resume();
+    stream.end(body);
+    return stream;
+}
+
 // At most `max` bytes of `source`, which is destroyed once the cap is reached.
 export function capped(source: Readable, max: number): Capped {
     const stream = new PassThrough();

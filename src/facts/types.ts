@@ -15,6 +15,7 @@ export interface CrawlFacts {
     depth: number;
     discoveredVia: "seed" | "sitemap" | "link";
     referrers: string[];
+    requested?: string;
 }
 
 export interface SitemapFacts {
@@ -56,6 +57,7 @@ export interface HttpFacts {
     size: { body: number; decoded: number; declared?: number; truncated?: true };
     contentType: string;
     charset?: string;
+    revalidated?: true;
 }
 
 export interface TlsFacts {

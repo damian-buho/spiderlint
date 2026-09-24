@@ -7,7 +7,7 @@ import { defaults, type Config, type GroupConfig } from "./config/index.ts";
 import type { Stored } from "./cache/http.ts";
 import { OfflineMiss, openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
-import { crawlHttp } from "./crawl/http.ts";
+import { crawlHttp, type Earlier } from "./crawl/http.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
@@ -114,6 +114,13 @@ export interface Crawled {
     site: SiteFacts;
 }
 
+// The previous crawl’s facts and body for `href`, when the store still holds both.
+async function earlierPage(store: DiskStore, href: string): Promise<Earlier | undefined> {
+    const facts = store.earlier.get(href);
+    const body = facts && (await store.body(facts.url.href));
+    return facts && body !== undefined ? { facts, body } : undefined;
+}
+
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
 async function servedOffline(pages: Facts[], store: DiskStore | undefined): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
@@ -138,8 +145,9 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
-        store && { config: store.config, requestQueue: store.frontier },
+        store && { config: store.config, requestQueue: store.frontier, earlier: (href) => earlierPage(store, href) },
     );
+    await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
     await store?.saveResources(results);
     await store?.saveSite(site);

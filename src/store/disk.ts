@@ -64,17 +64,21 @@ export class DiskStore {
         const config = new Configuration({ storageClientOptions: { localDataDirectory: directory }, persistStorage: true, purgeOnStart: false });
         const previous = await DiskStore.#readManifest(directory);
         let storages = await openStorages(config);
+        const earlier = new Map<string, Facts>();
         if (mode.fresh) {
+            const stored = await storages[0].map((item) => item as unknown as Facts);
+            for (const facts of stored) for (const href of [facts.url.href, facts.crawl.requested]) if (href) earlier.set(href, facts);
             const crawlerState = await KeyValueStore.open(undefined, { config });
-            await Promise.all([...storages, crawlerState].map((storage) => storage.drop()));
+            const [facts, , records, frontier] = storages;
+            await Promise.all([facts, records, frontier, crawlerState].map((storage) => storage.drop()));
             storages = await openStorages(config);
         }
         const { configHash, fresh, seeds = [] } = mode;
         if (previous && configHash && previous.configHash !== configHash) log.warn({ directory, stored: previous.configHash, current: configHash }, "store was crawled with another configuration");
         const manifest: Manifest = fresh || !previous ? { version: VERSION, seeds, configHash: configHash ?? "", started: new Date().toISOString() } : previous;
-        const store = new DiskStore(directory, config, storages, release, manifest);
+        const store = new DiskStore(directory, config, storages, release, manifest, earlier);
         await store.#writeManifest();
-        log.info({ directory, fresh: mode.fresh, started: manifest.started }, "store opened");
+        log.info({ directory, fresh: mode.fresh, started: manifest.started, earlier: earlier.size }, "store opened");
         logRelativeTo(manifest.seeds);
         return store;
     }
@@ -96,8 +100,10 @@ export class DiskStore {
     readonly records: KeyValueStore;
     readonly frontier: RequestQueue;
     readonly manifest: Manifest;
+    readonly earlier: Map<string, Facts>;
 
-    private constructor(directory: string, config: Configuration, storages: Storages, release: () => Promise<void>, manifest: Manifest) {
+    private constructor(directory: string, config: Configuration, storages: Storages, release: () => Promise<void>, manifest: Manifest, earlier: Map<string, Facts>) {
+        this.earlier = earlier;
         this.directory = directory;
         this.config = config;
         this.facts = storages[0];
@@ -115,6 +121,24 @@ export class DiskStore {
     async add(facts: Facts, body: string): Promise<void> {
         await this.facts.pushData(facts);
         await this.bodies.setValue(key(facts.url.href), body, { contentType: facts.http.contentType || "application/octet-stream" });
+    }
+
+    // A page’s stored body, which a fresh crawl keeps for revalidation.
+    async body(href: string): Promise<string | undefined> {
+        return (await this.bodies.getValue<string>(key(href))) ?? undefined;
+    }
+
+    // Deletes the bodies of pages this crawl no longer has.
+    async pruneBodies(pages: Facts[]): Promise<number> {
+        const keep = new Set(pages.map((page) => key(page.url.href)));
+        const gone: string[] = [];
+        await this.bodies.forEachKey((name) => {
+            if (!keep.has(name)) gone.push(name);
+        });
+        // eslint-disable-next-line unicorn/no-null -- Crawlee deletes a record when its value is null
+        for (const name of gone) await this.bodies.setValue(name, null);
+        log.debug({ kept: keep.size, pruned: gone.length }, "bodies pruned");
+        return gone.length;
     }
 
     async pages(): Promise<Facts[]> {
