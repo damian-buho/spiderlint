@@ -58,13 +58,18 @@ export function remoteFacts(address: { ipAddress: string } | null): HttpFacts["r
     return { address: address.ipAddress, ...(version > 0 && { family: `IPv${version}` }) };
 }
 
+// Chromium’s `TLS 1.3` spelled as Node’s `TLSv1.3`; QUIC always runs TLS 1.3 (RFC 9001 §4.2).
+function protocolName(protocol: string): string {
+    return protocol === "QUIC" ? "TLSv1.3" : protocol.replace(/^TLS (\d\.\d)$/, "TLSv$1");
+}
+
 // A navigation Chromium completed was authorized; cipher, ALPN and fingerprint stay absent, the protocol does not say them.
 export function tlsFacts(details: Security | null, now = Date.now()): TlsFacts | undefined {
     if (!details?.protocol) return undefined;
     const notBefore = details.validFrom === undefined ? undefined : new Date(details.validFrom * 1000).toISOString();
     const notAfter = details.validTo === undefined ? undefined : new Date(details.validTo * 1000).toISOString();
     return {
-        protocol: details.protocol,
+        protocol: protocolName(details.protocol),
         authorized: true,
         cert: {
             ...(details.subjectName && { subject: details.subjectName }),

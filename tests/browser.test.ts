@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
+import { tlsFacts } from "../src/facts/browser.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 // The node tool image carries no Chromium; the spiderlint image does, and its self-test runs these.
@@ -21,6 +22,15 @@ async function launchFailure(): Promise<string | false> {
 }
 
 const skip = await launchFailure();
+
+describe("browser tls facts", () => {
+    it("spells protocols as Node does, whatever Chromium says", () => {
+        assert.equal(tlsFacts({ protocol: "TLS 1.3" })?.protocol, "TLSv1.3");
+        assert.equal(tlsFacts({ protocol: "TLS 1.2" })?.protocol, "TLSv1.2");
+        assert.equal(tlsFacts({ protocol: "QUIC" })?.protocol, "TLSv1.3");
+        assert.equal(tlsFacts({}), undefined, "a plain-http response has no protocol");
+    });
+});
 
 describe("fetch mode", () => {
     it("refuses a browser rule under an http pin, naming it", async () => {
