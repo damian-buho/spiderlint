@@ -29,6 +29,10 @@ function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
     });
 }
 
+function ruleIdsOf(run: Run): string[] {
+    return (JSON.parse(run.stdout) as { id: string }[]).map((rule) => rule.id);
+}
+
 describe("cli", () => {
     let site: Fixture;
     let directory: string;
@@ -90,6 +94,12 @@ describe("cli", () => {
         assert.equal(presets.get("recommended")?.used, true);
         assert.equal(presets.get("browser")?.used, false);
         assert.ok(presets.values().every((preset) => preset.description.length > 0));
+    });
+
+    it("covers every shipped rule with the all preset", async () => {
+        const every = await spiderlint(directory, "rules", "--format", "json");
+        const all = await spiderlint(directory, "rules", "all", "--format", "json");
+        assert.deepEqual(ruleIdsOf(all), ruleIdsOf(every));
     });
 
     it("applies severity flags in argv order", async () => {
