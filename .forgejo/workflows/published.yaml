@@ -491,7 +491,7 @@ jobs:
         if: vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true'
         uses: projectfile/actions/run-tool@v1
         with:
-          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26') }}
           version: ${{ env.M6E_TAG }}
           run: npm ci
           mounts: /app/data/ci-cache/npm:/app/.cache/npm:rw
@@ -513,14 +513,14 @@ jobs:
         if: vars.CI_SKIP_SOURCE_IS_TESTED != 'true' && vars.CI_SKIP_NPM_TEST != 'true'
         uses: projectfile/actions/run-tool@v1
         with:
-          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26') }}
           version: ${{ env.M6E_TAG }}
           run: npm test --if-present
       - name: npm-typecheck
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_NPM_TYPECHECK != 'true'
         uses: projectfile/actions/run-tool@v1
         with:
-          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26') }}
           version: ${{ env.M6E_TAG }}
           run: npm run typecheck --if-present
       - name: auto-jsonlint

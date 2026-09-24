@@ -61,9 +61,6 @@ org:
     image:
       org: damian-buho
       flatpath: ${name}
-    images:
-      NODE_TOOL_IMAGE:
-        series: "26"
     forge:
       org: damian-buho
       flatpath: ${name}
