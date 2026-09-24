@@ -184,7 +184,7 @@ html:     { lang, dir, title, h1: [], h2: [], canonical,
             meta: { name: content }, property: { og:title: … },
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },
-            images: [{ src, alt, width, height }], hreflang: [{ lang, href }],
+            images: [{ src, alt, width, height, noscript }], hreflang: [{ lang, href }],
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
             scripts: [{ src, type, async, defer, head }], wordCount, generator }
 resources: [{ url, kind: script|style|image|font|iframe|preload, origin: same|cross,

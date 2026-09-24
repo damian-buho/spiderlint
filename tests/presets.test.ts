@@ -100,6 +100,7 @@ const PASSES: Record<string, Patch[]> = {
     "html/favicon": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
     "html/hreflang-x-default": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }, { lang: "x-default", href: "https://site.test/" }] } }],
     "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: true, head: true }, { src: "https://site.test/b.js", async: false, defer: false, head: false }, { async: false, defer: false, head: true }] } }],
+    "html/img-dimensions": [{ html: { images: [{ src: "/pixel.gif", alt: "", noscript: true }] } }],
     "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
 };
 

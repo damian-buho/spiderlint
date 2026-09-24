@@ -92,7 +92,7 @@ rules:
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/script#defer
   html/img-dimensions:
     fact: html.images
-    expect: {items: {required: [width, height]}}
+    expect: {items: {if: {not: {required: [noscript]}}, then: {required: [width, height]}}}
     severity: info
     message: "an <img> without width and height shifts the layout as it loads: {got}"
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions

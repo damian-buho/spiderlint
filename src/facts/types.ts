@@ -84,7 +84,7 @@ export interface HtmlFacts {
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     links: { internal: string[]; external: string[]; nofollow: string[] };
-    images: { src: string; alt?: string; width?: string; height?: string }[];
+    images: { src: string; alt?: string; width?: string; height?: string; noscript?: true }[];
 }
 
 // Indexing directives merged from `<meta name=robots>` and `X-Robots-Tag`.
