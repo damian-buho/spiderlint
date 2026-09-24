@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { existsSync } from "node:fs";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
-import type { Page, Request, Response } from "playwright";
+import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
 import { USER_AGENT } from "../agent.ts";
-import type { Config } from "../config/index.ts";
+import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
 import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts } from "../facts/browser.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
@@ -20,6 +21,7 @@ import { STRATEGY } from "./scope.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
+const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
 
 type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"] };
 
@@ -167,8 +169,20 @@ async function bodyOf(page: Page, response: Response, observation: Observation, 
     return { raw, text: HTML_TYPES.has(type) ? await page.content() : isParsed(type) ? raw.toString("utf8") : "" };
 }
 
-// Renders every page in Chromium; facts come from the rendered DOM and the browser’s own network log.
+// The Playwright launcher for `name`; a browser other than the bundled Chromium must be installed where Playwright looks.
+function launcherOf(name: BrowserName): BrowserType {
+    const launcher = Object.hasOwn(LAUNCHERS, name) ? LAUNCHERS[name] : undefined;
+    if (!launcher) throw new ConfigError(`browser ${name}: expected chromium, firefox or webkit`);
+    const executable = launcher.executablePath();
+    const isInstalled = name === "chromium" || existsSync(executable);
+    log.debug({ browser: name, executable, isInstalled }, "browser chosen");
+    if (!isInstalled) throw new ConfigError(`browser ${name} is not installed (expected ${executable}); install it with: npx playwright install ${name}`);
+    return launcher;
+}
+
+// Renders every page in the configured browser; facts come from the rendered DOM and the browser’s own network log.
 export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<CrawlResult> {
+    const launcher = launcherOf(config.browser);
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
@@ -178,7 +192,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
             ...frontier.options(storage),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
-            launchContext: { userAgent: USER_AGENT },
+            launchContext: { launcher, userAgent: USER_AGENT },
             browserPoolOptions: {
                 useFingerprints: false,
                 postLaunchHooks: [

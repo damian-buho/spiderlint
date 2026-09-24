@@ -10,7 +10,7 @@ import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cac
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
-import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
+import { ConfigError, overlay, defaults, type BrowserName, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import type { Scope } from "./crawl/scope.ts";
@@ -39,6 +39,7 @@ Commands:
 
 Crawl:
   --fetch MODE          auto, http or browser (auto)
+  --browser NAME        chromium, firefox or webkit (chromium)
   --scope SCOPE         origin, host or domain (origin)
   --max-pages N         page limit, 0 for none (0)
   --max-depth N         link depth limit, 0 for none (0)
@@ -147,6 +148,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     const overrides = overridesInOrder(tokens);
     return {
         ...(values.fetch !== undefined && { fetch: values.fetch as FetchMode }),
+        ...(values.browser !== undefined && { browser: values.browser as BrowserName }),
         ...(values.scope !== undefined && { scope: values.scope as Scope }),
         ...(values["max-pages"] !== undefined && { maxPages: Number(values["max-pages"]) }),
         ...(values["max-depth"] !== undefined && { maxDepth: Number(values["max-depth"]) }),
@@ -186,6 +188,7 @@ async function main(argv: string[]): Promise<number> {
             offline: { type: "boolean" },
             "older-than": { type: "string" },
             fetch: { type: "string" },
+            browser: { type: "string" },
             scope: { type: "string" },
             "max-pages": { type: "string" },
             "max-depth": { type: "string" },

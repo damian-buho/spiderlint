@@ -20,13 +20,17 @@ interface Run {
     stderr: string;
 }
 
-// Runs the real binary outside any projectfile, with a private user cache, asynchronously so the in-process fixture keeps answering.
-function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
+// Runs the real binary outside any projectfile, with a private user cache and `extra` environment, asynchronously so the in-process fixture keeps answering.
+function spiderlintWith(extra: NodeJS.ProcessEnv, directory: string, ...flags: string[]): Promise<Run> {
     return new Promise((resolve) => {
-        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, XDG_CACHE_HOME: path.join(directory, "cache") } }, (error, stdout, stderr) => {
+        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, XDG_CACHE_HOME: path.join(directory, "cache"), ...extra } }, (error, stdout, stderr) => {
             resolve({ code: typeof error?.code === "number" ? error.code : 0, stdout, stderr });
         });
     });
+}
+
+function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
+    return spiderlintWith({}, directory, ...flags);
 }
 
 // The html-validate findings of a JSON audit of `origin`.
@@ -127,6 +131,12 @@ describe("cli", () => {
         const rules = new Set((JSON.parse(run.stdout) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
         assert.ok(rules.size > 0, run.stderr);
         assert.ok(rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")), [...rules].join(", "));
+    });
+
+    it("refuses a browser Playwright has not installed, naming how to install it", async () => {
+        const run = await spiderlintWith({ PLAYWRIGHT_BROWSERS_PATH: path.join(directory, "no-browsers") }, directory, "audit", "http://127.0.0.1:9/", "--fetch", "browser", "--browser", "webkit", "--no-cache");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /browser webkit is not installed .+npx playwright install webkit/);
     });
 
     it("unfolds with --unfold, one finding per page", async () => {

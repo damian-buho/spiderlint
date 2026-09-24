@@ -7,6 +7,7 @@ import type { Scope } from "../crawl/scope.ts";
 import type { RulesetConfig, Severity } from "../rules/types.ts";
 
 export type FetchMode = "auto" | "http" | "browser" | "adaptive";
+export type BrowserName = "chromium" | "firefox" | "webkit";
 export type FailOn = "error" | "warning" | "info" | "never";
 
 export interface GroupConfig {
@@ -25,6 +26,7 @@ export type Format = "human" | "json" | "sarif";
 export interface Config {
     seeds: string[];
     fetch: FetchMode;
+    browser: BrowserName;
     scope: Scope;
     maxPages: number;
     maxDepth: number;
@@ -53,6 +55,7 @@ export function defaults(): Config {
     return {
         seeds: [],
         fetch: "auto",
+        browser: "chromium",
         scope: "origin",
         maxPages: 0,
         maxDepth: 0,

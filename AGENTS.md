@@ -124,6 +124,8 @@ exit `2`, unless it is `off`), `browser` (force everything), `adaptive`
 Overridable per group (`groups.app.fetch: browser`) for sites whose meta tags
 are rendered client-side — a site property no rule can declare.
 
+`browser` picks the Playwright engine (`--browser`, `SPIDERLINT_BROWSER`). The image ships Chromium only; `firefox` and `webkit` run where Playwright has them installed, and one that is missing is a config error naming `npx playwright install <name>`.
+
 The browser also yields facts HTTP cannot: console errors, Navigation Timing,
 and the COMPLETE resource census — including what JavaScript loads at
 runtime, which the http mode’s static parse of `src`/`href`/`srcset` cannot see.
@@ -349,6 +351,7 @@ org:
     targets: [https://f.dbuho.me/]     # optional; the command-line urls win
     rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
+    browser: chromium                  # chromium | firefox | webkit
     scope: origin                      # origin | host | domain
     concurrency: 0                     # 0 = NUMPROCS
     rate: 0                            # requests per minute, 0 = unlimited
@@ -389,7 +392,7 @@ spiderlint explain <rule>                 docs, default severity, fact it reads
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
-Flags mirror the config keys (`--rules`, `--fetch`, `--scope`, `--concurrency`,
+Flags mirror the config keys (`--rules`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--format`, `--output`, `--fail-on`, `--unfold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,

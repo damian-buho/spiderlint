@@ -6,6 +6,7 @@ import { ConfigError } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
 const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
+const BROWSERS = ["chromium", "firefox", "webkit"] as const;
 const SCOPES = ["origin", "host", "domain"] as const;
 const FAIL_ONS = ["error", "warning", "info", "never"] as const;
 const FORMATS = ["human", "json", "sarif"] as const;
@@ -44,6 +45,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
     return {
         ...(environment.SPIDERLINT_TARGETS !== undefined && { seeds: list(environment.SPIDERLINT_TARGETS) }),
         ...(environment.SPIDERLINT_FETCH !== undefined && { fetch: pick("SPIDERLINT_FETCH", environment.SPIDERLINT_FETCH, FETCH_MODES) }),
+        ...(environment.SPIDERLINT_BROWSER !== undefined && { browser: pick("SPIDERLINT_BROWSER", environment.SPIDERLINT_BROWSER, BROWSERS) }),
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),
         ...(environment.SPIDERLINT_MAX_PAGES !== undefined && { maxPages: parseInteger("SPIDERLINT_MAX_PAGES", environment.SPIDERLINT_MAX_PAGES) }),
         ...(environment.SPIDERLINT_MAX_DEPTH !== undefined && { maxDepth: parseInteger("SPIDERLINT_MAX_DEPTH", environment.SPIDERLINT_MAX_DEPTH) }),

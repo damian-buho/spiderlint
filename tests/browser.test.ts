@@ -4,25 +4,25 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
+import { chromium, firefox, type BrowserType } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { tlsFacts } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
-// The node tool image carries no Chromium; the spiderlint image does, and its self-test runs these.
-async function launchFailure(): Promise<string | false> {
+// The node tool image carries no browser; the spiderlint image carries Chromium, and its self-test runs these.
+async function launchFailure(launcher: BrowserType): Promise<string | false> {
     try {
-        const browser = await chromium.launch();
+        const browser = await launcher.launch();
         await browser.close();
         return false;
     } catch (error) {
-        return `Chromium does not launch: ${String(error).split("\n", 1)[0]}`;
+        return `${launcher.name()} does not launch: ${String(error).split("\n", 1)[0]}`;
     }
 }
 
-const skip = await launchFailure();
+const skip = await launchFailure(chromium);
 
 describe("browser tls facts", () => {
     it("spells protocols as Node does, whatever Chromium says", () => {
@@ -125,5 +125,15 @@ describe("browser fetch", { skip }, () => {
         assert.equal(http?.contentType, "application/octet-stream");
         assert.equal(http?.size.declared, 50_000_000);
         assert.equal(http?.size.truncated, true);
+    });
+});
+
+describe("firefox fetch", { skip: await launchFailure(firefox) }, () => {
+    it("renders in the browser the config names, axe included", async () => {
+        const site = await serveFixture();
+        const report = await audit({ seeds: [`${site.origin}/posts/3`], fetch: "browser", browser: "firefox", maxPages: 1, sitemap: false, rules: ["axe"] });
+        await site.close();
+        assert.equal(report.summary.cost.browser?.name, "firefox");
+        assert.ok(report.findings.some((finding) => finding.rule === "axe/image-alt"));
     });
 });

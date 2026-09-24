@@ -143,8 +143,8 @@ function fetchMode(config: Config): "http" | "browser" {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { fetch, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
-    const shape = { fetch, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
+    const { fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
+    const shape = { fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -221,7 +221,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     await store?.saveResources(results);
     await store?.saveSite(site);
     attachResources(memory.pages, results);
-    if (fetch === "browser") cost.browser = { name: "chromium", launches, pages: fetched };
+    if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };
     else cost.http = { pages: fetched, revalidated };
     const answered = Object.values(results);
     if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached).length, cached: answered.filter((result) => result.cached).length };

@@ -33,6 +33,7 @@ const schema = {
         targets: { type: "array", items: { type: "string" } },
         rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
+        browser: { enum: ["chromium", "firefox", "webkit"] },
         scope: { enum: ["origin", "host", "domain"] },
         concurrency: { type: "integer", minimum: 0 },
         rate: { type: "integer", minimum: 0 },
