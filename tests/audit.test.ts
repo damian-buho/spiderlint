@@ -284,6 +284,7 @@ describe("audit options", () => {
         const http = report.pages[0]?.http;
         assert.equal(report.pages[0]?.url.pathname, "/about");
         assert.deepEqual(http?.redirects, [{ url: `${site.origin}/about` }]);
+        assert.equal(report.pages[0]?.sitemap?.listed, true, "the sitemap entry follows the redirect");
         assert.equal(http?.version, "1.1");
         assert.equal(http?.remote?.address, "127.0.0.1");
         assert.ok((http?.timing.total ?? -1) >= 0);

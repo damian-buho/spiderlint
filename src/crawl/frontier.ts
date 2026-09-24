@@ -156,9 +156,9 @@ export class Frontier {
         return true;
     }
 
-    // The facts a page owes to its URL and how the crawl reached it, whatever fetched it.
+    // The facts a page owes to its URL and how the crawl reached it, whatever fetched it; the sitemap entry is the loaded URL’s, else the requested one’s.
     identity(request: Request, url: URL): Pick<Facts, "url" | "group" | "crawl" | "sitemap"> {
-        const listing: SitemapFacts | undefined = this.#sitemap.get(request.url);
+        const listing: SitemapFacts | undefined = this.#sitemap.get(url.href) ?? this.#sitemap.get(request.url);
         return {
             url: { href: url.href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: url.search },
             group: "default",
