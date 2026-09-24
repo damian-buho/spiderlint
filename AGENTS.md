@@ -36,6 +36,7 @@ recorded so the v1 shape does not block them.
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
 - Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
+- External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
 - License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
 
 ## Scope
@@ -520,7 +521,7 @@ projectfile.yaml
 - `--baseline previous.json`: report only new findings, SARIF `baselineState`.
 - Template fingerprinting: hash the DOM skeleton (tag paths, no text) per page; cluster; `spiderlint groups --suggest` proposes groups, and `match: [fingerprint:<hash>]` groups pages whose URLs do not reveal their template.
 - String assertion sugar (`title.length in 30..60`) compiling to the same JSON Schema, only if the schema form proves clumsy in practice.
-- `tls/probe` extractor (`cost: expensive`): dedicated handshakes keyed by `(host, remote.address)` — protocol versions still accepted, weak ciphers, OCSP stapling, chain completeness. Keyed by address, not host, so two backends behind one name get two probes.
+- `tls/probe` extractor (`cost: expensive`): dedicated handshakes keyed by `(host, remote.address)` — protocol versions still accepted, weak ciphers, OCSP stapling, chain completeness, TLS 1.3 early data (through `openssl s_client`, which Node’s TLS client cannot replace). Keyed by address, not host, so two backends behind one name get two probes.
 - Screenshot per sampled page in browser mode; visual diff against baseline.
 - Multi-arch once `b19/node` is.
 
