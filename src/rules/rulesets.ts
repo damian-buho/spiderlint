@@ -43,7 +43,7 @@ export function presetNames(): string[] {
     return [...files, ALL, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
 }
 
-// Flattens `extends` depth-first; later entries override earlier ones per rule ID.
+// Flattens `extends` depth-first; later entries override earlier ones per rule ID, `expect` keyword by keyword.
 export function resolveRuleset(name: string, rulesets: Record<string, RulesetConfig>, seen: string[] = []): Record<string, RuleSpec> {
     if (seen.includes(name)) throw new ConfigError(`ruleset ${name}: extends itself through ${seen.join(" → ")}`);
     const config = lookup(name, rulesets);
@@ -55,7 +55,8 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     for (const [id, entry] of own) {
         if (typeof entry === "string" && merged[id] === undefined && ruleMaker(id) === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
         const spec = typeof entry === "string" ? { severity: entry } : entry;
-        merged[id] = { ...merged[id], ...spec, ...(config.when && { when: { ...config.when, ...merged[id]?.when, ...spec.when } }) };
+        const expect = spec.expect && { expect: { ...merged[id]?.expect, ...spec.expect } };
+        merged[id] = { ...merged[id], ...spec, ...expect, ...(config.when && { when: { ...config.when, ...merged[id]?.when, ...spec.when } }) };
     }
     log.debug({ ruleset: name, rules: Object.keys(merged).length }, "ruleset resolved");
     return merged;

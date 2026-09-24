@@ -48,6 +48,14 @@ describe("html-validate extractor", () => {
     });
 });
 
+describe("rulesets", () => {
+    it("merges an overriding expect into the extended one, keyword by keyword", () => {
+        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": { expect: { minLength: 25 } } } } })["html/title-length"];
+        assert.deepEqual(title?.expect, { type: "string", minLength: 25, maxLength: 60 });
+        assert.equal(title?.fact, "html.title");
+    });
+});
+
 describe("plugins", () => {
     let site: Fixture;
     let directory: string;

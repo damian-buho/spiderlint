@@ -247,6 +247,7 @@ rulesets:
       html/canonical-self: off
 ```
 
+- A ruleset entry for a rule it extends overrides it field by field, and `expect` keyword by keyword, so `html/title-length: {expect: {minLength: 25}}` keeps the preset’s `fact`, `when` and `maxLength`.
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
 - `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
 - A page rule whose extractor did not run — the fact path’s top-level key is absent, as `html` is on a JSON or RSS document — is skipped, not failed. Only a key present with a missing field is a finding.
