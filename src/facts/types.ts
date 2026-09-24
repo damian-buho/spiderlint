@@ -86,7 +86,15 @@ export interface ResourceFacts {
     origin: "same" | "cross";
     integrity?: string;
     crossorigin?: string;
+    observed?: true;
     http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true };
+}
+
+// What only a rendering browser sees: load milestones, console output, bytes per resource kind.
+export interface BrowserFacts {
+    timing: { domContentLoaded?: number; load?: number };
+    console: { errors: string[]; warnings: string[] };
+    weight: Partial<Record<"script" | "style" | "image" | "font", number>>;
 }
 
 export interface Facts {
@@ -98,4 +106,5 @@ export interface Facts {
     tls?: TlsFacts;
     html?: HtmlFacts;
     resources?: ResourceFacts[];
+    browser?: BrowserFacts;
 }

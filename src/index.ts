@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { defaults, type Config, type GroupConfig } from "./config/index.ts";
+import { ConfigError, defaults, type Config, type GroupConfig } from "./config/index.ts";
 import type { Stored } from "./cache/http.ts";
 import { OfflineMiss, openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
@@ -84,6 +84,26 @@ function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void 
     }
 }
 
+// Why the run needs a browser: each group pinning `browser` and each enabled rule reading a `browser.*` fact.
+function browserReasons(config: Config): string[] {
+    const disabledRules = new Set(config.disabledRules);
+    return Object.entries(groupsOf(config)).flatMap(([name, group]) => {
+        if (group.fetch === "browser") return [`group ${name}`];
+        const rules = compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides);
+        return rules.filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("browser."))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
+    });
+}
+
+// A pin wins; `auto` renders only when a group or a rule asks for it, and an `http` pin refuses both.
+function fetchMode(config: Config): "http" | "browser" {
+    if (config.fetch === "adaptive") throw new ConfigError("fetch mode adaptive is not implemented yet; use auto, http or browser");
+    if (config.fetch === "browser") return "browser";
+    const reasons = browserReasons(config);
+    log.debug({ fetch: config.fetch, reasons }, "fetch mode derived");
+    if (config.fetch === "http" && reasons.length > 0) throw new ConfigError(`fetch http cannot serve ${reasons.join(", ")}; use --fetch browser or turn them off`);
+    return reasons.length > 0 ? "browser" : "http";
+}
+
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
     const { fetch, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
@@ -136,10 +156,11 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const earlier = store ? await store.pages() : [];
     if (config.cacheMode === "offline") return servedOffline(earlier, store);
     for (const facts of earlier) memory.add(facts);
-    const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
+    const fetch = fetchMode(config);
+    const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
-    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
+    log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const site = await crawl(
         config,
         async (facts, body) => {

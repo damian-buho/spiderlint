@@ -29,7 +29,7 @@ const USAGE = [
     "       spiderlint cache status  [--store DIR]   entries, bytes and age per bucket (default .spiderlint)",
     "       spiderlint cache purge [bucket] [--older-than 7d] [--store DIR]   delete cached entries",
     "       spiderlint cache warm  [url…] [--store DIR]   fill robots and sitemaps without crawling",
-    "options: --config PATH  --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
+    "options: --config PATH  --fetch auto|http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
     "         --format human|json|sarif  --fail-on error|warning|info|never  --resume  --no-cache  --refresh  --offline",
     "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",

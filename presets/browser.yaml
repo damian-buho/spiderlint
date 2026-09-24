@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+when:
+  http.status: {minimum: 200, maximum: 299}
+rules:
+  browser/console-errors:
+    fact: browser.console.errors
+    expect: {maxItems: 0}
+    severity: warning
+    docs: https://developer.mozilla.org/docs/Web/API/console/error_static

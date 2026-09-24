@@ -50,7 +50,7 @@ export interface Config {
 export function defaults(): Config {
     return {
         seeds: [],
-        fetch: "http",
+        fetch: "auto",
         scope: "origin",
         maxPages: 0,
         maxDepth: 0,

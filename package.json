@@ -24,6 +24,7 @@
     "http-cache-semantics": "4.2.0",
     "picomatch": "4.0.7",
     "pino": "10.3.1",
+    "playwright": "1.63.0",
     "proper-lockfile": "4.1.2",
     "tldts": "7.4.13",
     "yaml": "2.9.1"
