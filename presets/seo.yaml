@@ -8,10 +8,41 @@ when:
 rules:
   html/lang:
     fact: html.lang
-    expect: {type: string, minLength: 2}
+    expect: {type: string, pattern: "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$"}
     severity: error
-    message: "<html lang> should name a language, found {got}"
+    message: "<html lang> should be a BCP 47 language tag, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
+  html/viewport:
+    fact: html.meta.viewport
+    expect: {type: string, pattern: "^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}
+    severity: warning
+    message: "meta viewport should set width=device-width and allow zoom, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
+  html/theme-color:
+    fact: html.meta.theme-color
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no meta theme-color"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
+  html/color-scheme:
+    fact: html.meta.color-scheme
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no meta color-scheme"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+  html/noindex-listed:
+    fact: html.meta.robots
+    expect: {type: string, not: {pattern: "(?i:\\b(noindex|none)\\b)"}}
+    when: {sitemap.listed: true, html.meta.robots: {type: string}}
+    severity: error
+    message: "a page the sitemap lists says noindex: {got}"
+    docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
+  url/shape:
+    fact: url.pathname
+    expect: {type: string, pattern: "^(?!.*//)(%[0-9A-Fa-f]{2}|[^A-Z_%])*$"}
+    severity: info
+    message: "URL path should be lowercase, with hyphens and no empty segment, found {got}"
+    docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
   html/title:
     fact: html.title
     expect: {type: string}

@@ -15,7 +15,7 @@ Status: v1 in progress. Implemented: http and browser crawl with link
 discovery, scope, depth, glob and body-size limits; `auto` fetch derived per
 run (browser when any group pins it or any enabled rule reads `browser.*`); sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
-`seo`, `security-headers`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
+`seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
 `sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
@@ -277,7 +277,7 @@ because facts are always retained even when bodies are not.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
-Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `tls`,
+Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `tls`,
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,

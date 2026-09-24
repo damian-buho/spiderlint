@@ -6,6 +6,7 @@ description: The default ruleset of every group — all presets except browser
 extends:
   - spiderlint:seo
   - spiderlint:security-headers
+  - spiderlint:performance
   - spiderlint:links
   - spiderlint:tls
   - spiderlint:cookies

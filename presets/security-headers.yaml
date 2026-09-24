@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: HSTS, CSP, nosniff, Referrer-Policy and framing
+description: HSTS, CSP, nosniff, Referrer-Policy, framing and cross-origin isolation
 rules:
   http/hsts:
     fact: http.headers.strict-transport-security
@@ -25,8 +25,59 @@ rules:
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
   http/referrer-policy:
     fact: http.headers.referrer-policy
-    expect: {type: string, minLength: 1}
+    expect: {type: string, minLength: 1, not: {pattern: "(?i:unsafe-url|no-referrer-when-downgrade)\\s*$"}}
     severity: warning
-    message: "no Referrer-Policy header"
+    message: "Referrer-Policy should not leak full URLs, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options: info
+  http/hsts-subdomains:
+    fact: http.headers.strict-transport-security
+    expect: {type: string, pattern: "(?i:includeSubDomains)"}
+    when: {url.protocol: "https:", http.headers.strict-transport-security: {type: string}}
+    severity: info
+    message: "Strict-Transport-Security should carry includeSubDomains, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security#includesubdomains
+  http/permissions-policy:
+    fact: http.headers.permissions-policy
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no Permissions-Policy header"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
+  http/coop:
+    fact: http.headers.cross-origin-opener-policy
+    expect: {type: string, pattern: "^\\s*same-origin(-allow-popups)?\\s*(;|$)"}
+    severity: info
+    message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
+  http/corp:
+    fact: http.headers.cross-origin-resource-policy
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no Cross-Origin-Resource-Policy header"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
+  http/csp-upgrade-insecure:
+    fact: http.headers.content-security-policy
+    expect: {type: string, pattern: "(?i:upgrade-insecure-requests)"}
+    when: {url.protocol: "https:", http.headers.content-security-policy: {type: string}}
+    severity: info
+    message: "Content-Security-Policy should carry upgrade-insecure-requests, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
+  http/csp-trusted-types:
+    fact: http.headers.content-security-policy
+    expect: {type: string, pattern: "(?i:require-trusted-types-for\\s+'script')"}
+    when: {http.headers.content-security-policy: {type: string}}
+    severity: info
+    message: "Content-Security-Policy should carry require-trusted-types-for ‘script’, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
+  http/reporting-endpoints:
+    fact: http.headers.reporting-endpoints
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no Reporting-Endpoints header"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Reporting-Endpoints
+  http/no-x-xss-protection:
+    fact: http.headers
+    expect: {properties: {x-xss-protection: {pattern: "^\\s*0\\s*$"}}}
+    severity: warning
+    message: "X-XSS-Protection should be absent or 0, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection
