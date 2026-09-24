@@ -63,6 +63,7 @@ export interface RuleSpec {
     scope?: Scope;
     severity?: Severity;
     docs?: string;
+    message?: string;
 }
 
 export type RuleEntry = RuleSpec | Severity;

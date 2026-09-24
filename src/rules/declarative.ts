@@ -35,8 +35,11 @@ export function describe(value: unknown): string {
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
 }
 
-function message(fact: string, value: unknown, error: ErrorObject): string {
-    return value === undefined ? `${fact} is absent` : `${fact}${error.instancePath} ${error.message} (got ${describe(at(value, error.instancePath))})`;
+// The rule’s own sentence with `{got}` filled in, else AJV’s wording against the fact path.
+function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): string {
+    const got = value === undefined ? "none" : describe(at(value, error.instancePath));
+    if (text) return text.replaceAll("{got}", () => got);
+    return value === undefined ? `${fact} is absent` : `${fact}${error.instancePath} ${error.message} (got ${got})`;
 }
 
 function severityOf(id: string, spec: RuleSpec, fallback: Severity): Exclude<Severity, "off"> {
@@ -80,7 +83,7 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
             const value = get(page, fact);
             if (validate(value)) return [];
             const error = validate.errors?.[0] as ErrorObject;
-            return [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, message: message(fact, value, error), value }];
+            return [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, message: message(fact, value, error, spec.message), value }];
         },
     };
 }
@@ -104,7 +107,7 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
             for (const [value, urls] of byValue) {
                 if (urls.length < 2) continue;
                 log.debug({ rule: id, group, value, pages: urls.length }, "duplicate value");
-                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, message: `${fact} is shared by ${urls.length} pages (${describe(value)})`, value, urls });
+                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, message: spec.message?.replaceAll("{got}", () => describe(value)) ?? `${fact} is shared by ${urls.length} pages (${describe(value)})`, value, urls });
             }
             return findings;
         },

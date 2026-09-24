@@ -156,6 +156,9 @@ origin for `/app/*`, each with its own certificate, protocol and address — and
 a once-per-host probe would hide that. With keep-alive, pages sharing a
 connection share the same observation; `--no-keepalive` forces a fresh
 handshake per page for a complete census at the cost of speed.
+The CLI trusts the OS certificate store beside Node’s bundled roots, as
+`node --use-system-ca` does, so a locally trusted development CA passes
+`tls/authorized` with no flag.
 
 ## Facts document
 
@@ -252,6 +255,7 @@ rulesets:
 - `canonical-origin` audits a staging twin serving pages built for another origin: `html/canonical-self` and `html/og-url-self` accept the page’s `url.twin`, and sitemap URLs on that origin, from `robots.txt` and `<loc>`, are read from the crawled one. A self reference to the wrong path still fails.
 - A ruleset entry for a rule it extends overrides it field by field, and `expect` keyword by keyword, so `html/title-length: {expect: {minLength: 25}}` keeps the preset’s `fact`, `when` and `maxLength`.
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
+- `message` is the finding’s sentence, `{got}` standing for the offending value (`none` when absent); every shipped declarative rule carries one. Without it the finding reads AJV’s wording against the fact path. An override that sets `expect` without `message` drops the inherited one, which may state the old bounds.
 - `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
 - A page rule whose extractor did not run — the fact path’s top-level key is absent, as `html` is on a JSON or RSS document — is skipped, not failed. Only a key present with a missing field is a finding.
 - A rule entry with neither `fact` nor `unique` names a built-in TypeScript rule by ID (`links/broken-internal: error`); an unknown ID is a config error.

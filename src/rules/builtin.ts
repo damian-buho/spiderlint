@@ -77,7 +77,7 @@ function resolve(raw: string, base: string): string {
 }
 
 // A page whose `fact` names a URL other than its own or its twin on the canonical origin; a page without the fact is skipped.
-function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string | undefined): Make {
+function pointsHere(id: string, fact: string, label: string, read: (html: HtmlFacts) => string | undefined): Make {
     return (severity) => ({
         meta: { id, severity, scope: "page", facts: [fact] },
         check(page: Facts) {
@@ -87,21 +87,21 @@ function pointsHere(id: string, fact: string, read: (html: HtmlFacts) => string 
             const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
             const matches = here.includes(target);
             log.debug({ rule: id, url: page.url.href, twin: page.url.twin, target, matches }, "self reference checked");
-            return matches ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${fact} names ${target}, not this page`, value: raw }];
+            return matches ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${label} names ${target}, not this page`, value: raw }];
         },
     });
 }
 
 // Per-connection facts that should not differ between pages of one host.
-const ORIGIN: [string, (page: Facts) => string | undefined][] = [
-    ["tls.cert.fingerprint256", (page) => page.tls?.cert.fingerprint256],
-    ["tls.protocol", (page) => page.tls?.protocol],
-    ["http.remote.address", (page) => page.http.remote?.address],
-    ["http.headers.server", (page) => header(page, "server") || undefined],
+const ORIGIN: [string, string, (page: Facts) => string | undefined][] = [
+    ["tls.cert.fingerprint256", "certificate fingerprint", (page) => page.tls?.cert.fingerprint256],
+    ["tls.protocol", "TLS version", (page) => page.tls?.protocol],
+    ["http.remote.address", "server address", (page) => page.http.remote?.address],
+    ["http.headers.server", "Server header", (page) => header(page, "server") || undefined],
 ];
 
 // The finding for one host and fact when its value varies across the host's pages.
-function varies(severity: Exclude<Severity, "off">, host: string, members: Facts[], fact: string, read: (page: Facts) => string | undefined): Finding | undefined {
+function varies(severity: Exclude<Severity, "off">, host: string, members: Facts[], fact: string, label: string, read: (page: Facts) => string | undefined): Finding | undefined {
     const byValue = Map.groupBy(
         members.filter((page) => read(page) !== undefined),
         (page) => read(page) as string,
@@ -110,7 +110,7 @@ function varies(severity: Exclude<Severity, "off">, host: string, members: Facts
     if (byValue.size < 2) return undefined;
     const entries = byValue.entries().toArray();
     const urls = entries.flatMap(([, group]) => group.map((page) => page.url.href));
-    const message = `${fact} varies across ${host}: ${entries.map(([value, group]) => `${value} (${group.length})`).join(", ")}`;
+    const message = `${label} varies across ${host}: ${entries.map(([value, group]) => `${value} (${group.length})`).join(", ")}`;
     return { rule: "http/consistent-origin", severity, scope: "site", url: urls[0] as string, message, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
 }
 
@@ -119,7 +119,7 @@ const consistentOrigin: Make = (severity) => ({
     meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact) },
     check(pages: Facts[]) {
         const hosts = Map.groupBy(pages, (page) => page.url.host).entries().toArray();
-        return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, read]) => varies(severity, host, members, fact, read)).filter((finding) => finding !== undefined));
+        return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, label, read]) => varies(severity, host, members, fact, label, read)).filter((finding) => finding !== undefined));
     },
 });
 
@@ -175,6 +175,6 @@ export const builtin: Record<string, Make> = {
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
         (resource, pages) => (resource.integrity ? undefined : `cross-origin ${resource.kind} without integrity; used by ${pages} pages`),
     ),
-    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", (html) => html.canonical),
-    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", (html) => html.property["og:url"]),
+    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical),
+    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"]),
 };

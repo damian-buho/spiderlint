@@ -106,20 +106,20 @@ describe("audit", () => {
         assert.equal(h1?.occurrences, 5);
         assert.equal(h1?.coverage, 1);
         assert.equal(h1?.samples?.length, 3);
-        assert.match(h1?.message ?? "", /html\.h1 must NOT have fewer than 1 items \(got 0 items\)/);
+        assert.match(h1?.message ?? "", /^should have exactly one <h1>, found 0 items$/);
     });
 
     it("keeps a one-page defect on its page", () => {
         const [alt, ...rest] = of("html/img-alt");
         assert.equal(rest.length, 0);
         assert.equal(alt?.url, `${site.origin}/posts/3`);
-        assert.match(alt?.message ?? "", /html\.images\/0 must have required property 'alt'/);
+        assert.match(alt?.message ?? "", /^an <img> has no alt attribute: \{"src":"\/figure\.png"\}$/);
     });
 
     it("reports lengths with the actual value", () => {
         const [title] = of("html/title-length");
         assert.equal(title?.url, `${site.origin}/about`);
-        assert.match(title?.message ?? "", /must NOT have fewer than 30 characters \(got 11 characters: “About page!”\)/);
+        assert.match(title?.message ?? "", /^<title> should be 30–60 characters, found 11 characters: “About page!”$/);
         assert.deepEqual(of("html/description-length"), []);
     });
 
@@ -127,7 +127,7 @@ describe("audit", () => {
         const [description, ...rest] = of("html/description");
         assert.equal(rest.length, 0);
         assert.equal(description?.url, `${site.origin}/app/`);
-        assert.equal(description?.message, "html.meta.description is absent");
+        assert.equal(description?.message, "no meta description");
         assert.ok(of("html/description-redundant").every((finding) => finding.url !== `${site.origin}/app/`));
     });
 
@@ -141,9 +141,9 @@ describe("audit", () => {
         const [title, ...restTitle] = of("html/title-redundant");
         assert.equal(restTitle.length, 0);
         assert.equal(title?.url, `${site.origin}/duplicate`);
-        assert.match(title?.message ?? "", /html\.title must match pattern/);
+        assert.match(title?.message ?? "", /^<title> repeats itself around a separator: /);
         const description = of("html/description-redundant").find((finding) => finding.url === `${site.origin}/duplicate`);
-        assert.match(description?.message ?? "", /html\.meta\.description must match pattern/);
+        assert.match(description?.message ?? "", /^meta description repeats itself around a separator: /);
     });
 
     it("reports an internal link answering a redirect once, with the pages carrying it, and counts them as referrers", () => {
@@ -159,7 +159,7 @@ describe("audit", () => {
         const [canonical, ...restCanonical] = of("html/canonical-self");
         assert.equal(restCanonical.length, 0);
         assert.equal(canonical?.url, `${site.origin}/about`);
-        assert.equal(canonical?.message, `html.canonical names ${site.origin}/about/, not this page`);
+        assert.equal(canonical?.message, `canonical link names ${site.origin}/about/, not this page`);
         const [ogUrl, ...restOgUrl] = of("html/og-url-self");
         assert.equal(restOgUrl.length, 0);
         assert.equal(ogUrl?.url, `${site.origin}/orphan`);
@@ -241,7 +241,7 @@ describe("staging twin", () => {
     it("accepts the page’s twin, still flags a wrong path, and reads the production sitemap from the twin", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], canonicalOrigin: production, fold: false });
         const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
-        assert.deepEqual(of("html/canonical-self").map((finding) => [finding.url, finding.message]), [[`${site.origin}/about`, `html.canonical names ${production}/about/, not this page`]]);
+        assert.deepEqual(of("html/canonical-self").map((finding) => [finding.url, finding.message]), [[`${site.origin}/about`, `canonical link names ${production}/about/, not this page`]]);
         assert.deepEqual(of("html/og-url-self").map((finding) => finding.url), [`${site.origin}/orphan`]);
         assert.ok(site.requested.includes("/sitemap.xml"));
         assert.equal(report.pages.find((page) => page.url.href === `${site.origin}/orphan`)?.sitemap?.listed, true);
@@ -354,7 +354,7 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`] });
         const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/consistent-origin");
         assert.equal(rest.length, 0);
-        assert.match(origin?.message ?? "", /^http\.headers\.server varies across 127\.0\.0\.1:\d+: fixture-a \(9\), fixture-b \(5\)$/);
+        assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+: fixture-a \(9\), fixture-b \(5\)$/);
         assert.equal(origin?.urls?.length, 14);
     });
 

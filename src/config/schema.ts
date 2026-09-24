@@ -21,6 +21,7 @@ const ruleSpec = {
         scope: { enum: ["page", "group", "site"] },
         severity,
         docs: { type: "string" },
+        message: { type: "string" },
     },
 };
 

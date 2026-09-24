@@ -10,4 +10,5 @@ rules:
     fact: browser.console.errors
     expect: {maxItems: 0}
     severity: warning
+    message: "the browser console logged errors ({got})"
     docs: https://developer.mozilla.org/docs/Web/API/console/error_static

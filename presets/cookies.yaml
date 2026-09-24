@@ -9,14 +9,17 @@ rules:
     expect: {type: array, items: {properties: {secure: {const: true}}}}
     when: {url.protocol: "https:"}
     severity: warning
+    message: "a cookie is set without the Secure flag"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies
   cookies/http-only:
     fact: http.cookies
     expect: {type: array, items: {properties: {httpOnly: {const: true}}}}
     severity: info
+    message: "a cookie is set without the HttpOnly flag"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies
   cookies/same-site:
     fact: http.cookies
     expect: {type: array, items: {required: [sameSite]}}
     severity: info
+    message: "a cookie is set without a SameSite attribute"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value

@@ -9,20 +9,24 @@ rules:
     expect: {type: string, pattern: "max-age=\\d{7,}"}
     when: {url.protocol: "https:"}
     severity: warning
+    message: "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
   http/csp:
     fact: http.headers.content-security-policy
     expect: {type: string, minLength: 1}
     severity: warning
+    message: "no Content-Security-Policy header"
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
   http/content-type-options:
     fact: http.headers.x-content-type-options
     expect: {type: string, pattern: "^nosniff$"}
     severity: warning
+    message: "X-Content-Type-Options should be nosniff, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
   http/referrer-policy:
     fact: http.headers.referrer-policy
     expect: {type: string, minLength: 1}
     severity: warning
+    message: "no Referrer-Policy header"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options: info

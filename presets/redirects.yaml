@@ -8,4 +8,5 @@ rules:
     fact: http.redirects
     expect: {type: array, maxItems: 2}
     severity: warning
+    message: "takes more than 2 redirects to land ({got})"
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects

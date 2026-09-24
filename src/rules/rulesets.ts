@@ -55,7 +55,8 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     for (const [id, entry] of own) {
         if (typeof entry === "string" && merged[id] === undefined && ruleMaker(id) === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
         const spec = typeof entry === "string" ? { severity: entry } : entry;
-        const expect = spec.expect && { expect: { ...merged[id]?.expect, ...spec.expect } };
+        // A new `expect` drops the inherited sentence, which may state the old bounds.
+        const expect = spec.expect && { expect: { ...merged[id]?.expect, ...spec.expect }, message: spec.message };
         merged[id] = { ...merged[id], ...spec, ...expect, ...(config.when && { when: { ...config.when, ...merged[id]?.when, ...spec.when } }) };
     }
     log.debug({ ruleset: name, rules: Object.keys(merged).length }, "ruleset resolved");

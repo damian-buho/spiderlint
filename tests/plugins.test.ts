@@ -53,6 +53,12 @@ describe("rulesets", () => {
         const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": { expect: { minLength: 25 } } } } })["html/title-length"];
         assert.deepEqual(title?.expect, { type: "string", minLength: 25, maxLength: 60 });
         assert.equal(title?.fact, "html.title");
+        assert.equal(title?.message, undefined);
+    });
+
+    it("keeps the extended message when an override leaves expect alone", () => {
+        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": "error" } } })["html/title-length"];
+        assert.match(title?.message ?? "", /30–60 characters/);
     });
 });
 
