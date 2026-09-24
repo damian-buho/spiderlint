@@ -10,9 +10,9 @@ import { capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
-import type { Facts, SiteFacts } from "../facts/types.ts";
+import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { Frontier, type CrawlCache, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
+import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { STRATEGY } from "./scope.ts";
 
@@ -52,7 +52,7 @@ function socketOf(source: unknown): Transport["socket"] {
 }
 
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<SiteFacts> {
+export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<CrawlResult> {
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const revalidating = new WeakMap<object, Earlier>();
@@ -135,5 +135,5 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     );
     await frontier.run(crawler, cache.robots);
     if (revalidatedPages > 0) log.info({ revalidated: revalidatedPages }, "pages revalidated");
-    return { sitemaps: frontier.files };
+    return { site: { sitemaps: frontier.files }, launches: 0 };
 }

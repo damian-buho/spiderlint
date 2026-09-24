@@ -24,6 +24,14 @@ import type { Finding, Rule } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 
+// What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs.
+export interface Cost {
+    browser?: { name: string; launches: number; pages: number };
+    http?: { pages: number; revalidated: number };
+    resources?: { requests: number; cached: number };
+    extractors: Record<string, number>;
+}
+
 export interface Summary {
     started: string;
     durationMs: number;
@@ -32,6 +40,7 @@ export interface Summary {
     groups: Record<string, number>;
     statuses: Record<string, number>;
     findings: number;
+    cost: Cost;
 }
 
 export interface Report {
@@ -66,7 +75,7 @@ function tally(keys: string[]): Record<string, number> {
 }
 
 // Run totals `human` prints and `json`/`sarif` embed.
-function summarize(pages: Facts[], findings: Finding[], started: Date): Summary {
+function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cost): Summary {
     const statuses = tally(pages.map((page) => String(page.http.status)));
     return {
         started: started.toISOString(),
@@ -76,6 +85,7 @@ function summarize(pages: Facts[], findings: Finding[], started: Date): Summary 
         groups: tally(pages.map((page) => page.group)),
         statuses: Object.fromEntries(Object.entries(statuses).toSorted(([a], [b]) => Number(a) - Number(b))),
         findings: findings.length,
+        cost,
     };
 }
 
@@ -93,8 +103,13 @@ function enabledRules(config: Config): Rule[] {
     return Object.values(groupsOf(config)).flatMap((group) => compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides));
 }
 
+// Counts one run of each extractor in `ids`.
+function counted(cost: Cost, ids: string[]): void {
+    for (const id of ids) cost.extractors[id] = (cost.extractors[id] ?? 0) + 1;
+}
+
 // Stored pages an extractor never saw get its facts from their stored body, so a new rule needs no re-crawl.
-async function backfill(pages: Facts[], store: DiskStore, active: Extractor[]): Promise<void> {
+async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], cost: Cost): Promise<void> {
     const unserved = active.filter((extractor) => extractor.mode === "browser" && pages.some((page) => page.html && page[extractor.id] === undefined));
     if (unserved.length > 0) log.warn({ extractors: unserved.map((extractor) => extractor.id) }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
     for (const page of pages) {
@@ -102,7 +117,7 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[]): 
         if (missing.length === 0) continue;
         const body = await store.body(page.url.href);
         log.debug({ url: page.url.href, extractors: missing.map((extractor) => extractor.id), hasBody: body !== undefined }, "stored page backfilled");
-        if (body !== undefined) await extract(page, body, missing);
+        if (body !== undefined) counted(cost, await extract(page, body, missing));
     }
 }
 
@@ -142,11 +157,11 @@ function linter(config: Config): Lint {
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     warnUnknown(config, groups);
-    return ({ pages, site }, started) => {
+    return ({ pages, site, cost }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
         referrers(pages);
         const findings = fold(runRules(pages, rulesByGroup, site), config.fold);
-        const summary = summarize(pages, findings, started);
+        const summary = summarize(pages, findings, started, cost);
         log.info(summary, "lint done");
         return { pages, findings, summary };
     };
@@ -155,6 +170,7 @@ function linter(config: Config): Lint {
 export interface Crawled {
     pages: Facts[];
     site: SiteFacts;
+    cost: Cost;
 }
 
 // The previous crawl’s facts and body for `href`, when the store still holds both.
@@ -168,9 +184,10 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[]): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
-    await backfill(pages, store, active);
+    const cost: Cost = { extractors: {} };
+    await backfill(pages, store, active, cost);
     attachResources(pages, await store.resources());
-    return { pages, site: await store.site() };
+    return { pages, site: await store.site(), cost };
 }
 
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
@@ -185,10 +202,15 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
-    const site = await crawl(
+    const cost: Cost = { extractors: {} };
+    let fetched = 0;
+    let revalidated = 0;
+    const { site, launches } = await crawl(
         config,
         async (facts, body, live) => {
-            await extract(facts, body, active, live);
+            fetched += 1;
+            revalidated += facts.http.revalidated ? 1 : 0;
+            counted(cost, await extract(facts, body, active, live));
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
@@ -199,7 +221,12 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     await store?.saveResources(results);
     await store?.saveSite(site);
     attachResources(memory.pages, results);
-    return { pages: memory.pages, site };
+    if (fetch === "browser") cost.browser = { name: "chromium", launches, pages: fetched };
+    else cost.http = { pages: fetched, revalidated };
+    const answered = Object.values(results);
+    if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached).length, cached: answered.filter((result) => result.cached).length };
+    log.info({ cost }, "crawl cost");
+    return { pages: memory.pages, site, cost };
 }
 
 // Runs `work` against a locked store, stamping it finished only when `work` succeeds.
@@ -253,9 +280,10 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
     const lint = linter(config);
     return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
-        await backfill(pages, store, extractorsFor(enabledRules(config)));
+        const cost: Cost = { extractors: {} };
+        await backfill(pages, store, extractorsFor(enabledRules(config)), cost);
         attachResources(pages, await store.resources());
-        const report = lint({ pages, site: await store.site() }, started);
+        const report = lint({ pages, site: await store.site(), cost }, started);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });

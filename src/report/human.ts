@@ -97,6 +97,17 @@ export function formatHuman(report: Report, paint: Paint = plain): string {
     });
     const { pages, bytes, durationMs, statuses } = report.summary;
     const answers = Object.entries(statuses).map(([status, count]) => `${count} × ${status}`);
-    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")})`);
+    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")})`, paint("dim", costLine(report.summary.cost)));
     return out.join("\n");
+}
+
+// Browsers launched and pages they rendered, plain HTTP fetches, resource requests and extractor runs; no fetch at all says so.
+function costLine({ browser, http, resources, extractors }: Report["summary"]["cost"]): string {
+    const parts = [
+        browser && `${browser.name} launched ${browser.launches}× for ${browser.pages} pages`,
+        http && `${http.pages} plain HTTP fetches${http.revalidated > 0 ? ` (${http.revalidated} revalidated)` : ""}`,
+        resources && `${resources.requests} resource requests${resources.cached > 0 ? ` (${resources.cached} more from cache)` : ""}`,
+        Object.keys(extractors).length > 0 && `extractors ${Object.entries(extractors).map(([id, runs]) => `${id} ×${runs}`).join(", ")}`,
+    ].filter(Boolean);
+    return `cost: ${browser || http ? "" : "no fetch, "}${parts.join("; ") || "nothing ran"}`;
 }

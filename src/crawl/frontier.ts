@@ -6,13 +6,19 @@ import type { Configuration, Request, RequestQueue, RequestTransform } from "cra
 import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
-import type { Facts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
+import type { Facts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RobotsFor } from "./robots.ts";
 import { isInScope } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
 export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> | void;
+
+// What a crawl found about the site, and how many browsers it launched.
+export interface CrawlResult {
+    site: SiteFacts;
+    launches: number;
+}
 
 // Cached lookups a crawl reads through.
 export interface CrawlCache {

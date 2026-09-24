@@ -84,8 +84,9 @@ export function extractorsFor(rules: Rule[]): Extractor[] {
     return active;
 }
 
-// Each extractor’s facts under its ID; one that throws, or needs a `live` page it lacks, leaves its key absent, so its rules skip.
-export async function extract(page: Facts, body: string, active: Extractor[], live?: Page): Promise<void> {
+// Each extractor’s facts under its ID, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
+export async function extract(page: Facts, body: string, active: Extractor[], live?: Page): Promise<string[]> {
+    const added: string[] = [];
     for (const extractor of active) {
         if (!live && extractor.mode === "browser") {
             log.debug({ url: page.url.href, extractor: extractor.id }, "extractor needs a rendered page");
@@ -93,9 +94,12 @@ export async function extract(page: Facts, body: string, active: Extractor[], li
         }
         try {
             const value = await extractor.extract(page, body, live);
-            if (value !== undefined) page[extractor.id] = value;
+            if (value === undefined) continue;
+            page[extractor.id] = value;
+            added.push(extractor.id);
         } catch (error) {
             log.warn({ url: page.url.href, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, "extractor failed");
         }
     }
+    return added;
 }

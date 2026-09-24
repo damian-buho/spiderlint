@@ -11,10 +11,10 @@ import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
-import type { BrowserFacts, Facts, SiteFacts } from "../facts/types.ts";
+import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
-import { Frontier, type CrawlCache, type CrawlStorage, type OnPage } from "./frontier.ts";
+import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { STRATEGY } from "./scope.ts";
 
@@ -168,17 +168,26 @@ async function bodyOf(page: Page, response: Response, observation: Observation, 
 }
 
 // Renders every page in Chromium; facts come from the rendered DOM and the browser’s own network log.
-export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<SiteFacts> {
+export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<CrawlResult> {
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
+    let launches = 0;
     const crawler = new Crawler(
         {
             ...frontier.options(storage),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             launchContext: { userAgent: USER_AGENT },
-            browserPoolOptions: { useFingerprints: false },
+            browserPoolOptions: {
+                useFingerprints: false,
+                postLaunchHooks: [
+                    (pageId) => {
+                        launches += 1;
+                        log.debug({ pageId, launches }, "browser launched");
+                    },
+                ],
+            },
             preNavigationHooks: [
                 ({ page, request }) => {
                     observations.set(request, observe(page));
@@ -219,5 +228,5 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
     await frontier.run(crawler, cache.robots);
-    return { sitemaps: frontier.files };
+    return { site: { sitemaps: frontier.files }, launches };
 }
