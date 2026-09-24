@@ -11,22 +11,36 @@ rules:
     expect: {type: string, minLength: 2}
     severity: error
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
+  html/title:
+    fact: html.title
+    expect: {type: string}
+    severity: error
+    docs: https://developers.google.com/search/docs/appearance/title-link
+  html/description:
+    fact: html.meta.description
+    expect: {type: string}
+    severity: warning
+    docs: https://developers.google.com/search/docs/appearance/snippet
   html/title-length:
+    when: {html.title: {type: string}}
     fact: html.title
     expect: {type: string, minLength: 30, maxLength: 60}
     severity: warning
     docs: https://developers.google.com/search/docs/appearance/title-link
   html/description-length:
+    when: {html.meta.description: {type: string}}
     fact: html.meta.description
     expect: {type: string, minLength: 50, maxLength: 160}
     severity: warning
     docs: https://developers.google.com/search/docs/appearance/snippet
   html/title-redundant:
+    when: {html.title: {type: string}}
     fact: html.title
     expect: {type: string, pattern: "^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}
     severity: warning
     docs: https://developers.google.com/search/docs/appearance/title-link
   html/description-redundant:
+    when: {html.meta.description: {type: string}}
     fact: html.meta.description
     expect: {type: string, pattern: "^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}
     severity: warning

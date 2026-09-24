@@ -120,9 +120,15 @@ describe("audit", () => {
         const [title] = of("html/title-length");
         assert.equal(title?.url, `${site.origin}/about`);
         assert.match(title?.message ?? "", /must NOT have fewer than 30 characters \(got 11 characters: “About page!”\)/);
-        const [description] = of("html/description-length");
+        assert.deepEqual(of("html/description-length"), []);
+    });
+
+    it("reports an absent value once, by its presence rule, never by the rules judging its text", () => {
+        const [description, ...rest] = of("html/description");
+        assert.equal(rest.length, 0);
         assert.equal(description?.url, `${site.origin}/app/`);
         assert.equal(description?.message, "html.meta.description is absent");
+        assert.ok(of("html/description-redundant").every((finding) => finding.url !== `${site.origin}/app/`));
     });
 
     it("reports missing opengraph tags", () => {
