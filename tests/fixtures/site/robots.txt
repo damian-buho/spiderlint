@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 User-agent: *
 Disallow: /private/
+Crawl-delay: 0.01
 Sitemap: http://fixture.test/sitemap-broken.xml
 Sitemap: http://fixture.test/sitemap.xml
 Sitemap: http://fixture.test/sitemap-extra.xml.gz

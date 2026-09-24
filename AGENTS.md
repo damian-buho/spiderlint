@@ -22,7 +22,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
 extractors, the bundled `html-validate` and `axe`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugin formatters and sources, `lighthouse`, localised
+fetch mode per group, the `probes` bucket, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -93,7 +93,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 
 - Seeds: CLI URLs, then projectfile `links`, then `spiderlint.targets`.
 - Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`, `/sitemap.txt` and `/sitemap_index.xml` when no seed names a sitemap. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
-- Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`. `--no-robots` prints a warning and is intended for staging hosts.
+- Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`, the longest over the seed origins, since Crawlee applies one delay to every domain. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
 - Off-scope LINKS (`<a href>`) are recorded as facts and probed with `HEAD` by `links/*` rules for existence only.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.

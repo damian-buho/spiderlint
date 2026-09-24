@@ -8,7 +8,7 @@ import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
 import type { Facts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import type { RobotsFor } from "./robots.ts";
+import { crawlDelayOf, type RobotsFor } from "./robots.ts";
 import { isInScope } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
@@ -127,6 +127,15 @@ export class Frontier {
         return false;
     }
 
+    // The longest `Crawl-delay` over the seed origins, as Crawlee applies one delay to every domain.
+    async #crawlDelay(robots: RobotsFor): Promise<number> {
+        const origins = [...new Set(this.#config.seeds.map((seed) => new URL(seed).origin))];
+        const delays = await Promise.all(origins.map(async (origin) => crawlDelayOf(await robots(origin))));
+        const delay = Math.max(0, ...delays);
+        if (delay > 0) log.info({ delay, origins: origins.length }, "robots.txt crawl-delay honoured, seconds between requests per domain");
+        return delay;
+    }
+
     // Crawler options every adapter passes through unchanged.
     options(storage?: CrawlStorage): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
@@ -171,6 +180,8 @@ export class Frontier {
     async run(crawler: Runnable, robots: RobotsFor): Promise<void> {
         const answer = (url: string) => (this.#config.robots ? robots(url) : Promise.resolve(undefined));
         Object.assign(crawler, { getRobotsTxtFileForUrl: answer });
+        const delay = this.#config.robots ? await this.#crawlDelay(robots) : 0;
+        if (delay > 0) Object.assign(crawler, { sameDomainDelayMillis: delay * 1000 });
         this.#crawler = crawler;
         await crawler.run(this.#config.seeds);
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);

@@ -8,6 +8,8 @@ import { stripVTControlCharacters } from "node:util";
 import { VERSION } from "../src/agent.ts";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
+import { openBucket } from "../src/cache/index.ts";
+import { crawlDelayOf, robotsLoader } from "../src/crawl/robots.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { painter } from "../src/color.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
@@ -69,6 +71,11 @@ describe("audit", () => {
         const post = report.pages.find((page) => page.url.pathname === "/posts/1");
         assert.equal(post?.crawl.depth, 1);
         assert.equal(post?.crawl.discoveredVia, "link");
+    });
+
+    it("reads robots.txt Crawl-delay for the spiderlint agent", async () => {
+        const robots = robotsLoader(openBucket("robots", { cacheMode: "off", cacheTtl: {} }, undefined));
+        assert.equal(crawlDelayOf(await robots(`${site.origin}/`)), 0.01);
     });
 
     it("reads head links, hreflang, JSON-LD, scripts and robots directives into facts", () => {
