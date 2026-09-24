@@ -15,7 +15,8 @@
     "start": "node --experimental-strip-types src/cli.ts",
     "lint": "eslint ./",
     "fix": "eslint ./ --fix",
-    "test": "node --test --experimental-strip-types tests/**/*.test.ts"
+    "test": "node --test --experimental-strip-types tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@axe-core/playwright": "4.13.0",
@@ -49,6 +50,7 @@
     "eslint-plugin-unicorn": "75.0.0",
     "globals": "17.12.0",
     "prettier": "3.9.7",
+    "typescript": "5.9.3",
     "typescript-eslint": "8.70.0"
   },
   "keywords": [
