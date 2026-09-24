@@ -31,6 +31,7 @@ const schema = {
     additionalProperties: false,
     properties: {
         targets: { type: "array", items: { type: "string" } },
+        rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
         scope: { enum: ["origin", "host", "domain"] },
         concurrency: { type: "integer", minimum: 0 },

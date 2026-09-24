@@ -214,7 +214,7 @@ groups:
     rules: [recommended]
 ```
 
-- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing.
+- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s.
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
 - `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables. Stream mode takes the first three arrivals; accumulate mode the three lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
@@ -345,6 +345,7 @@ so outsiders need no projectfile.
 org:
   spiderlint:
     targets: [https://f.dbuho.me/]     # optional; the command-line urls win
+    rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
     scope: origin                      # origin | host | domain
     concurrency: 0                     # 0 = NUMPROCS
@@ -386,7 +387,7 @@ spiderlint explain <rule>                 docs, default severity, fact it reads
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
-Flags mirror the config keys (`--fetch`, `--scope`, `--concurrency`,
+Flags mirror the config keys (`--rules`, `--fetch`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--format`, `--output`, `--fail-on`, `--no-fold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,

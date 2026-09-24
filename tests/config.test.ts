@@ -108,8 +108,8 @@ describe("environmentSettings", () => {
     });
 
     it("parses lists, booleans and fold", () => {
-        const settings = environmentSettings({ SPIDERLINT_TARGETS: "https://a/, https://b/", SPIDERLINT_ROBOTS: "off", SPIDERLINT_FOLD: "false" });
-        assert.deepEqual(settings, { seeds: ["https://a/", "https://b/"], robots: false, fold: false });
+        const settings = environmentSettings({ SPIDERLINT_TARGETS: "https://a/, https://b/", SPIDERLINT_RULES: "seo,tls", SPIDERLINT_ROBOTS: "off", SPIDERLINT_FOLD: "false" });
+        assert.deepEqual(settings, { seeds: ["https://a/", "https://b/"], rules: ["seo", "tls"], robots: false, fold: false });
     });
 
     it("rejects an invalid enum value by name", () => {

@@ -50,6 +50,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_MAX_BODY_SIZE !== undefined && { maxBodySize: parseInteger("SPIDERLINT_MAX_BODY_SIZE", environment.SPIDERLINT_MAX_BODY_SIZE) }),
         ...(environment.SPIDERLINT_KEEPALIVE !== undefined && { keepalive: isTruthy("SPIDERLINT_KEEPALIVE", environment.SPIDERLINT_KEEPALIVE) }),
         ...(environment.SPIDERLINT_RESOURCES !== undefined && { fetchResources: isTruthy("SPIDERLINT_RESOURCES", environment.SPIDERLINT_RESOURCES) }),
+        ...(environment.SPIDERLINT_RULES !== undefined && { rules: list(environment.SPIDERLINT_RULES) }),
         ...(environment.SPIDERLINT_INCLUDE !== undefined && { include: list(environment.SPIDERLINT_INCLUDE) }),
         ...(environment.SPIDERLINT_EXCLUDE !== undefined && { exclude: list(environment.SPIDERLINT_EXCLUDE) }),
         ...(environment.SPIDERLINT_ROBOTS !== undefined && { robots: isTruthy("SPIDERLINT_ROBOTS", environment.SPIDERLINT_ROBOTS) }),

@@ -41,6 +41,7 @@ export interface Config {
     format: Format;
     disabledRules: string[];
     overrides: Record<string, Exclude<Severity, "off">>;
+    rules?: string[];
     groups: Record<string, GroupConfig>;
     rulesets: Record<string, RulesetConfig>;
     cacheMode: CacheMode;

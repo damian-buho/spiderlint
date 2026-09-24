@@ -52,6 +52,7 @@ Crawl:
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
+  --rules RULESETS      run these rulesets in every group (recommended)
   --disabled-rules IDS  skip these rules
   --error IDS           report these rules as errors
   --warning IDS         report these rules as warnings
@@ -74,13 +75,14 @@ Store and cache:
   -h, --help            show this screen
   -V, --version         show the version
 
-IDS is a comma-separated list of rule IDs.
+IDS and RULESETS are comma-separated; see spiderlint rules and presets.
 With no url, targets come from org.spiderlint in the config.
 Exit codes: 0 clean, 1 findings, 2 usage, 3 nothing fetched, 4 failure.
 
 Examples:
   spiderlint audit https://example.com/
   spiderlint audit https://example.com/ --format sarif > report.sarif
+  spiderlint audit https://example.com/ --rules all
   spiderlint crawl https://example.com/ --store site
   spiderlint lint --store site --fail-on warning
   spiderlint rules security-headers
@@ -159,6 +161,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values["fail-on"] !== undefined && { failOn: values["fail-on"] as FailOn }),
         ...(values.format !== undefined && { format: values.format as Config["format"] }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
+        ...(values.rules !== undefined && { rules: (values.rules as string[]).flatMap((raw) => splitIds(raw)) }),
         ...(Object.keys(overrides).length > 0 && { overrides }),
         cacheMode: cacheMode(values),
     };
@@ -197,6 +200,7 @@ async function main(argv: string[]): Promise<number> {
             format: { type: "string" },
             "fail-on": { type: "string" },
             "disabled-rules": { type: "string" },
+            rules: { type: "string", multiple: true },
             error: { type: "string", multiple: true },
             warning: { type: "string", multiple: true },
             info: { type: "string", multiple: true },

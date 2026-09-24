@@ -38,11 +38,12 @@ export interface Report {
     summary: Summary;
 }
 
-// `default` is the implicit catch-all; a group without `rules` gets `recommended`.
+// `default` is the implicit catch-all; top-level `rules` replaces every group's, else a group without `rules` gets `recommended`.
 export function groupsOf(config: Config): Record<string, Required<Pick<GroupConfig, "rules">> & GroupConfig> {
     const groups = { ...config.groups };
     groups.default ??= {};
-    return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: group.rules ?? ["recommended"] }]));
+    if (config.rules) log.debug({ rules: config.rules, groups: Object.keys(groups) }, "rules replace every group's rulesets");
+    return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: config.rules ?? group.rules ?? ["recommended"] }]));
 }
 
 // A page's referrers are the stored pages linking to it; recomputed from scratch on every lint.

@@ -102,6 +102,13 @@ describe("cli", () => {
         assert.deepEqual(ruleIdsOf(all), ruleIdsOf(every));
     });
 
+    it("runs only the rulesets --rules names, in every group", async () => {
+        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", "--rules", "security-headers,links");
+        const rules = new Set((JSON.parse(run.stdout) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
+        assert.ok(rules.size > 0, run.stderr);
+        assert.ok(rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")), [...rules].join(", "));
+    });
+
     it("applies severity flags in argv order", async () => {
         const severity = async (...flags: string[]) => {
             const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", ...flags);
