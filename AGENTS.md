@@ -268,7 +268,7 @@ because facts are always retained even when bodies are not.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
-Bundled presets (v1): `all` (every shipped rule, `html-validate` included), `recommended`, `seo`, `security-headers`, `tls`,
+Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `tls`,
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
@@ -410,7 +410,7 @@ export default definePlugin({
 - Extractor facts are stored with the page. `lint --store` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
 - Later: `formatters` and `sources`; `mode: browser` and `cost: expensive` on extractors, the second obeying the group `sample`; the `extractors` cache bucket.
-- `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `line`, `column`, `selector`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries the first, `recommended` none.
+- `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `line`, `column`, `selector`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
 - Next: `axe`, injected into the crawler’s own Chromium page (pa11y would launch a second browser), then `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
 
 ## Concurrency and limits

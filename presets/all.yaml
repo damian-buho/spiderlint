@@ -1,9 +1,0 @@
-# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
-#
-# SPDX-License-Identifier: MIT
----
-description: Every rule that ships — recommended, browser and html-validate
-extends:
-  - spiderlint:recommended
-  - spiderlint:browser
-  - spiderlint:html-validate

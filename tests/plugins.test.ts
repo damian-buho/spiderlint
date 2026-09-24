@@ -12,6 +12,7 @@ import { ConfigError, defaults } from "../src/config/index.ts";
 import type { Facts } from "../src/facts/types.ts";
 import htmlValidate, { type HtmlValidateFacts } from "../src/plugins/html-validate.ts";
 import { listPresets } from "../src/rules/catalog.ts";
+import { resolveRuleset } from "../src/rules/rulesets.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const EXCLUDE = ["/tmp/**"];
@@ -84,9 +85,14 @@ describe("plugins", () => {
     it("loads a plugin by path, with its extractor, rule and preset", async () => {
         await loadPlugins(["./tests/fixtures/plugin.ts"]);
         assert.ok(listPresets(defaults()).some((preset) => preset.name === "words"));
+        assert.equal(resolveRuleset("all", {})["words/enough"]?.severity, "warning");
         const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["words"], cacheMode: "off" });
         assert.ok(report.pages.every((page) => page.words !== undefined));
         assert.deepEqual(report.findings.map((finding) => new URL(finding.url).pathname), ["/missing"]);
+    });
+
+    it("keeps all for every shipped rule, refusing a ruleset that takes the name", () => {
+        assert.throws(() => resolveRuleset("all", { all: { rules: {} } }), ConfigError);
     });
 
     it("refuses a plugin redefining a rule, and one that cannot be imported", async () => {
