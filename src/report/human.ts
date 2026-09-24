@@ -15,27 +15,27 @@ const NESTED = " ".repeat(12);
 const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilobyte", maximumFractionDigits: 1 });
 const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
 
-// At most LIST URLs on the detail line, the rest as a count.
-function list(urls: string[], origin: string): string {
-    const shown = urls.slice(0, LIST).map((url) => relative(url, origin)).join(", ");
-    return urls.length > LIST ? `${shown} … and ${urls.length - LIST} more` : shown;
+// At most `limit` URLs on the detail line, the rest as a count.
+function list(urls: string[], origin: string, limit: number): string {
+    const shown = urls.slice(0, limit).map((url) => relative(url, origin)).join(", ");
+    return urls.length > limit ? `${shown} … and ${urls.length - limit} more` : shown;
 }
 
-// At most LIST locations, each on its own line under what it locates, the rest as a count.
-function located(locations: string[] | undefined, indent: string, paint: Paint): string[] {
+// At most `limit` locations, each on its own line under what it locates, the rest as a count.
+function located(locations: string[] | undefined, indent: string, paint: Paint, limit: number): string[] {
     if (!locations || locations.length === 0) return [];
-    const shown = locations.slice(0, LIST).map((location) => paint("dim", `${indent}at ${location}`));
-    return locations.length > LIST ? [...shown, paint("dim", `${indent}… and ${locations.length - LIST} more`)] : shown;
+    const shown = locations.slice(0, limit).map((location) => paint("dim", `${indent}at ${location}`));
+    return locations.length > limit ? [...shown, paint("dim", `${indent}… and ${locations.length - limit} more`)] : shown;
 }
 
 // A fold’s samples; pages whose locations all match share one list under the URLs.
-function sampled(finding: Finding, origin: string, paint: Paint): string[] {
+function sampled(finding: Finding, origin: string, paint: Paint, limit: number): string[] {
     const samples = finding.samples ?? [];
     const byPage = finding.sampleLocations;
     const isShared = new Set(samples.map((url) => JSON.stringify(byPage?.[url] ?? []))).size === 1;
     return !byPage || isShared
-        ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin)}`), ...located(byPage?.[samples[0] as string], NESTED, paint)]
-        : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint)]);
+        ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin, limit)}`), ...located(byPage?.[samples[0] as string], NESTED, paint, limit)]
+        : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint, limit)]);
 }
 
 function heading(finding: Finding, paint: Paint): string {
@@ -58,26 +58,27 @@ function bundle(findings: Finding[]): Finding[][] {
 }
 
 // A bundle prints its message once, then every page on its own line.
-function bundled(same: Finding[], origin: string, paint: Paint): string[] {
+function bundled(same: Finding[], origin: string, paint: Paint, limit: number): string[] {
     const first = same[0] as Finding;
-    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `          ${relative(finding.url, origin)}`), ...located(finding.locations, NESTED, paint)])];
+    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `          ${relative(finding.url, origin)}`), ...located(finding.locations, NESTED, paint, limit)])];
 }
 
 // A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
-function line(finding: Finding, origin: string, paint: Paint): string[] {
+function line(finding: Finding, origin: string, paint: Paint, limit: number): string[] {
     const url = relative(finding.url, origin);
     const message = shortMessage(finding, origin);
     const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
-        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint)];
+        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
     }
-    if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint)];
+    if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint, limit)];
     const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
-    return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin)}`)];
+    return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin, limit)}`)];
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones last, then the totals.
-export function formatHuman(report: Report, paint: Paint = plain): string {
+// The shared origin once on top, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false): string {
+    const limit = isFull ? Infinity : LIST;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
@@ -89,7 +90,7 @@ export function formatHuman(report: Report, paint: Paint = plain): string {
         const pages = report.summary.groups[group] ?? 0;
         out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${pages} pages)`)}`);
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-        for (const same of bundle(findings)) out.push(...(same.length > 1 ? bundled(same, origin, paint) : line(same[0] as Finding, origin, paint)));
+        for (const same of bundle(findings)) out.push(...(same.length > 1 ? bundled(same, origin, paint, limit) : line(same[0] as Finding, origin, paint, limit)));
     }
     const counts = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => {
         const count = report.findings.filter((finding) => finding.severity === severity).length;

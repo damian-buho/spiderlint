@@ -57,7 +57,7 @@ Rules:
   --error IDS           report these rules as errors
   --warning IDS         report these rules as warnings
   --info IDS            report these rules as info
-  --no-fold             one finding per page, never per group
+  --unfold              one finding per page and every URL and location listed
 
 Output:
   --format FORMAT       human, json or sarif (human)
@@ -90,7 +90,7 @@ Examples:
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
+const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint, isFull: boolean) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
 
 // Title and headings bold, the command or flag column cyan, a trailing default dim, examples green.
 function usage(paint: Paint): string {
@@ -157,7 +157,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.sitemap !== undefined && { sitemap: values.sitemap as boolean }),
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
-        ...(values.fold !== undefined && { fold: (values.fold as boolean) ? { threshold: 0.8, min: 3 } : false }),
+        ...(values.unfold !== undefined && { fold: (values.unfold as boolean) ? false : { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: values["fail-on"] as FailOn }),
         ...(values.format !== undefined && { format: values.format as Config["format"] }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
@@ -196,7 +196,7 @@ async function main(argv: string[]): Promise<number> {
             sitemap: { type: "boolean" },
             keepalive: { type: "boolean" },
             resources: { type: "boolean" },
-            fold: { type: "boolean" },
+            unfold: { type: "boolean" },
             format: { type: "string" },
             "fail-on": { type: "string" },
             "disabled-rules": { type: "string" },
@@ -272,7 +272,7 @@ async function main(argv: string[]): Promise<number> {
         }
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
-            console.log(format(stored, painter(process.stdout, values.color)));
+            console.log(format(stored, painter(process.stdout, values.color), config.fold === false));
             return exitCode(stored, config.failOn);
         }
         const options = command === "audit" ? { store, resume: values.resume === true } : {};
@@ -283,7 +283,7 @@ async function main(argv: string[]): Promise<number> {
         }, options);
         if (command === "facts") console.log(JSON.stringify(report.pages[0], undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
-        else console.log(format(report, painter(process.stdout, values.color)));
+        else console.log(format(report, painter(process.stdout, values.color), config.fold === false));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     } catch (error) {
         const isConfig = error instanceof ConfigError;

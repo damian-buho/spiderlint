@@ -298,8 +298,8 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 - If `applicable ≥ fold.min` (3) and `failed / applicable ≥ fold.threshold` (0.8): emit ONE finding at rule severity with `occurrences`, `coverage`, `samples` (3 URLs) and `sampleLocations` (each sample’s `locations`, by URL); drop the per-page findings.
 - Otherwise emit the per-page findings unchanged.
 - A group between `0.2` and `0.8` on the same rule gets an `info` advisory `groups/heterogeneous`: it likely hides two templates and wants splitting.
-- A finding may carry `locations`: one line per element it points at. `human` prints up to five under each page, and a fold’s samples share one list when their locations match.
-- `--no-fold` keeps every per-page finding. Folded findings map to SARIF `occurrenceCount` plus `relatedLocations`, so code-scanning UIs show one row.
+- A finding may carry `locations`: one line per element it points at. `human` prints up to five under each page (all of them with `--unfold`), and a fold’s samples share one list when their locations match.
+- `--unfold` (`fold: false`) keeps every per-page finding, and `human` then lists every URL and location instead of the first five. Folded findings map to SARIF `occurrenceCount` plus `relatedLocations`, so code-scanning UIs show one row.
 - Resource findings fold by resource URL across the whole site rather than by group: the offending artefact is the resource, the pages are its `usedBy`.
 
 ## Store
@@ -391,7 +391,7 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 
 Flags mirror the config keys (`--rules`, `--fetch`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
-`--no-sitemap`, `--format`, `--output`, `--fail-on`, `--no-fold`,
+`--no-sitemap`, `--format`, `--output`, `--fail-on`, `--unfold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,
 `--header`, `--cookie`, `--user-agent`, `--locale`). Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 

@@ -29,6 +29,12 @@ function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
     });
 }
 
+// The html-validate findings of a JSON audit of `origin`.
+async function findingsOf(directory: string, origin: string, ...flags: string[]): Promise<{ occurrences?: number }[]> {
+    const run = await spiderlint(directory, "audit", `${origin}/`, "--format", "json", "--fail-on", "never", "--rules", "html-validate", ...flags);
+    return JSON.parse(run.stdout).findings as { occurrences?: number }[];
+}
+
 function ruleIdsOf(run: Run): string[] {
     return (JSON.parse(run.stdout) as { id: string }[]).map((rule) => rule.id);
 }
@@ -121,6 +127,13 @@ describe("cli", () => {
         const rules = new Set((JSON.parse(run.stdout) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
         assert.ok(rules.size > 0, run.stderr);
         assert.ok(rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")), [...rules].join(", "));
+    });
+
+    it("unfolds with --unfold, one finding per page", async () => {
+        const folded = await findingsOf(directory, site.origin);
+        const unfolded = await findingsOf(directory, site.origin, "--unfold");
+        assert.ok(folded.some((finding) => finding.occurrences !== undefined));
+        assert.ok(unfolded.every((finding) => finding.occurrences === undefined) && unfolded.length > folded.length);
     });
 
     it("applies severity flags in argv order", async () => {
