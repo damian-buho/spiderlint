@@ -21,7 +21,8 @@ const BYTE_UNITS: [number, string][] = [
     [1, "byte"],
 ];
 const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests" };
-const GRADE_TONE: Record<Grade, "green" | "yellow" | "red"> = { S: "green", A: "green", B: "yellow", C: "yellow", D: "red", E: "red", F: "red" };
+const ORANGE = "#ff8700";
+const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
 
 // The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
 function number(value: number, options: Intl.NumberFormatOptions = {}): string {
@@ -106,15 +107,15 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
 }
 
 // The grade and the rulesets it was earned under; a dash when nothing was judged.
-function ratingLine(rating: Rating | undefined, paint: Paint): string {
-    return rating ? `rating ${paint([GRADE_TONE[rating.grade], "bold"], rating.grade)} (${rating.rulesets.join(", ")})` : "rating – (no checks ran)";
+function ratingValue(rating: Rating | undefined, paint: Paint): string {
+    return rating ? `${paint(GRADE_TONE[rating.grade], paint("bold", rating.grade))} (${rating.rulesets.join(", ")})` : "– (no checks ran)";
 }
 
 // The shared origin once on top, the rating under it, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
 export function formatHuman(report: Report, paint: Paint = plain, isFull = false): string {
     const limit = isFull ? Infinity : LIST;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
-    const out: string[] = [...(origin ? [paint(["bold", "underline"], origin)] : []), ratingLine(report.summary.rating, paint)];
+    const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
     for (const finding of report.findings) {
         const key = finding.scope === "site" ? "site" : (finding.group as string);
@@ -130,8 +131,8 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     return out.join("\n");
 }
 
-// Pages, size, time, rules, checks and findings, one row each; findings are counted before folding.
-function totals({ pages, bytes, durationMs, statuses, rules, checks, findings }: Report["summary"], paint: Paint): string[] {
+// Pages, size, time, rules, checks, findings and the rating, one row each; findings are counted before folding.
+function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating }: Report["summary"], paint: Paint): string[] {
     const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
     const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => (findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)));
     return [
@@ -141,6 +142,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings }:
         row("rules", number(rules)),
         row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
         row("findings", `${number(findings.total)} (${severities.join(", ")})`),
+        row("rating", ratingValue(rating, paint)),
     ];
 }
 

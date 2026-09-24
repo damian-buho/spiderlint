@@ -172,11 +172,11 @@ describe("audit", () => {
 
     it("prints findings by group then rule", () => {
         const text = formatHuman(report);
-        assert.ok(text.startsWith(`${site.origin}\nrating A (seo, links)\n`));
+        assert.ok(text.startsWith(`${site.origin}\nsite\n`));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}204 of 223 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nhttp {7}15 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}204 of 223 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}A \(seo, links\)\nhttp {7}15 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 15, revalidated: 0 });
     });
 
@@ -193,9 +193,8 @@ describe("audit", () => {
             summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, checks: { total: 0, passed: 0, failed: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
-        assert.equal(lines[1], "rating – (no checks ran)");
-        assert.deepEqual(lines.slice(3, 7), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
-        assert.deepEqual(lines.slice(-2), ["findings   3 (0 errors, 3 warnings, 0 info)", "fetch      none"]);
+        assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
+        assert.deepEqual(lines.slice(-3), ["findings   3 (0 errors, 3 warnings, 0 info)", "rating     – (no checks ran)", "fetch      none"]);
     });
 
     it("sums bytes, pages per group and per status into the run summary", () => {
