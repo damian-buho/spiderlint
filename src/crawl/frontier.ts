@@ -102,9 +102,11 @@ export class Frontier {
     }
 
     // Crawler options every adapter passes through unchanged.
-    options(storage?: CrawlStorage): { requestQueue?: RequestQueue; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    options(storage?: CrawlStorage): { requestQueue?: RequestQueue; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
             ...(storage && { requestQueue: storage.requestQueue }),
+            // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
+            sessionPoolOptions: { blockedStatusCodes: [] },
             maxRequestsPerCrawl: this.#config.maxPages || undefined,
             maxCrawlDepth: this.#config.maxDepth || undefined,
             respectRobotsTxtFile: this.#config.robots && { userAgent: "spiderlint" },

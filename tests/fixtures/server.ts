@@ -74,6 +74,11 @@ export async function serveFixture(): Promise<Fixture> {
             response.end();
             return;
         }
+        if (pathname === "/forbidden") {
+            response.writeHead(403, { "content-type": "text/html; charset=utf-8" });
+            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>403</title></head><body><h1>Forbidden</h1></body></html>");
+            return;
+        }
         if (pathname === "/big.bin") {
             response.writeHead(200, { "content-type": "application/octet-stream", "content-length": BIG });
             response.end(Buffer.alloc(BIG));

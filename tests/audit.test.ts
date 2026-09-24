@@ -217,6 +217,12 @@ describe("audit options", () => {
         assert.ok((size?.body ?? 0) < 50_000_000, `received ${size?.body} bytes`);
     });
 
+    it("lints a 403 page instead of retrying it as blocked", async () => {
+        const report = await audit({ seeds: [`${site.origin}/forbidden`], maxPages: 1, sitemap: false });
+        assert.equal(report.pages[0]?.http.status, 403);
+        assert.equal(site.requested.filter((path) => path === "/forbidden").length, 1);
+    });
+
     it("truncates a parsed body at --max-body-size", async () => {
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, maxBodySize: 200 });
         const size = report.pages[0]?.http.size;
