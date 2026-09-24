@@ -15,7 +15,6 @@
 .npm/
 .pnpm-store/
 .secrets/
-.spiderlint/
 build/
 dist/
 node_modules/

@@ -39,6 +39,12 @@ export function userCacheDirectory(): string {
     return path.join(process.env.XDG_CACHE_HOME || path.join(homedir(), ".cache"), "spiderlint");
 }
 
+// `<user cache>/<host>` for the seeds’ hosts, `+`-joined when they span several; undefined without a seed.
+export function siteDirectory(seeds: string[]): string | undefined {
+    const hosts = [...new Set(seeds.filter((seed) => URL.canParse(seed)).map((seed) => new URL(seed).host))].toSorted((a, b) => a.localeCompare(b));
+    return hosts.length === 0 ? undefined : path.join(userCacheDirectory(), hosts.join("+"));
+}
+
 // Where `name` lives: the store's `cache/` for project buckets, the user cache otherwise; none without a store.
 export function bucketDirectory(name: BucketName, store: string | undefined): string | undefined {
     if (!PROJECT.has(name)) return path.join(userCacheDirectory(), name);

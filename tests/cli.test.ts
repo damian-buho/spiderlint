@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -20,10 +20,10 @@ interface Run {
     stderr: string;
 }
 
-// Runs the real binary outside any projectfile, asynchronously so the in-process fixture keeps answering.
+// Runs the real binary outside any projectfile, with a private user cache, asynchronously so the in-process fixture keeps answering.
 function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
     return new Promise((resolve) => {
-        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: ENVIRONMENT }, (error, stdout, stderr) => {
+        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, XDG_CACHE_HOME: path.join(directory, "cache") } }, (error, stdout, stderr) => {
             resolve({ code: typeof error?.code === "number" ? error.code : 0, stdout, stderr });
         });
     });
@@ -53,6 +53,20 @@ describe("cli", () => {
         const run = await spiderlint(directory, "lint", "--store", path.join(file, "store"));
         assert.equal(run.code, 4);
         assert.match(run.stderr, /"msg":"audit aborted"/);
+    });
+
+    it("keeps each site’s store in the user cache, owner-only, so lint needs only the url", async () => {
+        const seed = `${site.origin}/`;
+        const audited = await spiderlint(directory, "audit", seed, "--max-pages", "2", "--fail-on", "never");
+        assert.equal(audited.code, 0);
+        const store = path.join(directory, "cache", "spiderlint", new URL(seed).host);
+        const { mode } = await stat(store);
+        assert.equal(mode & 0o777, 0o700);
+        const linted = await spiderlint(directory, "lint", seed, "--format", "json", "--fail-on", "never");
+        assert.equal(linted.code, 0);
+        assert.equal((JSON.parse(linted.stdout) as { summary: { pages: number } }).summary.pages, 2);
+        const unnamed = await spiderlint(directory, "lint");
+        assert.equal(unnamed.code, 2);
     });
 
     it("warns about a severity override naming no known rule", async () => {

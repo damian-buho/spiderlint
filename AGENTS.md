@@ -83,8 +83,8 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
                                                      lint (group, site) ─► fold ─► format ─► exit code
 ```
 
-- **stream** (default): lint each page as its facts land; keep facts, drop the body; fold and format at the end. Memory is bounded by findings, not pages.
-- **accumulate** (`--store`): keep bodies too. `spiderlint lint --store` re-runs rules with no network; `spiderlint report --store` re-formats.
+- **accumulate** (default): keep facts and bodies in the site’s store. `spiderlint lint <url>` re-runs rules with no network; `spiderlint report <url>` re-formats.
+- **stream** (`--no-cache`): lint each page as its facts land; keep facts, drop the body; fold and format at the end, writing nothing. Memory is bounded by findings, not pages.
 - One pipeline, two store adapters. The linter subscribes to the store’s `page` event in both modes; only what the store retains differs.
 - `--fail-fast` exits on the first `error` finding and skips folding.
 
@@ -305,12 +305,11 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
-- Crawlee storage under `--store DIR`: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
-- A run without `--store` writes nothing beside the project; only the user-level `robots` bucket is written. Groups, referrers and resource results are re-derived on every `lint --store`, so a changed group config needs no re-crawl; `report --store` re-formats the last stored report.
-- `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint --store` or `--resume` warns.
+- Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `report` and `cache` find it from their URLs or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
+- `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `report` re-formats the last stored report.
+- `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
 - Authorization, cookie and proxy-auth headers are redacted before anything is written.
-- `.spiderlint/` is in the generated `.gitignore`.
 
 ## Cache
 
@@ -320,20 +319,20 @@ pays only for what changed.
 
 | Bucket       | Key                                       | Lives in                       | Fresh for                                                                                    |
 | ------------ | ----------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
-| `pages`      | URL                                       | `.spiderlint/` (the store)     | RFC 9111 — `Cache-Control`, `ETag`, `Last-Modified`; bucket TTL when the origin says nothing |
+| `pages`      | URL                                       | the site’s store               | RFC 9111 — `Cache-Control`, `ETag`, `Last-Modified`; bucket TTL when the origin says nothing |
 | `probes`     | URL of an off-scope link                  | `$XDG_CACHE_HOME/spiderlint/`  | 7 days                                                                                       |
-| `resources`  | resource URL                              | `.spiderlint/`                 | RFC 9111, else 24 hours — a CDN asset shared by every page is fetched once                   |
+| `resources`  | resource URL                              | the site’s store               | RFC 9111, else 24 hours — a CDN asset shared by every page is fetched once                   |
 | `robots`     | host                                      | `$XDG_CACHE_HOME/spiderlint/`  | 24 hours (RFC 9309 §2.4)                                                                     |
-| `sitemaps`   | sitemap URL                               | `.spiderlint/`                 | `Last-Modified`, else 24 hours                                                               |
-| `extractors` | `(extractor, version, URL, sha256(body))` | `.spiderlint/`                 | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
+| `sitemaps`   | sitemap URL                               | the site’s store               | `Last-Modified`, else 24 hours                                                               |
+| `extractors` | `(extractor, version, URL, sha256(body))` | the site’s store               | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
 | `browser`    | sub-resource URL                          | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
 
 - A re-crawl revalidates: `If-None-Match` / `If-Modified-Since` from the stored response, and a `304` keeps the content facts (`html.*`, `extractors`) while refreshing the transport facts (`http.*`, `tls.*`). `http.revalidated: true` records it. Stored pages are found by their requested URL too (`crawl.requested`), so a link through a redirect revalidates.
-- Project buckets hold private staging pages and stay beside the project; user buckets hold only third-party observations and are shared across every site on the machine.
+- Site buckets hold private staging pages and live in the site’s owner-only store; user buckets hold only third-party observations and are shared across every site on the machine.
 - Writes are atomic (temp file + rename). Project buckets share the store’s lock, so a second process on the store exits `2`; the user bucket relies on atomic writes alone, so parallel audits of different sites never block each other.
 - `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`; an `--offline` audit lints the stored pages and fetches nothing. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
 - `spiderlint cache status` lists every bucket with entries, bytes, oldest and newest; `spiderlint cache purge [bucket] [--older-than 7d]` deletes; `spiderlint cache warm <url>` fills `robots` and `sitemaps` without crawling. The shape is `pf-cli cache status|warm|purge`, which the fleet already knows.
-- The action persists `.spiderlint/` through the forge’s cache keyed by target, so a CI run on an unchanged site is a run of `304`s.
+- The action persists `$XDG_CACHE_HOME/spiderlint` through the forge’s cache keyed by target, so a CI run on an unchanged site is a run of `304`s.
 
 ## Configuration
 
@@ -376,10 +375,10 @@ with a fragment under `spec/shapes/org.spiderlint.yaml` once v1 ships.
 ## CLI
 
 ```text
-spiderlint audit  [url…]  [--store DIR]   crawl + lint (stream unless --store)
-spiderlint crawl  <url…>   --store DIR    accumulate only
-spiderlint lint            --store DIR    rules over stored facts, no network
-spiderlint report          --store DIR    re-format stored findings
+spiderlint audit  [url…]                  crawl + lint into the site’s store (--no-cache streams)
+spiderlint crawl  [url…]                  accumulate only
+spiderlint lint   [url…]                  rules over stored facts, no network
+spiderlint report [url…]                  re-format stored findings
 spiderlint facts  <url>                   one page’s facts document as JSON
 spiderlint groups [url…]                  page count per group, unmatched pages
 spiderlint rules [ruleset…]               every rule: severity here, scope, ruleset, docs
@@ -407,7 +406,7 @@ export default definePlugin({
 
 - Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset or extractor ID is a config error.
 - An extractor runs only when an enabled rule reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
-- Extractor facts are stored with the page. `lint --store` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
+- Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
 - Later: `formatters` and `sources`; `mode: browser` and `cost: expensive` on extractors, the second obeying the group `sample`; the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `line`, `column`, `selector`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
@@ -435,7 +434,7 @@ export default definePlugin({
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root.
-- The store can hold private staging pages; it is gitignored and its path is printed at the end of every run.
+- The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.
 
 ## Observability
 

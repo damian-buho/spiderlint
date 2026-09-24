@@ -46,15 +46,15 @@ async function purgePages(root: string, olderThanSeconds: number): Promise<numbe
 }
 
 // Purges `bucket`, or every bucket, holding the store lock while project buckets are touched.
-export async function purgeCache(root: string, bucket: string | undefined, olderThanSeconds: number): Promise<Record<string, number>> {
+export async function purgeCache(root: string | undefined, bucket: string | undefined, olderThanSeconds: number): Promise<Record<string, number>> {
     const names = bucket === undefined ? [...PURGEABLE] : [bucket];
-    const hasStore = existsSync(root);
-    const release = hasStore ? await lockStore(root) : undefined;
+    const hasStore = root !== undefined && existsSync(root);
+    const release = hasStore ? await lockStore(root as string) : undefined;
     const purged: Record<string, number> = {};
     try {
         for (const name of names) {
             const directory = bucketDirectory(name as BucketName, hasStore ? root : undefined);
-            if (name === "pages") purged[name] = hasStore ? await purgePages(root, olderThanSeconds) : 0;
+            if (name === "pages") purged[name] = hasStore ? await purgePages(root as string, olderThanSeconds) : 0;
             else purged[name] = directory === undefined ? 0 : await purgeFiles(directory, olderThanSeconds);
             log.info({ bucket: name, purged: purged[name], olderThanSeconds }, "bucket purged");
         }

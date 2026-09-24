@@ -72,7 +72,6 @@ org:
     ignores:
       git:
         include:
-          - .spiderlint/
           - storage/
     image:
       org: damian-buho

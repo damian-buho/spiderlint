@@ -47,7 +47,7 @@ async function openStorages(config: Configuration): Promise<Storages> {
 
 // Holds the store at `directory` for this process; a second holder is a ConfigError.
 export async function lockStore(directory: string): Promise<() => Promise<void>> {
-    await mkdir(directory, { recursive: true });
+    await mkdir(directory, { recursive: true, mode: 0o700 });
     try {
         return await lockfile.lock(directory, { lockfilePath: path.join(directory, "manifest.json.lock"), realpath: false, retries: 0, stale: 30_000, update: 10_000 });
     } catch (error) {

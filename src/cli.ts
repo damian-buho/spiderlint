@@ -6,7 +6,7 @@
 import { parseArgs } from "node:util";
 import { DESCRIPTION, VERSION } from "./agent.ts";
 import { painter, type Paint } from "./color.ts";
-import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
+import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
@@ -26,15 +26,15 @@ Usage: spiderlint <command> [url…] [flags]
 
 Commands:
   audit [url…]          crawl and lint
-  crawl [url…]          crawl into --store, lint nothing
-  lint                  lint the facts in --store, no network
-  report                re-format the report in --store
+  crawl [url…]          crawl into the store, lint nothing
+  lint [url…]           lint the stored facts, no network
+  report [url…]         re-format the stored report
   facts <url>           one page’s facts as JSON
   groups [url…]         page count per group
   rules [ruleset…]      every rule, its severity here and its docs
   presets               shipped rulesets and whether groups use them
-  cache status          entries, bytes and age per bucket
-  cache purge [bucket]  delete cached entries
+  cache status [url…]   entries, bytes and age per bucket
+  cache purge [bucket]  delete a site’s cached entries
   cache warm [url…]     fetch robots.txt and sitemaps only
 
 Crawl:
@@ -65,7 +65,7 @@ Output:
   --[no-]color          force or disable color (auto)
 
 Store and cache:
-  --store DIR           store directory (.spiderlint for cache)
+  --store DIR           store directory (the site’s, under $XDG_CACHE_HOME/spiderlint)
   --resume              continue an interrupted crawl
   --older-than AGE      purge entries older than 45s, 30m, 24h, 7d
   --no-cache            neither read nor write the cache
@@ -83,8 +83,8 @@ Examples:
   spiderlint audit https://example.com/
   spiderlint audit https://example.com/ --format sarif > report.sarif
   spiderlint audit https://example.com/ --rules all
-  spiderlint crawl https://example.com/ --store site
-  spiderlint lint --store site --fail-on warning
+  spiderlint crawl https://example.com/
+  spiderlint lint https://example.com/ --fail-on warning
   spiderlint rules security-headers
   spiderlint cache purge pages --older-than 7d`;
 
@@ -216,25 +216,12 @@ async function main(argv: string[]): Promise<number> {
         return 0;
     }
     const [command = "", ...seeds] = positionals;
-    const store = values.store;
     const isStored = ["crawl", "lint", "report"].includes(command);
-    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? "")) || (command === "cache" && seeds[0] === "purge" && seeds[1] !== undefined && !PURGEABLE.has(seeds[1]))) {
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
         console.error(usage(painter(process.stderr, values.color)));
         return 2;
     }
     try {
-        if (command === "cache" && seeds[0] === "purge") {
-            const olderThan = parseDuration(values["older-than"] ?? "0");
-            if (olderThan === undefined) throw new ConfigError(`--older-than: invalid duration ${values["older-than"]} (expected seconds or 45s, 30m, 24h, 7d)`);
-            const purged = await purgeCache(store ?? ".spiderlint", seeds[1], olderThan);
-            for (const [bucket, count] of Object.entries(purged)) console.log(`${bucket.padEnd(9)} ${String(count).padStart(7)} entries purged`);
-            return 0;
-        }
-        if (command === "cache" && seeds[0] === "status") {
-            const buckets = await cacheStatus(store ?? ".spiderlint");
-            for (const bucket of buckets) console.log(`${bucket.bucket.padEnd(9)} ${String(bucket.entries).padStart(7)} entries ${String(bucket.bytes).padStart(11)} bytes  ${bucket.oldest} … ${bucket.newest}`);
-            return 0;
-        }
         const { settings: fileSettings } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
@@ -247,17 +234,34 @@ async function main(argv: string[]): Promise<number> {
             else console.log(command === "rules" ? formatRules(listed as ReturnType<typeof listRules>, paint) : formatPresets(listed as ReturnType<typeof listPresets>, paint));
             return 0;
         }
-        const targets = command === "cache" ? seeds.slice(1) : seeds;
+        // `cache purge` may name a bucket before its urls.
+        const bucket = command === "cache" && seeds[0] === "purge" && PURGEABLE.has(seeds[1] ?? "") ? seeds[1] : undefined;
+        const targets = command === "cache" ? seeds.slice(bucket ? 2 : 1) : seeds;
         if (targets.length > 0) config.seeds = targets;
+        // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
+        const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
+        log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
         const format = FORMATTERS[config.format];
         const failOn = RANK[config.failOn];
-        const requiresSeeds = ["audit", "crawl", "groups", "cache"].includes(command);
-        if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0)) {
+        const requiresSeeds = ["audit", "crawl", "groups"].includes(command) || (command === "cache" && seeds[0] === "warm");
+        if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store) || targets.some((target) => !URL.canParse(target))) {
             console.error(usage(painter(process.stderr, values.color)));
             return 2;
         }
+        if (command === "cache" && seeds[0] === "purge") {
+            const olderThan = parseDuration(values["older-than"] ?? "0");
+            if (olderThan === undefined) throw new ConfigError(`--older-than: invalid duration ${values["older-than"]} (expected seconds or 45s, 30m, 24h, 7d)`);
+            const purged = await purgeCache(store, bucket, olderThan);
+            for (const [name, count] of Object.entries(purged)) console.log(`${name.padEnd(9)} ${String(count).padStart(7)} entries purged`);
+            return 0;
+        }
+        if (command === "cache" && seeds[0] === "status") {
+            const buckets = await cacheStatus(store);
+            for (const entry of buckets) console.log(`${entry.bucket.padEnd(9)} ${String(entry.entries).padStart(7)} entries ${String(entry.bytes).padStart(11)} bytes  ${entry.oldest} … ${entry.newest}`);
+            return 0;
+        }
         if (command === "cache") {
-            const warmed = await warmCache(config, store ?? ".spiderlint");
+            const warmed = await warmCache(config, store as string);
             console.log(`${warmed.origins} origins, ${warmed.sitemaps} sitemap files, ${warmed.urls} listed URLs cached`);
             return 0;
         }
