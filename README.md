@@ -18,6 +18,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 
 ## Features
 
+- Client-rendered pages audited as visitors see them
 - One finding per template, not per page
 - Page dependencies fetched once
 - Rules as data, with presets

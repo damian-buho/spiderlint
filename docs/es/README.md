@@ -20,6 +20,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 
 ## Características
 
+- Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 - Un hallazgo por plantilla, no por página
 - Dependencias de página descargadas una sola vez
 - Reglas como datos, con preajustes
