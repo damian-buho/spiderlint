@@ -12,10 +12,11 @@ set -eou pipefail
 
 LOG_FILE="$(mktemp)"
 REPORT_FILE="$(mktemp)"
+CONFIG_FILE="$(mktemp --suffix=.yaml)"
 # shellcheck disable=SC2329 # cleanup invoked via EXIT trap
 cleanup() {
     kill "${SERVER_PID}" 2>/dev/null || true
-    rm -f "${LOG_FILE}" "${REPORT_FILE}"
+    rm -f "${LOG_FILE}" "${REPORT_FILE}" "${CONFIG_FILE}"
 }
 trap cleanup EXIT
 
@@ -47,3 +48,14 @@ console.log(finding ? finding.message : "");
 ' "${REPORT_FILE}")"
 b19-log info "SPIDERLINT" "$(_p "known dead-link finding: %s" "${BROKEN_LINK}")"
 [ -n "${BROKEN_LINK}" ]
+
+printf 'org:\n  spiderlint:\n    groups:\n      default:\n        rules: [recommended, browser]\n' > "${CONFIG_FILE}"
+spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}"
+
+CONSOLE_ERROR="$(node -e '
+const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+const finding = report.findings.find((entry) => entry.rule === "browser/console-errors" && entry.url.endsWith("/app/"));
+console.log(finding ? finding.message : "");
+' "${REPORT_FILE}")"
+b19-log info "SPIDERLINT" "$(_p "known console-error finding in chromium: %s" "${CONSOLE_ERROR}")"
+[ -n "${CONSOLE_ERROR}" ]

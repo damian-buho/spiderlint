@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+fonts-dejavu-core                        # fallback font chromium lays text out with
+libasound2t64                            # ALSA library chromium links against
+libatk-bridge2.0-0t64                    # ATK bridge to AT-SPI
+libatk1.0-0t64                           # ATK accessibility toolkit
+libatspi2.0-0t64                         # Assistive Technology Service Provider Interface
+libcairo2                                # 2D graphics library
+libcups2t64                              # printing library chromium links against
+libdbus-1-3                              # D-Bus messaging library
+libdrm2                                  # Direct Rendering Manager library
+libgbm1                                  # generic buffer management API
+libglib2.0-0t64                          # GLib library of C routines
+libnspr4                                 # NetScape Portable Runtime library
+libnss3                                  # Network Security Service libraries
+libpango-1.0-0                           # internationalised text layout
+libx11-6                                 # X11 client-side library
+libxcb1                                  # X C Binding
+libxcomposite1                           # X11 Composite extension library
+libxdamage1                              # X11 damaged region extension library
+libxext6                                 # X11 miscellaneous extension library
+libxfixes3                               # X11 miscellaneous fixes extension library
+libxkbcommon0                            # XKB keymap library
+libxrandr2                               # X11 RandR extension library

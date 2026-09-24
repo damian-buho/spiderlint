@@ -22,8 +22,9 @@ ARG M6E_PROJECT
 ARG M6E_VERSION
 ARG TARGETARCH
 
-ENV NODE_ENV=production                 \
-    NODE_OPTIONS="--enable-source-maps" \
+ENV NODE_ENV=production                                  \
+    NODE_OPTIONS="--enable-source-maps"                  \
+    PLAYWRIGHT_BROWSERS_PATH=${B19_HOME}/.cache/ms-playwright \
     SPIDERLINT_LOG_LEVEL=info
 
 COPY --chown=${B19_UID}:${B19_GID} .container/root/ /
