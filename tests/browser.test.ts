@@ -37,6 +37,10 @@ describe("fetch mode", () => {
         await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "http", groups: { default: { rules: ["browser"] } } }), (error: Error) => error instanceof ConfigError && error.message.includes("rule browser/console-errors in group default"));
     });
 
+    it("renders for a rule reading a browser-mode extractor’s facts, as an http pin shows", async () => {
+        await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "http", groups: { default: { rules: ["axe"] } } }), (error: Error) => error instanceof ConfigError && error.message.includes("rule axe/image-alt in group default"));
+    });
+
     it("stays on http when no rule reads a browser fact", async () => {
         const site = await serveFixture();
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false });
@@ -56,7 +60,7 @@ describe("browser fetch", { skip }, () => {
 
     before(async () => {
         site = await serveFixture();
-        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser"] } }, exclude: ["/tmp/**"] });
+        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser", "axe"] } }, exclude: ["/tmp/**"] });
     });
 
     after(() => site.close());
@@ -82,6 +86,14 @@ describe("browser fetch", { skip }, () => {
         assert.deepEqual([runtime?.kind, runtime?.origin, runtime?.observed], ["image", "same", true], "loaded by script, absent from the static HTML");
         assert.equal(app?.resources?.find((resource) => resource.url.endsWith("/cdn/lib.js"))?.observed, true, "a request the browser blocked is still observed");
         assert.ok(report.findings.some((finding) => finding.rule === "browser/console-errors" && finding.url.endsWith("/app/")));
+    });
+
+    it("runs axe in the rendered page of every HTML page", () => {
+        assert.equal(page("/feed.xml")?.axe, undefined);
+        const alt = report.findings.filter((finding) => finding.rule === "axe/image-alt").map((finding) => new URL(finding.url).pathname);
+        assert.ok(alt.includes("/posts/3") && !alt.includes("/posts/4"), `image-alt on ${alt.join(", ")}`);
+        const finding = report.findings.find((entry) => entry.rule === "axe/image-alt");
+        assert.deepEqual((finding?.value as { targets: string[] }).targets, ["img"]);
     });
 
     it("records the transport of each response", async () => {

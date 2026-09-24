@@ -11,10 +11,11 @@ import { log } from "../logger.ts";
 import { builtin } from "../rules/builtin.ts";
 import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
+import axe from "./axe.ts";
 import htmlValidate from "./html-validate.ts";
 import type { Extractor, Plugin } from "./types.ts";
 
-const plugins: Plugin[] = [htmlValidate];
+const plugins: Plugin[] = [htmlValidate, axe];
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.

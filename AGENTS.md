@@ -20,9 +20,9 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, the
-bundled `html-validate`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugin formatters and sources, `axe`, `lighthouse`, localised
+`--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
+extractors, the bundled `html-validate` and `axe`; the fixture site. Not yet: adaptive fetch and a
+fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -398,7 +398,7 @@ Flags mirror the config keys (`--rules`, `--fetch`, `--scope`, `--concurrency`,
 ```ts
 export default definePlugin({
   name: 'html-validate',
-  extractors: [{ id: 'htmlvalidate', async extract(page, body) {…} }],     // facts land under page.htmlvalidate
+  extractors: [{ id: 'htmlvalidate', async extract(page, body, live) {…} }], // facts land under page.htmlvalidate
   rules:      { 'html-validate/no-dup-id': (severity) => ({ meta, check }) }, // the built-ins’ shape
   presets:    { 'html-validate': { description, rules } },
 })
@@ -408,9 +408,11 @@ export default definePlugin({
 - An extractor runs only when an enabled rule reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
 - Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
-- Later: `formatters` and `sources`; `mode: browser` and `cost: expensive` on extractors, the second obeying the group `sample`; the `extractors` cache bucket.
+- An extractor with `mode: browser` gets the crawler’s live Playwright page as `live`, runs only on a rendered HTML page, and forces the browser crawl as a `browser.*` rule does. `lint` and `--offline` cannot backfill it from a stored body; a store lacking its facts warns once.
+- Later: `formatters` and `sources`; `cost: expensive` on extractors, obeying the group `sample`; the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `line`, `column`, `selector`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
-- Next: `axe`, injected into the crawler’s own Chromium page (pa11y would launch a second browser), then `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
+- `axe` runs axe-core through `@axe-core/playwright` in the crawler’s own rendered page (pa11y would launch a second browser), with axe’s default rule set: no experimental, AAA or obsolete rules. Facts are `axe.violations[]` (`rule`, `impact`, `help`, `targets`); each axe rule is the rule `axe/<id>`, one finding per violated rule per page with its impact and element selectors as the value. Presets: `axe` (WCAG A and AA rules as errors, best practices as warnings), `axe:wcag`, `axe:best-practice`; `all` carries them, `recommended` does not.
+- Next: `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
 
 ## Concurrency and limits
 
@@ -466,7 +468,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # contract, registry, bundled html-validate (axe, lighthouse next)
+├── plugins/            # contract, registry, bundled html-validate and axe (lighthouse next)
 └── i18n/
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 locales/                # es/, uk/

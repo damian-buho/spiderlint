@@ -14,6 +14,7 @@ SPDX-License-Identifier: MIT
 - A page whose tags, links or content appear only after its scripts run is rendered in a real browser, so what gets linted is what search engines and visitors see.
 - The browser starts only when an enabled rule needs it; a site with no such rule is crawled over plain HTTP at full speed.
 - Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
+- Accessibility is checked in the rendered page against WCAG A and AA, so defects that scripts introduce are caught too.
 
 ### One finding per template, not per page
 
