@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { OfflineMiss } from "../src/cache/index.ts";
 import { cacheStatus } from "../src/cache/status.ts";
 import { audit, crawl, lintStore, reportStore } from "../src/index.ts";
 import type { Finding } from "../src/rules/types.ts";
@@ -88,11 +89,23 @@ describe("store", () => {
         assert.equal(second.pages.length, 2);
     });
 
+    it("audits offline from the store without a single request", async () => {
+        const before = site.requested.length;
+        const offline = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], cacheMode: "offline" }, { store: directory });
+        assert.equal(offline.pages.length, 15);
+        assert.equal(site.requested.length, before);
+    });
+
+    it("fails an offline audit on an empty store with an offline miss", async () => {
+        await assert.rejects(audit({ seeds: [`${site.origin}/`], cacheMode: "offline" }, { store: path.join(directory, "empty") }), OfflineMiss);
+    });
+
     it("measures every bucket present", async () => {
         const buckets = await cacheStatus(directory);
         const pages = buckets.find((bucket) => bucket.bucket === "pages");
         assert.equal(pages?.entries, 15);
         assert.ok((pages?.bytes ?? 0) > 0);
-        assert.deepEqual(await cacheStatus(path.join(directory, "absent")), []);
+        const absent = await cacheStatus(path.join(directory, "absent"));
+        assert.deepEqual(absent.map((bucket) => bucket.bucket).filter((bucket) => bucket !== "robots"), []);
     });
 });

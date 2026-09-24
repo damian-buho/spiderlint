@@ -3,12 +3,17 @@
 // SPDX-License-Identifier: MIT
 
 import { gunzipSync } from "node:zlib";
-import { discoverValidSitemaps, parseSitemap, type SitemapUrl } from "crawlee";
+import { parseSitemap, type SitemapUrl } from "crawlee";
+import { fetchCached, type Stored } from "../cache/http.ts";
+import { OfflineMiss, type Bucket } from "../cache/index.ts";
 import type { SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { fetchRetrying, reason } from "./fetch.ts";
+import { reason } from "./fetch.ts";
+import type { RobotsFor } from "./robots.ts";
 
 export type SitemapIndex = Map<string, SitemapFacts>;
+
+export type SitemapBucket = Bucket<Stored<string>>;
 
 export interface Sitemaps {
     index: SitemapIndex;
@@ -18,6 +23,15 @@ export interface Sitemaps {
 // sitemaps.org caps one file at 50 MiB uncompressed.
 const MAX_BYTES = 50 * 1024 * 1024;
 const GZIP = Buffer.from([0x1f, 0x8b]);
+
+// Probed when no seed names a sitemap itself, as Crawlee’s discovery does.
+const CANDIDATES = ["/sitemap.xml", "/sitemap.txt", "/sitemap_index.xml"];
+const SITEMAP_NAME = /sitemap(?:_index)?\.(?:xml|txt)(?:\.gz)?$/i;
+
+// The body as base64, so gzip bytes survive the JSON bucket.
+async function base64(response: Response): Promise<string> {
+    return Buffer.from(await response.arrayBuffer()).toString("base64");
+}
 
 type Entry = SitemapUrl | { loc: string; originSitemapUrl: null };
 
@@ -58,34 +72,65 @@ async function collect(file: SitemapFileFacts, contentType: string | undefined, 
 }
 
 // Fetches and parses one file into its facts; `error` says which step failed.
-async function readSitemap(url: string, index: SitemapIndex, queue: string[]): Promise<SitemapFileFacts> {
+async function readSitemap(url: string, index: SitemapIndex, queue: string[], bucket: SitemapBucket): Promise<SitemapFileFacts> {
     const file: SitemapFileFacts = { url, status: 0, urls: 0, sitemaps: 0 };
     try {
-        const { response, value } = await fetchRetrying(url, async (response) => Buffer.from(await response.arrayBuffer()));
-        file.status = response.status;
-        const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
-        if (!response.ok) file.error = `answers ${response.status}`;
+        const { status, headers, value } = await fetchCached(bucket, url, base64);
+        file.status = status;
+        const contentType = String(headers["content-type"] ?? "").split(";", 1)[0]?.trim() || undefined;
+        if (status < 200 || status >= 300) file.error = `answers ${status}`;
         else if (contentType === "text/html") file.error = `is ${contentType}, not a sitemap`;
-        else await collect(file, contentType, value, index, queue);
+        else await collect(file, contentType, Buffer.from(value, "base64"), index, queue);
         if (!file.error && file.urls + file.sitemaps === 0) file.error = `names no URL (${contentType ?? "no content-type"})`;
     } catch (error) {
+        if (error instanceof OfflineMiss) throw error;
         file.error = `${file.status > 0 ? "does not parse" : "does not fetch"}: ${reason(error).split("\n", 1)[0]}`;
     }
     log[file.error ? "warn" : "debug"](file, "sitemap read");
     return file;
 }
 
+// A candidate name counts when it answers 2xx; its body stays in `bucket` for the read that follows.
+async function isAnswering(url: string, bucket: SitemapBucket): Promise<boolean> {
+    try {
+        const { status } = await fetchCached(bucket, url, base64);
+        log.debug({ url, status }, "sitemap candidate probed");
+        return status >= 200 && status < 300;
+    } catch (error) {
+        if (error instanceof OfflineMiss) throw error;
+        log.debug({ url, error: reason(error) }, "sitemap candidate unreachable");
+        return false;
+    }
+}
+
+// Per origin: its robots.txt `Sitemap:` lines, then the seeds naming a sitemap, else the common names that answer.
+async function discover(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket): Promise<string[]> {
+    const found = new Set<string>();
+    const origins = new Set(seeds.map((seed) => new URL(seed).origin));
+    for (const origin of origins) {
+        const robots = await robotsFor(origin);
+        const listed = robots.getSitemaps({ enqueueStrategy: "all" });
+        for (const url of listed) found.add(url);
+        const named = seeds.filter((seed) => new URL(seed).origin === origin && SITEMAP_NAME.test(seed));
+        const candidates = named.length > 0 ? [] : CANDIDATES.map((pathname) => new URL(pathname, origin).href);
+        for (const url of named) found.add(url);
+        for (const url of candidates) if (await isAnswering(url, bucket)) found.add(url);
+        log.debug({ origin, found: found.size, named: named.length, probed: candidates.length }, "sitemaps discovered for origin");
+    }
+    return [...found];
+}
+
 // robots.txt `Sitemap:` lines plus the common `/sitemap.xml` names, each file and its nested files read once.
-export async function loadSitemap(seeds: string[]): Promise<Sitemaps> {
+export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket): Promise<Sitemaps> {
     const index: SitemapIndex = new Map();
-    const queue = await Array.fromAsync(discoverValidSitemaps(seeds));
+    const queue = await discover(seeds, robotsFor, bucket);
     log.info({ seeds, files: queue }, queue.length > 0 ? "sitemap discovered" : "no sitemap discovered");
     const seen = new Set<string>();
     const files: SitemapFileFacts[] = [];
     for (const url of queue) {
         if (seen.has(url)) continue;
         seen.add(url);
-        files.push(await readSitemap(url, index, queue));
+        files.push(await readSitemap(url, index, queue, bucket));
     }
     log.info({ files: files.length, failed: files.filter((file) => file.error).length, urls: index.size }, "sitemap parsed");
     return { index, files };

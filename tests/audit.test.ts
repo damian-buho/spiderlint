@@ -246,10 +246,11 @@ describe("audit options", () => {
         assert.ok(!JSON.stringify(report).includes("s3cr3t"));
     });
 
-    it("names itself in the user agent of every page and resource request", async () => {
+    it("names itself in the user agent of every page, resource and robots.txt request", async () => {
         const before = site.headers.length;
-        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false });
-        const agents = new Set(site.headers.slice(before).filter((_, index) => site.requested[before + index] !== "/robots.txt").map((headers) => headers["user-agent"]));
+        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, cacheMode: "off" });
+        assert.ok(site.requested.slice(before).includes("/robots.txt"));
+        const agents = new Set(site.headers.slice(before).map((headers) => headers["user-agent"]));
         assert.deepEqual([...agents], [`spiderlint/${VERSION} (+https://kiota.ch/damian-buho/spiderlint)`]);
     });
 

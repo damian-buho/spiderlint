@@ -4,9 +4,12 @@
 
 import { createHash } from "node:crypto";
 import { defaults, type Config, type GroupConfig } from "./config/index.ts";
-import { openBucket } from "./cache/index.ts";
+import type { Stored } from "./cache/http.ts";
+import { OfflineMiss, openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import { crawlHttp } from "./crawl/http.ts";
+import { robotsLoader } from "./crawl/robots.ts";
+import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
@@ -15,7 +18,7 @@ import { log, logRelativeTo } from "./logger.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
-import { DiskStore } from "./store/disk.ts";
+import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 
 export interface Summary {
@@ -111,19 +114,30 @@ export interface Crawled {
     site: SiteFacts;
 }
 
+// `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
+async function servedOffline(pages: Facts[], store: DiskStore | undefined): Promise<Crawled> {
+    log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
+    if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
+    attachResources(pages, await store.resources());
+    return { pages, site: await store.site() };
+}
+
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
 async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
+    if (config.cacheMode === "offline") return servedOffline(earlier, store);
     for (const facts of earlier) memory.add(facts);
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
     logRelativeTo(config.seeds);
+    const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const site = await crawl(
         config,
         async (facts, body) => {
             if (memory.add(facts)) await store?.add(facts, body);
         },
+        cache,
         store && { config: store.config, requestQueue: store.frontier },
     );
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
@@ -161,13 +175,14 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     };
-    return options.store ? withStore(options.store, { fresh: !options.resume, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config), started);
+    const isFresh = !options.resume && config.cacheMode !== "offline";
+    return options.store ? withStore(options.store, { fresh: isFresh, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config), started);
 }
 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
     const config: Config = { ...defaults(), ...overrides };
-    return withStore(directory, { fresh: !isResumed, seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
+    return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
         const { pages } = await crawlPages(config, store);
         return pages;
     });
@@ -185,6 +200,22 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });
+}
+
+// Reads every seed origin’s robots.txt and sitemaps into their buckets, crawling nothing.
+export async function warmCache(overrides: Partial<Config>, directory: string): Promise<{ origins: number; sitemaps: number; urls: number }> {
+    const config: Config = { ...defaults(), ...overrides };
+    const release = await lockStore(directory);
+    try {
+        logRelativeTo(config.seeds);
+        const robots = robotsLoader(openBucket("robots", config, directory));
+        const { index, files } = await loadSitemap(config.seeds, robots, openBucket("sitemaps", config, directory));
+        const warmed = { origins: new Set(config.seeds.map((seed) => new URL(seed).origin)).size, sitemaps: files.length, urls: index.size };
+        log.info(warmed, "cache warmed");
+        return warmed;
+    } finally {
+        await release();
+    }
 }
 
 // The last stored report, with the stored facts, for re-formatting.

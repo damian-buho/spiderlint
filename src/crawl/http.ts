@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { CheerioCrawler, Configuration, type RequestQueue, type RequestTransform } from "crawlee";
+import { CheerioCrawler, Configuration, type CheerioCrawlerOptions, type RequestQueue, type RequestTransform, type RobotsTxtFile } from "crawlee";
 import type { Readable } from "node:stream";
 import picomatch from "picomatch";
 import { USER_AGENT } from "../agent.ts";
@@ -15,9 +15,30 @@ import type { Facts, SiteFacts, SitemapFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
-import { loadSitemap, type Sitemaps } from "./sitemap.ts";
+import type { RobotsFor } from "./robots.ts";
+import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
 export type OnPage = (facts: Facts, body: string) => Promise<void> | void;
+
+// Cached lookups a crawl reads through.
+export interface CrawlCache {
+    robots: RobotsFor;
+    sitemaps: SitemapBucket;
+}
+
+// Crawlee’s robots.txt checks, answered through the robots bucket with the spiderlint user agent.
+class Crawler extends CheerioCrawler {
+    readonly #robots: RobotsFor | undefined;
+
+    constructor(options: CheerioCrawlerOptions, storageConfig: Configuration, robots: RobotsFor | undefined) {
+        super(options, storageConfig);
+        this.#robots = robots;
+    }
+
+    protected override getRobotsTxtFileForUrl(url: string): Promise<RobotsTxtFile | undefined> {
+        return this.#robots ? this.#robots(url) : Promise.resolve(undefined);
+    }
+}
 
 // Persistent crawl state a store lends the crawler; absent, everything stays in memory.
 export interface CrawlStorage {
@@ -77,9 +98,9 @@ function socketOf(source: unknown): Transport["socket"] {
 }
 
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlStorage): Promise<SiteFacts> {
+export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<SiteFacts> {
     bridgeCrawleeLog();
-    const { index: sitemap, files }: Sitemaps = config.sitemap ? await loadSitemap(config.seeds) : { index: new Map(), files: [] };
+    const { index: sitemap, files }: Sitemaps = config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps) : { index: new Map(), files: [] };
     const seeds = new Set(config.seeds);
     const visited = new Set<string>();
     const skipped = new Map<string, string>();
@@ -87,7 +108,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
     let handled = 0;
     const transformRequestFunction = filter(config, skipped);
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
-    const crawler = new CheerioCrawler(
+    const crawler = new Crawler(
         {
             additionalMimeTypes: ["*/*"],
             ...(storage && { requestQueue: storage.requestQueue }),
@@ -166,6 +187,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false }),
+        config.robots ? cache.robots : undefined,
     );
     await crawler.run(config.seeds);
     const stragglers = sitemapStragglers(config, sitemap, visited);

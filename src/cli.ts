@@ -8,7 +8,7 @@ import { VERSION } from "./agent.ts";
 import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
-import { audit, crawl, lintStore, reportStore, type Report } from "./index.ts";
+import { audit, crawl, lintStore, reportStore, warmCache, type Report } from "./index.ts";
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
@@ -28,6 +28,7 @@ const USAGE = [
     "       spiderlint groups [url…] [options]   page count per group",
     "       spiderlint cache status  [--store DIR]   entries, bytes and age per bucket (default .spiderlint)",
     "       spiderlint cache purge [bucket] [--older-than 7d] [--store DIR]   delete cached entries",
+    "       spiderlint cache warm  [url…] [--store DIR]   fill robots and sitemaps without crawling",
     "options: --config PATH  --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
     "         --format human|json|sarif  --fail-on error|warning|info|never  --resume  --no-cache  --refresh  --offline",
@@ -147,7 +148,7 @@ async function main(argv: string[]): Promise<number> {
     const [command = "", ...seeds] = positionals;
     const store = values.store;
     const isStored = ["crawl", "lint", "report"].includes(command);
-    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && !["status", "purge"].includes(seeds[0] ?? "")) || (command === "cache" && seeds[1] !== undefined && !PURGEABLE.has(seeds[1]))) {
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? "")) || (command === "cache" && seeds[0] === "purge" && seeds[1] !== undefined && !PURGEABLE.has(seeds[1]))) {
         console.error(USAGE);
         return 2;
     }
@@ -159,7 +160,7 @@ async function main(argv: string[]): Promise<number> {
             for (const [bucket, count] of Object.entries(purged)) console.log(`${bucket.padEnd(9)} ${String(count).padStart(7)} entries purged`);
             return 0;
         }
-        if (command === "cache") {
+        if (command === "cache" && seeds[0] === "status") {
             const buckets = await cacheStatus(store ?? ".spiderlint");
             for (const bucket of buckets) console.log(`${bucket.bucket.padEnd(9)} ${String(bucket.entries).padStart(7)} entries ${String(bucket.bytes).padStart(11)} bytes  ${bucket.oldest} … ${bucket.newest}`);
             return 0;
@@ -168,14 +169,20 @@ async function main(argv: string[]): Promise<number> {
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
         config = overlay(config, flagSettings(values, tokens));
-        if (seeds.length > 0) config.seeds = seeds;
+        const targets = command === "cache" ? seeds.slice(1) : seeds;
+        if (targets.length > 0) config.seeds = targets;
         else if (document !== undefined && config.seeds.length === 0) config.seeds = resolveDefaultTargets(document);
         const format = FORMATTERS[config.format];
         const failOn = RANK[config.failOn];
-        const requiresSeeds = ["audit", "crawl", "groups"].includes(command);
+        const requiresSeeds = ["audit", "crawl", "groups", "cache"].includes(command);
         if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0)) {
             console.error(USAGE);
             return 2;
+        }
+        if (command === "cache") {
+            const warmed = await warmCache(config, store ?? ".spiderlint");
+            console.log(`${warmed.origins} origins, ${warmed.sitemaps} sitemap files, ${warmed.urls} listed URLs cached`);
+            return 0;
         }
         if (command === "crawl") {
             const pages = await crawl(config, store as string, values.resume === true);

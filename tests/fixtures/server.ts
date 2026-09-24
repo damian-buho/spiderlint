@@ -4,7 +4,10 @@
 
 import { createHash } from "node:crypto";
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
-import { readFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
+import { readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import type { AddressInfo } from "node:net";
 
@@ -50,8 +53,16 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
     return undefined;
 }
 
+// Points the user cache at a temp directory unless the test chose one, so no run touches ~/.cache.
+function isolateUserCache(): string | undefined {
+    if (process.env.XDG_CACHE_HOME?.startsWith(tmpdir())) return undefined;
+    process.env.XDG_CACHE_HOME = mkdtempSync(path.join(tmpdir(), "spiderlint-xdg-"));
+    return process.env.XDG_CACHE_HOME;
+}
+
 // Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for.
 export async function serveFixture(): Promise<Fixture> {
+    const userCache = isolateUserCache();
     const requested: string[] = [];
     const headers: IncomingHttpHeaders[] = [];
     const server: Server = createServer(async (request, response) => {
@@ -90,6 +101,9 @@ export async function serveFixture(): Promise<Fixture> {
         origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
         requested,
         headers,
-        close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+        close: async () => {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+            if (userCache) await rm(userCache, { recursive: true, force: true });
+        },
     };
 }

@@ -7,7 +7,7 @@ import { USER_AGENT } from "../agent.ts";
 import { fetchRetrying } from "../crawl/fetch.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import { log } from "../logger.ts";
-import type { Bucket } from "./index.ts";
+import type { Bucket, Entry } from "./index.ts";
 
 type Headers = Record<string, string | string[]>;
 
@@ -44,19 +44,19 @@ function toStored<T>(policy: CachePolicy, status: number, headers: Headers, valu
     return { policy: { ...object, resh: redactHeaders(object.resh) }, status, headers: redactHeaders(headers), value, ms };
 }
 
-// Fresh by the origin’s headers, or by the bucket TTL when they are silent; everything is fresh offline.
-function isFresh<T>(bucket: Bucket<Stored<T>>, entry: NonNullable<Awaited<ReturnType<Bucket<Stored<T>>["get"]>>>, policy: CachePolicy): boolean {
+// Fresh by the origin’s headers, or by the bucket TTL when they are silent or `isCapped`; everything is fresh offline.
+function isFresh<T>(bucket: Bucket<Stored<T>>, entry: Entry<Stored<T>>, policy: CachePolicy, isCapped: boolean): boolean {
     if (bucket.mode === "offline") return true;
-    return isSilent(entry.value.headers) ? bucket.isFresh(entry) : policy.satisfiesWithoutRevalidation(REQUEST(entry.key));
+    return isSilent(entry.value.headers) ? bucket.isFresh(entry) : policy.satisfiesWithoutRevalidation(REQUEST(entry.key)) && (!isCapped || bucket.isFresh(entry));
 }
 
 // A GET answered from `bucket` while fresh, revalidated with its validators once stale, stored when RFC 9111 allows.
-export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>): Promise<Served<T>> {
+export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>, isCapped = false): Promise<Served<T>> {
     const entry = await bucket.get(url);
     if (!entry) bucket.missed(url);
     const request = REQUEST(url);
     const policy = entry && CachePolicy.fromObject(entry.value.policy);
-    if (entry && policy && isFresh(bucket, entry, policy)) {
+    if (entry && policy && isFresh(bucket, entry, policy, isCapped)) {
         log.debug({ bucket: bucket.name, url, stored: entry.stored }, "served from cache");
         return { ...entry.value, cached: true };
     }
