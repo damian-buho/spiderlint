@@ -16,7 +16,7 @@ import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { extract, extractorsFor, loadPlugins } from "./plugins/index.ts";
+import { extract, extractorsFor, isBrowserFact, loadPlugins } from "./plugins/index.ts";
 import type { Extractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
@@ -95,6 +95,8 @@ function enabledRules(config: Config): Rule[] {
 
 // Stored pages an extractor never saw get its facts from their stored body, so a new rule needs no re-crawl.
 async function backfill(pages: Facts[], store: DiskStore, active: Extractor[]): Promise<void> {
+    const unserved = active.filter((extractor) => extractor.mode === "browser" && pages.some((page) => page.html && page[extractor.id] === undefined));
+    if (unserved.length > 0) log.warn({ extractors: unserved.map((extractor) => extractor.id) }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
     for (const page of pages) {
         const missing = active.filter((extractor) => page[extractor.id] === undefined);
         if (missing.length === 0) continue;
@@ -104,13 +106,13 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[]): 
     }
 }
 
-// Why the run needs a browser: each group pinning `browser` and each enabled rule reading a `browser.*` fact.
+// Why the run needs a browser: each group pinning `browser` and each enabled rule reading a fact only a rendered page has.
 function browserReasons(config: Config): string[] {
     const disabledRules = new Set(config.disabledRules);
     return Object.entries(groupsOf(config)).flatMap(([name, group]) => {
         if (group.fetch === "browser") return [`group ${name}`];
         const rules = compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides);
-        return rules.filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("browser."))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
+        return rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
     });
 }
 
@@ -185,8 +187,8 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const site = await crawl(
         config,
-        async (facts, body) => {
-            await extract(facts, body, active);
+        async (facts, body, live) => {
+            await extract(facts, body, active, live);
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,

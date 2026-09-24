@@ -4,6 +4,7 @@
 
 import type { Configuration, Request, RequestQueue, RequestTransform } from "crawlee";
 import picomatch from "picomatch";
+import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
 import type { Facts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -11,7 +12,7 @@ import type { RobotsFor } from "./robots.ts";
 import { isInScope } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
-export type OnPage = (facts: Facts, body: string) => Promise<void> | void;
+export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> | void;
 
 // Cached lookups a crawl reads through.
 export interface CrawlCache {

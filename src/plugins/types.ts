@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { Page } from "playwright";
 import type { Facts } from "../facts/types.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
 
 // Facts from one fetched page and its body, stored under `id`; undefined adds nothing.
 export interface Extractor {
     id: string;
-    extract(page: Facts, body: string): Promise<unknown>;
+    // `browser` runs only on a rendered page, handed over as `live`, and forces the browser crawl.
+    mode?: "browser";
+    extract(page: Facts, body: string, live?: Page): Promise<unknown>;
 }
 
 // A plugin module’s default export.

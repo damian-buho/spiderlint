@@ -4,6 +4,7 @@
 
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import type { Page } from "playwright";
 import { ConfigError } from "../config/index.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -32,6 +33,12 @@ export function pluginPresetNames(): string[] {
 
 function allExtractors(): Extractor[] {
     return plugins.flatMap((plugin) => plugin.extractors ?? []);
+}
+
+// Whether reading `fact` needs a rendered page: `browser.*`, or the key of a browser-mode extractor.
+export function isBrowserFact(fact: string): boolean {
+    const root = fact.split(".", 1)[0];
+    return root === "browser" || allExtractors().some((extractor) => extractor.mode === "browser" && extractor.id === root);
 }
 
 // Adds a plugin; a rule, preset or extractor name already taken is a config error.
@@ -76,11 +83,15 @@ export function extractorsFor(rules: Rule[]): Extractor[] {
     return active;
 }
 
-// Each extractor’s facts under its ID; one that throws is logged and leaves its key absent, so its rules skip.
-export async function extract(page: Facts, body: string, active: Extractor[]): Promise<void> {
+// Each extractor’s facts under its ID; one that throws, or needs a `live` page it lacks, leaves its key absent, so its rules skip.
+export async function extract(page: Facts, body: string, active: Extractor[], live?: Page): Promise<void> {
     for (const extractor of active) {
+        if (!live && extractor.mode === "browser") {
+            log.debug({ url: page.url.href, extractor: extractor.id }, "extractor needs a rendered page");
+            continue;
+        }
         try {
-            const value = await extractor.extract(page, body);
+            const value = await extractor.extract(page, body, live);
             if (value !== undefined) page[extractor.id] = value;
         } catch (error) {
             log.warn({ url: page.url.href, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, "extractor failed");
