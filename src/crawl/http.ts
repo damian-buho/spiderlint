@@ -33,15 +33,15 @@ function globMatchers(config: Config): { include: picomatch.Matcher[]; exclude: 
 }
 
 // Include and exclude globs run on `pathname + search`, as group matchers do.
-function filter(config: Config, skipped: Set<string>): RequestTransform {
+function filter(config: Config, skipped: Map<string, string>): RequestTransform {
     const { include, exclude } = globMatchers(config);
     return (request) => {
         const url = new URL(request.url);
         const path = url.pathname + url.search;
         const reason = include.length > 0 && include.every((match) => !match(path)) ? "include" : exclude.some((match) => match(path)) ? "exclude" : undefined;
         if (!reason) return request;
-        log[skipped.has(request.url) ? "debug" : "info"]({ url: request.url, reason }, "link skipped");
-        skipped.add(request.url);
+        log.debug({ url: request.url, reason }, "link skipped");
+        skipped.set(request.url, reason);
         return false;
     };
 }
@@ -82,7 +82,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
     const { index: sitemap, files }: Sitemaps = config.sitemap ? await loadSitemap(config.seeds) : { index: new Map(), files: [] };
     const seeds = new Set(config.seeds);
     const visited = new Set<string>();
-    const skipped = new Set<string>();
+    const skipped = new Map<string, string>();
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     let handled = 0;
     const transformRequestFunction = filter(config, skipped);
@@ -116,8 +116,8 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
                 },
             ],
             onSkippedRequest({ url, reason }) {
-                log[skipped.has(url) ? "debug" : "info"]({ url, reason }, "link skipped");
-                skipped.add(url);
+                log.debug({ url, reason }, "link skipped");
+                skipped.set(url, reason);
             },
             async requestHandler({ request, response, body, $, contentType, enqueueLinks }) {
                 handled += 1;
@@ -171,5 +171,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, storage?: CrawlS
     const stragglers = sitemapStragglers(config, sitemap, visited);
     const isOverBudget = config.maxPages > 0 && handled >= config.maxPages;
     if (!isOverBudget && stragglers.length > 0) await crawler.run(stragglers, { purgeRequestQueue: false });
+    const reasons = Object.groupBy(skipped.values(), (reason) => reason);
+    if (skipped.size > 0) log.info({ skipped: skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
     return { sitemaps: files };
 }
