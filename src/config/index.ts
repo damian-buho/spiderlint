@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { BucketName, CacheMode } from "../cache/index.ts";
 import type { Scope } from "../crawl/scope.ts";
 import type { RulesetConfig, Severity } from "../rules/types.ts";
 
@@ -42,6 +43,8 @@ export interface Config {
     overrides: Record<string, Exclude<Severity, "off">>;
     groups: Record<string, GroupConfig>;
     rulesets: Record<string, RulesetConfig>;
+    cacheMode: CacheMode;
+    cacheTtl: Partial<Record<BucketName, number>>;
 }
 
 export function defaults(): Config {
@@ -66,6 +69,8 @@ export function defaults(): Config {
         overrides: {},
         groups: {},
         rulesets: {},
+        cacheMode: "use",
+        cacheTtl: {},
     };
 }
 

@@ -5,6 +5,8 @@
 
 import { parseArgs } from "node:util";
 import { VERSION } from "./agent.ts";
+import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
+import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, reportStore, type Report } from "./index.ts";
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
@@ -25,9 +27,10 @@ const USAGE = [
     "       spiderlint facts  <url>   [options]   one page’s facts document as JSON",
     "       spiderlint groups [url…] [options]   page count per group",
     "       spiderlint cache status  [--store DIR]   entries, bytes and age per bucket (default .spiderlint)",
+    "       spiderlint cache purge [bucket] [--older-than 7d] [--store DIR]   delete cached entries",
     "options: --config PATH  --fetch http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
-    "         --format human|json|sarif  --fail-on error|warning|info|never  --resume",
+    "         --format human|json|sarif  --fail-on error|warning|info|never  --resume  --no-cache  --refresh  --offline",
     "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",
     "with no url, audits the projectfile’s homepage and documentation links",
 ].join("\n");
@@ -35,6 +38,13 @@ const USAGE = [
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
 const FORMATTERS = { human: formatHuman, json: formatJson, sarif: formatSarif };
+
+// At most one of --no-cache, --refresh, --offline; undefined when none is passed.
+function cacheMode(values: Record<string, unknown>): CacheMode | undefined {
+    const modes = [values.cache === false && "off", values.refresh === true && "refresh", values.offline === true && "offline"].filter((mode): mode is CacheMode => mode !== false);
+    if (modes.length > 1) throw new ConfigError(`--no-cache, --refresh and --offline exclude each other (got ${modes.join(", ")})`);
+    return modes[0];
+}
 
 // 1 once any finding reaches --fail-on; 3 when nothing was fetched.
 function exitCode(report: Report, failOn: FailOn): number {
@@ -85,10 +95,11 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.format !== undefined && { format: values.format as Config["format"] }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
         ...(Object.keys(overrides).length > 0 && { overrides }),
+        cacheMode: cacheMode(values),
     };
 }
 
-// Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched, 4 the run failed.
+// Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched or an --offline miss, 4 the run failed.
 async function main(argv: string[]): Promise<number> {
     const { values, positionals, tokens } = parseArgs({
         args: argv,
@@ -101,6 +112,10 @@ async function main(argv: string[]): Promise<number> {
             config: { type: "string" },
             store: { type: "string" },
             resume: { type: "boolean" },
+            cache: { type: "boolean" },
+            refresh: { type: "boolean" },
+            offline: { type: "boolean" },
+            "older-than": { type: "string" },
             fetch: { type: "string" },
             scope: { type: "string" },
             "max-pages": { type: "string" },
@@ -132,11 +147,18 @@ async function main(argv: string[]): Promise<number> {
     const [command = "", ...seeds] = positionals;
     const store = values.store;
     const isStored = ["crawl", "lint", "report"].includes(command);
-    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && seeds[0] !== "status")) {
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && !["status", "purge"].includes(seeds[0] ?? "")) || (command === "cache" && seeds[1] !== undefined && !PURGEABLE.has(seeds[1]))) {
         console.error(USAGE);
         return 2;
     }
     try {
+        if (command === "cache" && seeds[0] === "purge") {
+            const olderThan = parseDuration(values["older-than"] ?? "0");
+            if (olderThan === undefined) throw new ConfigError(`--older-than: invalid duration ${values["older-than"]} (expected seconds or 45s, 30m, 24h, 7d)`);
+            const purged = await purgeCache(store ?? ".spiderlint", seeds[1], olderThan);
+            for (const [bucket, count] of Object.entries(purged)) console.log(`${bucket.padEnd(9)} ${String(count).padStart(7)} entries purged`);
+            return 0;
+        }
         if (command === "cache") {
             const buckets = await cacheStatus(store ?? ".spiderlint");
             for (const bucket of buckets) console.log(`${bucket.bucket.padEnd(9)} ${String(bucket.entries).padStart(7)} entries ${String(bucket.bytes).padStart(11)} bytes  ${bucket.oldest} … ${bucket.newest}`);
@@ -177,8 +199,9 @@ async function main(argv: string[]): Promise<number> {
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     } catch (error) {
         const isConfig = error instanceof ConfigError;
-        log.error({ error: error instanceof Error ? error.message : String(error), isConfig }, "audit aborted");
-        return isConfig ? 2 : 4;
+        const isOfflineMiss = error instanceof OfflineMiss;
+        log.error({ error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, "audit aborted");
+        return isConfig ? 2 : isOfflineMiss ? 3 : 4;
     }
 }
 

@@ -21,6 +21,7 @@
     "ajv": "8.20.0",
     "cheerio": "1.0.0-rc.12",
     "crawlee": "3.18.1",
+    "http-cache-semantics": "4.2.0",
     "picomatch": "4.0.7",
     "pino": "10.3.1",
     "proper-lockfile": "4.1.2",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/http-cache-semantics": "4.2.0",
     "@types/node": "26.6.1",
     "@types/picomatch": "4.0.3",
     "@types/proper-lockfile": "4.1.4",

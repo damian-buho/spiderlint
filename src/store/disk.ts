@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Configuration, Dataset, KeyValueStore, RequestQueue } from "crawlee";
 import lockfile from "proper-lockfile";
 import { VERSION } from "../agent.ts";
+import { writeAtomic } from "../cache/index.ts";
 import { ConfigError } from "../config/index.ts";
 import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import type { Summary } from "../index.ts";
@@ -43,25 +44,23 @@ async function openStorages(config: Configuration): Promise<Storages> {
     return [await Dataset.open("facts", { config }), await KeyValueStore.open("bodies", { config }), await KeyValueStore.open("records", { config }), await RequestQueue.open("frontier", { config })];
 }
 
-// Write to a sibling temp file, then rename over the target.
-async function writeAtomic(file: string, content: string): Promise<void> {
-    const temporary = `${file}.${process.pid}.tmp`;
-    await writeFile(temporary, content);
-    await rename(temporary, file);
+
+// Holds the store at `directory` for this process; a second holder is a ConfigError.
+export async function lockStore(directory: string): Promise<() => Promise<void>> {
+    await mkdir(directory, { recursive: true });
+    try {
+        return await lockfile.lock(directory, { lockfilePath: path.join(directory, "manifest.json.lock"), realpath: false, retries: 0, stale: 30_000, update: 10_000 });
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ELOCKED") throw new ConfigError(`store ${directory} is in use by another process`);
+        throw error;
+    }
 }
 
 // The `pages` bucket: facts in a Dataset, bodies and results in KeyValueStores, the frontier in a RequestQueue.
 export class DiskStore {
     // Locks `directory`; a fresh crawl empties it, a resumed crawl or a re-lint keeps it.
     static async open(directory: string, mode: { fresh: boolean; seeds?: string[]; configHash?: string }): Promise<DiskStore> {
-        await mkdir(directory, { recursive: true });
-        let release: () => Promise<void>;
-        try {
-            release = await lockfile.lock(directory, { lockfilePath: path.join(directory, "manifest.json.lock"), realpath: false, retries: 0, stale: 30_000, update: 10_000 });
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ELOCKED") throw new ConfigError(`store ${directory} is in use by another process`);
-            throw error;
-        }
+        const release = await lockStore(directory);
         const config = new Configuration({ storageClientOptions: { localDataDirectory: directory }, persistStorage: true, purgeOnStart: false });
         const previous = await DiskStore.#readManifest(directory);
         let storages = await openStorages(config);

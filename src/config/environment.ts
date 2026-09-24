@@ -9,6 +9,7 @@ const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
 const SCOPES = ["origin", "host", "domain"] as const;
 const FAIL_ONS = ["error", "warning", "info", "never"] as const;
 const FORMATS = ["human", "json", "sarif"] as const;
+const CACHE_MODES = ["use", "off", "refresh", "offline"] as const;
 
 function isTruthy(name: string, raw: string): boolean {
     const value = raw.trim().toLowerCase();
@@ -56,6 +57,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_FOLD !== undefined && { fold: isTruthy("SPIDERLINT_FOLD", environment.SPIDERLINT_FOLD) ? { threshold: 0.8, min: 3 } : false }),
         ...(environment.SPIDERLINT_FAIL_ON !== undefined && { failOn: pick("SPIDERLINT_FAIL_ON", environment.SPIDERLINT_FAIL_ON, FAIL_ONS) }),
         ...(environment.SPIDERLINT_FORMAT !== undefined && { format: pick("SPIDERLINT_FORMAT", environment.SPIDERLINT_FORMAT, FORMATS) }),
+        ...(environment.SPIDERLINT_CACHE !== undefined && { cacheMode: pick("SPIDERLINT_CACHE", environment.SPIDERLINT_CACHE, CACHE_MODES) }),
         ...(environment.SPIDERLINT_DISABLED_RULES !== undefined && { disabledRules: list(environment.SPIDERLINT_DISABLED_RULES) }),
         ...(overrideVariables.some((value) => value !== undefined) && {
             overrides: { ...overrideBucket(environment.SPIDERLINT_OVERRIDE_ERROR, "error"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_WARNING, "warning"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_INFO, "info") },

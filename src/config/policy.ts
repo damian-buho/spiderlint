@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
+import { parseDuration, type BucketName } from "../cache/index.ts";
 import { log } from "../logger.ts";
 import { ConfigError, type Config } from "./index.ts";
 import { validateSubtree } from "./schema.ts";
@@ -12,7 +13,7 @@ import { validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets">>;
+export type Settings = Partial<Pick<Config, "seeds" | "fetch" | "scope" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "groups" | "rulesets" | "cacheMode" | "cacheTtl">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -48,6 +49,18 @@ function flattenOverride(bucket: { error?: string[]; warning?: string[]; info?: 
     return overrides;
 }
 
+// `cache.<bucket>.ttl` durations to seconds; a malformed one names its path.
+function cacheTtl(cache: Record<string, { ttl?: string | number }>): Settings["cacheTtl"] {
+    const out: Partial<Record<BucketName, number>> = {};
+    for (const [bucket, { ttl }] of Object.entries(cache)) {
+        if (ttl === undefined) continue;
+        const seconds = parseDuration(ttl);
+        if (seconds === undefined) throw new ConfigError(`org.spiderlint/cache/${bucket}/ttl: invalid duration ${String(ttl)} (expected seconds or 45s, 30m, 24h, 7d)`);
+        out[bucket as BucketName] = seconds;
+    }
+    return out;
+}
+
 function fromSubtree(subtree: Record<string, unknown>): Settings {
     const settings: Settings = {};
     for (const [key, field] of KEYS) {
@@ -56,6 +69,7 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     const resources = subtree.resources as { fetch?: boolean; "max-per-page"?: number } | undefined;
     if (resources?.fetch !== undefined) settings.fetchResources = resources.fetch;
     if (resources?.["max-per-page"] !== undefined) settings.maxResourcesPerPage = resources["max-per-page"];
+    if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);
     if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
     return settings;
 }

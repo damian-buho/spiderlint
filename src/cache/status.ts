@@ -5,6 +5,7 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { log } from "../logger.ts";
+import { bucketDirectory, type BucketName } from "./index.ts";
 
 export interface BucketStatus {
     bucket: string;
@@ -14,15 +15,22 @@ export interface BucketStatus {
     newest?: string;
 }
 
-// Bucket name, the store subdirectories holding it, and the file extension that counts as one entry.
-const BUCKETS: [string, string[], string][] = [
-    ["pages", ["datasets/facts", "key_value_stores/bodies"], ".json"],
-    ["records", ["key_value_stores/records"], ".json"],
-    ["frontier", ["request_queues/frontier"], ".json"],
-];
+// Buckets kept as one JSON file per key.
+export const FILE_BUCKETS: BucketName[] = ["resources", "sitemaps", "robots"];
+
+// Bucket name, the directories holding it (entries counted in the first), and the extension of one entry.
+function layout(root: string): [string, string[], string][] {
+    const files = FILE_BUCKETS.map((name): [string, string[], string] => [name, [bucketDirectory(name, root) as string], ".json"]);
+    return [
+        ["pages", [path.join(root, "datasets/facts"), path.join(root, "key_value_stores/bodies"), bucketDirectory("pages", root) as string], ".json"],
+        ["records", [path.join(root, "key_value_stores/records")], ".json"],
+        ["frontier", [path.join(root, "request_queues/frontier")], ".json"],
+        ...files,
+    ];
+}
 
 // Files directly under `directory`, empty when it does not exist.
-async function files(directory: string): Promise<{ name: string; size: number; mtime: Date }[]> {
+export async function files(directory: string): Promise<{ name: string; size: number; mtime: Date }[]> {
     let names: string[];
     try {
         names = await readdir(directory);
@@ -37,14 +45,14 @@ async function files(directory: string): Promise<{ name: string; size: number; m
     );
 }
 
-// Entries, bytes and age range of every bucket present in the store at `root`.
+// Entries, bytes and age range of every bucket present for the store at `root` and in the user cache.
 export async function cacheStatus(root: string): Promise<BucketStatus[]> {
     const out: BucketStatus[] = [];
-    for (const [bucket, directories, entryExtension] of BUCKETS) {
+    for (const [bucket, directories, entryExtension] of layout(root)) {
         const [first = "", ...rest] = directories;
-        const primary = await files(path.join(root, first));
+        const primary = await files(first);
         const counted = primary.filter((file) => file.name.endsWith(entryExtension) && !file.name.startsWith("__"));
-        const others = await Promise.all(rest.map((directory) => files(path.join(root, directory))));
+        const others = await Promise.all(rest.map((directory) => files(directory)));
         const all = [...counted, ...others.flat()];
         const times = all.map((file) => file.mtime.getTime()).toSorted((a, b) => a - b);
         log.debug({ root, bucket, entries: counted.length, files: all.length }, "bucket measured");
