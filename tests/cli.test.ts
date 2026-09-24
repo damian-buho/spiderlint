@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const CLI = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
-const { SPIDERLINT_CONFIG: _config, ...ENVIRONMENT } = process.env;
+const { SPIDERLINT_CONFIG: _config, FORCE_COLOR: _force, ...ENVIRONMENT } = process.env;
 
 interface Run {
     code: number;
@@ -65,6 +65,15 @@ describe("cli", () => {
         const run = await spiderlint(project, "audit");
         assert.equal(run.code, 2);
         assert.match(run.stderr, /usage: spiderlint/i);
+    });
+
+    it("colors the help only when --color forces it", async () => {
+        const forced = await spiderlint(directory, "--help", "--color");
+        const detected = await spiderlint(directory, "--help");
+        const disabled = await spiderlint(directory, "--help", "--color", "--no-color");
+        assert.ok(forced.stdout.includes("\u{1B}[1mUsage:"));
+        assert.ok(!detected.stdout.includes("\u{1B}"));
+        assert.ok(!disabled.stdout.includes("\u{1B}"));
     });
 
     it("applies severity flags in argv order", async () => {

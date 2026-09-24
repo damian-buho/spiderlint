@@ -5,6 +5,7 @@
 
 import { parseArgs } from "node:util";
 import { DESCRIPTION, VERSION } from "./agent.ts";
+import { painter, type Paint } from "./color.ts";
 import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
@@ -57,6 +58,7 @@ Rules:
 Output:
   --format FORMAT       human, json or sarif (human)
   --fail-on LEVEL       error, warning, info or never (error)
+  --[no-]color          force or disable color (auto)
 
 Store and cache:
   --store DIR           store directory (.spiderlint for cache)
@@ -82,7 +84,21 @@ Examples:
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS = { human: formatHuman, json: formatJson, sarif: formatSarif };
+const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
+
+// Title and headings bold, the command or flag column cyan, a trailing default dim, examples green.
+function usage(paint: Paint): string {
+    return USAGE.split("\n").map((line, index) => {
+        if (index === 0) return line.replace(/^\S+ \S+/, (title) => paint("bold", title));
+        if (/^[A-Z][\w ]*:$/.test(line)) return paint("bold", line);
+        if (line.startsWith("Usage:")) return line.replace("Usage:", (label) => paint("bold", label));
+        if (line.startsWith("  spiderlint ")) return `  ${paint("green", line.slice(2))}`;
+        const entry = /^( {2})(\S.*?)( {2,})(.*?)( \([^)]*\))?$/.exec(line);
+        if (!entry) return line;
+        const [, indent, name = "", gap, text, fallback] = entry;
+        return `${indent}${paint("cyan", name)}${gap}${text}${fallback ? paint("dim", fallback) : ""}`;
+    }).join("\n");
+}
 
 // At most one of --no-cache, --refresh, --offline; undefined when none is passed.
 function cacheMode(values: Record<string, unknown>): CacheMode | undefined {
@@ -153,6 +169,7 @@ async function main(argv: string[]): Promise<number> {
         allowNegative: true,
         options: {
             help: { type: "boolean", short: "h" },
+            color: { type: "boolean" },
             version: { type: "boolean", short: "V" },
             config: { type: "string" },
             store: { type: "string" },
@@ -182,7 +199,7 @@ async function main(argv: string[]): Promise<number> {
         },
     });
     if (values.help) {
-        console.log(USAGE);
+        console.log(usage(painter(process.stdout, values.color)));
         return 0;
     }
     if (values.version) {
@@ -193,7 +210,7 @@ async function main(argv: string[]): Promise<number> {
     const store = values.store;
     const isStored = ["crawl", "lint", "report"].includes(command);
     if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (isStored && !store) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? "")) || (command === "cache" && seeds[0] === "purge" && seeds[1] !== undefined && !PURGEABLE.has(seeds[1]))) {
-        console.error(USAGE);
+        console.error(usage(painter(process.stderr, values.color)));
         return 2;
     }
     try {
@@ -219,7 +236,7 @@ async function main(argv: string[]): Promise<number> {
         const failOn = RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "groups", "cache"].includes(command);
         if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0)) {
-            console.error(USAGE);
+            console.error(usage(painter(process.stderr, values.color)));
             return 2;
         }
         if (command === "cache") {
@@ -234,7 +251,7 @@ async function main(argv: string[]): Promise<number> {
         }
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
-            console.log(format(stored));
+            console.log(format(stored, painter(process.stdout, values.color)));
             return exitCode(stored, config.failOn);
         }
         const options = command === "audit" ? { store, resume: values.resume === true } : {};
@@ -245,7 +262,7 @@ async function main(argv: string[]): Promise<number> {
         }, options);
         if (command === "facts") console.log(JSON.stringify(report.pages[0], undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
-        else console.log(format(report));
+        else console.log(format(report, painter(process.stdout, values.color)));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     } catch (error) {
         const isConfig = error instanceof ConfigError;

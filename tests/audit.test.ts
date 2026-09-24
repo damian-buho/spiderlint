@@ -4,10 +4,12 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { stripVTControlCharacters } from "node:util";
 import { VERSION } from "../src/agent.ts";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { formatHuman } from "../src/report/human.ts";
+import { painter } from "../src/color.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const GROUPS = {
@@ -161,6 +163,12 @@ describe("audit", () => {
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
         assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
+    });
+
+    it("colors severities when painted, and matches the plain text once styles are stripped", () => {
+        const text = formatHuman(report, painter(process.stdout, true));
+        assert.ok(text.includes("\u{1B}[31merror  \u{1B}[39m"), text);
+        assert.equal(stripVTControlCharacters(text), formatHuman(report));
     });
 
     it("sums bytes, pages per group and per status into the run summary", () => {

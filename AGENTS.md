@@ -387,7 +387,7 @@ Flags mirror the config keys (`--fetch`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--format`, `--output`, `--fail-on`, `--no-fold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,
-`--header`, `--cookie`, `--user-agent`, `--locale`). Results go to stdout, diagnostics to stderr; `NO_COLOR` honoured.
+`--header`, `--cookie`, `--user-agent`, `--locale`). Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
 ## Plugins
 
