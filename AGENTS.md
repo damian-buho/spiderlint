@@ -491,7 +491,7 @@ projectfile.yaml
 - `org.projectfile.image.org: damian-buho`, `flatpath: ${name}`, `sinks.ghcr.selfref` — the account-is-org shape every personal image carries.
 - `build.d/user/post/700-install-chromium.sh` installs the headless shell of the pinned `playwright` (`--only-shell`: headless runs never launch the full browser) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime. Its libraries are curated in `.container/root/deps/common.apt.deps` from Playwright’s own per-distribution list, not `--with-deps`.
 - Self-test in `test.d/`: audit the bundled fixture site served from inside the container and expect the known findings, once over http and once in Chromium.
-- `make` runs the m6e gates; lint, format, audit and outdated checks come from the node fragment. The node fragment wires no test tool, so `npm-test` is declared in the projectfile under `org.projectfile.ci.tools` and joined to `source-is-tested`; `NODE_TOOL_IMAGE.series` is overridden to `26` there because the fragment pins `24` while the base image follows `B19_NODE_SERIES`.
+- `make` runs the m6e gates; lint, format, audit, outdated checks and `npm-test` (under `source-is-tested`) come from the node fragment. `NODE_TOOL_IMAGE.series` is overridden to `26` in the projectfile because the fragment pins `24` while the base image follows `B19_NODE_SERIES`.
 
 ## Testing
 

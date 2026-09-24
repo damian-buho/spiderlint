@@ -469,18 +469,9 @@ jobs:
           if-no-files-found: warn
   source-is-tested:
     runs-on: docker
+    needs: ["deps-installed"]
     steps:
-      - uses: actions/checkout@v7
-        with:
-          submodules: true
-          persist-credentials: false
-      - name: npm-test
-        if: vars.CI_SKIP_SOURCE_IS_TESTED != 'true' && vars.CI_SKIP_NPM_TEST != 'true'
-        uses: projectfile/actions/run-tool@v1
-        with:
-          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
-          version: ${{ env.M6E_TAG }}
-          run: npm test
+      - run: echo source-is-tested
   source-passes-lint:
     runs-on: docker
     needs: ["deps-installed"]
@@ -518,6 +509,13 @@ jobs:
           image: ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ env.M6E_TAG }}
           run: auto-stylelint
+      - name: npm-test
+        if: vars.CI_SKIP_SOURCE_IS_TESTED != 'true' && vars.CI_SKIP_NPM_TEST != 'true'
+        uses: projectfile/actions/run-tool@v1
+        with:
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-26', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: npm test --if-present
       - name: auto-jsonlint
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_AUTO_JSONLINT != 'true'
         uses: projectfile/actions/run-tool@v1
