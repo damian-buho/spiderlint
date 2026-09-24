@@ -172,11 +172,11 @@ describe("audit", () => {
 
     it("prints findings by group then rule", () => {
         const text = formatHuman(report);
-        assert.ok(text.startsWith(`${site.origin}\n`));
+        assert.ok(text.startsWith(`${site.origin}\nrating A (seo, links)\n`));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\)\ncost: 15 plain HTTP fetches; \d+ resource requests$/);
+        assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\), \d+ of \d+ checks passed\ncost: 15 plain HTTP fetches; \d+ resource requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 15, revalidated: 0 });
     });
 
@@ -190,10 +190,11 @@ describe("audit", () => {
         const bundledReport = {
             pages: [stubPage("https://a.test/x"), stubPage("https://a.test/y"), stubPage("https://a.test/z")],
             findings: [stubCsp("https://a.test/y"), stubCsp("https://a.test/x"), { ...stubCsp("https://a.test/z"), message: "csp is weak" }],
-            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, cost: { extractors: {} } },
+            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, checks: { total: 0, passed: 0, failed: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
-        assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
+        assert.equal(lines[1], "rating – (no checks ran)");
+        assert.deepEqual(lines.slice(3, 7), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
         assert.equal(lines.at(-1), "cost: no fetch, nothing ran");
     });
 
@@ -204,6 +205,8 @@ describe("audit", () => {
         assert.deepEqual(summary.groups, { default: 6, app: 1, posts: 5, tags: 3 });
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings, report.findings.length);
+        assert.deepEqual(summary.checks, { total: 223, failed: 19, passed: 204 });
+        assert.deepEqual(summary.rating, { grade: "A", score: 0.9148, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

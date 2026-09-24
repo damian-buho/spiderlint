@@ -17,7 +17,7 @@ run (browser when any group pins it or any enabled rule reads `browser.*`); site
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
-`sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
+`sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
@@ -304,6 +304,13 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 - `--unfold` (`fold: false`) keeps every per-page finding, and `human` then lists every URL and location instead of the first five. Folded findings map to SARIF `occurrenceCount` plus `relatedLocations`, so code-scanning UIs show one row.
 - Resource findings fold by resource URL across the whole site rather than by group: the offending artefact is the resource, the pages are its `usedBy`.
 
+## Rating
+
+- A check is one rule judged on one subject: a page rule on a page it was not `when`-skipped on, a group rule on a non-empty group, a site rule on a non-empty crawl. Counted before folding.
+- A check fails on any finding above `info`; several findings on one page are still one failed check. `info` is advice and passes.
+- The grade is fixed so it compares across sites: S with no failed check, then A ≥ 90 %, B ≥ 70 %, C ≥ 60 %, D ≥ 40 %, E ≥ 20 %, F below. No checks, no grade.
+- A grade names the rulesets it was earned under (`rating A (seo, links)`); grades under different rulesets do not compare.
+
 ## Store
 
 The `pages` cache bucket (see Cache). Kept as its own section because it is
@@ -448,7 +455,7 @@ export default definePlugin({
 - `pino` JSON logs to stderr, `--log-level` (`info` default). On a terminal each entry is one line: message, URL, error; its other fields show only when it has neither, or at `debug`. Crawlee’s own log is bridged into the same stream.
 - When every seed shares one origin, that origin is logged once and every logged URL under it prints as its path; other origins, and runs with mixed-origin seeds, stay absolute. `human` does the same with the origin every page shares, printed once on top; `json`, `sarif` and the store always carry absolute URLs.
 - Every decision logs its variables: group assignment (`url`, `group`, `matched`), rule skip (`rule`, `when`, `actual`), fold (`group`, `rule`, `failed`, `applicable`, `ratio`), sampling (`group`, `extractor`, `taken`, `cap`), robots skip (`url`, `rule`).
-- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts and `cost` — browser launches and the pages they rendered, plain HTTP fetches and revalidations, resource requests and cache hits, runs per extractor — printed by `human`, embedded in `json` and `sarif` `invocations`.
+- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `checks`, `rating` and `cost` — browser launches and the pages they rendered, plain HTTP fetches and revalidations, resource requests and cache hits, runs per extractor — printed by `human`, embedded in `json` and `sarif` `invocations`.
 - `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
 
 ## i18n

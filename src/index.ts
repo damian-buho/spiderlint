@@ -19,10 +19,11 @@ import { log, logRelativeTo } from "./logger.ts";
 import { extract, extractorsFor, isBrowserFact, loadPlugins } from "./plugins/index.ts";
 import type { Extractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
-import { runRules } from "./rules/run.ts";
+import { runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
+import { rate, type Checks, type Rating } from "./report/rating.ts";
 
 // What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs.
 export interface Cost {
@@ -40,6 +41,8 @@ export interface Summary {
     groups: Record<string, number>;
     statuses: Record<string, number>;
     findings: number;
+    checks: Checks;
+    rating?: Rating;
     cost: Cost;
 }
 
@@ -75,7 +78,9 @@ function tally(keys: string[]): Record<string, number> {
 }
 
 // Run totals `human` prints and `json`/`sarif` embed.
-function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cost): Summary {
+function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cost, judged: RuleRun["checks"], rulesets: string[]): Summary {
+    const checks = { ...judged, passed: judged.total - judged.failed };
+    const rating = rate(checks, rulesets);
     const statuses = tally(pages.map((page) => String(page.http.status)));
     return {
         started: started.toISOString(),
@@ -85,6 +90,8 @@ function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cos
         groups: tally(pages.map((page) => page.group)),
         statuses: Object.fromEntries(Object.entries(statuses).toSorted(([a], [b]) => Number(a) - Number(b))),
         findings: findings.length,
+        checks,
+        ...(rating && { rating }),
         cost,
     };
 }
@@ -156,12 +163,14 @@ function linter(config: Config): Lint {
     const matchers = compileGroups(groups);
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
+    const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     warnUnknown(config, groups);
     return ({ pages, site, cost }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
         referrers(pages);
-        const findings = fold(runRules(pages, rulesByGroup, site), config.fold);
-        const summary = summarize(pages, findings, started, cost);
+        const run = runRules(pages, rulesByGroup, site);
+        const findings = fold(run, config.fold);
+        const summary = summarize(pages, findings, started, cost, run.checks, rulesets);
         log.info(summary, "lint done");
         return { pages, findings, summary };
     };

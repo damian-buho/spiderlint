@@ -6,6 +6,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
 import type { Finding } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
+import type { Grade, Rating } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2 };
 const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yellow", info: "blue" };
@@ -14,6 +15,8 @@ const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
 const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilobyte", maximumFractionDigits: 1 });
 const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
+const COUNT = new Intl.NumberFormat();
+const GRADE_TONE: Record<Grade, "green" | "yellow" | "red"> = { S: "green", A: "green", B: "yellow", C: "yellow", D: "red", E: "red", F: "red" };
 
 // At most `limit` URLs on the detail line, the rest as a count.
 function list(urls: string[], origin: string, limit: number): string {
@@ -76,11 +79,16 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
     return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin, limit)}`)];
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
+// The grade and the rulesets it was earned under; a dash when nothing was judged.
+function ratingLine(rating: Rating | undefined, paint: Paint): string {
+    return rating ? `rating ${paint([GRADE_TONE[rating.grade], "bold"], rating.grade)} (${rating.rulesets.join(", ")})` : "rating – (no checks ran)";
+}
+
+// The shared origin once on top, the rating under it, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
 export function formatHuman(report: Report, paint: Paint = plain, isFull = false): string {
     const limit = isFull ? Infinity : LIST;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
-    const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
+    const out: string[] = [...(origin ? [paint(["bold", "underline"], origin)] : []), ratingLine(report.summary.rating, paint)];
     const groups = new Map<string, Finding[]>();
     for (const finding of report.findings) {
         const key = finding.scope === "site" ? "site" : (finding.group as string);
@@ -96,9 +104,9 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
         const count = report.findings.filter((finding) => finding.severity === severity).length;
         return count > 0 ? paint(TONE[severity], `${count} ${severity}`) : `${count} ${severity}`;
     });
-    const { pages, bytes, durationMs, statuses } = report.summary;
+    const { pages, bytes, durationMs, statuses, checks } = report.summary;
     const answers = Object.entries(statuses).map(([status, count]) => `${count} × ${status}`);
-    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")})`, paint("dim", costLine(report.summary.cost)));
+    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")}), ${COUNT.format(checks.passed)} of ${COUNT.format(checks.total)} checks passed`, paint("dim", costLine(report.summary.cost)));
     return out.join("\n");
 }
 

@@ -9,3 +9,4 @@ SPDX-License-Identifier: MIT
 - A group whose pages disagree on a rule gets an advisory that it likely mixes two templates.
 - Values that must be unique across the site, such as titles and descriptions, are reported once per duplicate with every URL that shares it.
 - Results come as text, JSON or SARIF, so code-scanning views show one row per defect.
+- Every run ends with the number of checks passed and a grade from S to F, so sites and releases compare at a glance.
