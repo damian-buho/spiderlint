@@ -17,9 +17,10 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
 `resources`, `recommended`; site-wide `unique`; folding; `human`, `json`,
 `sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
-`report`, `--resume` and `cache status`; the fixture site. Not yet: browser
-and adaptive fetch, the cross-run `probes`, `robots` and `resources` buckets
-with revalidation, `cache purge|warm`, `explain`, plugins, localised
+`report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
+buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
+`--refresh` and `--offline`; the fixture site. Not yet: browser and adaptive
+fetch, the `probes` bucket, `Crawl-delay`, `explain`, plugins, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -88,8 +89,8 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 ## Discovery
 
 - Seeds: CLI URLs, then projectfile `links`, then `spiderlint.targets`.
-- Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
-- Robots: `respectRobotsTxtFile: true` — disallowed URLs are skipped and logged through `onSkippedRequest`; `Crawl-delay` maps to `sameDomainDelaySecs`. `--no-robots` prints a warning and is intended for staging hosts.
+- Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`, `/sitemap.txt` and `/sitemap_index.xml` when no seed names a sitemap. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
+- Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
 - Off-scope LINKS (`<a href>`) are recorded as facts and probed with `HEAD` by `links/*` rules for existence only.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
@@ -290,7 +291,7 @@ The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
 - Crawlee storage under `--store DIR`: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
-- A run without `--store` writes nothing to disk. Groups, referrers and resource results are re-derived on every `lint --store`, so a changed group config needs no re-crawl; `report --store` re-formats the last stored report.
+- A run without `--store` writes nothing beside the project; only the user-level `robots` bucket is written. Groups, referrers and resource results are re-derived on every `lint --store`, so a changed group config needs no re-crawl; `report --store` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint --store` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
 - Authorization, cookie and proxy-auth headers are redacted before anything is written.
@@ -312,10 +313,10 @@ pays only for what changed.
 | `extractors` | `(extractor, version, URL, sha256(body))` | `.spiderlint/`                 | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
 | `browser`    | sub-resource URL                          | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
 
-- A re-crawl revalidates: `If-None-Match` / `If-Modified-Since` from the stored response, and a `304` keeps the content facts (`html.*`, `extractors`) while refreshing the transport facts (`http.*`, `tls.*`). `http.revalidated: true` records it.
+- A re-crawl revalidates: `If-None-Match` / `If-Modified-Since` from the stored response, and a `304` keeps the content facts (`html.*`, `extractors`) while refreshing the transport facts (`http.*`, `tls.*`). `http.revalidated: true` records it. Stored pages are found by their requested URL too (`crawl.requested`), so a link through a redirect revalidates.
 - Project buckets hold private staging pages and stay beside the project; user buckets hold only third-party observations and are shared across every site on the machine.
-- Writes are atomic (temp file + rename) and each bucket is locked; a second process on the same bucket exits `2`.
-- `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
+- Writes are atomic (temp file + rename). Project buckets share the store’s lock, so a second process on the store exits `2`; the user bucket relies on atomic writes alone, so parallel audits of different sites never block each other.
+- `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`; an `--offline` audit lints the stored pages and fetches nothing. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
 - `spiderlint cache status` lists every bucket with entries, bytes, oldest and newest; `spiderlint cache purge [bucket] [--older-than 7d]` deletes; `spiderlint cache warm <url>` fills `robots` and `sitemaps` without crawling. The shape is `pf-cli cache status|warm|purge`, which the fleet already knows.
 - The action persists `.spiderlint/` through the forge’s cache keyed by target, so a CI run on an unchanged site is a run of `304`s.
 
@@ -343,7 +344,9 @@ org:
     cache:
       pages: { ttl: 0 }                # 0 = origin headers decide
       probes: { ttl: 7d }
-      robots: { ttl: 24h }
+      resources: { ttl: 24h }          # when the origin sends no Cache-Control or Expires
+      robots: { ttl: 24h }             # also caps what the origin allows (RFC 9309 §2.4)
+      sitemaps: { ttl: 24h }
     fail-on: error
     format: human
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
@@ -405,7 +408,7 @@ export default definePlugin({
 
 ## Security
 
-- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. Crawlee fetches `robots.txt` and probes the common sitemap names with its own headers and exposes no option to change them.
+- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
 - Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
