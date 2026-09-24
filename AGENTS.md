@@ -11,16 +11,17 @@ request (HTML, headers, TLS, timings, sizes), and lints those facts against
 rulesets scoped by URL group. One template with a missing `<h1>` is one
 finding, not a finding per page.
 
-Status: v1 in progress. Implemented: http crawl with link discovery, scope,
-depth, glob and body-size limits; sitemap discovery and facts; transport,
+Status: v1 in progress. Implemented: http and browser crawl with link
+discovery, scope, depth, glob and body-size limits; `auto` fetch derived per
+run (browser when any group pins it or any enabled rule reads `browser.*`); sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
-`resources`, `recommended`; site-wide `unique`; folding; `human`, `json`,
+`resources`, `browser`, `recommended`; site-wide `unique`; folding; `human`, `json`,
 `sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; the fixture site. Not yet: browser and adaptive
-fetch, the `probes` bucket, `Crawl-delay`, `explain`, plugins, localised
+`--refresh` and `--offline`; the fixture site. Not yet: adaptive fetch and a
+fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugins, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -30,7 +31,7 @@ recorded so the v1 shape does not block them.
 
 - Base: `b19/node-26`, TypeScript run directly by Node (`--experimental-strip-types`), no build step — same as [textlint-server](../textlint-server/AGENTS.md)
 - Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, `AdaptivePlaywrightCrawler` to decide per page
-- Image: `damian-buho/spiderlint` with Chromium baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
+- Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
 - Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
@@ -126,7 +127,18 @@ The browser also yields facts HTTP cannot: console errors, Navigation Timing,
 and the COMPLETE resource census — including what JavaScript loads at
 runtime, which the http mode’s static parse of `src`/`href`/`srcset` cannot see.
 The `resources` extractor runs in both modes; browser mode marks each entry
-`observed: true` and adds the ones only the network log knows.
+`observed: true` and adds the ones only the network log knows — a request the
+browser blocked (ORB, CSP) or that failed counts as observed.
+
+Browser mode reads less of the connection than http mode: no `http.version`,
+and `tls` carries protocol, subject, issuer and validity but no cipher, ALPN,
+fingerprint or SAN. It never sends conditional requests; a stored page is
+re-rendered. A navigation Chromium turns into a download becomes a page judged
+by its headers, as http mode judges any unparsed type.
+
+Crawlee’s session pool retires a session on `401`, `403` and `429` and retries
+the request until it fails, so such a page would vanish from the facts. Both
+crawlers set `blockedStatusCodes: []`: those statuses are findings, not blocks.
 
 Captured for every page regardless of mode: status, HTTP version, redirect
 chain, all headers, remote address, `got` timings (`dns`, `tcp`, `tls`,
@@ -169,7 +181,7 @@ html:     { lang, title, h1: [], h2: [], canonical, robots,
 resources: [{ url, kind: script|style|image|font|iframe|preload, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
               http: { status, headers, timing, size, contentType }, tls: { … } }]
-browser:  { timing: { domContentLoaded, load }, console: { errors, warnings },
+browser:  { timing: { domContentLoaded, load }, console: { errors: [], warnings: [] },
             weight: { script, style, image, font } }
 ```
 
@@ -255,7 +267,8 @@ because facts are always retained even when bodies are not.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
 Bundled presets (v1): `recommended`, `seo`, `security-headers`, `tls`,
-`links`, `sitemap`, `i18n` (`html.lang` vs `content-language`, hreflang
+`links`, `sitemap`, `browser` (console errors; never in `recommended`, which
+would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
 SameSite), `redirects` (chain length, http→https→www hops, mixed content).
 
@@ -460,8 +473,8 @@ projectfile.yaml
 - `B19_NODE_SERIES: 26` under `org.projectfile.build.args` picks the series; the Dockerfile `ARG` default is only the fallback name.
 - `projectfile.yaml` includes `.makefile/b19/ci.yaml`, `.makefile/b19/images/node.yaml`, `.makefile/library/languages/node.yaml`, and the `damian-buho/metadata` include plus the `forge/github.yaml`, `forge/codeberg.yaml`, `registry/ghcr.yaml` fragments — copy ignorelint’s block, swap the language.
 - `org.projectfile.image.org: damian-buho`, `flatpath: ${name}`, `sinks.ghcr.selfref` — the account-is-org shape every personal image carries.
-- The Dockerfile installs Chromium at build (`npx playwright install --with-deps chromium`) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime.
-- Self-test in `test.d/`: audit the bundled fixture site served from inside the container and expect the known findings.
+- `build.d/user/post/700-install-chromium.sh` installs the headless shell of the pinned `playwright` (`--only-shell`: headless runs never launch the full browser) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime. Its libraries are curated in `.container/root/deps/common.apt.deps` from Playwright’s own per-distribution list, not `--with-deps`.
+- Self-test in `test.d/`: audit the bundled fixture site served from inside the container and expect the known findings, once over http and once in Chromium.
 - `make` runs the m6e gates; lint, format, audit and outdated checks come from the node fragment. The node fragment wires no test tool, so `npm-test` is declared in the projectfile under `org.projectfile.ci.tools` and joined to `source-is-tested`; `NODE_TOOL_IMAGE.series` is overridden to `26` there because the fragment pins `24` while the base image follows `B19_NODE_SERIES`.
 
 ## Testing
@@ -470,6 +483,7 @@ projectfile.yaml
 - `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Fixture files carry inline SPDX comments, no `.license` sidecars.
 - Formatter output is snapshot-tested; SARIF is validated against the 2.1.0 schema.
 - No test reaches the network. External-link probes point at the same local server.
+- `tests/browser.test.ts` skips its Chromium suite when a launch fails, which it does in the node tool image `npm-test` runs in; the image self-test is where Chromium is proven.
 
 ## Later
 

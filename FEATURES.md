@@ -9,6 +9,12 @@ SPDX-License-Identifier: MIT
 
 ## Project Features
 
+### Client-rendered pages audited as visitors see them
+
+- A page whose tags, links or content appear only after its scripts run is rendered in a real browser, so what gets linted is what search engines and visitors see.
+- The browser starts only when an enabled rule needs it; a site with no such rule is crawled over plain HTTP at full speed.
+- Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
+
 ### One finding per template, not per page
 
 - Pages are grouped by URL pattern, so a defect every post shares is reported once for the post template, with sample pages.
