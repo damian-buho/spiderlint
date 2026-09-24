@@ -47,11 +47,11 @@ export function cookieFacts(setCookie: string | string[] | undefined): CookieFac
     });
 }
 
-// Response headers with credentials and cookie values replaced before anything is stored or reported.
+// Response headers with credentials and cookie values replaced, and HTTP/2 pseudo-headers dropped, before anything is stored or reported.
 export function redactHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string | string[]> {
     const out: Record<string, string | string[]> = {};
     for (const [name, value] of Object.entries(headers)) {
-        if (value === undefined) continue;
+        if (value === undefined || name.startsWith(":")) continue;
         if (SECRET.has(name)) out[name] = REDACTED;
         else if (name === "set-cookie") out[name] = cookieFacts(value).map((cookie) => `${cookie.name}=${REDACTED}`);
         else out[name] = value;

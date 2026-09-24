@@ -19,6 +19,10 @@ describe("transport facts", () => {
         assert.deepEqual(redactHeaders({ authorization: "Bearer x", "set-cookie": ["a=1; Secure"], server: "nginx" }), { authorization: "[redacted]", "set-cookie": ["a=[redacted]"], server: "nginx" });
     });
 
+    it("drops HTTP/2 pseudo-headers, as a revalidating 304 carries them", () => {
+        assert.deepEqual(redactHeaders({ ":status": "304", etag: '"a"' }), { etag: '"a"' });
+    });
+
     it("renames got's phases and drops the skipped ones", () => {
         assert.deepEqual(timingFacts({ timings: { phases: { wait: 1, dns: undefined, firstByte: 5, total: 9 } } }), { wait: 1, ttfb: 5, total: 9 });
     });
