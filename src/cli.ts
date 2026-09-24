@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 import { parseArgs } from "node:util";
-import { VERSION } from "./agent.ts";
+import { DESCRIPTION, VERSION } from "./agent.ts";
 import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
@@ -18,22 +18,67 @@ import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
 import { log } from "./logger.ts";
 
-const USAGE = [
-    "usage: spiderlint audit  [url…] [--store DIR] [options]   crawl and lint",
-    "       spiderlint crawl  [url…]  --store DIR  [options]   crawl into a store, lint nothing",
-    "       spiderlint lint           --store DIR  [options]   rules over stored facts, no network",
-    "       spiderlint report         --store DIR  [options]   re-format the stored report",
-    "       spiderlint facts  <url>   [options]   one page’s facts document as JSON",
-    "       spiderlint groups [url…] [options]   page count per group",
-    "       spiderlint cache status  [--store DIR]   entries, bytes and age per bucket (default .spiderlint)",
-    "       spiderlint cache purge [bucket] [--older-than 7d] [--store DIR]   delete cached entries",
-    "       spiderlint cache warm  [url…] [--store DIR]   fill robots and sitemaps without crawling",
-    "options: --config PATH  --fetch auto|http|browser  --scope origin|host|domain  --max-pages N  --max-depth N  --max-body-size BYTES",
-    "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
-    "         --format human|json|sarif  --fail-on error|warning|info|never  --resume  --no-cache  --refresh  --offline",
-    "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",
-    "with no url, targets come from org.spiderlint in the config",
-].join("\n");
+const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
+
+Usage: spiderlint <command> [url…] [flags]
+
+Commands:
+  audit [url…]          crawl and lint
+  crawl [url…]          crawl into --store, lint nothing
+  lint                  lint the facts in --store, no network
+  report                re-format the report in --store
+  facts <url>           one page’s facts as JSON
+  groups [url…]         page count per group
+  cache status          entries, bytes and age per bucket
+  cache purge [bucket]  delete cached entries
+  cache warm [url…]     fetch robots.txt and sitemaps only
+
+Crawl:
+  --fetch MODE          auto, http or browser (auto)
+  --scope SCOPE         origin, host or domain (origin)
+  --max-pages N         page limit, 0 for none (0)
+  --max-depth N         link depth limit, 0 for none (0)
+  --max-body-size B     body cap in bytes (10000000)
+  --include GLOB        crawl matching URLs only, repeatable
+  --exclude GLOB        skip matching URLs, repeatable
+  --no-robots           ignore robots.txt
+  --no-sitemap          skip sitemap discovery
+  --no-keepalive        one connection per request
+  --no-resources        skip scripts, styles, images and fonts
+
+Rules:
+  --config PATH         settings file (projectfile.yaml)
+  --disabled-rules IDS  skip these rules
+  --error IDS           report these rules as errors
+  --warning IDS         report these rules as warnings
+  --info IDS            report these rules as info
+  --no-fold             one finding per page, never per group
+
+Output:
+  --format FORMAT       human, json or sarif (human)
+  --fail-on LEVEL       error, warning, info or never (error)
+
+Store and cache:
+  --store DIR           store directory (.spiderlint for cache)
+  --resume              continue an interrupted crawl
+  --older-than AGE      purge entries older than 45s, 30m, 24h, 7d
+  --no-cache            neither read nor write the cache
+  --refresh             refetch everything, rewrite the cache
+  --offline             cache only, a miss exits 3
+
+  -h, --help            show this screen
+  -V, --version         show the version
+
+IDS is a comma-separated list of rule IDs.
+With no url, targets come from org.spiderlint in the config.
+Exit codes: 0 clean, 1 findings, 2 usage, 3 nothing fetched, 4 failure.
+
+Examples:
+  spiderlint audit https://example.com/
+  spiderlint audit https://example.com/ --format sarif > report.sarif
+  spiderlint crawl https://example.com/ --store site
+  spiderlint lint --store site --fail-on warning
+  spiderlint cache purge pages --older-than 7d`;
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
