@@ -13,10 +13,36 @@ const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yello
 const LIST = 5;
 const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
-const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilobyte", maximumFractionDigits: 1 });
-const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
-const COUNT = new Intl.NumberFormat();
+const LABEL = 11;
+const BYTE_UNITS: [number, string][] = [
+    [1e9, "gigabyte"],
+    [1e6, "megabyte"],
+    [1e3, "kilobyte"],
+    [1, "byte"],
+];
+const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests" };
 const GRADE_TONE: Record<Grade, "green" | "yellow" | "red"> = { S: "green", A: "green", B: "yellow", C: "yellow", D: "red", E: "red", F: "red" };
+
+// The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
+function number(value: number, options: Intl.NumberFormatOptions = {}): string {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1, ...options }).formatToParts(value).map((part) => (part.type === "group" ? "\u{202F}" : part.value)).join("");
+}
+
+// A count and its noun, plural unless it is exactly one.
+function counted(count: number, noun: string): string {
+    return `${number(count)} ${count === 1 ? noun : (PLURAL[noun] ?? noun)}`;
+}
+
+// Bytes in the largest unit they reach.
+function size(bytes: number): string {
+    const [scale, unit] = BYTE_UNITS.find(([floor]) => bytes >= floor) ?? [1, "byte"];
+    return number(bytes / scale, { style: "unit", unit });
+}
+
+// One summary row: a padded label, then its value.
+function row(label: string, value: string): string {
+    return `${label.padEnd(LABEL)}${value}`;
+}
 
 // At most `limit` URLs on the detail line, the rest as a count.
 function list(urls: string[], origin: string, limit: number): string {
@@ -96,27 +122,36 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     }
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
-        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${pages} pages)`)}`);
+        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`);
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
         for (const same of bundle(findings)) out.push(...(same.length > 1 ? bundled(same, origin, paint, limit) : line(same[0] as Finding, origin, paint, limit)));
     }
-    const counts = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => {
-        const count = report.findings.filter((finding) => finding.severity === severity).length;
-        return count > 0 ? paint(TONE[severity], `${count} ${severity}`) : `${count} ${severity}`;
-    });
-    const { pages, bytes, durationMs, statuses, checks } = report.summary;
-    const answers = Object.entries(statuses).map(([status, count]) => `${count} × ${status}`);
-    out.push(`${pages} pages (${answers.join(", ")}), ${KILOBYTES.format(bytes / 1000)} in ${SECONDS.format(durationMs / 1000)}, ${report.findings.length} findings (${counts.join(", ")}), ${COUNT.format(checks.passed)} of ${COUNT.format(checks.total)} checks passed`, paint("dim", costLine(report.summary.cost)));
+    out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
 }
 
-// Browsers launched and pages they rendered, plain HTTP fetches, resource requests and extractor runs; no fetch at all says so.
-function costLine({ browser, http, resources, extractors }: Report["summary"]["cost"]): string {
-    const parts = [
-        browser && `${browser.name} rendered ${browser.pages} pages in ${browser.launches} launch${browser.launches === 1 ? "" : "es"}`,
-        http && `${http.pages} plain HTTP fetches${http.revalidated > 0 ? ` (${http.revalidated} revalidated)` : ""}`,
-        resources && `${resources.requests} resource requests${resources.cached > 0 ? ` (${resources.cached} more from cache)` : ""}`,
-        Object.keys(extractors).length > 0 && `extractors ${Object.entries(extractors).map(([id, runs]) => `${id} ×${runs}`).join(", ")}`,
+// Pages, size, time, rules, checks and findings, one row each; findings are counted before folding.
+function totals({ pages, bytes, durationMs, statuses, rules, checks, findings }: Report["summary"], paint: Paint): string[] {
+    const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
+    const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => (findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)));
+    return [
+        row("pages", `${number(pages)} (${answers.join(", ")})`),
+        row("size", size(bytes)),
+        row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
+        row("rules", number(rules)),
+        row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
+        row("findings", `${number(findings.total)} (${severities.join(", ")})`),
+    ];
+}
+
+// Browsers launched and pages they rendered, plain HTTP fetches, resource requests and extractor runs, one row each.
+function costRows({ browser, http, resources, extractors }: Report["summary"]["cost"]): string[] {
+    const runs = Object.entries(extractors).map(([id, count]) => `${id} ×${number(count)}`);
+    return [
+        browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}`) : "",
+        http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
+        browser || http ? "" : row("fetch", "none"),
+        resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache)` : ""}`) : "",
+        runs.length > 0 ? row("extractors", runs.join(", ")) : "",
     ].filter(Boolean);
-    return `cost: ${browser || http ? "" : "no fetch, "}${parts.join("; ") || "nothing ran"}`;
 }

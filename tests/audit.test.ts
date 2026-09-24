@@ -176,7 +176,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\), \d+ of \d+ checks passed\ncost: 15 plain HTTP fetches; \d+ resource requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}204 of 223 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nhttp {7}15 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 15, revalidated: 0 });
     });
 
@@ -190,12 +190,12 @@ describe("audit", () => {
         const bundledReport = {
             pages: [stubPage("https://a.test/x"), stubPage("https://a.test/y"), stubPage("https://a.test/z")],
             findings: [stubCsp("https://a.test/y"), stubCsp("https://a.test/x"), { ...stubCsp("https://a.test/z"), message: "csp is weak" }],
-            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, checks: { total: 0, passed: 0, failed: 0 }, cost: { extractors: {} } },
+            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, checks: { total: 0, passed: 0, failed: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
         assert.equal(lines[1], "rating – (no checks ran)");
         assert.deepEqual(lines.slice(3, 7), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
-        assert.equal(lines.at(-1), "cost: no fetch, nothing ran");
+        assert.deepEqual(lines.slice(-2), ["findings   3 (0 errors, 3 warnings, 0 info)", "fetch      none"]);
     });
 
     it("sums bytes, pages per group and per status into the run summary", () => {
@@ -204,7 +204,8 @@ describe("audit", () => {
         assert.equal(summary.bytes, report.pages.reduce((sum, page) => sum + page.http.size.body, 0));
         assert.deepEqual(summary.groups, { default: 6, app: 1, posts: 5, tags: 3 });
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
-        assert.equal(summary.findings, report.findings.length);
+        assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
+        assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
         assert.deepEqual(summary.checks, { total: 223, failed: 19, passed: 204 });
         assert.deepEqual(summary.rating, { grade: "A", score: 0.9148, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
@@ -223,6 +224,14 @@ describe("audit options", () => {
     it("keeps every per-page finding without folding", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false });
         assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 5);
+    });
+
+    it("counts the same findings in the summary whether folded or not", async () => {
+        const unfolded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false });
+        const folded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS });
+        assert.equal(unfolded.summary.findings.total, unfolded.findings.length);
+        assert.ok(folded.findings.some((finding) => finding.occurrences !== undefined));
+        assert.deepEqual(folded.summary.findings, unfolded.summary.findings);
     });
 
     it("leaves a sitemap-only page unfetched with --no-sitemap", async () => {

@@ -40,7 +40,8 @@ export interface Summary {
     bytes: number;
     groups: Record<string, number>;
     statuses: Record<string, number>;
-    findings: number;
+    findings: Record<Finding["severity"], number> & { total: number };
+    rules: number;
     checks: Checks;
     rating?: Rating;
     cost: Cost;
@@ -77,9 +78,10 @@ function tally(keys: string[]): Record<string, number> {
     return counts;
 }
 
-// Run totals `human` prints and `json`/`sarif` embed.
-function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cost, judged: RuleRun["checks"], rulesets: string[]): Summary {
-    const checks = { ...judged, passed: judged.total - judged.failed };
+// Run totals `human` prints and `json`/`sarif` embed; findings count before folding, so `--unfold` changes none.
+function summarize(pages: Facts[], run: RuleRun, rules: number, started: Date, cost: Cost, rulesets: string[]): Summary {
+    const checks = { ...run.checks, passed: run.checks.total - run.checks.failed };
+    const severities = tally(run.findings.map((finding) => finding.severity));
     const rating = rate(checks, rulesets);
     const statuses = tally(pages.map((page) => String(page.http.status)));
     return {
@@ -89,7 +91,8 @@ function summarize(pages: Facts[], findings: Finding[], started: Date, cost: Cos
         bytes: pages.reduce((sum, page) => sum + page.http.size.body, 0),
         groups: tally(pages.map((page) => page.group)),
         statuses: Object.fromEntries(Object.entries(statuses).toSorted(([a], [b]) => Number(a) - Number(b))),
-        findings: findings.length,
+        findings: { total: run.findings.length, error: severities.error ?? 0, warning: severities.warning ?? 0, info: severities.info ?? 0 },
+        rules,
         checks,
         ...(rating && { rating }),
         cost,
@@ -164,13 +167,14 @@ function linter(config: Config): Lint {
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
+    const rules = new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id)).size;
     warnUnknown(config, groups);
     return ({ pages, site, cost }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
         referrers(pages);
         const run = runRules(pages, rulesByGroup, site);
         const findings = fold(run, config.fold);
-        const summary = summarize(pages, findings, started, cost, run.checks, rulesets);
+        const summary = summarize(pages, run, rules, started, cost, rulesets);
         log.info(summary, "lint done");
         return { pages, findings, summary };
     };
