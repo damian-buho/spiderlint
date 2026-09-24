@@ -107,4 +107,6 @@ export interface Facts {
     html?: HtmlFacts;
     resources?: ResourceFacts[];
     browser?: BrowserFacts;
+    // A plugin extractor’s facts, under the extractor’s ID.
+    [extractor: string]: unknown;
 }

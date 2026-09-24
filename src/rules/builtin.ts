@@ -4,9 +4,7 @@
 
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import type { Finding, Rule, Severity } from "./types.ts";
-
-type Make = (severity: Exclude<Severity, "off">) => Rule;
+import type { Finding, Make, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({

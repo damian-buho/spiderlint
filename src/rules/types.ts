@@ -42,6 +42,9 @@ export interface AggregateRule {
 
 export type Rule = PageRule | AggregateRule;
 
+// A TypeScript rule, built at the severity its ruleset gives it.
+export type Make = (severity: Exclude<Severity, "off">) => Rule;
+
 // TS does not narrow a union on a nested discriminant, so the guard is explicit.
 export function isPageRule(rule: Rule): rule is PageRule {
     return rule.meta.scope === "page";

@@ -20,8 +20,9 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `rules` and `presets`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugins, localised
+`--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, the
+bundled `html-validate`; the fixture site. Not yet: adaptive fetch and a
+fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugin formatters and sources, `axe`, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -267,7 +268,7 @@ because facts are always retained even when bodies are not.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
-Bundled presets (v1): `all` (every shipped rule), `recommended`, `seo`, `security-headers`, `tls`,
+Bundled presets (v1): `all` (every shipped rule, `html-validate` included), `recommended`, `seo`, `security-headers`, `tls`,
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
@@ -397,16 +398,20 @@ Flags mirror the config keys (`--rules`, `--fetch`, `--scope`, `--concurrency`,
 
 ```ts
 export default definePlugin({
-  name: 'lighthouse',
-  extractors: [{ id: 'lighthouse', mode: 'browser', cost: 'expensive', extract(page, ctx) {…} }],
-  rules:      [{ meta: { id: 'lighthouse/performance', severity: 'warning', scope: 'page' }, check(ctx) {…} }],
-  formatters: [], sources: [], presets: {},
+  name: 'html-validate',
+  extractors: [{ id: 'htmlvalidate', async extract(page, body) {…} }],     // facts land under page.htmlvalidate
+  rules:      { 'html-validate/no-dup-id': (severity) => ({ meta, check }) }, // the built-ins’ shape
+  presets:    { 'html-validate': { description, rules } },
 })
 ```
 
-- Loaded only when named in `plugins` (package name or path). Nothing is discovered from `node_modules`.
-- `cost: expensive` extractors obey the group `sample`; `mode: browser` ones upgrade every group whose rules read their facts, and are skipped with a logged reason under a `fetch: http` pin.
-- Bundled: `html`, `http`, `tls`, `sitemap`, `links` (v1); `html-validate`, `axe`, `lighthouse` (v1 if time allows — Lighthouse reconnects over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser). `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
+- Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset or extractor ID is a config error.
+- An extractor runs only when an enabled rule reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
+- Extractor facts are stored with the page. `lint --store` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
+- Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
+- Later: `formatters` and `sources`; `mode: browser` and `cost: expensive` on extractors, the second obeying the group `sample`; the `extractors` cache bucket.
+- `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `line`, `column`, `selector`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries the first, `recommended` none.
+- Next: `axe`, injected into the crawler’s own Chromium page (pa11y would launch a second browser), then `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
 
 ## Concurrency and limits
 
@@ -462,7 +467,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # bundled: html, http, tls, sitemap, links, (html-validate, axe, lighthouse)
+├── plugins/            # contract, registry, bundled html-validate (axe, lighthouse next)
 └── i18n/
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 locales/                # es/, uk/

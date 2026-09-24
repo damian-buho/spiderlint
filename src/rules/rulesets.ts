@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
-import { builtin } from "./builtin.ts";
+import { pluginPreset, pluginPresetNames, ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
 import type { Rule, RuleSpec, RulesetConfig, Severity } from "./types.ts";
 
@@ -14,8 +14,10 @@ const PRESETS = new URL("../../presets/", import.meta.url);
 const PREFIX = "spiderlint:";
 const presetCache = new Map<string, RulesetConfig>();
 
-// presets/<name>.yaml, read once; undefined when no such preset ships.
+// A plugin’s preset, else presets/<name>.yaml read once; undefined when no such preset ships.
 function preset(name: string): RulesetConfig | undefined {
+    const plugged = pluginPreset(name);
+    if (plugged) return plugged;
     if (!presetCache.has(name)) {
         try {
             const text = readFileSync(new URL(`${name}.yaml`, PRESETS), "utf8");
@@ -32,9 +34,10 @@ export function lookup(name: string, rulesets: Record<string, RulesetConfig>): R
     return name.startsWith(PREFIX) ? preset(name.slice(PREFIX.length)) : (rulesets[name] ?? preset(name));
 }
 
-// Every preset that ships, by bare name.
+// Every preset that ships or a plugin adds, by bare name.
 export function presetNames(): string[] {
-    return readdirSync(PRESETS).filter((file) => file.endsWith(".yaml")).map((file) => file.slice(0, -".yaml".length)).toSorted((a, b) => a.localeCompare(b));
+    const files = readdirSync(PRESETS).filter((file) => file.endsWith(".yaml")).map((file) => file.slice(0, -".yaml".length));
+    return [...files, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
 }
 
 // Flattens `extends` depth-first; later entries override earlier ones per rule ID.
@@ -47,7 +50,7 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     for (const parent of parents) Object.assign(merged, resolveRuleset(parent, rulesets, [...seen, name]));
     const own = Object.entries(config.rules ?? {});
     for (const [id, entry] of own) {
-        if (typeof entry === "string" && merged[id] === undefined && builtin[id] === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
+        if (typeof entry === "string" && merged[id] === undefined && ruleMaker(id) === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
         const spec = typeof entry === "string" ? { severity: entry } : entry;
         merged[id] = { ...merged[id], ...spec, ...(config.when && { when: { ...config.when, ...merged[id]?.when, ...spec.when } }) };
     }

@@ -44,6 +44,7 @@ export interface Config {
     rules?: string[];
     groups: Record<string, GroupConfig>;
     rulesets: Record<string, RulesetConfig>;
+    plugins: string[];
     cacheMode: CacheMode;
     cacheTtl: Partial<Record<BucketName, number>>;
 }
@@ -70,6 +71,7 @@ export function defaults(): Config {
         overrides: {},
         groups: {},
         rulesets: {},
+        plugins: [],
         cacheMode: "use",
         cacheTtl: {},
     };

@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Every rule that ships — recommended plus browser
+description: Every rule that ships — recommended, browser and html-validate
 extends:
   - spiderlint:recommended
   - spiderlint:browser
+  - spiderlint:html-validate

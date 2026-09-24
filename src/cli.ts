@@ -9,7 +9,7 @@ import { painter, type Paint } from "./color.ts";
 import { OfflineMiss, parseDuration, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
-import { audit, crawl, lintStore, reportStore, warmCache, type Report } from "./index.ts";
+import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
@@ -240,6 +240,7 @@ async function main(argv: string[]): Promise<number> {
         config = overlay(config, environmentSettings(process.env));
         config = overlay(config, flagSettings(values, tokens));
         if (command === "rules" || command === "presets") {
+            await loadPlugins(config.plugins);
             const paint = painter(process.stdout, values.color);
             const listed = command === "rules" ? listRules(config, seeds) : listPresets(config);
             if (config.format === "json") console.log(JSON.stringify(listed, undefined, 2));

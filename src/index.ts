@@ -16,6 +16,8 @@ import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log, logRelativeTo } from "./logger.ts";
+import { extract, extractorsFor, loadPlugins } from "./plugins/index.ts";
+import type { Extractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
@@ -85,6 +87,23 @@ function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void 
     }
 }
 
+// Every rule some group runs, flags applied.
+function enabledRules(config: Config): Rule[] {
+    const disabledRules = new Set(config.disabledRules);
+    return Object.values(groupsOf(config)).flatMap((group) => compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides));
+}
+
+// Stored pages an extractor never saw get its facts from their stored body, so a new rule needs no re-crawl.
+async function backfill(pages: Facts[], store: DiskStore, active: Extractor[]): Promise<void> {
+    for (const page of pages) {
+        const missing = active.filter((extractor) => page[extractor.id] === undefined);
+        if (missing.length === 0) continue;
+        const body = await store.body(page.url.href);
+        log.debug({ url: page.url.href, extractors: missing.map((extractor) => extractor.id), hasBody: body !== undefined }, "stored page backfilled");
+        if (body !== undefined) await extract(page, body, missing);
+    }
+}
+
 // Why the run needs a browser: each group pinning `browser` and each enabled rule reading a `browser.*` fact.
 function browserReasons(config: Config): string[] {
     const disabledRules = new Set(config.disabledRules);
@@ -144,9 +163,10 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 }
 
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
-async function servedOffline(pages: Facts[], store: DiskStore | undefined): Promise<Crawled> {
+async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[]): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
+    await backfill(pages, store, active);
     attachResources(pages, await store.resources());
     return { pages, site: await store.site() };
 }
@@ -155,7 +175,8 @@ async function servedOffline(pages: Facts[], store: DiskStore | undefined): Prom
 async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
-    if (config.cacheMode === "offline") return servedOffline(earlier, store);
+    const active = extractorsFor(enabledRules(config));
+    if (config.cacheMode === "offline") return servedOffline(earlier, store, active);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
     const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
@@ -165,6 +186,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const site = await crawl(
         config,
         async (facts, body) => {
+            await extract(facts, body, active);
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
@@ -200,6 +222,7 @@ export interface StoreOptions {
 export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
     const started = new Date();
     const config: Config = { ...defaults(), ...overrides };
+    await loadPlugins(config.plugins);
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
         const report = lint(await crawlPages(config, store), started);
@@ -213,6 +236,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
     const config: Config = { ...defaults(), ...overrides };
+    await loadPlugins(config.plugins);
     return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
         const { pages } = await crawlPages(config, store);
         return pages;
@@ -223,9 +247,11 @@ export async function crawl(overrides: Partial<Config>, directory: string, isRes
 export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
     const started = new Date();
     const config: Config = { ...defaults(), ...overrides };
+    await loadPlugins(config.plugins);
     const lint = linter(config);
     return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
+        await backfill(pages, store, extractorsFor(enabledRules(config)));
         attachResources(pages, await store.resources());
         const report = lint({ pages, site: await store.site() }, started);
         await store.saveReport({ findings: report.findings, summary: report.summary });
@@ -248,6 +274,9 @@ export async function warmCache(overrides: Partial<Config>, directory: string): 
         await release();
     }
 }
+
+export { loadPlugins } from "./plugins/index.ts";
+export { definePlugin, type Extractor, type Plugin } from "./plugins/types.ts";
 
 // The last stored report, with the stored facts, for re-formatting.
 export async function reportStore(directory: string): Promise<Report> {

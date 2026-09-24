@@ -6,7 +6,7 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.
 import { ConfigError } from "../config/index.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { builtin } from "./builtin.ts";
+import { ruleMaker } from "../plugins/index.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
 
 // strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it.
@@ -120,7 +120,7 @@ function guarded(rule: Rule, isSkipped: Guard): Rule {
 export function compileRule(id: string, spec: RuleSpec): Rule {
     if (spec.unique) return compileUnique(id, spec, spec.unique);
     if (!spec.fact && !spec.expect) {
-        const make = builtin[id];
+        const make = ruleMaker(id);
         if (!make) throw new ConfigError(`rule ${id}: needs fact and expect, or unique, or a built-in ID`);
         return guarded(make(severityOf(id, spec, "warning")), guard(id, spec.when));
     }
