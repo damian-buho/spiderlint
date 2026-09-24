@@ -20,7 +20,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; the fixture site. Not yet: adaptive fetch and a
+`--refresh` and `--offline`; `rules` and `presets`; the fixture site. Not yet: adaptive fetch and a
 fetch mode per group, the `probes` bucket, `Crawl-delay`, `explain`, plugins, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
@@ -225,6 +225,7 @@ groups:
 ```yaml
 rulesets:
   seo:
+    description: SEO with longer titles    # optional; shown by `spiderlint presets` for presets
     extends: [spiderlint:seo]              # bundled preset
     rules:
       html/title-length:
@@ -379,6 +380,8 @@ spiderlint lint            --store DIR    rules over stored facts, no network
 spiderlint report          --store DIR    re-format stored findings
 spiderlint facts  <url>                   one page’s facts document as JSON
 spiderlint groups [url…]                  page count per group, unmatched pages
+spiderlint rules [ruleset…]               every rule: severity here, scope, ruleset, docs
+spiderlint presets                        shipped rulesets, rule count, used by a group
 spiderlint explain <rule>                 docs, default severity, fact it reads
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```

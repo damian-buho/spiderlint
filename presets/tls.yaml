@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Certificate validity, protocol version and expiry
 when:
   url.protocol: "https:"
 rules:

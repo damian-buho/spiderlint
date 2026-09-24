@@ -76,6 +76,22 @@ describe("cli", () => {
         assert.ok(!disabled.stdout.includes("\u{1B}"));
     });
 
+    it("lists every rule with the severity this configuration runs it at", async () => {
+        const run = await spiderlint(directory, "rules", "--format", "json", "--error", "http/csp");
+        const rules = new Map((JSON.parse(run.stdout) as { id: string; severity: string; preset: string; rulesets: string[] }[]).map((rule) => [rule.id, rule]));
+        assert.equal(run.code, 0);
+        assert.deepEqual(rules.get("http/csp"), { ...rules.get("http/csp"), severity: "error", preset: "warning", rulesets: ["security-headers"] });
+        assert.equal(rules.get("browser/console-errors")?.severity, "off");
+    });
+
+    it("lists the shipped presets and which ones the groups use", async () => {
+        const run = await spiderlint(directory, "presets", "--format", "json");
+        const presets = new Map((JSON.parse(run.stdout) as { name: string; used: boolean; description: string }[]).map((preset) => [preset.name, preset]));
+        assert.equal(presets.get("recommended")?.used, true);
+        assert.equal(presets.get("browser")?.used, false);
+        assert.ok(presets.values().every((preset) => preset.description.length > 0));
+    });
+
     it("applies severity flags in argv order", async () => {
         const severity = async (...flags: string[]) => {
             const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", ...flags);

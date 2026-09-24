@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Redirect chain length
 rules:
   redirects/chain-length:
     fact: http.redirects

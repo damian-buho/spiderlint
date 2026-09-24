@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Titles, descriptions, headings, canonical, Open Graph and alt text
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:

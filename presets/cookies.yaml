@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Secure, HttpOnly and SameSite on every cookie
 rules:
   cookies/secure:
     fact: http.cookies

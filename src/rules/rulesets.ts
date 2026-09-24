@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
@@ -28,8 +28,13 @@ function preset(name: string): RulesetConfig | undefined {
 }
 
 // A bare name is the user's ruleset, else the bundled preset; the prefix forces the preset.
-function lookup(name: string, rulesets: Record<string, RulesetConfig>): RulesetConfig | undefined {
+export function lookup(name: string, rulesets: Record<string, RulesetConfig>): RulesetConfig | undefined {
     return name.startsWith(PREFIX) ? preset(name.slice(PREFIX.length)) : (rulesets[name] ?? preset(name));
+}
+
+// Every preset that ships, by bare name.
+export function presetNames(): string[] {
+    return readdirSync(PRESETS).filter((file) => file.endsWith(".yaml")).map((file) => file.slice(0, -".yaml".length)).toSorted((a, b) => a.localeCompare(b));
 }
 
 // Flattens `extends` depth-first; later entries override earlier ones per rule ID.

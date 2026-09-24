@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Checks that need a rendered page — console errors
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:

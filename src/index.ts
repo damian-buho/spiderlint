@@ -39,7 +39,7 @@ export interface Report {
 }
 
 // `default` is the implicit catch-all; a group without `rules` gets `recommended`.
-function groupsOf(config: Config): Record<string, Required<Pick<GroupConfig, "rules">> & GroupConfig> {
+export function groupsOf(config: Config): Record<string, Required<Pick<GroupConfig, "rules">> & GroupConfig> {
     const groups = { ...config.groups };
     groups.default ??= {};
     return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: group.rules ?? ["recommended"] }]));

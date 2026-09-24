@@ -15,6 +15,7 @@ import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
+import { formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
 import { log, logColor } from "./logger.ts";
@@ -30,6 +31,8 @@ Commands:
   report                re-format the report in --store
   facts <url>           one page’s facts as JSON
   groups [url…]         page count per group
+  rules [ruleset…]      every rule, its severity here and its docs
+  presets               shipped rulesets and whether groups use them
   cache status          entries, bytes and age per bucket
   cache purge [bucket]  delete cached entries
   cache warm [url…]     fetch robots.txt and sitemaps only
@@ -80,9 +83,10 @@ Examples:
   spiderlint audit https://example.com/ --format sarif > report.sarif
   spiderlint crawl https://example.com/ --store site
   spiderlint lint --store site --fail-on warning
+  spiderlint rules security-headers
   spiderlint cache purge pages --older-than 7d`;
 
-const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
+const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
 const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
 
@@ -231,6 +235,13 @@ async function main(argv: string[]): Promise<number> {
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
         config = overlay(config, flagSettings(values, tokens));
+        if (command === "rules" || command === "presets") {
+            const paint = painter(process.stdout, values.color);
+            const listed = command === "rules" ? listRules(config, seeds) : listPresets(config);
+            if (config.format === "json") console.log(JSON.stringify(listed, undefined, 2));
+            else console.log(command === "rules" ? formatRules(listed as ReturnType<typeof listRules>, paint) : formatPresets(listed as ReturnType<typeof listPresets>, paint));
+            return 0;
+        }
         const targets = command === "cache" ? seeds.slice(1) : seeds;
         if (targets.length > 0) config.seeds = targets;
         const format = FORMATTERS[config.format];

@@ -61,6 +61,7 @@ export interface RuleSpec {
 export type RuleEntry = RuleSpec | Severity;
 
 export interface RulesetConfig {
+    description?: string;
     extends?: string[];
     when?: Record<string, unknown>;
     rules?: Record<string, RuleEntry>;

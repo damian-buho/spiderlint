@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: The default ruleset of every group — all presets except browser
 extends:
   - spiderlint:seo
   - spiderlint:security-headers

@@ -74,6 +74,7 @@ const schema = {
                 type: "object",
                 additionalProperties: false,
                 properties: {
+                    description: { type: "string" },
                     extends: { type: "array", items: { type: "string" } },
                     when: { type: "object" },
                     rules: { type: "object", additionalProperties: { oneOf: [severity, ruleSpec] } },

@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
+description: Sitemap readability and its agreement with the links
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:
