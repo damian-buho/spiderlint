@@ -11,7 +11,6 @@ import { ConfigError, defaults, overlay } from "../src/config/index.ts";
 import { environmentSettings } from "../src/config/environment.ts";
 import { loadSettings } from "../src/config/policy.ts";
 import { validateSubtree } from "../src/config/schema.ts";
-import { resolveDefaultTargets } from "../src/config/targets.ts";
 
 const ORIGINAL_CWD = process.cwd();
 
@@ -229,36 +228,6 @@ describe("loadSettings", () => {
         writeFileSync(file, "org:\n  spiderlint:\n    fetch: browser\n");
         withFakePfCli('echo "boom" >&2; exit 1', () => {
             assert.throws(() => loadSettings(file), /pf-cli: cannot read org\.spiderlint/);
-        });
-    });
-});
-
-describe("resolveDefaultTargets", () => {
-    let directory: string;
-
-    before(() => {
-        directory = temporaryDirectory();
-    });
-
-    after(() => rmSync(directory, { recursive: true, force: true }));
-
-    it("collects homepage and documentation links", () => {
-        const file = path.join(directory, "linked.yaml");
-        writeFileSync(file, ["links:", "  - type: homepage", "    url: https://example.com/", "  - type: documentation", "    url: https://example.com/docs", "  - type: source-code", "    url: https://example.com/src"].join("\n"));
-        assert.deepEqual(resolveDefaultTargets(file).toSorted((a, b) => a.localeCompare(b)), ["https://example.com/", "https://example.com/docs"]);
-    });
-
-    it("returns nothing when the projectfile has no links at all", () => {
-        const file = path.join(directory, "nolinks.yaml");
-        writeFileSync(file, "identity:\n  name: demo\n");
-        assert.deepEqual(resolveDefaultTargets(file), []);
-    });
-
-    it("falls back to a direct YAML parse with no pf-cli on PATH", () => {
-        const file = path.join(directory, "linked-plain.yaml");
-        writeFileSync(file, ["links:", "  - type: homepage", "    url: https://example.com/", "  - type: source-code", "    url: https://example.com/src"].join("\n"));
-        withoutPfCli(() => {
-            assert.deepEqual(resolveDefaultTargets(file), ["https://example.com/"]);
         });
     });
 });

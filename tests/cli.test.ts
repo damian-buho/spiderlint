@@ -59,6 +59,14 @@ describe("cli", () => {
         assert.equal(JSON.parse(warning).rule, "nope/nothing");
     });
 
+    it("shows usage for audit with no url, ignoring projectfile links", async () => {
+        const project = await mkdtemp(path.join(directory, "linked-"));
+        await writeFile(path.join(project, "projectfile.yaml"), ["links:", "  - type: homepage", `    url: ${site.origin}/`].join("\n"));
+        const run = await spiderlint(project, "audit");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /usage: spiderlint/i);
+    });
+
     it("applies severity flags in argv order", async () => {
         const severity = async (...flags: string[]) => {
             const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", ...flags);

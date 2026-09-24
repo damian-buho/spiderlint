@@ -12,7 +12,6 @@ import { audit, crawl, lintStore, reportStore, warmCache, type Report } from "./
 import { ConfigError, overlay, defaults, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
-import { resolveDefaultTargets } from "./config/targets.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
 import { formatJson } from "./report/json.ts";
@@ -33,7 +32,7 @@ const USAGE = [
     "         --include GLOB… --exclude GLOB…  --no-robots  --no-sitemap  --no-fold  --no-keepalive  --no-resources",
     "         --format human|json|sarif  --fail-on error|warning|info|never  --resume  --no-cache  --refresh  --offline",
     "         --disabled-rules IDS  --error IDS  --warning IDS  --info IDS  (comma-separated rule IDs)",
-    "with no url, audits the projectfile’s homepage and documentation links",
+    "with no url, targets come from org.spiderlint in the config",
 ].join("\n");
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache"]);
@@ -165,13 +164,12 @@ async function main(argv: string[]): Promise<number> {
             for (const bucket of buckets) console.log(`${bucket.bucket.padEnd(9)} ${String(bucket.entries).padStart(7)} entries ${String(bucket.bytes).padStart(11)} bytes  ${bucket.oldest} … ${bucket.newest}`);
             return 0;
         }
-        const { settings: fileSettings, document } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
+        const { settings: fileSettings } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         let config = overlay(defaults(), fileSettings);
         config = overlay(config, environmentSettings(process.env));
         config = overlay(config, flagSettings(values, tokens));
         const targets = command === "cache" ? seeds.slice(1) : seeds;
         if (targets.length > 0) config.seeds = targets;
-        else if (document !== undefined && config.seeds.length === 0) config.seeds = resolveDefaultTargets(document);
         const format = FORMATTERS[config.format];
         const failOn = RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "groups", "cache"].includes(command);

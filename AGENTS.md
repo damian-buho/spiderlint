@@ -57,7 +57,7 @@ plugins over one page cache.
 
 | Term      | Meaning                                                                                                                           |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Target    | A seed URL. Defaults to the projectfile `links` of type `homepage` and `documentation` when none is given.                        |
+| Target    | A seed URL, from the command line or `org.spiderlint.targets`. With neither, the command prints its usage.                        |
 | Page      | One fetched URL: request, response, body, and everything derived from them.                                                       |
 | Facts     | The JSON document extractors build for a page. Rules read facts and nothing else.                                                 |
 | Extractor | Code that turns a page into facts. Static (needs the body) or live (needs the open browser page). Cheap or expensive.             |
@@ -343,7 +343,7 @@ so outsiders need no projectfile.
 ```yaml
 org:
   spiderlint:
-    targets: [https://f.dbuho.me/]     # optional; links[homepage,documentation] otherwise
+    targets: [https://f.dbuho.me/]     # optional; the command-line urls win
     fetch: auto                        # auto | http | browser | adaptive
     scope: origin                      # origin | host | domain
     concurrency: 0                     # 0 = NUMPROCS
