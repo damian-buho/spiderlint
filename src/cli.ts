@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { parseArgs } from "node:util";
 import { DESCRIPTION, VERSION } from "./agent.ts";
 import { painter, type Paint } from "./color.ts";
@@ -299,4 +300,8 @@ async function main(argv: string[]): Promise<number> {
     }
 }
 
+// Trust the OS store beside Node’s bundled roots, as `node --use-system-ca` does.
+const systemRoots = getCACertificates("system");
+setDefaultCACertificates([...getCACertificates("default"), ...systemRoots]);
+log.debug({ system: systemRoots.length }, "system CA certificates trusted");
 process.exitCode = await main(process.argv.slice(2));
