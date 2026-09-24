@@ -21,6 +21,10 @@ import { STRATEGY } from "./scope.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
+// Pages rendered at once, all in one browser.
+const OPEN_PAGES = 20;
+// Pages a browser renders before a fresh one replaces it.
+const RETIRE_AFTER_PAGES = 1000;
 const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
 
 type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"] };
@@ -192,9 +196,12 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
             ...frontier.options(storage),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
+            maxConcurrency: OPEN_PAGES,
             launchContext: { launcher, userAgent: USER_AGENT },
             browserPoolOptions: {
                 useFingerprints: false,
+                maxOpenPagesPerBrowser: OPEN_PAGES,
+                retireBrowserAfterPageCount: RETIRE_AFTER_PAGES,
                 postLaunchHooks: [
                     (pageId) => {
                         launches += 1;

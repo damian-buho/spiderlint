@@ -50,7 +50,9 @@ function globMatchers(config: Config): Globs {
 
 // The one crawler call a frontier drives, whatever the crawler class.
 interface Runnable {
-    run(requests: string[], options?: { purgeRequestQueue?: boolean }): Promise<unknown>;
+    run(requests: string[]): Promise<unknown>;
+    addRequests(requests: string[]): Promise<unknown>;
+    getRequestQueue(): Promise<{ isFinished(): Promise<boolean> }>;
 }
 
 // What every fetch mode shares: seeds, sitemap, globs, robots, the page budget and the visited set.
@@ -67,6 +69,8 @@ export class Frontier {
     readonly #globs: Globs;
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     #handled = 0;
+    #crawler?: Runnable;
+    #hasStraggled = false;
     readonly files: SitemapFileFacts[];
 
     // Include and exclude globs run on `pathname + search`, as group matchers do.
@@ -108,10 +112,26 @@ export class Frontier {
         return extra;
     }
 
+    // Finished once the queue drains and no sitemap straggler is left to add.
+    async #isFinished(): Promise<boolean> {
+        const crawler = this.#crawler as Runnable;
+        const queue = await crawler.getRequestQueue();
+        if (!(await queue.isFinished())) return false;
+        if (this.#hasStraggled) return true;
+        this.#hasStraggled = true;
+        const stragglers = this.#stragglers();
+        const isOverBudget = this.#config.maxPages > 0 && this.#handled >= this.#config.maxPages;
+        log.debug({ stragglers: stragglers.length, handled: this.#handled, isOverBudget }, "queue drained");
+        if (isOverBudget || stragglers.length === 0) return true;
+        await crawler.addRequests(stragglers);
+        return false;
+    }
+
     // Crawler options every adapter passes through unchanged.
-    options(storage?: CrawlStorage): { requestQueue?: RequestQueue; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    options(storage?: CrawlStorage): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
             ...(storage && { requestQueue: storage.requestQueue }),
+            autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
             // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
             sessionPoolOptions: { blockedStatusCodes: [] },
             maxRequestsPerCrawl: this.#config.maxPages || undefined,
@@ -151,10 +171,8 @@ export class Frontier {
     async run(crawler: Runnable, robots: RobotsFor): Promise<void> {
         const answer = (url: string) => (this.#config.robots ? robots(url) : Promise.resolve(undefined));
         Object.assign(crawler, { getRobotsTxtFileForUrl: answer });
+        this.#crawler = crawler;
         await crawler.run(this.#config.seeds);
-        const stragglers = this.#stragglers();
-        const isOverBudget = this.#config.maxPages > 0 && this.#handled >= this.#config.maxPages;
-        if (!isOverBudget && stragglers.length > 0) await crawler.run(stragglers, { purgeRequestQueue: false });
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
         if (this.#skipped.size > 0) log.info({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
     }

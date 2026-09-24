@@ -93,7 +93,7 @@ describe("browser fetch", { skip }, () => {
         assert.equal(page("/feed.xml")?.axe, undefined);
         const { browser, extractors } = report.summary.cost;
         assert.equal(browser?.pages, 15);
-        assert.ok((browser?.launches ?? 0) >= 1);
+        assert.equal(browser?.launches, 1);
         assert.equal(extractors.axe, 14);
         const alt = report.findings.filter((finding) => finding.rule === "axe/image-alt").map((finding) => new URL(finding.url).pathname);
         assert.ok(alt.includes("/posts/3") && !alt.includes("/posts/4"), `image-alt on ${alt.join(", ")}`);
