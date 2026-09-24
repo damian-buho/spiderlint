@@ -105,7 +105,7 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
 // Browsers launched and pages they rendered, plain HTTP fetches, resource requests and extractor runs; no fetch at all says so.
 function costLine({ browser, http, resources, extractors }: Report["summary"]["cost"]): string {
     const parts = [
-        browser && `${browser.name} launched ${browser.launches}× for ${browser.pages} pages`,
+        browser && `${browser.name} rendered ${browser.pages} pages in ${browser.launches} launch${browser.launches === 1 ? "" : "es"}`,
         http && `${http.pages} plain HTTP fetches${http.revalidated > 0 ? ` (${http.revalidated} revalidated)` : ""}`,
         resources && `${resources.requests} resource requests${resources.cached > 0 ? ` (${resources.cached} more from cache)` : ""}`,
         Object.keys(extractors).length > 0 && `extractors ${Object.entries(extractors).map(([id, runs]) => `${id} ×${runs}`).join(", ")}`,
