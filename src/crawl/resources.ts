@@ -15,7 +15,7 @@ import { log } from "../logger.ts";
 type ResourceHttp = NonNullable<ResourceFacts["http"]>;
 
 // Pool width: NUMPROCS when the environment sets it, else the host's parallelism.
-function width(): number {
+export function width(): number {
     const numprocs = Number(process.env.NUMPROCS);
     return Number.isSafeInteger(numprocs) && numprocs > 0 ? numprocs : availableParallelism();
 }

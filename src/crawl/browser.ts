@@ -15,14 +15,13 @@ import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
+import { width } from "./resources.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { STRATEGY } from "./scope.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
-// Pages rendered at once, all in one browser.
-const OPEN_PAGES = 20;
 // Pages a browser renders before a fresh one replaces it.
 const RETIRE_AFTER_PAGES = 1000;
 const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
@@ -191,16 +190,19 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
     let launches = 0;
+    // Pages rendered at once, all in one browser: half of NUMPROCS.
+    const openPages = Math.ceil(width() / 2);
+    log.debug({ openPages }, "browser concurrency");
     const crawler = new Crawler(
         {
             ...frontier.options(storage),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
-            maxConcurrency: OPEN_PAGES,
+            maxConcurrency: openPages,
             launchContext: { launcher, userAgent: USER_AGENT },
             browserPoolOptions: {
                 useFingerprints: false,
-                maxOpenPagesPerBrowser: OPEN_PAGES,
+                maxOpenPagesPerBrowser: openPages,
                 retireBrowserAfterPageCount: RETIRE_AFTER_PAGES,
                 postLaunchHooks: [
                     (pageId) => {
