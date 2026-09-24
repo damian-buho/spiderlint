@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 import pino from "pino";
+import { relative, singleOrigin } from "./crawl/scope.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
 
 // The single seed origin trimmed from logged URLs; empty logs them absolute.
 const base = { origin: "" };
 
-// A URL under `origin` becomes its path; anything else passes through.
+// Strings, and strings inside arrays, lose the base origin.
 function shorten(value: unknown): unknown {
-    if (typeof value === "string") return base.origin && value.startsWith(`${base.origin}/`) ? value.slice(base.origin.length) : value;
+    if (typeof value === "string") return relative(value, base.origin);
     return Array.isArray(value) ? value.map((item) => shorten(item)) : value;
 }
 
@@ -28,9 +29,8 @@ export const log = pino(
 
 // Seeds sharing one origin make it the base of every logged URL; mixed origins keep URLs absolute.
 export function logRelativeTo(seeds: string[]): void {
-    const origins = new Set(seeds.flatMap((seed) => (URL.canParse(seed) ? [new URL(seed).origin] : [])));
-    const next = origins.size === 1 ? ([...origins][0] as string) : "";
+    const next = singleOrigin(seeds);
     if (next === base.origin) return;
     base.origin = next;
-    log.info({ origin: next, origins: origins.size }, next ? "urls logged relative to origin" : "urls logged absolute");
+    log.info({ origin: next, seeds: seeds.length }, next ? "urls logged relative to origin" : "urls logged absolute");
 }

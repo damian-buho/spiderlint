@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
 import type { Finding } from "../rules/types.ts";
 
@@ -11,24 +12,28 @@ const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilob
 const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
 
 // At most LIST URLs on the detail line, the rest as a count.
-function list(urls: string[]): string {
-    return urls.length > LIST ? `${urls.slice(0, LIST).join(", ")} … and ${urls.length - LIST} more` : urls.join(", ");
+function list(urls: string[], origin: string): string {
+    const shown = urls.slice(0, LIST).map((url) => relative(url, origin)).join(", ");
+    return urls.length > LIST ? `${shown} … and ${urls.length - LIST} more` : shown;
 }
 
 // A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
-function line(finding: Finding): string[] {
+function line(finding: Finding, origin: string): string[] {
+    const url = relative(finding.url, origin);
+    const message = origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
     const head = `  ${finding.severity.padEnd(7)} ${finding.rule}`;
     if (finding.occurrences !== undefined) {
-        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${finding.message}`, `          e.g. ${list(finding.samples ?? [])}`];
+        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, `          e.g. ${list(finding.samples ?? [], origin)}`];
     }
-    if (!finding.urls) return [`${head} ${finding.url}: ${finding.message}`];
-    const subject = finding.urls.includes(finding.url) ? "—" : `${finding.url}:`;
-    return [`${head} ${subject} ${finding.message}`, `          ${list(finding.urls)}`];
+    if (!finding.urls) return [`${head} ${url}: ${message}`];
+    const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
+    return [`${head} ${subject} ${message}`, `          ${list(finding.urls, origin)}`];
 }
 
-// Findings grouped by group then rule, site-wide ones last, then the totals.
+// The shared origin once on top, findings grouped by group then rule, site-wide ones last, then the totals.
 export function formatHuman(report: Report): string {
-    const out: string[] = [];
+    const origin = singleOrigin(report.pages.map((page) => page.url.href));
+    const out: string[] = origin ? [origin] : [];
     const groups = new Map<string, Finding[]>();
     for (const finding of report.findings) {
         const key = finding.scope === "site" ? "site" : (finding.group as string);
@@ -38,7 +43,7 @@ export function formatHuman(report: Report): string {
         const pages = report.summary.groups[group] ?? 0;
         out.push(group === "site" ? "site" : `${group} (${pages} pages)`);
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-        for (const finding of findings) out.push(...line(finding));
+        for (const finding of findings) out.push(...line(finding, origin));
     }
     const counts = Object.keys(ORDER).map((severity) => `${report.findings.filter((finding) => finding.severity === severity).length} ${severity}`);
     const { pages, bytes, durationMs, statuses } = report.summary;

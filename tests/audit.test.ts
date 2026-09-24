@@ -156,6 +156,8 @@ describe("audit", () => {
 
     it("prints findings by group then rule", () => {
         const text = formatHuman(report);
+        assert.ok(text.startsWith(`${site.origin}\n`));
+        assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
         assert.match(text, /\n15 pages \(14 × 200, 1 × 404\), .+ in .+, \d+ findings \(2 error, \d+ warning, \d+ info\)$/);
