@@ -146,6 +146,15 @@ describe("audit", () => {
         assert.match(description?.message ?? "", /html\.meta\.description must match pattern/);
     });
 
+    it("reports an internal link answering a redirect once, with the pages carrying it, and counts them as referrers", () => {
+        const [redirected, ...rest] = of("links/redirected-internal");
+        assert.equal(rest.length, 0);
+        assert.equal(redirected?.url, `${site.origin}/old-about`);
+        assert.equal(redirected?.message, `redirects to ${site.origin}/about; linked from 1 page`);
+        assert.deepEqual(redirected?.urls, [`${site.origin}/orphan`]);
+        assert.ok(report.pages.find((page) => page.url.pathname === "/about")?.crawl.referrers.includes(`${site.origin}/orphan`));
+    });
+
     it("reports a canonical or og:url naming another page", () => {
         const [canonical, ...restCanonical] = of("html/canonical-self");
         assert.equal(restCanonical.length, 0);
@@ -176,8 +185,8 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}204 of 223 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}A \(seo, links\)\nhttp {7}15 fetches\nresources {2}\d+ requests$/);
-        assert.deepEqual(report.summary.cost.http, { pages: 15, revalidated: 0 });
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}204 of 224 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}A \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
+        assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
     });
 
     it("colors severities when painted, and matches the plain text once styles are stripped", () => {
@@ -208,8 +217,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 223, failed: 19, passed: 204 });
-        assert.deepEqual(summary.rating, { grade: "A", score: 0.9148, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 224, failed: 20, passed: 204 });
+        assert.deepEqual(summary.rating, { grade: "A", score: 0.9107, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

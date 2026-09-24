@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Internal links that answer an error
+description: Internal links that answer an error or a redirect
 rules:
   links/broken-internal: error
+  links/redirected-internal: warning

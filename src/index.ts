@@ -63,9 +63,13 @@ export function groupsOf(config: Config): Record<string, Required<Pick<GroupConf
     return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: config.rules ?? group.rules ?? ["recommended"] }]));
 }
 
-// A page's referrers are the stored pages linking to it; recomputed from scratch on every lint.
-function referrers(pages: Facts[]): void {
+// A page's referrers are the stored pages linking to it, directly or through a redirect; recomputed from scratch on every lint.
+function referrers(pages: Facts[], redirects: Record<string, string> = {}): void {
     const byHref = new Map(pages.map((page) => [page.url.href, page]));
+    for (const [from, to] of Object.entries(redirects)) {
+        const target = byHref.get(to);
+        if (target) byHref.set(from, target);
+    }
     for (const page of pages) page.crawl.referrers = [];
     for (const page of pages) {
         const internal = page.html?.links.internal ?? [];
@@ -191,7 +195,7 @@ function linter(config: Config): Lint {
     warnUnknown(config, groups);
     return ({ pages, site, cost }, started) => {
         for (const page of pages) page.group = assignGroup(page, matchers);
-        referrers(pages);
+        referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
         const run = runRules(pages, rulesByGroup, site);
         const findings = fold(run, config.fold);
@@ -239,17 +243,21 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const cost: Cost = { extractors: {} };
     let fetched = 0;
     let revalidated = 0;
+    const redirects: Record<string, string> = {};
     const { site, launches } = await crawl(
         config,
         async (facts, body, live) => {
             fetched += 1;
             revalidated += facts.http.revalidated ? 1 : 0;
+            if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             counted(cost, await extract(facts, body, active, live));
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
         store && { config: store.config, requestQueue: store.frontier, earlier: (href) => earlierPage(store, href) },
     );
+    site.redirects = redirects;
+    log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
     await store?.saveResources(results);

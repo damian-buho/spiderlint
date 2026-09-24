@@ -14,9 +14,29 @@ const brokenInternal: Make = (severity) => ({
         for (const page of pages) {
             if (page.http.status < 400) continue;
             log.debug({ url: page.url.href, status: page.http.status, referrers: page.crawl.referrers.length }, "broken link");
-            findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `http.status is ${page.http.status}; linked from ${page.crawl.referrers.length} pages`, value: page.http.status, urls: page.crawl.referrers });
+            findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `http.status is ${page.http.status}; linked from ${pageCount(page.crawl.referrers.length)}`, value: page.http.status, urls: page.crawl.referrers });
         }
         return findings;
+    },
+});
+
+// A page count with its noun.
+function pageCount(count: number): string {
+    return `${count} page${count === 1 ? "" : "s"}`;
+}
+
+// Every internal link answering with a redirect, once per target, with the pages linking to it.
+const redirectedInternal: Make = (severity) => ({
+    meta: { id: "links/redirected-internal", severity, scope: "site", facts: ["site.redirects", "html.links.internal"], docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects" },
+    check(pages: Facts[], _group?: string, site?: SiteFacts) {
+        const landing = new Map(Object.entries(site?.redirects ?? {}));
+        const linking = new Map<string, string[]>();
+        for (const page of pages) {
+            const hrefs = new Set(page.html?.links.internal);
+            for (const href of hrefs) if (landing.has(href)) linking.set(href, [...(linking.get(href) ?? []), page.url.href]);
+        }
+        log.debug({ rule: "links/redirected-internal", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
+        return linking.entries().map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, message: `redirects to ${landing.get(href)}; linked from ${pageCount(urls.length)}`, value: landing.get(href), urls })).toArray();
     },
 });
 
@@ -140,6 +160,7 @@ const resourceStatus: Verdict = (resource, pages) => {
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
+    "links/redirected-internal": redirectedInternal,
     "http/frame-options": frameOptions,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,

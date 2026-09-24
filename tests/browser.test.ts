@@ -106,7 +106,7 @@ describe("browser fetch", { skip }, () => {
     it("runs axe in the rendered page of every HTML page", () => {
         assert.equal(page("/feed.xml")?.axe, undefined);
         const { browser, extractors } = report.summary.cost;
-        assert.equal(browser?.pages, 15);
+        assert.equal(browser?.pages, 16, "the redirecting /old-about renders too");
         assert.equal(browser?.launches, 1);
         assert.equal(extractors.axe, 14);
         const alt = report.findings.filter((finding) => finding.rule === "axe/image-alt").map((finding) => new URL(finding.url).pathname);

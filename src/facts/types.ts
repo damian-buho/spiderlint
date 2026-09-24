@@ -38,6 +38,7 @@ export interface SitemapFileFacts {
 // Facts about the site rather than any one page, read by group and site rules.
 export interface SiteFacts {
     sitemaps: SitemapFileFacts[];
+    redirects?: Record<string, string>;
 }
 
 export interface CookieFacts {
