@@ -19,6 +19,14 @@ const GROUPS = {
     default: { rules: ["seo", "links"] },
 };
 
+function stubPage(url: string) {
+    return { url: new URL(url), group: "default" };
+}
+
+function stubCsp(url: string) {
+    return { rule: "http/csp", severity: "warning" as const, scope: "page" as const, group: "default", url, message: "csp is absent" };
+}
+
 describe("audit", () => {
     let site: Fixture;
     let report: Report;
@@ -169,6 +177,16 @@ describe("audit", () => {
         const text = formatHuman(report, painter(process.stdout, true));
         assert.ok(text.includes("\u{1B}[31merror  \u{1B}[39m"), text);
         assert.equal(stripVTControlCharacters(text), formatHuman(report));
+    });
+
+    it("bundles page findings sharing rule and message, one page per line", () => {
+        const bundledReport = {
+            pages: [stubPage("https://a.test/x"), stubPage("https://a.test/y"), stubPage("https://a.test/z")],
+            findings: [stubCsp("https://a.test/y"), stubCsp("https://a.test/x"), { ...stubCsp("https://a.test/z"), message: "csp is weak" }],
+            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 } },
+        } as unknown as Report;
+        const lines = formatHuman(bundledReport).split("\n");
+        assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
     });
 
     it("sums bytes, pages per group and per status into the run summary", () => {

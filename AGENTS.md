@@ -434,6 +434,7 @@ export default definePlugin({
 - When every seed shares one origin, that origin is logged once and every logged URL under it prints as its path; other origins, and runs with mixed-origin seeds, stay absolute. `human` does the same with the origin every page shares, printed once on top; `json`, `sarif` and the store always carry absolute URLs.
 - Every decision logs its variables: group assignment (`url`, `group`, `matched`), rule skip (`rule`, `when`, `actual`), fold (`group`, `rule`, `failed`, `applicable`, `ratio`), sampling (`group`, `extractor`, `taken`, `cap`), robots skip (`url`, `rule`).
 - The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts — printed by `human`, embedded in `json` and `sarif` `invocations`.
+- `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
 
 ## i18n
 

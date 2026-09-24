@@ -19,11 +19,36 @@ function list(urls: string[], origin: string): string {
     return urls.length > LIST ? `${shown} … and ${urls.length - LIST} more` : shown;
 }
 
+function heading(finding: Finding, paint: Paint): string {
+    return `  ${paint(TONE[finding.severity], finding.severity.padEnd(7))} ${paint("bold", finding.rule)}`;
+}
+
+function shortMessage(finding: Finding, origin: string): string {
+    return origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
+}
+
+// Page findings sharing severity, rule and message bundle together; folds and aggregates stay alone.
+function bundle(findings: Finding[]): Finding[][] {
+    const bundles = new Map<string, Finding[]>();
+    for (const [index, finding] of findings.entries()) {
+        const isPlain = finding.occurrences === undefined && !finding.urls;
+        const key = isPlain ? `${finding.severity}\t${finding.rule}\t${finding.message}` : String(index);
+        bundles.set(key, [...(bundles.get(key) ?? []), finding]);
+    }
+    return bundles.values().toArray();
+}
+
+// A bundle prints its message once, then every page on its own line.
+function bundled(same: Finding[], origin: string, paint: Paint): string[] {
+    const first = same[0] as Finding;
+    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.map((finding) => paint("dim", `          ${relative(finding.url, origin)}`))];
+}
+
 // A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
 function line(finding: Finding, origin: string, paint: Paint): string[] {
     const url = relative(finding.url, origin);
-    const message = origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
-    const head = `  ${paint(TONE[finding.severity], finding.severity.padEnd(7))} ${paint("bold", finding.rule)}`;
+    const message = shortMessage(finding, origin);
+    const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
         return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, paint("dim", `          e.g. ${list(finding.samples ?? [], origin)}`)];
     }
@@ -45,7 +70,7 @@ export function formatHuman(report: Report, paint: Paint = plain): string {
         const pages = report.summary.groups[group] ?? 0;
         out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${pages} pages)`)}`);
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-        for (const finding of findings) out.push(...line(finding, origin, paint));
+        for (const same of bundle(findings)) out.push(...(same.length > 1 ? bundled(same, origin, paint) : line(same[0] as Finding, origin, paint)));
     }
     const counts = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => {
         const count = report.findings.filter((finding) => finding.severity === severity).length;
