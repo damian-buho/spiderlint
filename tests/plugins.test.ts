@@ -11,6 +11,7 @@ import { audit, crawl, lintStore, loadPlugins } from "../src/index.ts";
 import { ConfigError, defaults } from "../src/config/index.ts";
 import type { Facts } from "../src/facts/types.ts";
 import htmlValidate, { type HtmlValidateFacts } from "../src/plugins/html-validate.ts";
+import { formatHuman } from "../src/report/human.ts";
 import { listPresets } from "../src/rules/catalog.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
@@ -68,6 +69,16 @@ describe("plugins", () => {
         const alt = report.findings.find((finding) => finding.rule === "html-validate/wcag/h37" && finding.url.endsWith("/posts/3"));
         assert.match(alt?.message ?? "", /alt/);
         assert.ok(((alt?.value as { line: number }[])[0]?.line ?? 0) > 0);
+        assert.match(alt?.locations?.[0] ?? "", /^\d+:\d+ .*img <img src="\/figure\.png">$/);
+    });
+
+    it("keeps the locations of each folded sample page and prints them under it", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["html-validate"], cacheMode: "off" });
+        const sri = report.findings.find((finding) => finding.rule === "html-validate/require-sri");
+        const first = sri?.sampleLocations?.[sri.samples?.[0] ?? ""] ?? [];
+        assert.match(first[0] ?? "", /<script src="[^"]+\/cdn\/lib\.js">/);
+        assert.equal(sri?.locations, undefined, "a fold carries no single page’s locations");
+        assert.ok(formatHuman(report).includes(`at ${first[0]}`));
     });
 
     it("runs no extractor no enabled rule reads", async () => {

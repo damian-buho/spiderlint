@@ -10,6 +10,8 @@ import { plain, type Paint, type Style } from "../color.ts";
 const ORDER = { error: 0, warning: 1, info: 2 };
 const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yellow", info: "blue" };
 const LIST = 5;
+const DETAIL = " ".repeat(10);
+const NESTED = " ".repeat(12);
 const KILOBYTES = new Intl.NumberFormat(undefined, { style: "unit", unit: "kilobyte", maximumFractionDigits: 1 });
 const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second", maximumFractionDigits: 1 });
 
@@ -17,6 +19,23 @@ const SECONDS = new Intl.NumberFormat(undefined, { style: "unit", unit: "second"
 function list(urls: string[], origin: string): string {
     const shown = urls.slice(0, LIST).map((url) => relative(url, origin)).join(", ");
     return urls.length > LIST ? `${shown} … and ${urls.length - LIST} more` : shown;
+}
+
+// At most LIST locations, each on its own line under what it locates, the rest as a count.
+function located(locations: string[] | undefined, indent: string, paint: Paint): string[] {
+    if (!locations || locations.length === 0) return [];
+    const shown = locations.slice(0, LIST).map((location) => paint("dim", `${indent}at ${location}`));
+    return locations.length > LIST ? [...shown, paint("dim", `${indent}… and ${locations.length - LIST} more`)] : shown;
+}
+
+// A fold’s samples; pages whose locations all match share one list under the URLs.
+function sampled(finding: Finding, origin: string, paint: Paint): string[] {
+    const samples = finding.samples ?? [];
+    const byPage = finding.sampleLocations;
+    const isShared = new Set(samples.map((url) => JSON.stringify(byPage?.[url] ?? []))).size === 1;
+    return !byPage || isShared
+        ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin)}`), ...located(byPage?.[samples[0] as string], NESTED, paint)]
+        : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint)]);
 }
 
 function heading(finding: Finding, paint: Paint): string {
@@ -41,7 +60,7 @@ function bundle(findings: Finding[]): Finding[][] {
 // A bundle prints its message once, then every page on its own line.
 function bundled(same: Finding[], origin: string, paint: Paint): string[] {
     const first = same[0] as Finding;
-    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.map((finding) => paint("dim", `          ${relative(finding.url, origin)}`))];
+    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `          ${relative(finding.url, origin)}`), ...located(finding.locations, NESTED, paint)])];
 }
 
 // A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
@@ -50,9 +69,9 @@ function line(finding: Finding, origin: string, paint: Paint): string[] {
     const message = shortMessage(finding, origin);
     const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
-        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, paint("dim", `          e.g. ${list(finding.samples ?? [], origin)}`)];
+        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint)];
     }
-    if (!finding.urls) return [`${head} ${url}: ${message}`];
+    if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint)];
     const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
     return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin)}`)];
 }

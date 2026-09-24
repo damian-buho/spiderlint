@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { tlsFacts } from "../src/facts/browser.ts";
+import type { AxeFacts } from "../src/plugins/axe.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 // The node tool image carries no Chromium; the spiderlint image does, and its self-test runs these.
@@ -93,7 +94,10 @@ describe("browser fetch", { skip }, () => {
         const alt = report.findings.filter((finding) => finding.rule === "axe/image-alt").map((finding) => new URL(finding.url).pathname);
         assert.ok(alt.includes("/posts/3") && !alt.includes("/posts/4"), `image-alt on ${alt.join(", ")}`);
         const finding = report.findings.find((entry) => entry.rule === "axe/image-alt");
-        assert.deepEqual((finding?.value as { targets: string[] }).targets, ["img"]);
+        assert.deepEqual(finding?.locations, ['img <img src="/figure.png">']);
+        const stored = page("/posts/3")?.axe as AxeFacts;
+        assert.equal(stored.violations.find((violation) => violation.rule === "image-alt")?.nodes[0]?.xpath, "/html/body/img");
+        assert.ok(Array.isArray(stored.incomplete) && stored.version.length > 0);
     });
 
     it("records the transport of each response", async () => {

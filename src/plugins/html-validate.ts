@@ -19,7 +19,18 @@ const BASE: Upstream[] = ["recommended", "document"];
 const IGNORED = new Set(["deprecated-rule"]);
 
 export interface HtmlValidateFacts {
-    messages: { rule: string; message: string; line: number; column: number; selector?: string }[];
+    messages: { rule: string; message: string; severity: number; line: number; column: number; offset: number; size: number; selector?: string; source?: string; context?: unknown }[];
+}
+
+const SOURCE = 120;
+
+// The tag in `body` around `offset`, cut at SOURCE characters.
+function sourceAt(body: string, offset: number): string | undefined {
+    const start = body.lastIndexOf("<", offset);
+    const end = body.indexOf(">", offset);
+    if (start === -1 || end === -1 || offset - start > SOURCE) return undefined;
+    const tag = body.slice(start, end + 1);
+    return tag.length > SOURCE ? `${tag.slice(0, SOURCE)}…` : tag;
 }
 
 // Same-origin scripts need no SRI, as `resources/sri` already judges.
@@ -56,7 +67,8 @@ function rule(id: string): Make {
             const byMessage = Map.groupBy(facts.messages.filter((message) => message.rule === id), (message) => message.message);
             log.debug({ rule: ruleId, url: page.url.href, messages: byMessage.size }, "html-validate messages judged");
             const locate = (hits: HtmlValidateFacts["messages"]) => hits.map(({ line, column, selector }) => ({ line, column, ...(selector && { selector }) }));
-            return byMessage.entries().map(([message, hits]): Finding => ({ rule: ruleId, severity, scope: "page", url: page.url.href, group: page.group, message, value: locate(hits) })).toArray();
+            const lines = (hits: HtmlValidateFacts["messages"]) => hits.map(({ line, column, selector, source }) => [`${line}:${column}`, selector, source].filter(Boolean).join(" "));
+            return byMessage.entries().map(([message, hits]): Finding => ({ rule: ruleId, severity, scope: "page", url: page.url.href, group: page.group, message, value: locate(hits), locations: lines(hits) })).toArray();
         },
     });
 }
@@ -74,7 +86,10 @@ async function extract(page: Facts, body: string): Promise<HtmlValidateFacts | u
     }
     const mode = page.browser ? "browser" : "http";
     const report = await validators[mode].validateString(body, page.url.href);
-    const messages = report.results.flatMap((result) => result.messages).map(({ ruleId, message, line, column, selector }) => ({ rule: ruleId, message, line, column, ...(selector && { selector }) }));
+    const messages = report.results.flatMap((result) => result.messages).map(({ ruleId, message, severity, line, column, offset, size, selector, context }) => {
+        const source = sourceAt(body, offset);
+        return { rule: ruleId, message, severity, line, column, offset, size, ...(selector && { selector }), ...(source && { source }), ...(context !== undefined && { context: context as unknown }) };
+    });
     log.debug({ url: page.url.href, mode, messages: messages.length }, "html validated");
     return { messages };
 }

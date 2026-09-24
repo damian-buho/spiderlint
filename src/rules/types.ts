@@ -15,10 +15,14 @@ export interface Finding {
     group?: string;
     message: string;
     value?: unknown;
+    // Where on the page it is: one short line per element, as `line:column selector` or `selector <tag>`.
+    locations?: string[];
     urls?: string[];
     occurrences?: number;
     coverage?: number;
     samples?: string[];
+    // The locations each sample page reported, keyed by its URL.
+    sampleLocations?: Record<string, string[]>;
 }
 
 export interface RuleMeta {
