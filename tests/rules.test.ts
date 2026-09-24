@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Facts, ResourceFacts } from "../src/facts/types.ts";
 import { builtin } from "../src/rules/builtin.ts";
+import { describe as describeValue } from "../src/rules/declarative.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
 
 // The smallest facts document a site rule reads.
@@ -28,5 +29,18 @@ describe("resource rules", () => {
     it("accepts a cross-origin script that carries integrity", () => {
         const rule = builtin["resources/sri"]?.("warning") as AggregateRule;
         assert.deepEqual(rule.check([page("https://site.test/", [{ url: "https://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" }])]), []);
+    });
+});
+
+describe("finding value", () => {
+    it("shows a 61-character title whole", () => {
+        const title = "Deployed Reseed server for I2P on Kiota | Seconds to Midnight";
+        assert.equal(describeValue(title), `61 characters: “${title}”`);
+    });
+
+    it("keeps both ends of a long string around one ellipsis", () => {
+        const got = describeValue(`a${"x".repeat(298)}z`);
+        assert.match(got, /^300 characters: “ax+…x+z”$/);
+        assert.equal(got.length - "300 characters: “”".length, 200);
     });
 });

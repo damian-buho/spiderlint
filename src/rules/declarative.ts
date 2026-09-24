@@ -27,9 +27,14 @@ function at(value: unknown, pointer: string): unknown {
     return pointer === "" ? value : get(value, pointer.slice(1).replaceAll("/", "."));
 }
 
-// Short rendering of an offending value for the finding message.
+// A string past `max` keeps its head and tail around one ellipsis, since either end may hold the fix.
+function elide(text: string, max: number): string {
+    return text.length > max ? `${text.slice(0, Math.ceil(max / 2))}…${text.slice(text.length - Math.floor(max / 2) + 1)}` : text;
+}
+
+// Rendering of an offending value for the finding message; a title or description shows whole.
 export function describe(value: unknown): string {
-    if (typeof value === "string") return `${value.length} characters: “${value.length > 60 ? `${value.slice(0, 57)}…` : value}”`;
+    if (typeof value === "string") return `${value.length} characters: “${elide(value, 200)}”`;
     if (Array.isArray(value)) return `${value.length} items`;
     const json = JSON.stringify(value);
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
