@@ -13,6 +13,7 @@ import { onOrigin } from "./crawl/scope.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
+import { robotsFacts } from "./facts/robots.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
@@ -194,7 +195,10 @@ function linter(config: Config): Lint {
     const rules = new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id)).size;
     warnUnknown(config, groups);
     return ({ pages, site, cost }, started) => {
-        for (const page of pages) page.group = assignGroup(page, matchers);
+        for (const page of pages) {
+            page.group = assignGroup(page, matchers);
+            page.robots = robotsFacts(page);
+        }
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
         const run = runRules(pages, rulesByGroup, site);

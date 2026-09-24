@@ -71,6 +71,18 @@ describe("audit", () => {
         assert.equal(post?.crawl.discoveredVia, "link");
     });
 
+    it("reads head links, hreflang, JSON-LD, scripts and robots directives into facts", () => {
+        const about = report.pages.find((page) => page.url.pathname === "/about");
+        assert.equal(about?.html?.dir, "ltr");
+        assert.deepEqual(about?.html?.head.links.find((link) => link.rel === "icon"), { rel: "icon", href: `${site.origin}/favicon.svg`, type: "image/svg+xml" });
+        assert.deepEqual(about?.html?.hreflang, [{ lang: "es", href: `${site.origin}/es/about` }]);
+        assert.deepEqual(about?.html?.jsonld[0], { "@context": "https://schema.org", "@type": "AboutPage" });
+        assert.ok(Object.hasOwn(about?.html?.jsonld[1] as object, "@error"));
+        assert.deepEqual(about?.html?.scripts[0], { src: `${site.origin.replace("127.0.0.1", "localhost")}/cdn/lib.js`, async: false, defer: false, head: true });
+        assert.deepEqual(about?.robots, { noindex: false, nofollow: true });
+        assert.ok(!site.requested.includes("/es/about"), "a head alternate is not a link to follow");
+    });
+
     it("assigns each page to the first matching group", () => {
         const counts: Record<string, number> = {};
         for (const page of report.pages) counts[page.group] = (counts[page.group] ?? 0) + 1;
@@ -185,7 +197,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}244 of 277 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}282 of 316 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
     });
 
@@ -217,8 +229,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 277, failed: 33, passed: 244 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8809, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 316, failed: 34, passed: 282 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8924, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

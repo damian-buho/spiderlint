@@ -171,7 +171,7 @@ schema against it.
 url:      { href, origin, protocol, host, pathname, search, twin }   # twin: the same URL on canonical-origin
 group:    posts
 crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree, requested }
-robots:   { allowed, xRobotsTag }
+robots:   { noindex, nofollow }                                    # <meta name=robots> and X-Robots-Tag, derived on every lint
 sitemap:  { listed, lastmod, changefreq, priority }
 http:     { status, version, redirects: [{ url }],
             headers: { name: value | [value] }, remote: { address, family },
@@ -180,11 +180,13 @@ http:     { status, version, redirects: [{ url }],
             cookies: [{ name, secure, httpOnly, sameSite }] }
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
             cert: { subject, issuer, notBefore, notAfter, daysLeft, san: [], fingerprint256 } }
-html:     { lang, title, h1: [], h2: [], canonical, robots,
+html:     { lang, dir, title, h1: [], h2: [], canonical,
             meta: { name: content }, property: { og:title: … },
+            head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },
-            images: [{ src, alt }], hreflang: [{ lang, href }],
-            jsonld: [], wordCount, generator }
+            images: [{ src, alt, width, height }], hreflang: [{ lang, href }],
+            jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
+            scripts: [{ src, type, async, defer, head }], wordCount, generator }
 resources: [{ url, kind: script|style|image|font|iframe|preload, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
               http: { status, headers, timing, size, contentType }, tls: { … } }]

@@ -4,7 +4,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Facts } from "../src/facts/types.ts";
+import { robotsFacts } from "../src/facts/robots.ts";
+import type { Facts, HtmlFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import type { PageRule } from "../src/rules/types.ts";
@@ -21,24 +22,27 @@ interface Patch {
     lang?: string;
     resources?: string[];
     warnings?: string[];
+    html?: Partial<HtmlFacts>;
 }
 
-// A 2xx https: HTML page that every rule below passes, with the patch applied.
+// A 2xx https: HTML page that every rule below passes, with the patch applied and robots derived as the linter does.
 function page(patch: Patch = {}): Facts {
     const pathname = patch.pathname ?? "/posts/hello-world/";
     const href = `https://site.test${pathname}`;
     const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", ...patch.headers };
     const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
-    return {
+    const facts: Facts = {
         url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: "" },
         group: "default",
         crawl: { depth: 0, discoveredVia: "seed", referrers: [] },
         sitemap: { listed: patch.listed ?? true },
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
-        html: { lang: patch.lang ?? "en-GB", h1: ["Hello"], meta, property: {}, links: { internal: [], external: [], nofollow: [] }, images: [] },
+        html: { lang: patch.lang ?? "en-GB", h1: ["Hello"], meta, property: {}, head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {} },
     };
+    facts.robots = robotsFacts(facts);
+    return facts;
 }
 
 // Rule ID → pages it must flag; every rule also passes on the bare `page()`.
@@ -67,7 +71,13 @@ const FAILS: Record<string, Patch[]> = {
     "html/viewport": [{ meta: { viewport: "initial-scale=1" } }, { meta: { viewport: "width=device-width, user-scalable=no" } }, { meta: { viewport: "width=device-width, maximum-scale=1.0" } }],
     "html/theme-color": [{ meta: { "theme-color": "" } }],
     "html/color-scheme": [{ meta: { "color-scheme": "" } }],
-    "html/noindex-listed": [{ meta: { robots: "noindex, follow" } }, { meta: { robots: "NONE" } }],
+    "html/noindex-listed": [{ meta: { robots: "noindex, follow" } }, { meta: { robots: "NONE" } }, { headers: { "x-robots-tag": "googlebot: noindex" } }],
+    "html/dir-rtl": [{ lang: "ar" }, { lang: "he-IL", html: { dir: "ltr" } }],
+    "html/favicon": [{ html: { head: { links: [{ rel: "apple-touch-icon", href: "/a.png" }] } } }],
+    "html/hreflang-x-default": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }] } }],
+    "html/jsonld-parses": [{ html: { jsonld: [{ "@error": "Unexpected token" }] } }],
+    "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: false, head: true }] } }],
+    "html/img-dimensions": [{ html: { images: [{ src: "/a.png", alt: "" }] } }],
     "url/shape": [{ pathname: "/Posts/" }, { pathname: "/posts/hello_world/" }, { pathname: "/posts//x/" }],
     "resources/a11y-overlay": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
     "browser/unused-preload": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
@@ -85,7 +95,11 @@ const PASSES: Record<string, Patch[]> = {
     "http/deprecation-format": [{ headers: { deprecation: "@1767225600" } }],
     "html/lang": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
     "html/viewport": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
-    "html/noindex-listed": [{ meta: { robots: "noindex" }, listed: false }, { meta: { robots: "max-image-preview:large" } }],
+    "html/noindex-listed": [{ meta: { robots: "noindex" }, listed: false }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
+    "html/dir-rtl": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
+    "html/favicon": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
+    "html/hreflang-x-default": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }, { lang: "x-default", href: "https://site.test/" }] } }],
+    "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: true, head: true }, { src: "https://site.test/b.js", async: false, defer: false, head: false }, { async: false, defer: false, head: true }] } }],
     "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
 };
 

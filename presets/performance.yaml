@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Compression, caching, validators and protocol version, read from HTTP only
+description: Compression, caching, validators, protocol version and render-blocking HTML, no browser needed
 rules:
   http/compression:
     fact: http.headers.content-encoding
@@ -84,3 +84,15 @@ rules:
     severity: warning
     message: "Deprecation should be @ and Unix seconds, found {got}"
     docs: https://www.rfc-editor.org/rfc/rfc9745
+  html/render-blocking-script:
+    fact: html.scripts
+    expect: {items: {if: {required: [src], properties: {head: {const: true}, async: {const: false}, defer: {const: false}}}, then: {required: [type], properties: {type: {const: module}}}}}
+    severity: info
+    message: "a script in <head> without async, defer or type=module blocks rendering: {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Element/script#defer
+  html/img-dimensions:
+    fact: html.images
+    expect: {items: {required: [width, height]}}
+    severity: info
+    message: "an <img> without width and height shifts the layout as it loads: {got}"
+    docs: https://web.dev/articles/optimize-cls#images-without-dimensions

@@ -31,12 +31,38 @@ rules:
     message: "no meta color-scheme"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
   html/noindex-listed:
-    fact: html.meta.robots
-    expect: {type: string, not: {pattern: "(?i:\\b(noindex|none)\\b)"}}
-    when: {sitemap.listed: true, html.meta.robots: {type: string}}
+    fact: robots.noindex
+    expect: {const: false}
+    when: {sitemap.listed: true}
     severity: error
-    message: "a page the sitemap lists says noindex: {got}"
+    message: "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
+  html/dir-rtl:
+    fact: html.dir
+    expect: {const: rtl}
+    when: {html.lang: {type: string, pattern: "^(?i:ar|arc|ckb|dv|fa|he|ps|sd|ug|ur|yi)(-|$)"}}
+    severity: warning
+    message: "a right-to-left language should set <html dir=rtl>, found {got}"
+    docs: https://www.w3.org/International/questions/qa-html-dir
+  html/favicon:
+    fact: html.head.links
+    expect: {contains: {required: [rel], properties: {rel: {pattern: "(?i:(^|\\s)icon(\\s|$))"}}}}
+    severity: info
+    message: "no <link rel=icon> in the head"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
+  html/hreflang-x-default:
+    fact: html.hreflang
+    expect: {contains: {required: [lang], properties: {lang: {const: x-default}}}}
+    when: {html.hreflang: {minItems: 1}}
+    severity: info
+    message: "hreflang alternates should include x-default, found {got}"
+    docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
+  html/jsonld-parses:
+    fact: html.jsonld
+    expect: {items: {not: {required: ["@error"]}}}
+    severity: warning
+    message: "a JSON-LD block does not parse: {got}"
+    docs: https://json-ld.org/spec/latest/json-ld/
   url/shape:
     fact: url.pathname
     expect: {type: string, pattern: "^(?!.*//)(%[0-9A-Fa-f]{2}|[^A-Z_%])*$"}

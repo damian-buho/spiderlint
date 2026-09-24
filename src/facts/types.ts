@@ -73,13 +73,24 @@ export interface TlsFacts {
 
 export interface HtmlFacts {
     lang?: string;
+    dir?: string;
     title?: string;
     h1: string[];
     canonical?: string;
     meta: Record<string, string>;
     property: Record<string, string>;
+    head: { links: Partial<Record<"rel" | "href" | "type" | "hreflang" | "sizes" | "media" | "as" | "crossorigin", string>>[] };
+    hreflang: { lang: string; href: string }[];
+    jsonld: unknown[];
+    scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     links: { internal: string[]; external: string[]; nofollow: string[] };
-    images: { src: string; alt?: string }[];
+    images: { src: string; alt?: string; width?: string; height?: string }[];
+}
+
+// Indexing directives merged from `<meta name=robots>` and `X-Robots-Tag`.
+export interface RobotsFacts {
+    noindex: boolean;
+    nofollow: boolean;
 }
 
 export interface ResourceFacts {
@@ -104,6 +115,7 @@ export interface Facts {
     group: string;
     crawl: CrawlFacts;
     sitemap?: SitemapFacts;
+    robots?: RobotsFacts;
     http: HttpFacts;
     tls?: TlsFacts;
     html?: HtmlFacts;
