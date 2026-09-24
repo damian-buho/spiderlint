@@ -10,7 +10,7 @@ import { attachResources, fetchResources } from "./crawl/resources.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
-import { log } from "./logger.ts";
+import { log, logRelativeTo } from "./logger.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
@@ -116,6 +116,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const earlier = store ? await store.pages() : [];
     for (const facts of earlier) memory.add(facts);
     const crawl = config.fetch === "http" ? crawlHttp : crawlBrowser;
+    logRelativeTo(config.seeds);
     log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const site = await crawl(
         config,

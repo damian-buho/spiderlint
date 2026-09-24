@@ -11,7 +11,7 @@ import { VERSION } from "../agent.ts";
 import { ConfigError } from "../config/index.ts";
 import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import type { Summary } from "../index.ts";
-import { log } from "../logger.ts";
+import { log, logRelativeTo } from "../logger.ts";
 import type { Finding } from "../rules/types.ts";
 
 export interface Manifest {
@@ -75,6 +75,7 @@ export class DiskStore {
         const store = new DiskStore(directory, config, storages, release, manifest);
         await store.#writeManifest();
         log.info({ directory, fresh: mode.fresh, started: manifest.started }, "store opened");
+        logRelativeTo(manifest.seeds);
         return store;
     }
 
