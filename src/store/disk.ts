@@ -64,6 +64,8 @@ export class DiskStore {
         const config = new Configuration({ storageClientOptions: { localDataDirectory: directory }, persistStorage: true, purgeOnStart: false });
         const previous = await DiskStore.#readManifest(directory);
         let storages = await openStorages(config);
+        const lastReport = await storages[2].getValue<StoredReport>(REPORT);
+        const last = lastReport?.summary;
         const earlier = new Map<string, Facts>();
         if (mode.fresh) {
             const stored = await storages[0].map((item) => item as unknown as Facts);
@@ -76,7 +78,7 @@ export class DiskStore {
         const { configHash, fresh, seeds = [] } = mode;
         if (previous && configHash && previous.configHash !== configHash) log.warn({ directory, stored: previous.configHash, current: configHash }, "store was crawled with another configuration");
         const manifest: Manifest = fresh || !previous ? { version: VERSION, seeds, configHash: configHash ?? "", started: new Date().toISOString() } : previous;
-        const store = new DiskStore(directory, config, storages, release, manifest, earlier);
+        const store = new DiskStore(directory, config, storages, release, manifest, earlier, last ?? undefined);
         await store.#writeManifest();
         log.info({ directory, fresh: mode.fresh, started: manifest.started, earlier: earlier.size }, "store opened");
         logRelativeTo(manifest.seeds);
@@ -101,9 +103,11 @@ export class DiskStore {
     readonly frontier: RequestQueue;
     readonly manifest: Manifest;
     readonly earlier: Map<string, Facts>;
+    readonly last?: Summary;
 
-    private constructor(directory: string, config: Configuration, storages: Storages, release: () => Promise<void>, manifest: Manifest, earlier: Map<string, Facts>) {
+    private constructor(directory: string, config: Configuration, storages: Storages, release: () => Promise<void>, manifest: Manifest, earlier: Map<string, Facts>, last?: Summary) {
         this.earlier = earlier;
+        if (last) this.last = last;
         this.directory = directory;
         this.config = config;
         this.facts = storages[0];

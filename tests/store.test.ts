@@ -54,6 +54,20 @@ describe("store", () => {
         assert.equal(report.summary.pages, linted.summary.pages);
     });
 
+    it("measures a run against the last one of the same rulesets only, across a fresh crawl too", async () => {
+        const first = await lintStore({}, directory);
+        const again = await lintStore({}, directory);
+        assert.deepEqual(again.summary.previous, { started: first.summary.started, findings: first.summary.findings });
+        const other = await lintStore({ rules: ["tls"] }, directory);
+        assert.equal(other.summary.previous, undefined);
+        const fewer = await lintStore({ rules: ["tls"], disabledRules: ["tls/cert-expiry"] }, directory);
+        assert.equal(fewer.summary.previous, undefined);
+        const last = await lintStore({ rules: ["tls"] }, directory);
+        const seeds = [`${site.origin}/`];
+        const audited = await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"] }, { store: directory });
+        assert.equal(audited.summary.previous?.started, last.summary.started);
+    });
+
     it("keeps a body per page and no cookie value anywhere", async () => {
         const bodies = await readdir(path.join(directory, "key_value_stores", "bodies"));
         assert.ok(bodies.filter((name) => name.endsWith(".html")).length >= 13);

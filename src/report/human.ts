@@ -23,6 +23,7 @@ const BYTE_UNITS: [number, string][] = [
 const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
+const MINUS = "\u{2212}";
 
 // The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
 function number(value: number, options: Intl.NumberFormatOptions = {}): string {
@@ -111,6 +112,11 @@ function ratingValue(rating: Rating | undefined, paint: Paint): string {
     return rating ? `${paint(GRADE_TONE[rating.grade], paint("bold", rating.grade))} (${rating.rulesets.join(", ")})` : "– (no checks ran)";
 }
 
+// A signed change against the last run, green when it fell and red when it grew; nothing when equal or unknown.
+function change(now: number, before: number | undefined, paint: Paint): string {
+    return before === undefined || now === before ? "" : ` ${paint(now < before ? "green" : "red", `${now < before ? MINUS : "+"}${number(Math.abs(now - before))}`)}`;
+}
+
 // The shared origin once on top, the rating under it, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
 export function formatHuman(report: Report, paint: Paint = plain, isFull = false): string {
     const limit = isFull ? Infinity : LIST;
@@ -131,17 +137,18 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     return out.join("\n");
 }
 
-// Pages, size, time, rules, checks, findings and the rating, one row each; findings are counted before folding.
-function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating }: Report["summary"], paint: Paint): string[] {
+// Pages, size, time, rules, checks, findings with their change since the last run, and the rating, one row each; findings are counted before folding.
+function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating, previous }: Report["summary"], paint: Paint): string[] {
     const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
-    const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => (findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)));
+    const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => `${findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
+    const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
         row("pages", `${number(pages)} (${answers.join(", ")})`),
         row("size", size(bytes)),
         row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
         row("rules", number(rules)),
         row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
-        row("findings", `${number(findings.total)} (${severities.join(", ")})`),
+        row("findings", `${number(findings.total)}${change(findings.total, previous?.findings.total, paint)} (${severities.join(", ")})${since}`),
         row("rating", ratingValue(rating, paint)),
     ];
 }

@@ -45,6 +45,7 @@ export interface Summary {
     rules: number;
     checks: Checks;
     rating?: Rating;
+    previous?: { started: string; findings: Summary["findings"] };
     cost: Cost;
 }
 
@@ -108,6 +109,14 @@ function summarize(pages: Facts[], run: RuleRun, rules: number, started: Date, c
         ...(rating && { rating }),
         cost,
     };
+}
+
+// The last stored run’s findings for `report` to measure progress against, when it ran the same rulesets and as many rules.
+function withPrevious(report: Report, last: Summary | undefined): Report {
+    const isComparable = typeof last?.findings === "object" && last.rules === report.summary.rules && last.rating?.rulesets.join(",") === report.summary.rating?.rulesets.join(",");
+    log.debug({ last: last?.started, lastRules: last?.rules, rules: report.summary.rules, lastRulesets: last?.rating?.rulesets, rulesets: report.summary.rating?.rulesets, isComparable }, "previous run compared");
+    if (last && isComparable) report.summary.previous = { started: last.started, findings: last.findings };
+    return report;
 }
 
 // A --disabled-rules or severity override naming no rule of any group matches nothing; say so.
@@ -279,7 +288,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     await loadPlugins(config.plugins);
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
-        const report = lint(await crawlPages(config, store), started);
+        const report = withPrevious(lint(await crawlPages(config, store), started), store.last);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     };
@@ -308,7 +317,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const cost: Cost = { extractors: {} };
         await backfill(pages, store, extractorsFor(enabledRules(config)), cost);
         attachResources(pages, await store.resources());
-        const report = lint({ pages, site: await store.site(), cost }, started);
+        const report = withPrevious(lint({ pages, site: await store.site(), cost }, started), store.last);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });
