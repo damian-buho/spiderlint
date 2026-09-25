@@ -43,6 +43,8 @@ export interface Config {
     keepalive: boolean;
     fetchResources: boolean;
     maxResourcesPerPage: number;
+    // Hosts, each with its subdomains, whose off-scope links are never probed.
+    linkExclude: string[];
     include: string[];
     exclude: string[];
     robots: boolean;
@@ -79,6 +81,7 @@ export function defaults(): Config {
         keepalive: true,
         fetchResources: true,
         maxResourcesPerPage: 200,
+        linkExclude: [],
         include: [],
         exclude: [],
         robots: true,

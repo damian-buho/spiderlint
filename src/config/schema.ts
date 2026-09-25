@@ -51,6 +51,7 @@ const site = {
             additionalProperties: false,
             properties: { fetch: { type: "boolean" }, "max-per-page": { type: "integer", minimum: 0 } },
         },
+        links: { type: "object", additionalProperties: false, properties: { exclude: { type: "array", items: { type: "string", minLength: 1 } } } },
         proxy: { type: "string" },
         robots: { type: "boolean" },
         sitemap: { type: "boolean" },

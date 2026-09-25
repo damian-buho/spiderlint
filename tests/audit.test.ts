@@ -125,12 +125,19 @@ describe("audit", () => {
         assert.equal(probes(), 2, "a broken answer is never stored");
     });
 
+    it("never probes nor reports a link to an excluded host", async () => {
+        const before = site.requested.filter((pathname) => pathname === "/gone").length;
+        const excluded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], linkExclude: ["localhost"] });
+        assert.equal(site.requested.filter((pathname) => pathname === "/gone").length, before);
+        assert.deepEqual(excluded.findings.filter((finding) => finding.rule === "links/broken-external"), []);
+    });
+
     it("stores a bot wall answer and never judges it", async () => {
         const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
         const href = `${cdn()}/walled`;
-        const first = await answerOf(href, { allowPrivate: true }, bucket, new AbortController().signal);
+        const first = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
         assert.deepEqual(first, { status: 403, method: "HEAD", walled: true });
-        const second = await answerOf(href, { allowPrivate: true }, bucket, new AbortController().signal);
+        const second = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
         assert.equal(second.cached, true);
         const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
         const page = { url: new URL(`${site.origin}/`), html: { links: { external: [href] } } } as unknown as Facts;

@@ -95,7 +95,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 - Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`, `/sitemap.txt` and `/sitemap_index.xml` when no seed names a sitemap. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
 - Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`, the longest over the seed origins, since Crawlee applies one delay to every domain. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
-- Off-scope LINKS (`<a href>`) are recorded as facts and, when `links/broken-external` is enabled, probed for existence only: `HEAD`, `GET` on a `405`, one request at a time per host, each answer in `site.links`. A `429`, a bot wall (`cf-mitigated: challenge`, LinkedIn’s `999`) or a guard-refused address is not judged, and only a healthy or walled answer is cached, so a fixed link clears on the next run.
+- Off-scope LINKS (`<a href>`) are recorded as facts and, when `links/broken-external` is enabled, probed for existence only: `HEAD`, `GET` on a `405`, one request at a time per host, each answer in `site.links`. A host `links.exclude` names, or a subdomain of one, is never asked. A `429`, a bot wall (`cf-mitigated: challenge`, LinkedIn’s `999`) or a guard-refused address is not judged, and only a healthy or walled answer is cached, so a fixed link clears on the next run.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
 - Limits: `--max-pages` (`maxRequestsPerCrawl`), `--max-depth` (`maxCrawlDepth`), `--include` / `--exclude` globs applied before enqueue.
 - Bodies: HTML, XML and JSON are read up to `--max-body-size` (10 MB); any other type is judged by its headers and its download aborted once they arrive — one round trip, where `HEAD` then `GET` would cost two. `http.size.truncated` marks both.
@@ -382,6 +382,7 @@ org:
     rate: 0                            # requests per minute, 0 = unlimited
     max-pages: 0
     resources: { fetch: true, max-per-page: 200 }
+    links: { exclude: [] }             # hosts, with their subdomains, whose links are never probed
     proxy: ""                          # socks5h://127.0.0.1:9050 for Tor
     robots: true
     sitemap: true

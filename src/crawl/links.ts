@@ -33,8 +33,17 @@ async function probeOne(href: string, config: Pick<Config, "allowPrivate">, sign
     }
 }
 
-// One link’s answer, from `bucket` while fresh; only a healthy or walled answer is stored, so a broken link is asked again every run.
-export async function answerOf(href: string, config: Pick<Config, "allowPrivate">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
+// Whether an answer says anything about its link: not excluded, refused, walled or rate limited.
+export function isJudged(answer: LinkFacts): boolean {
+    return !answer.excluded && !answer.refused && !answer.walled && answer.status !== 429;
+}
+
+// One link’s answer, from `bucket` while fresh; an excluded host is never asked, and only a healthy or walled answer is stored.
+export async function answerOf(href: string, config: Pick<Config, "allowPrivate" | "linkExclude">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
+    const host = new URL(href).hostname;
+    const isExcluded = config.linkExclude.some((entry) => host === entry || host.endsWith(`.${entry}`));
+    log.debug({ url: href, host, isExcluded }, "external link scoped");
+    if (isExcluded) return { status: 0, excluded: true };
     const entry = await bucket.get(href);
     if (entry && bucket.isFresh(entry)) return { ...entry.value, cached: true };
     const answer = await probeOne(href, config, signal);
@@ -45,7 +54,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
 }
 
 // Probes every distinct http(s) external link once, one request at a time per host, hosts in parallel.
-export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPrivate" | "concurrency">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
+export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
     const hrefs = [...new Set(pages.flatMap((page) => page.html?.links.external ?? []))].filter((href) => /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.info({ links: hrefs.length }, "external links found");
@@ -64,8 +73,8 @@ export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPriv
     const workers = Array.from({ length: Math.min(width(config.concurrency), hrefs.length) }, worker);
     await Promise.all(workers);
     const all = Object.values(answers);
-    const walled = all.filter((answer) => answer.walled).length;
-    const failed = all.filter((answer) => !answer.walled && (answer.status === 0 || answer.status >= 400)).length;
-    log.info({ links: hrefs.length, cached, failed, walled }, "external links probed");
+    const skipped = all.filter((answer) => !isJudged(answer)).length;
+    const failed = all.filter((answer) => isJudged(answer) && (answer.status === 0 || answer.status >= 400)).length;
+    log.info({ links: hrefs.length, cached, failed, skipped }, "external links probed");
     return answers;
 }

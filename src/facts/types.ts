@@ -35,13 +35,14 @@ export interface SitemapFileFacts {
     error?: string;
 }
 
-// One off-scope link’s probe answer; status 0 is no answer, `refused` a private address the guard kept closed, `walled` a bot wall answering instead of the page.
+// One off-scope link’s probe answer; status 0 is no answer, `refused` a private address the guard kept closed, `walled` a bot wall answering instead of the page, `excluded` a host `links.exclude` names.
 export interface LinkFacts {
     status: number;
     method?: "HEAD" | "GET";
     error?: string;
     refused?: true;
     walled?: true;
+    excluded?: true;
 }
 
 // Facts about the site rather than any one page, read by group and site rules.

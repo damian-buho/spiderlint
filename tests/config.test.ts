@@ -68,6 +68,7 @@ describe("validateSubtree", () => {
             "max-pages": 0,
             "max-depth": 0,
             resources: { fetch: true, "max-per-page": 200 },
+            links: { exclude: ["linkedin.com"] },
             proxy: "",
             robots: true,
             sitemap: true,

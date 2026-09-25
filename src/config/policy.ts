@@ -14,7 +14,7 @@ import { validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "cacheMode" | "cacheTtl" | "resolver">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "cacheMode" | "cacheTtl" | "resolver">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -75,6 +75,8 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     const resources = subtree.resources as { fetch?: boolean; "max-per-page"?: number } | undefined;
     if (resources?.fetch !== undefined) settings.fetchResources = resources.fetch;
     if (resources?.["max-per-page"] !== undefined) settings.maxResourcesPerPage = resources["max-per-page"];
+    const links = subtree.links as { exclude?: string[] } | undefined;
+    if (links?.exclude !== undefined) settings.linkExclude = links.exclude.map((host) => host.toLowerCase());
     if (subtree["canonical-origin"] !== undefined) settings.canonicalOrigin = originOf("org.spiderlint/canonical-origin", subtree["canonical-origin"] as string);
     if (subtree.proxy !== undefined) settings.proxy = proxyOf("org.spiderlint/proxy", subtree.proxy as string);
     if (subtree.resolver !== undefined) settings.resolver = parseResolver(subtree.resolver as string);

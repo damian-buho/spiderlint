@@ -4,7 +4,8 @@
 
 import { reason } from "../crawl/fetch.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
-import type { Facts } from "../facts/types.ts";
+import { isJudged } from "../crawl/links.ts";
+import type { Facts, LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { mediaType } from "./origin.ts";
@@ -160,11 +161,11 @@ const llmsTxt: Check = async (text, { url }, context) => {
     let probed = 0;
     for (const link of distinct) {
         const isProbed = !statuses.has(link) && /^https?:$/.test(new URL(link).protocol);
-        const answer = isProbed ? await context.link(link) : { status: statuses.get(link) };
+        const answer: Omit<LinkFacts, "status"> & { status?: number } = isProbed ? await context.link(link) : { status: statuses.get(link) };
         probed += isProbed ? 1 : 0;
         log.debug({ link, status: answer.status, isProbed }, "llms.txt link judged");
-        if (answer.status === undefined || ("refused" in answer && answer.refused) || ("walled" in answer && answer.walled)) continue;
-        if (answer.status === 0) errors.push(`${link} is unreachable: ${"error" in answer ? answer.error : "no answer"}`);
+        if (answer.status === undefined || !isJudged({ ...answer, status: answer.status })) continue;
+        if (answer.status === 0) errors.push(`${link} is unreachable: ${answer.error ?? "no answer"}`);
         else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
     }
     return { errors, fields: { title: headings[0]?.slice(2).trim(), links: links.length, probed } };

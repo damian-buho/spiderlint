@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { isJudged } from "../crawl/links.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Make, Severity } from "./types.ts";
@@ -20,7 +21,7 @@ const brokenInternal: Make = (severity) => ({
     },
 });
 
-// Every probed external link answering 4xx or 5xx, or nothing, once per target, with the pages linking to it; a 429, a bot wall or a refused address is not judged.
+// Every probed external link answering 4xx or 5xx, or nothing, once per target, with the pages linking to it; a 429, a bot wall, an excluded host or a refused address is not judged.
 const brokenExternal: Make = (severity) => ({
     meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"] },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
@@ -33,8 +34,8 @@ const brokenExternal: Make = (severity) => ({
         const findings: Finding[] = [];
         for (const [href, urls] of linking) {
             const answer = answers[href];
-            const isBroken = answer !== undefined && !answer.refused && !answer.walled && answer.status !== 429 && (answer.status === 0 || answer.status >= 400);
-            log.debug({ rule: "links/broken-external", url: href, status: answer?.status, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
+            const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
+            log.debug({ rule: "links/broken-external", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
             if (!isBroken) continue;
             const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
             findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, message: `${verdict}; linked from ${pageCount(urls.length)}`, value: answer.status, urls });

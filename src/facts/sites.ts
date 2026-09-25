@@ -31,7 +31,7 @@ function subjects(pages: Facts[], per: SiteExtractor["per"]): Map<string, Facts[
 }
 
 // One subject’s facts, abandoned with its probes once the extractor’s timeout passes.
-async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate">, dns: DnsClient, probes: ProbeBucket): Promise<unknown> {
+async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate" | "linkExclude">, dns: DnsClient, probes: ProbeBucket): Promise<unknown> {
     const timeout = extractor.timeout ?? TIMEOUT_MS;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
@@ -41,7 +41,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
 }
 
 // Runs each active extractor once per subject, from `bucket` while fresh, and returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket): Promise<string[]> {
+export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket): Promise<string[]> {
     const jobs = active.flatMap((extractor) => [...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members })));
     log.info({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length }, "site extractors start");
     const ran: string[] = [];
