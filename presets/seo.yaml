@@ -30,6 +30,17 @@ rules:
     severity: info
     message: "no meta color-scheme"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+  html/theme-color-schemes:
+    when: {html.meta.color-scheme: {type: string, allOf: [{pattern: "(?i:\\blight\\b)"}, {pattern: "(?i:\\bdark\\b)"}]}}
+    fact: html.metas
+    expect:
+      allOf:
+        - {contains: {properties: {name: {const: theme-color}}, required: [name]}, minContains: 2}
+        - {contains: {properties: {name: {const: theme-color}, media: {pattern: "(?i:prefers-color-scheme)"}}, required: [name, media]}}
+    severity: warning
+    message: "color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media"
+    fix: "add <meta name=theme-color media=\"(prefers-color-scheme: dark)\"> beside the light one"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
   html/noindex-listed:
     fact: robots.noindex
     expect: {const: false}

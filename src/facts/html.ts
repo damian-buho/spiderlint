@@ -22,6 +22,16 @@ function firstAttribute($: CheerioAPI, selector: string, key: string): Record<st
     return out;
 }
 
+// Every `<meta name>` in order, so a repeated name keeps each `media` variant.
+function metas($: CheerioAPI): HtmlFacts["metas"] {
+    return $("meta[name][content]")
+        .map((_, element) => {
+            const media = $(element).attr("media");
+            return { name: String($(element).attr("name")).toLowerCase(), content: String($(element).attr("content")), ...(media !== undefined && { media }) };
+        })
+        .get();
+}
+
 // Resolves every href against the page; unparsable ones are dropped.
 function hrefs($: CheerioAPI, selector: string, page: URL): URL[] {
     return $(selector)
@@ -101,6 +111,7 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
         h1: $("h1").map((_, element) => $(element).text().trim()).get(),
         canonical: $('link[rel="canonical"]').attr("href"),
         meta: firstAttribute($, "meta[name][content]", "name"),
+        metas: metas($),
         property: firstAttribute($, "meta[property][content]", "property"),
         head: { links: headLinks($, page) },
         hreflang: $("link[rel~='alternate'][hreflang][href]").map((_, element) => ({ lang: String($(element).attr("hreflang")), href: resolve(String($(element).attr("href")), page) })).get(),

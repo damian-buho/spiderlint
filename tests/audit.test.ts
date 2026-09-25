@@ -189,6 +189,16 @@ describe("audit", () => {
         assert.ok(of("html/description-redundant").every((finding) => finding.url !== `${site.origin}/app/`));
     });
 
+    it("keeps each repeated meta name with its media, and flags a light and dark page with one theme-color", () => {
+        const home = report.pages.find((page) => page.url.pathname === "/");
+        assert.deepEqual(home?.html?.metas.filter((meta) => meta.name === "theme-color"), [
+            { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
+            { name: "theme-color", content: "#101010", media: "(prefers-color-scheme: dark)" },
+        ]);
+        assert.equal(home?.html?.meta["theme-color"], "#ffffff");
+        assert.deepEqual(of("html/theme-color-schemes").map((finding) => finding.url), [`${site.origin}/about`]);
+    });
+
     it("reports missing opengraph tags", () => {
         for (const rule of ["html/og-title", "html/og-description", "html/og-image", "html/og-type", "html/og-url"]) {
             assert.deepEqual(of(rule).map((finding) => finding.url), [`${site.origin}/app/`], rule);
@@ -243,7 +253,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}295 of 343 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}298 of 345 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
     });
 
@@ -275,8 +285,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 343, failed: 48, errored: 6, passed: 295 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8601, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 345, failed: 47, errored: 6, passed: 298 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8638, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

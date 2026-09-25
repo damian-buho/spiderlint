@@ -95,6 +95,7 @@ export interface HtmlFacts {
     h1: string[];
     canonical?: string;
     meta: Record<string, string>;
+    metas: { name: string; content: string; media?: string }[];
     property: Record<string, string>;
     head: { links: Partial<Record<"rel" | "href" | "type" | "hreflang" | "sizes" | "media" | "as" | "crossorigin", string>>[] };
     hreflang: { lang: string; href: string }[];
