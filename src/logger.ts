@@ -48,10 +48,13 @@ export function oneLine(entry: Record<string, unknown>, messageKey: string): str
     ].filter(Boolean).join(" ");
 }
 
-// JSON to stderr so stdout stays the report; one readable line per entry on a terminal.
+// `pretty` or `json`; unset, a terminal gets `pretty`.
+const format = process.env.SPIDERLINT_LOG_FORMAT ?? (process.stderr.isTTY ? "pretty" : "json");
+
+// JSON to stderr so stdout stays the report; one readable line per entry when pretty.
 export const log = pino(
     { level, formatters },
-    process.stderr.isTTY
+    format === "pretty"
         ? pretty({ destination: 2, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } })
         : pino.destination(2),
 );
