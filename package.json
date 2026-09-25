@@ -24,6 +24,7 @@
     "axe-core": "4.13.0",
     "cheerio": "1.0.0-rc.12",
     "crawlee": "3.18.1",
+    "dns-packet": "5.6.1",
     "html-validate": "11.16.0",
     "http-cache-semantics": "4.2.0",
     "picomatch": "4.0.7",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/dns-packet": "5.6.5",
     "@types/http-cache-semantics": "4.2.0",
     "@types/node": "26.6.1",
     "@types/picomatch": "4.0.3",
