@@ -8,6 +8,8 @@ export interface Checks {
     total: number;
     passed: number;
     failed: number;
+    errored: number;
+    advised: number;
 }
 
 export interface Rating {
@@ -25,9 +27,10 @@ const FLOORS: [number, Grade][] = [
     [2, "E"],
 ];
 
-// S only with no failed check at all; no grade when nothing was judged.
+// Grade by share passed; S needs no finding at all, an error caps at B, nothing judged means no grade.
 export function rate(checks: Checks, rulesets: string[]): Rating | undefined {
     if (checks.total === 0) return undefined;
-    const grade = checks.failed === 0 ? "S" : (FLOORS.find(([tenths]) => checks.passed * 10 >= tenths * checks.total)?.[1] ?? "F");
+    const floors = checks.errored > 0 ? FLOORS.slice(1) : FLOORS;
+    const grade = checks.failed + checks.advised === 0 ? "S" : (floors.find(([tenths]) => checks.passed * 10 >= tenths * checks.total)?.[1] ?? "F");
     return { grade, score: Number((checks.passed / checks.total).toFixed(4)), rulesets };
 }

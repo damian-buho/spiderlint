@@ -9,8 +9,8 @@ import { rate } from "../src/report/rating.ts";
 import { runRules } from "../src/rules/run.ts";
 import type { Finding, Rule } from "../src/rules/types.ts";
 
-function checks(passed: number, total: number) {
-    return { total, passed, failed: total - passed };
+function checks(passed: number, total: number, errored = 0, advised = 0) {
+    return { total, passed, failed: total - passed, errored, advised };
 }
 
 function page(pathname: string): Facts {
@@ -44,6 +44,15 @@ describe("rating", () => {
         for (const [passed, total, grade] of cases) assert.equal(rate(checks(passed, total), [])?.grade, grade, `${passed} of ${total}`);
     });
 
+    it("withholds S from a run with any info finding", () => {
+        assert.equal(rate(checks(100, 100, 0, 1), [])?.grade, "A");
+    });
+
+    it("caps a run with an error at B", () => {
+        assert.equal(rate(checks(999, 1000, 1), [])?.grade, "B");
+        assert.equal(rate(checks(60, 100, 1), [])?.grade, "C");
+    });
+
     it("gives no grade when nothing was judged", () => {
         assert.equal(rate(checks(0, 0), ["seo"]), undefined);
     });
@@ -51,13 +60,13 @@ describe("rating", () => {
 
 describe("checks", () => {
     it("counts a page once however many findings it has, passes info, skips when-guarded pages", () => {
-        const rule = pageRule({ "/a": [], "/b": ["error", "error", "warning"], "/c": ["info"] });
-        const run = runRules([page("/a"), page("/b"), page("/c"), page("/d")], new Map([["default", [rule]]]), {} as never);
-        assert.deepEqual(run.checks, { total: 3, failed: 1 });
+        const rule = pageRule({ "/a": [], "/b": ["error", "error", "warning"], "/c": ["info"], "/e": ["warning"] });
+        const run = runRules([page("/a"), page("/b"), page("/c"), page("/d"), page("/e")], new Map([["default", [rule]]]), {} as never);
+        assert.deepEqual(run.checks, { total: 4, failed: 2, errored: 1, advised: 1 });
     });
 
     it("counts nothing for a group without pages", () => {
         const run = runRules([], new Map([["default", [pageRule({})]]]), {} as never);
-        assert.deepEqual(run.checks, { total: 0, failed: 0 });
+        assert.deepEqual(run.checks, { total: 0, failed: 0, errored: 0, advised: 0 });
     });
 });
