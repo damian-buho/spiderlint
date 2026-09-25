@@ -1,6 +1,6 @@
 {
   "name": "dbuho-spiderlint",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Site-wide linter for SEO tags, security headers, TLS and links",
@@ -67,20 +67,20 @@
     "sarif"
   ],
   "author": {
-    "name": "Damián Búho",
     "email": "damian.buho@proton.me",
+    "name": "Damián Búho",
     "url": "https://dbuho.me"
   },
   "maintainers": [
     {
-      "name": "Damián Búho",
       "email": "damian.buho@proton.me",
+      "name": "Damián Búho",
       "url": "https://dbuho.me"
     }
   ],
   "repository": {
-    "url": "ssh://git@kiota.ch/damian-buho/spiderlint.git",
-    "type": "git"
+    "type": "git",
+    "url": "ssh://git@kiota.ch/damian-buho/spiderlint.git"
   },
   "os": [
     "linux"
