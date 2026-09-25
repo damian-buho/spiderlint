@@ -36,7 +36,7 @@ function elide(text: string, max: number): string {
 // Rendering of an offending value for the finding message; a title or description shows whole.
 export function describe(value: unknown): string {
     if (typeof value === "string") return `${value.length} characters: “${elide(value, 200)}”`;
-    if (Array.isArray(value)) return `${value.length} items`;
+    if (Array.isArray(value)) return value.length > 0 && value.every((item) => typeof item === "string") ? `${value.length} items: ${elide(value.map((item) => `“${item}”`).join(", "), 200)}` : `${value.length} items`;
     const json = JSON.stringify(value);
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
 }
