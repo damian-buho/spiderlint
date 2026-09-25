@@ -25,6 +25,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Dead links, on the site and off it
 - Each origin checked once, beyond its pages
 - Page dependencies fetched once
+- robots.txt read the way crawlers read it
 - Rules as data, with presets
 - Crawl once, lint many times
 - Transport checked per page, not per host

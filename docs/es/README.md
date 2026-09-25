@@ -27,6 +27,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Enlaces rotos, dentro y fuera del sitio
 - Cada origen comprobado una vez, más allá de sus páginas
 - Dependencias de página descargadas una sola vez
+- robots.txt leído como lo leen los rastreadores
 - Reglas como datos, con preajustes
 - Rastrear una vez, analizar muchas
 - Transporte comprobado por página, no por host
