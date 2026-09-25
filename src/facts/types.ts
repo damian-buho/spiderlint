@@ -45,9 +45,35 @@ export interface LinkFacts {
     excluded?: true;
 }
 
+// One `robots.txt` group: the agents it names and the rules it gives them.
+export interface RobotsGroupFacts {
+    agents: string[];
+    allow: string[];
+    disallow: string[];
+    crawlDelay?: number;
+}
+
+// One `Content-Signal` line, its agents empty outside a group, its signals as written.
+export interface ContentSignalFacts {
+    agents: string[];
+    value: string;
+    signals: Record<string, string>;
+}
+
+// One origin’s `robots.txt` as fetched; status 0 is no answer, and only a 2xx body is parsed.
+export interface RobotsFileFacts {
+    url: string;
+    status: number;
+    error?: string;
+    groups: RobotsGroupFacts[];
+    sitemaps: string[];
+    contentSignals: ContentSignalFacts[];
+}
+
 // Facts about the site rather than any one page, read by group and site rules.
 export interface SiteFacts {
     sitemaps: SitemapFileFacts[];
+    robots?: RobotsFileFacts[];
     redirects?: Record<string, string>;
     // Probe answers by off-scope link URL.
     links?: Record<string, LinkFacts>;

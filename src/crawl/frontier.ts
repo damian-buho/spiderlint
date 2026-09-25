@@ -6,9 +6,9 @@ import { ProxyConfiguration, type Configuration, type EnqueueLinksOptions, type 
 import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
-import type { Facts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
+import type { Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { crawlDelayOf, type RobotsFor } from "./robots.ts";
+import { crawlDelayOf, robotsFactsOf, type RobotsFor } from "./robots.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
@@ -72,6 +72,7 @@ export class Frontier {
     readonly #skipped = new Map<string, string>();
     readonly #visited = new Set<string>();
     readonly #globs: Globs;
+    #robots: RobotsFileFacts[] = [];
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     #handled = 0;
     #crawler?: Runnable;
@@ -132,9 +133,14 @@ export class Frontier {
         return false;
     }
 
+    // Each seed’s origin, once.
+    #origins(): string[] {
+        return [...new Set(this.#config.seeds.map((seed) => new URL(seed).origin))];
+    }
+
     // The longest `Crawl-delay` over the seed origins, as Crawlee applies one delay to every domain.
     async #crawlDelay(robots: RobotsFor): Promise<number> {
-        const origins = [...new Set(this.#config.seeds.map((seed) => new URL(seed).origin))];
+        const origins = this.#origins();
         const delays = await Promise.all(origins.map(async (origin) => crawlDelayOf(await robots(origin))));
         const delay = Math.max(0, ...delays);
         if (delay > 0) log.info({ delay, origins: origins.length }, "robots.txt crawl-delay honoured, seconds between requests per domain");
@@ -193,6 +199,11 @@ export class Frontier {
         return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length;
     }
 
+    // What the crawl learnt about the site: sitemap files, and each seed origin’s robots.txt when one was read.
+    site(): SiteFacts {
+        return { sitemaps: this.files, ...(this.#robots.length > 0 && { robots: this.#robots }) };
+    }
+
     // Seeds first, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket.
     async run(crawler: Runnable, robots: RobotsFor): Promise<void> {
         const answer = (url: string) => (this.#config.robots ? robots(url) : Promise.resolve(undefined));
@@ -201,6 +212,10 @@ export class Frontier {
         if (delay > 0) Object.assign(crawler, { sameDomainDelayMillis: delay * 1000 });
         this.#crawler = crawler;
         await crawler.run(this.#config.seeds);
+        const isRead = this.#config.robots || this.#config.sitemap;
+        const files = isRead ? await Promise.all(this.#origins().map(async (origin) => robotsFactsOf(await robots(origin)))) : [];
+        this.#robots = files.filter((facts) => facts !== undefined);
+        log.debug({ isRead, files: this.#robots.length }, "robots.txt facts collected");
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
         if (this.#skipped.size > 0) log.info({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
     }

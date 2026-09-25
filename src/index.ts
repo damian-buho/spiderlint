@@ -64,6 +64,7 @@ export interface Report {
     pages: Facts[];
     findings: Finding[];
     summary: Summary;
+    site: SiteFacts;
 }
 
 // `default` is the implicit catch-all, sampling every page; top-level `rules` replaces every group's, else a group without `rules` gets `recommended`.
@@ -261,7 +262,7 @@ function linter(config: Config): Lint {
         const summary = summarize(pages, run, rules, started, cost, rulesets);
         log.debug(summary, "lint summary");
         log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
-        return { pages, findings, summary };
+        return { pages, findings, summary, site };
     };
 }
 
@@ -455,6 +456,6 @@ export { definePlugin, type Extractor, type Plugin, type SiteContext, type SiteE
 export async function reportStore(directory: string): Promise<Report> {
     return withStore(directory, { fresh: false }, async (store) => {
         const stored = await store.report();
-        return { pages: await store.pages(), findings: stored.findings, summary: stored.summary };
+        return { pages: await store.pages(), findings: stored.findings, summary: stored.summary, site: await store.site() };
     });
 }

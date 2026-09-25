@@ -12,6 +12,7 @@ extends:
   - spiderlint:cookies
   - spiderlint:redirects
   - spiderlint:sitemap
+  - spiderlint:robots
   - spiderlint:resources
   - spiderlint:origin
   - spiderlint:dns:core

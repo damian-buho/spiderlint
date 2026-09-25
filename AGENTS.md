@@ -15,7 +15,7 @@ Status: v1 in progress. Implemented: http and browser crawl with link
 discovery, scope, depth, glob and body-size limits; `auto` fetch derived per
 run (browser when any group pins it or any enabled rule reads `browser.*`); sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
-`seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
+`seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
 `sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
@@ -93,7 +93,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 
 - Seeds: CLI URLs, else each selected site’s `targets`, else `spiderlint.targets`. Projectfile `links` never seed a crawl.
 - Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`, `/sitemap.txt` and `/sitemap_index.xml` when no seed names a sitemap. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
-- Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`, the longest over the seed origins, since Crawlee applies one delay to every domain. `--no-robots` prints a warning and is intended for staging hosts.
+- Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`, the longest over the seed origins, since Crawlee applies one delay to every domain. Crawlee keeps its parser private, so `crawl/robots.ts` parses each file once more (RFC 9309 groups, `Sitemap:`, `Content-Signal:`) for both `Crawl-delay` and `site.robots`, one entry per seed origin; only a `2xx` body is parsed. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
 - Off-scope LINKS (`<a href>`) are recorded as facts and, when `links/broken-external` is enabled, probed for existence only: `HEAD`, `GET` on a `405`, one request at a time per host, each answer in `site.links`. A host `links.exclude` names, or a subdomain of one, is never asked. A `429`, a bot wall (`cf-mitigated: challenge`, LinkedIn’s `999`) or a guard-refused address is not judged, and only a healthy or walled answer is cached, so a fixed link clears on the next run.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
@@ -206,6 +206,8 @@ group and site rules beside the pages:
 
 ```yaml
 site:     { sitemaps: [{ url, status, urls, sitemaps, error }],
+            robots: [{ url, status, error, groups: [{ agents, allow, disallow, crawlDelay }], sitemaps: [],
+                       contentSignals: [{ agents, value, signals: { search: yes|no } }] }],   # per seed origin; agents lower-cased
             origins: { "https://example.org": { <site extractor ID>: … } },   # per: origin
             hosts: { "example.org": { <site extractor ID>: … } } }           # per: host
 ```
@@ -285,7 +287,7 @@ because facts are always retained even when bodies are not.
 - `unique: <fact>` at `scope: site` groups pages by the fact’s value and reports every value held by two or more DISTINCT URLs, one finding per value with the URL list. A redirect and its target count once. `html/unique-title`, `html/unique-description` and `html/unique-h1` are the SEO trio; `scope: group` narrows the same check to one template when a site legitimately repeats a title across sections.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
 - `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
-- Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
+- Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), the `robots` preset over `site.robots` — `robots/disallow-all` (`*` shut out of `/` with no `Allow`), `robots/ai-crawlers` (`info`: the AI crawler tokens a `robots.txt` names, by purpose, with retired ones marked) and `robots/content-signal` (only `search`, `ai-input`, `ai-train`, each `yes` or `no`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.
 - Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--disabled-rules` override per ID, as in ignorelint.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
@@ -295,7 +297,7 @@ Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plu
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
-SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`), `redirects` (chain length, http→https→www hops, mixed content).
+SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`), `robots` (in `recommended`), `redirects` (chain length, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
 not `2xx`), `resources/cache-control` (a hashed or `immutable` asset without
@@ -431,7 +433,7 @@ spiderlint audit  [url…]                  crawl + lint into the site’s store
 spiderlint crawl  [url…]                  accumulate only
 spiderlint lint   [url…]                  rules over stored facts, no network
 spiderlint report [url…]                  re-format stored findings
-spiderlint facts  <url>                   one page’s facts document as JSON
+spiderlint facts  <url>                   one page’s facts document as JSON, the site document under `site`
 spiderlint groups [url…]                  page count per group, unmatched pages
 spiderlint rules [ruleset…]               every rule: severity here, scope, ruleset, docs
 spiderlint presets                        shipped rulesets, rule count, used by a group

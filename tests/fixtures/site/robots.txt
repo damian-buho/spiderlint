@@ -2,8 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 User-agent: *
+Content-Signal: search=yes, ai-train=no
 Disallow: /private/
 Crawl-delay: 0.01
+
+User-agent: GPTBot
+User-agent: anthropic-ai
+Disallow: /
 Sitemap: http://fixture.test/sitemap-broken.xml
 Sitemap: http://fixture.test/sitemap.xml
 Sitemap: http://fixture.test/sitemap-extra.xml.gz

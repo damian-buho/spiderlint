@@ -248,5 +248,5 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
     await frontier.run(crawler, cache.robots);
-    return { site: { sitemaps: frontier.files }, launches };
+    return { site: frontier.site(), launches };
 }

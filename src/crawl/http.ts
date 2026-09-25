@@ -140,5 +140,5 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     );
     await frontier.run(crawler, cache.robots);
     if (revalidatedPages > 0) log.info({ revalidated: revalidatedPages }, "pages revalidated");
-    return { site: { sitemaps: frontier.files }, launches: 0 };
+    return { site: frontier.site(), launches: 0 };
 }

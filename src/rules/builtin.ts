@@ -5,6 +5,7 @@
 import { isJudged } from "../crawl/links.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { robotsRules } from "./robots.ts";
 import type { Finding, Make, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
@@ -210,6 +211,7 @@ export const builtin: Record<string, Make> = {
     "http/early-hints-preload": earlyHintsPreload,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
+    ...robotsRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",

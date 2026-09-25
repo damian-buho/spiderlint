@@ -94,6 +94,21 @@ describe("audit", () => {
         assert.equal(crawlDelayOf(await robots(`${site.origin}/`)), 0.01);
     });
 
+    it("reads every robots.txt field into the site facts", () => {
+        assert.deepEqual(report.site.robots, [
+            {
+                url: `${site.origin}/robots.txt`,
+                status: 200,
+                groups: [
+                    { agents: ["*"], allow: [], disallow: ["/private/"], crawlDelay: 0.01 },
+                    { agents: ["gptbot", "anthropic-ai"], allow: [], disallow: ["/"] },
+                ],
+                sitemaps: ["sitemap-broken.xml", "sitemap.xml", "sitemap-extra.xml.gz", "sitemap-gone.xml", "about.html"].map((file) => `${site.origin}/${file}`),
+                contentSignals: [{ agents: ["*"], value: "search=yes, ai-train=no", signals: { search: "yes", "ai-train": "no" } }],
+            },
+        ]);
+    });
+
     it("reads charset, head links, hreflang, JSON-LD, scripts and robots directives into facts", () => {
         const about = report.pages.find((page) => page.url.pathname === "/about");
         assert.equal(about?.html?.dir, "ltr");

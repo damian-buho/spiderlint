@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: robots.txt shutting every crawler out, the AI crawlers it names, and its Content Signals
+rules:
+  robots/disallow-all: warning
+  robots/ai-crawlers: info
+  robots/content-signal: warning

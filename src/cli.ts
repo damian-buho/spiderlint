@@ -31,7 +31,7 @@ Commands:
   crawl [url…]          crawl into the store, lint nothing
   lint [url…]           lint the stored facts, no network
   report [url…]         re-format the stored report
-  facts <url>           one page’s facts as JSON
+  facts <url>           one page’s facts as JSON, with the site’s
   groups [url…]         page count per group
   rules [ruleset…]      every rule, its severity here and its docs
   presets               shipped rulesets and whether groups use them
@@ -363,7 +363,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
             maxPages: command === "facts" ? 1 : config.maxPages,
             groups: command === "facts" ? { default: { rules: [] } } : config.groups,
         }, options);
-        if (command === "facts") console.log(JSON.stringify(report.pages[0], undefined, 2));
+        if (command === "facts") console.log(JSON.stringify({ ...report.pages[0], site: report.site }, undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
         else console.log(format(report, painter(process.stdout, values.color), config.fold === false));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
