@@ -14,6 +14,7 @@ import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
 import { probeLinks } from "./crawl/links.ts";
+import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { dnsClient } from "./crawl/dns.ts";
@@ -288,13 +289,30 @@ async function servedOffline(pages: Facts[], store: DiskStore | undefined, activ
     return { pages, site, cost };
 }
 
-// Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
+// Fetches with the run’s network open: paced, and proxied when configured.
 async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
+    const network = await openNetwork(config);
+    try {
+        return await crawlOpen(config, store, network.proxy);
+    } finally {
+        await network.close();
+    }
+}
+
+// Site extractors a proxied run can serve: none that queries DNS past the proxy.
+function proxied(active: SiteExtractor[], config: Config): SiteExtractor[] {
+    const skipped = config.proxy ? active.filter((extractor) => extractor.resolves) : [];
+    if (skipped.length > 0) log.warn({ extractors: skipped.map((extractor) => extractor.id) }, "DNS queries bypass the proxy; skipped");
+    return active.filter((extractor) => !skipped.includes(extractor));
+}
+
+// Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
+async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
     const rules = enabledRules(config);
     const active = extractorsFor(rules);
-    const siteActive = siteExtractorsFor(rules);
+    const siteActive = proxied(siteExtractorsFor(rules), config);
     const sample = samplerOf(config);
     if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample);
     for (const facts of earlier) memory.add(facts);
@@ -311,6 +329,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
         config,
         async (facts, body, live) => {
             fetched += 1;
+            if (proxy) delete facts.http.remote;
             revalidated += facts.http.revalidated ? 1 : 0;
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
@@ -323,6 +342,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
         },
         cache,
         store && { config: store.config, requestQueue: store.frontier, earlier: (href) => earlierPage(store, href) },
+        proxy,
     );
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
@@ -413,6 +433,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
 export async function warmCache(overrides: Partial<Config>, directory: string): Promise<{ origins: number; sitemaps: number; urls: number }> {
     const config: Config = { ...defaults(), ...overrides };
     const release = await lockStore(directory);
+    const network = await openNetwork(config);
     try {
         logRelativeTo(config.seeds);
         const robots = robotsLoader(openBucket("robots", config, directory));
@@ -421,6 +442,7 @@ export async function warmCache(overrides: Partial<Config>, directory: string): 
         log.info(warmed, "cache warmed");
         return warmed;
     } finally {
+        await network.close();
         await release();
     }
 }

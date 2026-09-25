@@ -133,6 +133,7 @@ const addresses: SiteExtractor = {
     id: "dns",
     per: "host",
     cached: false,
+    resolves: true,
     async extract(host, context) {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
@@ -188,6 +189,7 @@ const dnssec: SiteExtractor = {
     id: "dnssec",
     per: "host",
     cached: false,
+    resolves: true,
     async extract(host, context) {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
@@ -243,6 +245,7 @@ const nameservers: SiteExtractor = {
     id: "nameservers",
     per: "host",
     cached: false,
+    resolves: true,
     async extract(host, context) {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;

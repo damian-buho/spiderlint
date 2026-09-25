@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { parseResolver } from "../crawl/dns.ts";
-import { ConfigError, originOf } from "./index.ts";
+import { ConfigError, originOf, proxyOf } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
 const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
@@ -50,6 +50,9 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_FETCH !== undefined && { fetch: pick("SPIDERLINT_FETCH", environment.SPIDERLINT_FETCH, FETCH_MODES) }),
         ...(environment.SPIDERLINT_BROWSER !== undefined && { browser: pick("SPIDERLINT_BROWSER", environment.SPIDERLINT_BROWSER, BROWSERS) }),
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),
+        ...(environment.SPIDERLINT_CONCURRENCY !== undefined && { concurrency: parseInteger("SPIDERLINT_CONCURRENCY", environment.SPIDERLINT_CONCURRENCY) }),
+        ...(environment.SPIDERLINT_RATE !== undefined && { rate: parseInteger("SPIDERLINT_RATE", environment.SPIDERLINT_RATE) }),
+        ...(environment.SPIDERLINT_PROXY !== undefined && { proxy: proxyOf("SPIDERLINT_PROXY", environment.SPIDERLINT_PROXY) }),
         ...(environment.SPIDERLINT_MAX_PAGES !== undefined && { maxPages: parseInteger("SPIDERLINT_MAX_PAGES", environment.SPIDERLINT_MAX_PAGES) }),
         ...(environment.SPIDERLINT_MAX_DEPTH !== undefined && { maxDepth: parseInteger("SPIDERLINT_MAX_DEPTH", environment.SPIDERLINT_MAX_DEPTH) }),
         ...(environment.SPIDERLINT_MAX_BODY_SIZE !== undefined && { maxBodySize: parseInteger("SPIDERLINT_MAX_BODY_SIZE", environment.SPIDERLINT_MAX_BODY_SIZE) }),

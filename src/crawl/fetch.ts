@@ -5,6 +5,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { USER_AGENT } from "../agent.ts";
 import { log } from "../logger.ts";
+import { pace } from "./network.ts";
 
 const ATTEMPTS = 3;
 const TIMEOUT_MS = 30_000;
@@ -33,6 +34,7 @@ export async function fetchRetrying<T>(url: string, consume: (response: Response
         const started = performance.now();
         const isLast = attempt === ATTEMPTS - 1;
         try {
+            await pace();
             const response = await fetch(url, { headers: { ...headers, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
             const value = await consume(response);
             log.debug({ url, status: response.status, attempt }, "fetched");

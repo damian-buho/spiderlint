@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Configuration, Request, RequestQueue, RequestTransform } from "crawlee";
+import { ProxyConfiguration, type Configuration, type Request, type RequestQueue, type RequestTransform } from "crawlee";
 import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
@@ -137,13 +137,15 @@ export class Frontier {
     }
 
     // Crawler options every adapter passes through unchanged.
-    options(storage?: CrawlStorage): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxCrawlDepth?: number; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    options(storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
             ...(storage && { requestQueue: storage.requestQueue }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
             // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
             sessionPoolOptions: { blockedStatusCodes: [] },
             maxRequestsPerCrawl: this.#config.maxPages || undefined,
+            maxRequestsPerMinute: this.#config.rate || undefined,
+            ...(proxy && { proxyConfiguration: new ProxyConfiguration({ proxyUrls: [proxy] }) }),
             maxCrawlDepth: this.#config.maxDepth || undefined,
             respectRobotsTxtFile: this.#config.robots && { userAgent: "spiderlint" },
             onSkippedRequest: ({ url, reason }) => {

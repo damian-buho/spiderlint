@@ -51,6 +51,8 @@ export interface SiteExtractor {
     timeout?: number;
     // `false` skips the `origins` bucket and runs on every crawl, for an extractor whose queries cache themselves.
     cached?: false;
+    // Queries DNS directly, which no proxy carries, so a proxied run skips it.
+    resolves?: true;
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 

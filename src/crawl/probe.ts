@@ -11,6 +11,7 @@ import { redactHeaders } from "../facts/transport.ts";
 import { log } from "../logger.ts";
 import { delay, reason } from "./fetch.ts";
 import { guardedLookup, isPrivate, PrivateAddress } from "./guard.ts";
+import { pace } from "./network.ts";
 
 const ATTEMPTS = 2;
 const TIMEOUT_MS = 10_000;
@@ -61,6 +62,7 @@ async function once(url: URL, init: ProbeInit, options: ProbeOptions): Promise<O
     const literal = url.hostname.replaceAll(/^\[|\]$/g, "");
     if (!options.allowPrivate && isIP(literal) && isPrivate(literal)) throw new PrivateAddress(`${url.hostname} is a private address`);
     const request = url.protocol === "https:" ? httpsRequest : httpRequest;
+    await pace();
     const response = await new Promise<IncomingMessage>((resolve, reject) => {
         const outgoing = request(url, { method: init.method ?? "GET", headers: { ...init.headers, "user-agent": USER_AGENT }, signal: AbortSignal.any([options.signal, AbortSignal.timeout(TIMEOUT_MS)]), ...(!options.allowPrivate && { lookup: guardedLookup }) }, resolve);
         outgoing.on("error", reject);

@@ -37,7 +37,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
 }
 
 // Probes every distinct http(s) external link once, one request at a time per host, hosts in parallel.
-export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPrivate">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
+export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPrivate" | "concurrency">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
     const hrefs = [...new Set(pages.flatMap((page) => page.html?.links.external ?? []))].filter((href) => /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.info({ links: hrefs.length }, "external links found");
@@ -53,7 +53,7 @@ export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPriv
             }
         }
     };
-    const workers = Array.from({ length: Math.min(width(), hrefs.length) }, worker);
+    const workers = Array.from({ length: Math.min(width(config.concurrency), hrefs.length) }, worker);
     await Promise.all(workers);
     const all = Object.values(answers);
     const failed = all.filter((answer) => answer.status === 0 || answer.status >= 400).length;

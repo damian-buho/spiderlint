@@ -14,6 +14,7 @@ import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
+import { width } from "./resources.ts";
 import { STRATEGY } from "./scope.ts";
 
 // The first value of a header that may repeat.
@@ -52,7 +53,7 @@ function socketOf(source: unknown): Transport["socket"] {
 }
 
 // Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<CrawlResult> {
+export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string): Promise<CrawlResult> {
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const revalidating = new WeakMap<object, Earlier>();
@@ -61,7 +62,8 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     const crawler = new CheerioCrawler(
         {
             additionalMimeTypes: ["*/*"],
-            ...frontier.options(storage),
+            ...frontier.options(storage, proxy),
+            maxConcurrency: width(config.concurrency),
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
                     Object.assign(gotOptions, { headers: { ...gotOptions.headers, "user-agent": USER_AGENT } });

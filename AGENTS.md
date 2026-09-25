@@ -20,7 +20,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
+`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
 extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, and `well-known`; the fixture site. Not yet: adaptive fetch and a
 fetch mode per group, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, the `i18n` preset, `checkstyle` and `csv`.
@@ -471,7 +471,7 @@ export default definePlugin({
 
 ## Concurrency and limits
 
-- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it. `maxRequestsPerMinute` from `rate`, `sameDomainDelaySecs` from `Crawl-delay`.
+- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`.
 - Lint from store: `piscina` worker pool sized `NUMPROCS` for static extractors; rules themselves are cheap and run inline.
 - Retries: `maxRequestRetries: 3` with Crawlee’s backoff; `429` and `503` honour `Retry-After`. `retryOnBlocked` stays off — evading bot protection on someone else’s site is not this tool’s job.
 - Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30; `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.
@@ -480,7 +480,7 @@ export default definePlugin({
 ## Tor, I2P, unusual hosts
 
 - `--proxy socks5h://127.0.0.1:9050` — the `h` is mandatory so `.onion` names resolve inside Tor, never on the host. I2P is `--proxy http://127.0.0.1:4444`.
-- Playwright takes the proxy through `--proxy-server`; verified upstream (apify/crawlee#3430). SOCKS through the HTTP crawler’s `got-scraping` is a spike task — fallback is `--fetch browser` for Tor targets.
+- One proxy carries every request of the run: both crawlers through Crawlee’s `proxyConfiguration`, robots, sitemaps, resources and probes through Node’s global proxy agents. `got-scraping` speaks HTTP proxies only, so a `socks*` proxy sits behind a loopback `proxy-chain` bridge, which resolves names inside the proxy. `http.remote` is dropped, since it would name the proxy. The `dns` plugin’s extractors query the resolver directly, so a proxied run skips them with one warning. A proxy and `allowPrivate: false` exclude each other: the address guard cannot see what the proxy connects to.
 - No assumption is baked in that a site has TLS, resolvable DNS, a sitemap, or answers in under a second. Every such property is a fact a rule may require, guarded by `when`.
 - `Onion-Location` is captured as a header fact for the `i18n`/`redirects` presets to reason about later.
 

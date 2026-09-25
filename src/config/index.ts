@@ -31,6 +31,12 @@ export interface Config {
     fetch: FetchMode;
     browser: BrowserName;
     scope: Scope;
+    // Pages or requests in flight; 0 is NUMPROCS, halved for a browser.
+    concurrency: number;
+    // Requests per minute; 0 is unlimited.
+    rate: number;
+    // `http`, `https` or `socks*` proxy URL every request goes through; empty goes direct.
+    proxy: string;
     maxPages: number;
     maxDepth: number;
     maxBodySize: number;
@@ -64,6 +70,9 @@ export function defaults(): Config {
         fetch: "auto",
         browser: "chromium",
         scope: "origin",
+        concurrency: 0,
+        rate: 0,
+        proxy: "",
         maxPages: 0,
         maxDepth: 0,
         maxBodySize: 10_000_000,
@@ -97,6 +106,14 @@ export function originOf(name: string, raw: string): string {
     const url = URL.canParse(raw) ? new URL(raw) : undefined;
     if (!url || !["http:", "https:"].includes(url.protocol)) throw new ConfigError(`${name}: invalid value ${raw} (expected an absolute http or https URL)`);
     return url.origin;
+}
+
+// A proxy URL of a scheme every client can use, or empty for none; anything else names `name` in the error.
+export function proxyOf(name: string, raw: string): string {
+    const url = URL.canParse(raw) ? new URL(raw) : undefined;
+    const isValid = raw === "" || ["http:", "https:", "socks:", "socks4:", "socks4a:", "socks5:", "socks5h:"].includes(url?.protocol ?? "");
+    if (!isValid) throw new ConfigError(`${name}: invalid value ${raw} (expected an http, https, socks4, socks4a, socks5 or socks5h URL)`);
+    return raw;
 }
 
 // Applies every defined key of `patch` over `base`; undefined keys leave `base` untouched.

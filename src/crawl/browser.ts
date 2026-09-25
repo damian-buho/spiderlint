@@ -184,18 +184,18 @@ function launcherOf(name: BrowserName): BrowserType {
 }
 
 // Renders every page in the configured browser; facts come from the rendered DOM and the browser’s own network log.
-export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage): Promise<CrawlResult> {
+export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string): Promise<CrawlResult> {
     const launcher = launcherOf(config.browser);
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
     let launches = 0;
-    // Pages rendered at once, all in one browser: half of NUMPROCS.
-    const openPages = Math.ceil(width() / 2);
-    log.debug({ openPages }, "browser concurrency");
+    // Pages rendered at once, all in one browser: `concurrency`, else half of NUMPROCS.
+    const openPages = config.concurrency || Math.ceil(width() / 2);
+    log.debug({ openPages, concurrency: config.concurrency }, "browser concurrency");
     const crawler = new Crawler(
         {
-            ...frontier.options(storage),
+            ...frontier.options(storage, proxy),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             maxConcurrency: openPages,

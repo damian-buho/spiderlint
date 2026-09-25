@@ -41,7 +41,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
 }
 
 // Runs each active extractor once per subject, from `bucket` while fresh, and returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket): Promise<string[]> {
+export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket): Promise<string[]> {
     const jobs = active.flatMap((extractor) => [...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members })));
     log.info({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length }, "site extractors start");
     const ran: string[] = [];
@@ -66,7 +66,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
             (facts[subject] ??= {})[extractor.id] = value;
         }
     };
-    const workers = Array.from({ length: Math.min(width(), jobs.length) }, worker);
+    const workers = Array.from({ length: Math.min(width(config.concurrency), jobs.length) }, worker);
     await Promise.all(workers);
     log.info({ runs: ran.length, jobs: jobs.length }, "site extractors done");
     return ran;

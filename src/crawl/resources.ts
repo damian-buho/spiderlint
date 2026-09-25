@@ -15,8 +15,9 @@ import { log } from "../logger.ts";
 
 type ResourceHttp = NonNullable<ResourceFacts["http"]>;
 
-// Pool width: NUMPROCS when the environment sets it, else the host's parallelism.
-export function width(): number {
+// Pool width: `concurrency` when set, else NUMPROCS when the environment sets it, else the host's parallelism.
+export function width(concurrency = 0): number {
+    if (concurrency > 0) return concurrency;
     const numprocs = Number(process.env.NUMPROCS);
     return Number.isSafeInteger(numprocs) && numprocs > 0 ? numprocs : availableParallelism();
 }
@@ -125,7 +126,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const worker = async () => {
         for (const url of queue) results.set(url, await fetchOne(url, config.maxBodySize, bucket, extractors));
     };
-    const workers = Array.from({ length: Math.min(width(), urls.length) }, worker);
+    const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
     await Promise.all(workers);
     const all = results.values().toArray();
     const [failed, cached, revalidated] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length];
