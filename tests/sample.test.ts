@@ -45,6 +45,13 @@ describe("sample", () => {
         assert.ok(html.every((page) => page.heavy !== undefined));
     });
 
+    it("runs it on every page when no group is declared", async () => {
+        const plain = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["heavy"], cacheMode: "off" });
+        const html = plain.pages.filter((page) => page.html);
+        assert.ok(html.length > 3);
+        assert.ok(html.every((page) => page.heavy !== undefined));
+    });
+
     it("folds a sampled rule as failing on its sampled pages", () => {
         const [folded, ...rest] = report.findings.filter((finding) => finding.rule === "heavy/ran");
         assert.equal(rest.length, 0);

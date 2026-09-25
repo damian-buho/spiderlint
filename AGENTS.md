@@ -230,7 +230,7 @@ groups:
 
 - Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s.
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
-- `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables. A crawl takes the first arrivals; `lint` backfilling a stored crawl fills each sample with the lowest URLs, so a re-lint is deterministic.
+- `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables, and is the implicit `default` group’s, so a config without groups checks every page. A crawl takes the first arrivals; `lint` backfilling a stored crawl fills each sample with the lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
 - `spiderlint groups <url>` is the dry run: crawls, prints the page count and derived fetch mode per group (with the rule that forced it), and lists pages that fell through to `default`.
 
