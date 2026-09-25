@@ -15,7 +15,7 @@ const TRACE = /Traceback \(most recent call last\)|^\s+at \S.*:\d+:\d+\)?$|Stack
 const LANGUAGES = ["en", "uk", "ja", "ar"];
 
 // A response’s media type without parameters.
-function mediaType(answer: Probe): string {
+export function mediaType(answer: Probe): string {
     return String(answer.headers["content-type"] ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
 }
 

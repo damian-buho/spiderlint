@@ -29,6 +29,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Reglas como datos, con preajustes
 - Rastrear una vez, analizar muchas
 - Transporte comprobado por página, no por host
+- Los archivos que un sitio publica junto a sus páginas
 
 ### Heredado de B19 / Ubuntu
 

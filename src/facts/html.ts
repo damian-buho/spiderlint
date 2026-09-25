@@ -104,5 +104,11 @@ export function extractHtml($: CheerioAPI, page: URL, scope: Scope): HtmlFacts {
                 return { src: String($(element).attr("src") ?? ""), ...(alt !== undefined && { alt }), ...(width !== undefined && { width }), ...(height !== undefined && { height }), ...(srcset !== undefined && { srcset }), ...(isInNoscript && { noscript: true as const }) };
             })
             .get(),
+        inputs: $("input")
+            .map((_, element) => {
+                const [autocomplete, inputmode] = [$(element).attr("autocomplete"), $(element).attr("inputmode")];
+                return { type: String($(element).attr("type") ?? "text").toLowerCase(), ...(autocomplete !== undefined && { autocomplete }), ...(inputmode !== undefined && { inputmode }) };
+            })
+            .get(),
     };
 }

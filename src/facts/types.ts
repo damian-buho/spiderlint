@@ -89,6 +89,7 @@ export interface HtmlFacts {
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     links: { internal: string[]; external: string[]; nofollow: string[] };
     images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; noscript?: true }[];
+    inputs: { type: string; autocomplete?: string; inputmode?: string }[];
 }
 
 // Indexing directives merged from `<meta name=robots>` and `X-Robots-Tag`.

@@ -27,6 +27,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Rules as data, with presets
 - Crawl once, lint many times
 - Transport checked per page, not per host
+- The files a site publishes beside its pages
 
 ### Inherited from B19 / Ubuntu
 

@@ -37,7 +37,7 @@ function page(patch: Patch = {}): Facts {
         crawl: { depth: 0, discoveredVia: "seed", referrers: [] },
         sitemap: { listed: patch.listed ?? true },
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
-        html: { lang: patch.lang ?? "en-GB", h1: ["Hello"], meta, property: {}, head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], ...patch.html },
+        html: { lang: patch.lang ?? "en-GB", h1: ["Hello"], meta, property: {}, head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {} },
     };
