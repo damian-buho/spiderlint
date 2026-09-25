@@ -4,6 +4,9 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { audit, type Report } from "../src/index.ts";
 import { serveOrigin, type Origin } from "./fixtures/origin.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
@@ -36,22 +39,51 @@ describe("well-known plugin", () => {
 
     it("faults every malformed file, the missing change-password and an unregistered suffix", async () => {
         const report = await audit({ seeds: [`${broken.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
-        const expected = ["agent-card", "agent-skills", "ai-catalog", "api-catalog", "apple-app-site-association", "assetlinks", "change-password", "gpc", "llms-txt-valid", "mcp-server-card", "nodeinfo", "oauth-authorization-server", "oauth-protected-resource", "okf", "openid-configuration", "registered", "schemamap", "security-txt-expires", "security-txt-valid", "tdmrep", "traffic-advice", "webauthn"];
+        const expected = ["agent-card", "agent-skills", "ai-catalog", "api-catalog", "apple-app-site-association", "assetlinks", "change-password", "gpc", "llms-txt-valid", "markdown-source", "mcp-server-card", "nodeinfo", "oauth-authorization-server", "oauth-protected-resource", "okf", "openid-configuration", "registered", "schemamap", "security-txt-expires", "security-txt-valid", "tdmrep", "traffic-advice", "webauthn"];
         assert.deepEqual(rules(report), expected.map((id) => `well-known/${id}`));
         const message = (id: string): string => report.findings.find((finding) => finding.rule === `well-known/${id}`)?.message ?? "";
         assert.match(message("security-txt-valid"), /line 2 is not a field.*Contact nope is not a URI/);
         assert.match(message("registered"), /“made-up”/);
-        assert.match(message("llms-txt-valid"), /answers 404/);
+        assert.match(message("llms-txt-valid"), /\/missing answers 404.*\/uncrawled answers 404/);
     });
 
-    it("reports only the absent security.txt and llms.txt where every other file is missing", async () => {
+    it("reports only the absent security.txt, llms.txt and Markdown sources where every other file is missing", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["well-known", "agents"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/security-txt"]);
+        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
     });
 
     it("takes a soft 404’s HTML for absence, not for malformed files", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/security-txt"]);
+        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
+    });
+
+    it("probes an uncrawled llms.txt link once, then answers it from the probes bucket", async () => {
+        const cache = await mkdtemp(path.join(tmpdir(), "spiderlint-llms-"));
+        const saved = process.env.XDG_CACHE_HOME;
+        process.env.XDG_CACHE_HOME = cache;
+        try {
+            const options = { seeds: [`${broken.origin}/`], rules: ["agents"], cacheTtl: { origins: 0 } };
+            await audit(options);
+            const before = broken.requested.length;
+            const report = await audit(options);
+            const requested = new Set(broken.requested.slice(before));
+            assert.ok(requested.has("/llms.txt"), "the agents extractor ran again");
+            assert.ok(!requested.has("/uncrawled"), "the link came from the probes bucket");
+            assert.match(report.findings.find((finding) => finding.rule === "well-known/llms-txt-valid")?.message ?? "", /\/uncrawled answers 404/);
+        } finally {
+            if (saved === undefined) delete process.env.XDG_CACHE_HOME;
+            else process.env.XDG_CACHE_HOME = saved;
+            await rm(cache, { recursive: true, force: true });
+        }
+    });
+
+    it("records a Markdown twin on the sampled pages only", async () => {
+        const before = valid.requested.length;
+        const report = await audit({ seeds: [`${valid.origin}/`], groups: { default: { rules: ["agents"], sample: 1 } }, cacheMode: "off" });
+        const sources = report.pages.flatMap((page) => (page.markdown ? [page.markdown as { present: boolean; twin: { url: string } }] : []));
+        assert.deepEqual(sources.map((source) => [source.present, new URL(source.twin.url).pathname]), [[true, "/index.md"]]);
+        assert.ok(!valid.requested.slice(before).includes("/page.md"));
+        assert.deepEqual(rules(report), []);
     });
 
     it("probes only the files of the enabled preset", async () => {

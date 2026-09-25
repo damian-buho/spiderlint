@@ -14,10 +14,11 @@ import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
 import { probeLinks } from "./crawl/links.ts";
+import { probe } from "./crawl/probe.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { dnsClient } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
-import type { Facts, SiteFacts } from "./facts/types.ts";
+import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
@@ -30,6 +31,8 @@ import type { Finding, Rule } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { rate, type Checks, type Rating } from "./report/rating.ts";
+
+const PAGE_CONTEXT_MS = 60_000;
 
 // What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs.
 export interface Cost {
@@ -301,7 +304,9 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
             revalidated += facts.http.revalidated ? 1 : 0;
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
-            const added = await extract(facts, body, chosen, live);
+            const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
+            const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal }) };
+            const added = await extract(facts, body, chosen, live, context);
             sample.release(facts, chosen, added);
             counted(cost, added);
             if (memory.add(facts)) await store?.add(facts, body);
@@ -317,9 +322,10 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     await store?.saveResources(results);
     const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
     log.debug({ isProbed }, "external link probes decided");
-    if (isProbed) site.links = await probeLinks(memory.pages, config, openBucket("probes", config, store?.directory));
+    const probes = openBucket<LinkFacts>("probes", config, store?.directory);
+    if (isProbed) site.links = await probeLinks(memory.pages, config, probes);
     const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };

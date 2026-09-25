@@ -5,7 +5,7 @@
 import type { Page } from "playwright";
 import type { DnsClient } from "../crawl/dns.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
-import type { Facts } from "../facts/types.ts";
+import type { Facts, LinkFacts } from "../facts/types.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
 
 // Facts from one fetched page and its body, stored under `id`; undefined adds nothing.
@@ -15,7 +15,13 @@ export interface Extractor {
     mode?: "browser";
     // `expensive` runs on at most the group’s `sample` pages; `cheap`, the default, on every page.
     cost?: "cheap" | "expensive";
-    extract(page: Facts, body: string, live?: Page): Promise<unknown>;
+    extract(page: Facts, body: string, live?: Page, context?: PageContext): Promise<unknown>;
+}
+
+// What a page extractor may touch while crawling: GET or HEAD probes that stay on the page’s host; absent when a stored page is backfilled.
+export interface PageContext {
+    fetch(url: string, init?: ProbeInit): Promise<Probe>;
+    signal: AbortSignal;
 }
 
 // Facts from one fetched resource body, stored under `id` on each page’s entry for its URL; undefined adds nothing.
@@ -26,9 +32,11 @@ export interface ResourceExtractor {
     extract(url: string, contentType: string, body: Uint8Array): Promise<unknown>;
 }
 
-// What a site extractor may touch: its subject’s pages, GET or HEAD probes that stay on its host, and DNS queries to the configured resolver.
+// What a site extractor may touch: its subject’s pages, GET or HEAD probes that stay on its host, cached link answers from any host, and DNS queries to the configured resolver.
 export interface SiteContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
+    // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
+    link(url: string): Promise<LinkFacts>;
     dns: DnsClient;
     pages: readonly Facts[];
     signal: AbortSignal;

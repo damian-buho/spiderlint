@@ -16,8 +16,10 @@ const HTML = "text/html; charset=utf-8";
 function valid(origin: string): Record<string, File> {
     const expires = new Date(Date.now() + 180 * DAY_MS).toISOString();
     return {
-        "/": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Home</title></head><body><h1>Home</h1><form><input type="password" autocomplete="current-password"></form><a href="/page">Page</a><a href="/.well-known/security.txt">Security</a></body></html>'],
+        "/": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Home</title><link rel="alternate" type="text/markdown" href="/index.md"></head><body><h1>Home</h1><form><input type="password" autocomplete="current-password"></form><a href="/page">Page</a><a href="/.well-known/security.txt">Security</a></body></html>'],
         "/page": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body><h1>Page</h1></body></html>'],
+        "/index.md": [200, "text/markdown", "# Home\n"],
+        "/page.md": [200, "text/markdown", "# Page\n"],
         "/.well-known/security.txt": [200, "text/plain; charset=utf-8", `# Contact us\nContact: mailto:security@example.test\nExpires: ${expires}\nCanonical: ${origin}/.well-known/security.txt\nPreferred-Languages: en, uk\n`],
         "/.well-known/change-password": [302, HTML, "", { location: "/page" }],
         "/.well-known/gpc.json": [200, JSON_TYPE, '{"gpc": true, "lastUpdate": "2026-01-01"}'],
@@ -65,7 +67,7 @@ function broken(origin: string): Record<string, File> {
         "/.well-known/nodeinfo": [200, JSON_TYPE, JSON.stringify({ links: [{ rel: "http://nodeinfo.diaspora.software/ns/schema/2.1", href: `${origin}/nodeinfo/gone` }] })],
         "/.well-known/traffic-advice": [200, JSON_TYPE, '[{"user_agent": "prefetch-proxy", "fraction": 2}]'],
         "/.well-known/tdmrep.json": [200, JSON_TYPE, '[{"location": "/*", "tdm-reservation": "yes"}]'],
-        "/llms.txt": [200, "text/plain", "Intro first\n# One\n# Two\n- [Missing](/missing)\n"],
+        "/llms.txt": [200, "text/plain", "Intro first\n# One\n# Two\n- [Missing](/missing)\n- [Gone](/uncrawled)\n"],
         "/.well-known/agent-card.json": [200, JSON_TYPE, '{"name": "a", "skills": [{"id": "s"}]}'],
         "/.well-known/ai-catalog.json": [200, JSON_TYPE, '{"specVersion": "1.0", "entries": [{"identifier": "urn:a", "displayName": "A"}]}'],
         "/.well-known/mcp/server-card.json": [200, JSON_TYPE, "[]"],

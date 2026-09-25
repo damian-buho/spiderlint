@@ -30,7 +30,7 @@ function off(): Bucket<StoredReply> {
 // Every dns extractor’s facts for `host`, keyed as the site document holds them.
 async function extract(host: string, pages: Facts[], client: DnsClient): Promise<Record<string, unknown>> {
     const signal = new AbortController().signal;
-    const context = { pages, signal, dns: client, fetch: () => Promise.reject(new Error("no http here")) };
+    const context = { pages, signal, dns: client, fetch: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")) };
     const facts: Record<string, unknown> = {};
     const extractors = dns.sites ?? [];
     for (const extractor of extractors) {

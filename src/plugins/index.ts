@@ -17,7 +17,7 @@ import dns from "./dns.ts";
 import htmlValidate from "./html-validate.ts";
 import images from "./images.ts";
 import origin from "./origin.ts";
-import type { Extractor, Plugin, ResourceExtractor, SiteExtractor } from "./types.ts";
+import type { Extractor, PageContext, Plugin, ResourceExtractor, SiteExtractor } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
 const plugins: Plugin[] = [htmlValidate, axe, origin, dns, images, wellKnown];
@@ -128,7 +128,7 @@ export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
 }
 
 // Each extractor’s facts under its ID, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
-export async function extract(page: Facts, body: string, active: Extractor[], live?: Page): Promise<string[]> {
+export async function extract(page: Facts, body: string, active: Extractor[], live?: Page, context?: PageContext): Promise<string[]> {
     const added: string[] = [];
     for (const extractor of active) {
         if (!live && extractor.mode === "browser") {
@@ -136,7 +136,7 @@ export async function extract(page: Facts, body: string, active: Extractor[], li
             continue;
         }
         try {
-            const value = await extractor.extract(page, body, live);
+            const value = await extractor.extract(page, body, live, context);
             if (value === undefined) continue;
             page[extractor.id] = value;
             added.push(extractor.id);

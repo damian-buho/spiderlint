@@ -28,7 +28,7 @@ async function probeOne(href: string, config: Pick<Config, "allowPrivate">, sign
 }
 
 // One link’s answer, from `bucket` while fresh; a failure is never stored, so the next run asks again.
-async function answerOf(href: string, config: Pick<Config, "allowPrivate">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
+export async function answerOf(href: string, config: Pick<Config, "allowPrivate">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
     const entry = await bucket.get(href);
     if (entry && bucket.isFresh(entry)) return { ...entry.value, cached: true };
     const answer = await probeOne(href, config, signal);

@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import { reason } from "../crawl/fetch.ts";
-import type { Probe } from "../crawl/probe.ts";
+import type { Probe, ProbeInit } from "../crawl/probe.ts";
+import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { mediaType } from "./origin.ts";
-import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
+import { definePlugin, type Extractor, type PageContext, type SiteContext, type SiteExtractor } from "./types.ts";
 import { REGISTERED } from "./well-known-registry.ts";
 
 // What a format check found: its defects, and the few values worth keeping as facts.
@@ -146,8 +147,8 @@ const nodeinfo = json("object", async (data, errors, { url }, context) => {
     return { versions, ...(isObject(linked) && { version: linked.version }) };
 });
 
-// llmstxt.org: one H1 first, and links to crawled pages that answer 2xx.
-const llmsTxt: Check = (text, { url }, context) => {
+// llmstxt.org: one H1 first, and links that answer 2xx, crawled or probed through the `probes` bucket.
+const llmsTxt: Check = async (text, { url }, context) => {
     const errors: string[] = [];
     const lines = text.split(/\r?\n/);
     const headings = lines.filter((line) => line.startsWith("# "));
@@ -156,11 +157,17 @@ const llmsTxt: Check = (text, { url }, context) => {
     const links = text.matchAll(/\]\(([^)\s]+)/g).flatMap((match) => (URL.canParse(match[1] as string, url) ? [new URL(match[1] as string, url).href] : [])).toArray();
     const statuses = new Map(context.pages.map((page) => [page.url.href, page.http.status]));
     const distinct = new Set(links);
+    let probed = 0;
     for (const link of distinct) {
-        const status = statuses.get(link);
-        if (status !== undefined && (status < 200 || status > 299)) errors.push(`${link} answers ${status}`);
+        const isProbed = !statuses.has(link) && /^https?:$/.test(new URL(link).protocol);
+        const answer = isProbed ? await context.link(link) : { status: statuses.get(link) };
+        probed += isProbed ? 1 : 0;
+        log.debug({ link, status: answer.status, isProbed }, "llms.txt link judged");
+        if (answer.status === undefined || ("refused" in answer && answer.refused)) continue;
+        if (answer.status === 0) errors.push(`${link} is unreachable: ${"error" in answer ? answer.error : "no answer"}`);
+        else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
     }
-    return { errors, fields: { title: headings[0]?.slice(2).trim(), links: links.length } };
+    return { errors, fields: { title: headings[0]?.slice(2).trim(), links: links.length, probed } };
 };
 
 // Files under the RFC 8615 prefix, with the rule judging each when present.
@@ -401,6 +408,42 @@ const agents: SiteExtractor = {
     },
 };
 
+// A page’s Markdown twin: its advertised `text/markdown` alternate, else llmstxt.org’s `<url>.md`, `index.html.md` for a directory.
+function twinOf(page: Facts): string {
+    const advertised = page.html?.head.links.find((link) => link.rel?.split(/\s+/).includes("alternate") && link.type === "text/markdown")?.href;
+    if (advertised && URL.canParse(advertised, page.url.href)) return new URL(advertised, page.url.href).href;
+    const twin = new URL(page.url.pathname, page.url.href);
+    twin.pathname += twin.pathname.endsWith("/") ? "index.html.md" : ".md";
+    return twin.href;
+}
+
+// One Markdown request’s answer, present when `isAccepted` takes its 2xx media type.
+async function markdownAt(url: string, init: ProbeInit, isAccepted: (type: string) => boolean, context: PageContext): Promise<Record<string, unknown>> {
+    try {
+        const answer = await context.fetch(url, { ...init, redirect: "follow" });
+        const contentType = mediaType(answer);
+        const isPresent = answer.status >= 200 && answer.status <= 299 && isAccepted(contentType);
+        log.debug({ url, accept: init.headers?.accept, status: answer.status, contentType, isPresent }, "markdown source probed");
+        return { url, status: answer.status, contentType, present: isPresent };
+    } catch (error) {
+        log.debug({ url, error: reason(error) }, "markdown source unreachable");
+        return { url, present: false, error: reason(error) };
+    }
+}
+
+// The page as Markdown: its `.md` twin, and the page itself asked for `text/markdown`; only while crawling, on a 2xx HTML page.
+const markdown: Extractor = {
+    id: "markdown",
+    cost: "expensive",
+    async extract(page, _body, _live, context) {
+        const isPage = page.html !== undefined && page.http.status >= 200 && page.http.status <= 299;
+        log.debug({ url: page.url.href, isPage, hasNetwork: context !== undefined }, "markdown source decided");
+        if (!context || !isPage) return;
+        const [twin, negotiated] = await Promise.all([markdownAt(twinOf(page), {}, (type) => type !== "text/html", context), markdownAt(page.url.href, { headers: { accept: "text/markdown" } }, (type) => type === "text/markdown", context)]);
+        return { present: Boolean(twin.present || negotiated.present), twin, negotiated };
+    },
+};
+
 // The rule judging each checked spec’s defects while its file is present.
 function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity"]): Record<string, RuleSpec> {
     return Object.fromEntries(
@@ -475,15 +518,24 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://llmstxt.org/#format",
     },
     ...validity("agents", AGENTS, "info"),
+    "well-known/markdown-source": {
+        fact: "markdown.present",
+        expect: { const: true },
+        when: { "markdown.present": { type: "boolean" } },
+        message: "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one",
+        severity: "info",
+        docs: "https://llmstxt.org/#proposal",
+    },
 };
 
 // RFC 8615 files and the files agents read, probed once per origin.
 export default definePlugin({
     name: "well-known",
+    extractors: [markdown],
     sites: [wellKnown, agents],
     presets: {
         "well-known": { description: "Files under /.well-known/: security.txt, change-password, and every other known file that is present", rules: WELL_KNOWN_RULES },
         "well-known:security": { description: "security.txt and the change-password redirect", rules: SECURITY },
-        agents: { description: "Files agents read: llms.txt, A2A agent card, MCP server card, Agent Skills, AI catalog, OKF, schemamap", rules: AGENT_RULES },
+        agents: { description: "Files agents read: llms.txt, per-page Markdown sources, A2A agent card, MCP server card, Agent Skills, AI catalog, OKF, schemamap", rules: AGENT_RULES },
     },
 });
