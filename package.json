@@ -56,6 +56,10 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1"
   },
+  "overrides":
+  {
+    "stream-json": "3.7.0"
+  },
   "keywords": [
     "spiderlint",
     "linter",
