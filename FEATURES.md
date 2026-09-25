@@ -39,6 +39,12 @@ SPDX-License-Identifier: MIT
 - Images that ship far more pixels than they display, or have no width and height to hold their place, are flagged per template.
 - Measurements are cached with the image, so a re-run measures only what changed.
 
+### Dead links, on the site and off it
+
+- A link that leads nowhere, to this site or to another one, is one finding listing every page that carries it.
+- Links to other sites are checked once per run and remembered for a week, so a re-run sends them nothing.
+- A site that only asks the checker to slow down is not reported as dead.
+
 ### Each origin checked once, beyond its pages
 
 - A missing page is requested on purpose, so a soft 404, or an error page that leaks a stack trace or a server version, is a finding.

@@ -35,10 +35,20 @@ export interface SitemapFileFacts {
     error?: string;
 }
 
+// One off-scope link’s probe answer; status 0 is no answer, `refused` a private address the guard kept closed.
+export interface LinkFacts {
+    status: number;
+    method?: "HEAD" | "GET";
+    error?: string;
+    refused?: true;
+}
+
 // Facts about the site rather than any one page, read by group and site rules.
 export interface SiteFacts {
     sitemaps: SitemapFileFacts[];
     redirects?: Record<string, string>;
+    // Probe answers by off-scope link URL.
+    links?: Record<string, LinkFacts>;
     // Site extractor facts by origin, then by extractor ID.
     origins?: Record<string, Record<string, unknown>>;
     // Site extractor facts by hostname, then by extractor ID.

@@ -13,6 +13,7 @@ import { onOrigin } from "./crawl/scope.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
+import { probeLinks } from "./crawl/links.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { dnsClient } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
@@ -290,6 +291,9 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceExtractorsFor(rules));
     for (const result of Object.values(results)) if (!result.cached && !result.revalidated) counted(cost, Object.keys(result.facts ?? {}));
     await store?.saveResources(results);
+    const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
+    log.debug({ isProbed }, "external link probes decided");
+    if (isProbed) site.links = await probeLinks(memory.pages, config, openBucket("probes", config, store?.directory));
     const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns));
     await store?.saveSite(site);

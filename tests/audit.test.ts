@@ -42,6 +42,7 @@ describe("audit", () => {
 
     const paths = () => report.pages.map((page) => page.url.pathname).toSorted((a, b) => a.localeCompare(b));
     const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
+    const cdn = () => site.origin.replace("//127.0.0.1:", "//localhost:");
 
     it("crawls every linked page in scope, and only those", () => {
         assert.deepEqual(paths(), ["/", "/about", "/app/", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
@@ -65,7 +66,7 @@ describe("audit", () => {
 
     it("records links, depth and referrers as facts", () => {
         const home = report.pages.find((page) => page.url.pathname === "/");
-        assert.deepEqual(home?.html?.links.external, ["https://example.org/"]);
+        assert.deepEqual(home?.html?.links.external, [`${cdn()}/`]);
         assert.ok(home?.html?.links.internal.includes(`${site.origin}/posts/1`));
         assert.deepEqual(home?.crawl, { depth: 0, discoveredVia: "seed", referrers: report.pages.filter((page) => page.http.status === 200 && page.html).map((page) => page.url.href) });
         const post = report.pages.find((page) => page.url.pathname === "/posts/1");
@@ -106,6 +107,18 @@ describe("audit", () => {
         assert.equal(dead?.severity, "error");
         assert.equal(dead?.urls?.length, 12);
         assert.equal(dead?.message, "http.status is 404; linked from 12 pages");
+    });
+
+    it("reports only the dead external link, and probes it once across runs", async () => {
+        const [dead, ...rest] = of("links/broken-external");
+        assert.equal(rest.length, 0);
+        assert.equal(dead?.url, `${cdn()}/gone`);
+        assert.equal(dead?.message, "answers 404; linked from 1 page");
+        assert.deepEqual(dead?.urls, [`${site.origin}/about`]);
+        const probes = () => site.requested.filter((pathname) => pathname === "/gone").length;
+        assert.equal(probes(), 1);
+        await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"] });
+        assert.equal(probes(), 1, "the probes bucket answers the second run");
     });
 
     it("judges no SEO fact on a page outside 2xx", () => {
@@ -207,7 +220,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}295 of 342 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}295 of 343 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
     });
 
@@ -239,8 +252,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 342, failed: 47, errored: 6, passed: 295 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8626, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 343, failed: 48, errored: 6, passed: 295 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8601, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

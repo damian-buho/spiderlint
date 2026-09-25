@@ -41,6 +41,12 @@ SPDX-License-Identifier: MIT
 - Se señalan por plantilla las imágenes que envían muchos más píxeles de los que muestran, o que no tienen ancho y alto para reservar su espacio.
 - Las mediciones se guardan en caché con la imagen, así que una nueva ejecución solo mide lo que cambió.
 
+### Enlaces rotos, dentro y fuera del sitio
+
+- Un enlace que no lleva a ninguna parte, a este sitio o a otro, es un solo hallazgo con la lista de páginas que lo contienen.
+- Los enlaces a otros sitios se comprueban una vez por ejecución y se recuerdan durante una semana, así que una nueva ejecución no les envía nada.
+- Un sitio que solo pide al verificador que vaya más despacio no se informa como roto.
+
 ### Cada origen comprobado una vez, más allá de sus páginas
 
 - Se pide a propósito una página inexistente, así que un falso 404, o una página de error que filtra una traza de pila o la versión del servidor, es un hallazgo.
