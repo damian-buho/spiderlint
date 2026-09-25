@@ -134,7 +134,9 @@ The `resources` extractor runs in both modes; browser mode marks each entry
 `observed: true` and adds the ones only the network log knows — a request the
 browser blocked (ORB, CSP) or that failed counts as observed.
 
-Browser mode reads less of the connection than http mode: no `http.version`,
+Early Hints are read from the `information` events of the last hop’s request, through a got `beforeRequest` hook that wraps the request function got-scraping chose. Over HTTP/2 `http2-wrapper` passes a 103’s status but not its headers, so the entry carries no `link`.
+
+Browser mode reads less of the connection than http mode: no `http.version` or `http.earlyHints`,
 and `tls` carries protocol, subject, issuer and validity but no cipher, ALPN,
 fingerprint or SAN. It never sends conditional requests; a stored page is
 re-rendered. A navigation Chromium turns into a download becomes a page judged
@@ -177,7 +179,8 @@ http:     { status, version, redirects: [{ url }],
             headers: { name: value | [value] }, remote: { address, family },
             timing: { dns, tcp, tls, ttfb, download, total },
             size: { body, decoded, declared, truncated }, contentType, charset,
-            cookies: [{ name, secure, httpOnly, sameSite }] }
+            cookies: [{ name, secure, httpOnly, sameSite, path, domain }],
+            earlyHints: [{ link }] }                                   # each 103’s Link, http mode only
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
             cert: { subject, issuer, notBefore, notAfter, daysLeft, san: [], fingerprint256 } }
 html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], canonical,   # offset: byte where the declaring <meta> ends
@@ -280,6 +283,7 @@ because facts are always retained even when bodies are not.
 
 - `unique: <fact>` at `scope: site` groups pages by the fact’s value and reports every value held by two or more DISTINCT URLs, one finding per value with the URL list. A redirect and its target count once. `html/unique-title`, `html/unique-description` and `html/unique-h1` are the SEO trio; `scope: group` narrows the same check to one template when a site legitimately repeats a title across sections.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
+- `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
 - Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.
 - Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--disabled-rules` override per ID, as in ignorelint.
@@ -290,7 +294,7 @@ Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plu
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
-SameSite), `redirects` (chain length, http→https→www hops, mixed content).
+SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`), `redirects` (chain length, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
 not `2xx`), `resources/cache-control` (a hashed or `immutable` asset without

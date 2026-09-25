@@ -9,7 +9,7 @@ import type { Config } from "../config/index.ts";
 import { capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
-import { cookieFacts, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
+import { cookieFacts, earlyHintsHook, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
@@ -57,6 +57,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const revalidating = new WeakMap<object, Earlier>();
+    const hinted = new WeakMap<object, NonNullable<Facts["http"]["earlyHints"]>>();
     let revalidatedPages = 0;
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
     const crawler = new CheerioCrawler(
@@ -67,6 +68,9 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
                     Object.assign(gotOptions, { headers: { ...gotOptions.headers, "user-agent": USER_AGENT } });
+                    const hints: NonNullable<Facts["http"]["earlyHints"]> = [];
+                    hinted.set(request, hints);
+                    Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), earlyHintsHook(request.url, hints)] } });
                     const earlier = config.cacheMode === "use" ? await storage?.earlier?.(request.url) : undefined;
                     const conditional = earlier ? validators(earlier.facts.http.headers) : {};
                     log.debug({ url: request.url, isStored: earlier !== undefined, conditional: Object.keys(conditional) }, "page revalidation decided");
@@ -112,6 +116,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                         ...(cap?.remote && { remote: cap.remote }),
                         timing: cap ? timingFacts(cap.source) : {},
                         cookies: cookieFacts(response.headers["set-cookie"]),
+                        ...(hinted.get(request)?.length && { earlyHints: hinted.get(request) }),
                         size: {
                             body: transferred(cap?.source) ?? decoded,
                             decoded,

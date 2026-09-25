@@ -399,9 +399,26 @@ describe("audit options", () => {
     it("keeps cookie flags and redacts cookie values", async () => {
         const report = await audit({ seeds: [`${site.origin}/orphan`], maxPages: 1, sitemap: false });
         const http = report.pages[0]?.http;
-        assert.deepEqual(http?.cookies, [{ name: "session", secure: false, httpOnly: true, sameSite: "Lax" }]);
-        assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]"]);
+        assert.deepEqual(http?.cookies, [
+            { name: "session", secure: false, httpOnly: true, sameSite: "Lax", path: "/" },
+            { name: "__Host-id", secure: true, httpOnly: true, sameSite: "Strict", path: "/" },
+        ]);
+        assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]", "__Host-id=[redacted]"]);
         assert.ok(!JSON.stringify(report).includes("s3cr3t"));
+    });
+
+    it("reports a __Host- cookie with a Domain or a narrower Path, and passes a correct one", async () => {
+        const report = await audit({ seeds: [`${site.origin}/cookies`], maxPages: 1, sitemap: false, fold: false, groups: { default: { rules: ["cookies"] } } });
+        assert.deepEqual(report.pages[0]?.http.cookies[0], { name: "__Host-bad", secure: true, httpOnly: false, path: "/app", domain: "127.0.0.1" });
+        assert.equal(report.findings.filter((finding) => finding.rule === "cookies/host-prefix").length, 1);
+    });
+
+    it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {
+        const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
+        const hinted = report.pages.find((page) => page.url.pathname === "/hints");
+        assert.deepEqual(hinted?.http.earlyHints, [{ link: "</style.css>; rel=preload; as=style, </font.woff2>; rel=preload; as=font" }]);
+        const findings = report.findings.filter((finding) => finding.rule === "http/early-hints-preload");
+        assert.deepEqual(findings.map((finding) => [new URL(finding.url).pathname, finding.value]), [["/hints", [`${site.origin}/font.woff2`]]]);
     });
 
     it("names itself in the user agent of every page, resource and robots.txt request", async () => {

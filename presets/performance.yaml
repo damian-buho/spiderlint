@@ -102,3 +102,4 @@ rules:
     severity: warning
     message: "an <img> without width and height shifts the layout as it loads: {got}"
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions
+  http/early-hints-preload: info

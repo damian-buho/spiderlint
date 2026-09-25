@@ -92,6 +92,26 @@ const frameOptions: Make = (severity) => ({
     },
 });
 
+// Absolute targets of the `Link` entries carrying relation token `relation`.
+function linkTargets(raw: string, relation: string, base: string): string[] {
+    const carries = new RegExp(String.raw`;\s*rel="?[^";]*\b${relation}\b`, "i");
+    const entries = raw.match(/<[^>]*>[^,<]*/g) ?? [];
+    return entries.filter((entry) => carries.test(entry)).map((entry) => resolve(entry.slice(1, entry.indexOf(">")), base));
+}
+
+// A preload a 103 hinted that the final response’s `Link` no longer carries.
+const earlyHintsPreload: Make = (severity) => ({
+    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.earlyHints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103" },
+    check(page: Facts) {
+        const hints = page.http.earlyHints;
+        if (!hints) return;
+        const final = new Set(linkTargets(header(page, "link"), "preload", page.url.href));
+        const dropped = [...new Set(hints.flatMap((hint) => linkTargets(hint.link ?? "", "preload", page.url.href))).difference(final)];
+        log.debug({ rule: "http/early-hints-preload", url: page.url.href, hints: hints.length, final: final.size, dropped: dropped.length }, "early hints compared");
+        return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `103 Early Hints preload ${dropped.join(", ")}, which the final Link header lacks`, value: dropped }];
+    },
+});
+
 // Fragment-free absolute form of a URL relative to the page; an unparsable value stays as written.
 function resolve(raw: string, base: string): string {
     if (!URL.canParse(raw, base)) return raw;
@@ -187,6 +207,7 @@ export const builtin: Record<string, Make> = {
     "links/redirected-internal": redirectedInternal,
     "links/broken-external": brokenExternal,
     "http/frame-options": frameOptions,
+    "http/early-hints-preload": earlyHintsPreload,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus),

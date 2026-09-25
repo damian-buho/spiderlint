@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { EventEmitter } from "node:events";
+import type { IncomingHttpHeaders } from "node:http";
 import type { TLSSocket } from "node:tls";
+import { log } from "../logger.ts";
 import type { CookieFacts, HttpFacts, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
@@ -31,6 +34,29 @@ export function timingFacts(transport: Transport): HttpFacts["timing"] {
     return timing;
 }
 
+type RequestFunction = (url: URL, options: unknown, callback?: unknown) => unknown;
+type Hints = NonNullable<HttpFacts["earlyHints"]>;
+
+// A got `beforeRequest` hook wrapping the request function got-scraping chose, so each 103 of the last hop lands in `hints`.
+export function earlyHintsHook(url: string, hints: Hints): (options: { getRequestFunction(): RequestFunction; request?: RequestFunction }) => void {
+    const listen = (request: unknown) =>
+        (request as EventEmitter).on("information", (info: { statusCode: number; headers?: IncomingHttpHeaders }) => {
+            const link = info.headers?.link;
+            log.debug({ url, status: info.statusCode, link }, "informational response received");
+            if (info.statusCode === 103) hints.push({ ...(link && { link: [link].flat().join(", ") }) });
+        });
+    return (options) => {
+        hints.length = 0;
+        const inner = options.getRequestFunction();
+        options.request = (target, native, callback) => {
+            const made = inner(target, native, callback);
+            if (made instanceof Promise) void made.then(listen);
+            else listen(made);
+            return made;
+        };
+    };
+}
+
 // Name and flags of each Set-Cookie; values never leave this function.
 export function cookieFacts(setCookie: string | string[] | undefined): CookieFacts[] {
     const lines = setCookie === undefined ? [] : [setCookie].flat();
@@ -43,7 +69,9 @@ export function cookieFacts(setCookie: string | string[] | undefined): CookieFac
             }),
         );
         const sameSite = flags.get("samesite");
-        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }) };
+        const path = flags.get("path");
+        const domain = flags.get("domain");
+        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }) };
     });
 }
 

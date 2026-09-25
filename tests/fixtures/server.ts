@@ -26,11 +26,19 @@ const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "
 const BIG = 50_000_000;
 
 // Response headers a page sends beyond content-type.
-const HEADERS: Record<string, Record<string, string>> = {
+const HEADERS: Record<string, Record<string, string | string[]>> = {
     "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'", "x-robots-tag": "nofollow" },
     "/posts/1": { "x-frame-options": "DENY" },
-    "/orphan": { "set-cookie": "session=s3cr3t; Path=/; HttpOnly; SameSite=Lax" },
+    "/orphan": { "set-cookie": ["session=s3cr3t; Path=/; HttpOnly; SameSite=Lax", "__Host-id=1; Secure; Path=/; HttpOnly; SameSite=Strict"] },
 };
+
+// Pages answering a 103 first: the preloads it hints, then the `Link` the final response keeps.
+const HINTED: Record<string, [string[], string]> = {
+    "/hints": [["</style.css>; rel=preload; as=style", "</font.woff2>; rel=preload; as=font"], "</style.css>; rel=preload; as=style"],
+    "/hints-ok": [["</style.css>; rel=preload; as=style"], "</style.css>; rel=preload; as=style"],
+};
+
+const PLAIN = "<!DOCTYPE html><html lang=\"en\"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>";
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
 async function body(pathname: string, origin: string, local: string): Promise<[string, Buffer] | undefined> {
@@ -82,6 +90,18 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
         if (pathname === "/walled") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8", "cf-mitigated": "challenge" });
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>Just a moment…</title></head><body></body></html>");
+            return;
+        }
+        const hinted = HINTED[pathname];
+        if (hinted) {
+            response.writeEarlyHints({ link: hinted[0] });
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", link: hinted[1] });
+            response.end(PLAIN);
+            return;
+        }
+        if (pathname === "/cookies") {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["__Host-bad=1; Secure; Path=/app; Domain=127.0.0.1", "__Host-ok=1; Secure; Path=/"] });
+            response.end(PLAIN);
             return;
         }
         if (pathname === "/favicon.ico") {

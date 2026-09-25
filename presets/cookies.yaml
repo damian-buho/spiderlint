@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Secure, HttpOnly and SameSite on every cookie
+description: Secure, HttpOnly and SameSite on every cookie, and valid __Host- prefixes
 rules:
   cookies/secure:
     fact: http.cookies
@@ -23,3 +23,13 @@ rules:
     severity: info
     message: "a cookie is set without a SameSite attribute"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value
+  cookies/host-prefix:
+    fact: http.cookies
+    expect:
+      type: array
+      items:
+        if: {properties: {name: {pattern: "^(?i:__Host-)"}}}
+        then: {properties: {secure: {const: true}, path: {const: "/"}}, required: [path], not: {required: [domain]}}
+    severity: warning
+    message: "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes

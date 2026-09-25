@@ -62,6 +62,8 @@ export interface CookieFacts {
     secure: boolean;
     httpOnly: boolean;
     sameSite?: string;
+    path?: string;
+    domain?: string;
 }
 
 export interface HttpFacts {
@@ -72,6 +74,8 @@ export interface HttpFacts {
     remote?: { address: string; family?: string };
     timing: Partial<Record<"wait" | "dns" | "tcp" | "tls" | "request" | "ttfb" | "download" | "total", number>>;
     cookies: CookieFacts[];
+    // The `Link` header of each 103 Early Hints response before the final one.
+    earlyHints?: { link?: string }[];
     size: { body: number; decoded: number; declared?: number; truncated?: true };
     contentType: string;
     charset?: string;
