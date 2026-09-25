@@ -21,7 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
-extractors, site extractors per origin or host with the `origins` bucket and the probe address guard, the bundled `html-validate`, `axe`, `origin` and `dns` with the `dns` bucket and `--resolver`; the fixture site. Not yet: adaptive fetch and a
+extractors, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, and `images`; the fixture site. Not yet: adaptive fetch and a
 fetch mode per group, the `probes` bucket, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
@@ -184,12 +184,13 @@ html:     { lang, dir, title, h1: [], h2: [], canonical,
             meta: { name: content }, property: { og:title: … },
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },
-            images: [{ src, alt, width, height, noscript }], hreflang: [{ lang, href }],
+            images: [{ src, alt, width, height, srcset, noscript }], hreflang: [{ lang, href }],
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
             scripts: [{ src, type, async, defer, head }], wordCount, generator }
 resources: [{ url, kind: script|style|image|font|iframe|preload, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
-              http: { status, headers, timing, size, contentType }, tls: { … } }]
+              http: { status, headers, timing, size, contentType }, tls: { … },
+              <resource extractor ID>: … }]
 browser:  { timing: { domContentLoaded, load }, console: { errors: [], warnings: [] },
             weight: { script, style, image, font } }
 ```
@@ -430,6 +431,7 @@ export default definePlugin({
   extractors: [{ id: 'htmlvalidate', async extract(page, body, live) {…} }], // facts land under page.htmlvalidate
   rules:      { 'html-validate/no-dup-id': (severity) => ({ meta, check }) }, // the built-ins’ shape
   presets:    { 'html-validate': { description, rules } },
+  resources:  [{ id: 'images', types: ['image/png'], async extract(url, contentType, body) {…} }], // facts land under resources[].images
 })
 ```
 
@@ -442,9 +444,11 @@ export default definePlugin({
 - A site extractor runs only when an enabled rule reads `site.origins.*.<id>` or `site.hosts.*.<id>`. Its facts persist with the site document and are reused from the `origins` bucket while fresh; `lint` and `--offline` cannot backfill one, and warn once when the stored site facts lack it.
 - `origin` probes each origin: `GET /spiderlint-<uuid>` (logged at `info`, so an owner finds it in their access log), plain `http://<host>/`, `/` in four `Accept-Language`s, and `/favicon.ico`. Rules: `origin/soft-404`, `origin/error-page` (HTML, not empty, no stack trace, no versioned `Server`), `origin/https-entry` (one `301` or `308` to `https://<host>/`; skipped on `.onion`), `origin/locale-redirect`, `origin/favicon`. Preset `origin`; `recommended` and `all` carry it.
 - `dns` runs three `per: host` extractors, `cached: false` so they skip the `origins` bucket and each answer lives in the `dns` bucket for its record TTL. They query `context.dns`: the `resolver` servers over UDP with TCP on truncation, `DO` and `AD` set, 3 s per try, 2 tries per server. IP literals and special-use or overlay names (`localhost`, `test`, `invalid`, `example`, `local`, `onion`, `i2p`, `alt`, `internal`, `home.arpa`) are never queried; the zone is the nearest name answering `SOA` at or below the registrable domain (`tldts`, private suffixes included). `dns` holds `zone`, `a`, `aaaa`, `cname`, `https` (RFC 9460, parsed by `crawl/svcb.ts`, `hintsMatch` where the target is the owner), `h3` (`record` vs `altSvc` of the host’s pages), `caa` (RFC 8659 climb to the registrable domain, `issuer` from the served certificate’s organisation through a CA map, absent when unknown) and `dangling` (linked or loaded names under the zone, at most 32, whose CNAME ends in NXDOMAIN). `dnssec` holds `signed`, `ds`, `dnskey`, `ad`, `rrsig` (`expires`, `daysLeft`, `left` share of the validity window) and `nsec3`; `bogus` is present only when the resolver sets `AD` on the root SOA, otherwise one run-level warning. `nameservers` holds `servers` (each asked for the zone SOA directly, recursion off), `serials` and `networks` (distinct /24 and /48). Presets `dns` (17 rules) and `dns:core` (`https-record`, `caa`, `caa-issuer`, `dangling-cname`, `dnssec`, `dnssec-bogus`, which skip `nameservers`); `recommended` carries `dns:core`.
+- `resources: [{ id, types, extract(url, contentType, body) }]` reads the body of every fetched `2xx` resource whose content type starts with one of `types`, as bytes, during its one `GET`; a body cut at `max-body-size` is read by none. It runs only when an enabled rule reads `resources.<id>`, facts land under `<id>` on every page’s entry for that URL, and they are stored with the response in the `resources` bucket, so a fresh or `304` answer reuses them; an entry an active extractor never read is fetched again in full. `undefined` adds nothing; a throw warns and leaves the key absent.
 - Later: `formatters` and `sources`; `cost: expensive` on extractors, obeying the group `sample`; the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `severity`, `line`, `column`, `offset`, `size`, `selector`, `source` — the tag at the offset — and `context`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value and `line:column selector <tag>` as `locations`. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
 - `axe` runs axe-core through `@axe-core/playwright` in the crawler’s own rendered page (pa11y would launch a second browser), with axe’s default rule set: no experimental, AAA or obsolete rules. Facts are `axe.version`, `axe.violations[]` and `axe.incomplete[]` (`rule`, `impact`, `tags`, `description`, `help`, `error`, and `nodes[]` with `target`, `html`, `xpath`, `ancestry`, `impact`, `summary` and the `any`/`all`/`none` checks, each with `message`, `data` and `related` elements); each axe rule is the rule `axe/<id>`, one finding per violated rule per page with its impact and elements as the value and `selector <tag>, related: …` as `locations`. Presets: `axe` (WCAG A and AA rules as errors, best practices as warnings), `axe:wcag`, `axe:best-practice`; `all` carries them, `recommended` does not.
+- `images` reads JPEG, PNG, GIF, WebP, AVIF and SVG through `sharp` (libvips, one thread per image, 50 MP input cap, 30 s per operation). Facts are `images.format`, `bytes`, `width`, `height`, `animated` and `encoded` — the bytes after re-encoding to its own format (`same`), and a legacy format to `webp` and `avif` — at JPEG and WebP quality 80, AVIF 50 and palette PNG; SVG gets `format` and `bytes` only, never rasterised. Rules: `images/modern-format` and `images/recompress` (a saving of 20 % and 10 kB), `images/weight` (above 200 kB), all `scope: site` keyed by image URL; `images/dimensions` (`<img>` without `width` and `height`) and `images/oversized` (intrinsic width above twice the `width` attribute, `srcset` exempt), page rules with the offending `<img>` as `locations`. Preset `images`; `all` carries it, `recommended` does not.
 - Next: `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
 
 ## Concurrency and limits
@@ -504,7 +508,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # contract, registry, bundled html-validate, axe, origin and dns (lighthouse next)
+├── plugins/            # contract, registry, bundled html-validate, axe, origin, dns and images (lighthouse next)
 └── i18n/
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 locales/                # es/, uk/

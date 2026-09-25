@@ -50,9 +50,11 @@ function isFresh<T>(bucket: Bucket<Stored<T>>, entry: Entry<Stored<T>>, policy: 
     return isSilent(entry.value.headers) ? bucket.isFresh(entry) : policy.satisfiesWithoutRevalidation(REQUEST(entry.key)) && (!isCapped || bucket.isFresh(entry));
 }
 
-// A GET answered from `bucket` while fresh, revalidated with its validators once stale, stored when RFC 9111 allows.
-export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>, isCapped = false): Promise<Served<T>> {
-    const entry = await bucket.get(url);
+// A GET answered from `bucket` while fresh, revalidated with its validators once stale, stored when RFC 9111 allows; an entry `isUsable` rejects is fetched again in full, except offline.
+export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>, isCapped = false, isUsable?: (stored: Stored<T>) => boolean): Promise<Served<T>> {
+    const found = await bucket.get(url);
+    const entry = found && (!isUsable || bucket.mode === "offline" || isUsable(found.value)) ? found : undefined;
+    if (found && !entry) log.debug({ bucket: bucket.name, url, stored: found.stored }, "cache entry lacks what the caller needs");
     if (!entry) bucket.missed(url);
     const request = REQUEST(url);
     const policy = entry && CachePolicy.fromObject(entry.value.policy);

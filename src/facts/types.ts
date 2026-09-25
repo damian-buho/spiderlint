@@ -88,7 +88,7 @@ export interface HtmlFacts {
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     links: { internal: string[]; external: string[]; nofollow: string[] };
-    images: { src: string; alt?: string; width?: string; height?: string; noscript?: true }[];
+    images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; noscript?: true }[];
 }
 
 // Indexing directives merged from `<meta name=robots>` and `X-Robots-Tag`.
@@ -105,6 +105,8 @@ export interface ResourceFacts {
     crossorigin?: string;
     observed?: true;
     http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true };
+    // A resource extractor’s facts, under the extractor’s ID.
+    [extractor: string]: unknown;
 }
 
 // What only a rendering browser sees: load milestones, console output, bytes per resource kind.

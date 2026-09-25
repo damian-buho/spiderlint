@@ -20,7 +20,7 @@ import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { extract, extractorsFor, isBrowserFact, loadPlugins, siteExtractorsFor } from "./plugins/index.ts";
+import { extract, extractorsFor, isBrowserFact, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules, type RuleRun } from "./rules/run.ts";
@@ -269,7 +269,8 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
-    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceExtractorsFor(rules));
+    for (const result of Object.values(results)) if (!result.cached && !result.revalidated) counted(cost, Object.keys(result.facts ?? {}));
     await store?.saveResources(results);
     const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns));

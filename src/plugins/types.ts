@@ -16,6 +16,14 @@ export interface Extractor {
     extract(page: Facts, body: string, live?: Page): Promise<unknown>;
 }
 
+// Facts from one fetched resource body, stored under `id` on each page’s entry for its URL; undefined adds nothing.
+export interface ResourceExtractor {
+    id: string;
+    // Content-type prefixes whose bodies it reads (`image/`).
+    types: string[];
+    extract(url: string, contentType: string, body: Uint8Array): Promise<unknown>;
+}
+
 // What a site extractor may touch: its subject’s pages, GET or HEAD probes that stay on its host, and DNS queries to the configured resolver.
 export interface SiteContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
@@ -41,6 +49,7 @@ export interface Plugin {
     name: string;
     extractors?: Extractor[];
     sites?: SiteExtractor[];
+    resources?: ResourceExtractor[];
     rules?: Record<string, Make>;
     presets?: Record<string, RulesetConfig>;
 }

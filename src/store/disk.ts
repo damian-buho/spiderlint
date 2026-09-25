@@ -23,7 +23,8 @@ export interface Manifest {
     finished?: string;
 }
 
-export type ResourceResults = Record<string, NonNullable<ResourceFacts["http"]>>;
+// Each resource URL’s answer, with its resource extractors’ facts by ID.
+export type ResourceResults = Record<string, NonNullable<ResourceFacts["http"]> & { facts?: Record<string, unknown> }>;
 
 export interface StoredReport {
     findings: Finding[];

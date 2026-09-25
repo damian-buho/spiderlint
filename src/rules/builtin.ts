@@ -123,12 +123,12 @@ const consistentOrigin: Make = (severity) => ({
     },
 });
 
-type Verdict = (resource: ResourceFacts, pages: number) => string | undefined;
+export type Verdict = (resource: ResourceFacts, pages: number) => string | undefined;
 
 // A site rule keyed by resource URL: one finding per offending resource, its pages as `urls`.
-function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict): Make {
+export function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict, facts = ["resources"], valueOf = (resource: ResourceFacts): unknown => resource.http?.status): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "site", facts: ["resources"] },
+        meta: { id, severity, scope: "site", facts },
         check(pages: Facts[]) {
             const usedBy = new Map<string, { resource: ResourceFacts; urls: string[] }>();
             const uses = pages.flatMap((page) => (page.resources ?? []).filter((resource) => isUsed(page, resource)).map((resource) => ({ page, resource })));
@@ -141,7 +141,7 @@ function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts)
             for (const [url, { resource, urls }] of usedBy) {
                 const message = verdict(resource, urls.length);
                 log.debug({ rule: id, resource: url, pages: urls.length, isFinding: message !== undefined }, "resource judged");
-                if (message) findings.push({ rule: id, severity, scope: "site", url, message, value: resource.http?.status, urls });
+                if (message) findings.push({ rule: id, severity, scope: "site", url, message, value: valueOf(resource), urls });
             }
             return findings;
         },

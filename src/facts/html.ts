@@ -99,9 +99,9 @@ export function extractHtml($: CheerioAPI, page: URL, scope: Scope): HtmlFacts {
         },
         images: $("img")
             .map((_, element) => {
-                const [alt, width, height] = [$(element).attr("alt"), $(element).attr("width"), $(element).attr("height")];
+                const [alt, width, height, srcset] = [$(element).attr("alt"), $(element).attr("width"), $(element).attr("height"), $(element).attr("srcset")];
                 const isInNoscript = $(element).closest("noscript").length > 0;
-                return { src: String($(element).attr("src") ?? ""), ...(alt !== undefined && { alt }), ...(width !== undefined && { width }), ...(height !== undefined && { height }), ...(isInNoscript && { noscript: true as const }) };
+                return { src: String($(element).attr("src") ?? ""), ...(alt !== undefined && { alt }), ...(width !== undefined && { width }), ...(height !== undefined && { height }), ...(srcset !== undefined && { srcset }), ...(isInNoscript && { noscript: true as const }) };
             })
             .get(),
     };

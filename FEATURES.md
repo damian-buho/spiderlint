@@ -32,6 +32,13 @@ SPDX-License-Identifier: MIT
 - Results come as text, JSON or SARIF, so code-scanning views show one row per defect.
 - Every run ends with the number of checks passed and a grade from S to F, so sites and releases compare at a glance.
 
+### Image weight measured, not estimated
+
+- Every image the site loads is re-encoded once, and the bytes AVIF, WebP or a tighter encode of its own format would save are reported.
+- Each heavy image is one finding with the pages that use it, across the whole site rather than a sample of pages.
+- Images that ship far more pixels than they display, or have no width and height to hold their place, are flagged per template.
+- Measurements are cached with the image, so a re-run measures only what changed.
+
 ### Each origin checked once, beyond its pages
 
 - A missing page is requested on purpose, so a soft 404, or an error page that leaks a stack trace or a server version, is a finding.
