@@ -17,7 +17,7 @@ import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
-import { formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
+import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
@@ -35,6 +35,7 @@ Commands:
   groups [url…]         page count per group
   rules [ruleset…]      every rule, its severity here and its docs
   presets               shipped rulesets and whether groups use them
+  explain <rule>        what a rule reads, expects and how to fix it
   cache status [url…]   entries, bytes and age per bucket
   cache purge [bucket]  delete a site’s cached entries
   cache warm [url…]     fetch robots.txt and sitemaps only
@@ -96,9 +97,10 @@ Examples:
   spiderlint crawl https://example.com/
   spiderlint lint https://example.com/ --fail-on warning
   spiderlint rules security-headers
+  spiderlint explain html/theme-color-schemes
   spiderlint cache purge pages --older-than 7d`;
 
-const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets"]);
+const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets", "explain"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
 const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint, isFull: boolean) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
 
@@ -262,7 +264,7 @@ async function main(argv: string[]): Promise<number> {
         return 0;
     }
     const [command = "", ...seeds] = positionals;
-    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "explain" && seeds.length !== 1) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
         console.error(usage(painter(process.stderr, values.color)));
         return 2;
     }
@@ -275,6 +277,12 @@ async function main(argv: string[]): Promise<number> {
             return merged;
         };
         const config = configFor({});
+        if (command === "explain") {
+            await loadPlugins(config.plugins);
+            const explained = explainRule(config, seeds[0] as string);
+            console.log(config.format === "json" ? JSON.stringify(explained, undefined, 2) : formatExplanation(explained, painter(process.stdout, values.color)));
+            return 0;
+        }
         if (command === "rules" || command === "presets") {
             await loadPlugins(config.plugins);
             const paint = painter(process.stdout, values.color);

@@ -20,9 +20,9 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
+`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules and presets, browser-mode
 extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, and `well-known`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, `explain`, plugin formatters and sources, `lighthouse`, localised
+fetch mode per group, plugin formatters and sources, `lighthouse`, localised
 messages, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -263,6 +263,7 @@ rulesets:
 - `canonical-origin` audits a staging twin serving pages built for another origin: `html/canonical-self` and `html/og-url-self` accept the page’s `url.twin`, and sitemap URLs on that origin, from `robots.txt` and `<loc>`, are read from the crawled one. A self reference to the wrong path still fails.
 - A ruleset entry for a rule it extends overrides it field by field, and `expect` keyword by keyword, so `html/title-length: {expect: {minLength: 25}}` keeps the preset’s `fact`, `when` and `maxLength`.
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
+- `fix` is one line telling the owner what to change; `explain` prints it, and a ruleset entry’s `fix` or `docs` overrides a built-in’s.
 - `message` is the finding’s sentence, `{got}` standing for the offending value (`none` when absent); every shipped declarative rule carries one. Without it the finding reads AJV’s wording against the fact path. An override that sets `expect` without `message` drops the inherited one, which may state the old bounds.
 - `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
 - A page rule whose extractor did not run — the fact path’s top-level key is absent, as `html` is on a JSON or RSS document — is skipped, not failed. Only a key present with a missing field is a finding.
@@ -283,7 +284,7 @@ because facts are always retained even when bodies are not.
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.
 - Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--disabled-rules` override per ID, as in ignorelint.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
-- A TypeScript rule is `{ meta: { id, severity, scope, facts, docs }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
+- A TypeScript rule is `{ meta: { id, severity, scope, facts, docs, fix }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
 Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `tls`,
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
@@ -429,7 +430,7 @@ spiderlint facts  <url>                   one page’s facts document as JSON
 spiderlint groups [url…]                  page count per group, unmatched pages
 spiderlint rules [ruleset…]               every rule: severity here, scope, ruleset, docs
 spiderlint presets                        shipped rulesets, rule count, used by a group
-spiderlint explain <rule>                 docs, default severity, fact it reads
+spiderlint explain <rule>                 severity, scope, facts read, expect, when, message, fix, docs
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 

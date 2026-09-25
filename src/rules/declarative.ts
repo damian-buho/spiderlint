@@ -80,7 +80,7 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
     const root = fact.split(".", 1)[0] as string;
     const isSkipped = guard(id, spec.when);
     return {
-        meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs },
+        meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs, fix: spec.fix },
         check(page) {
             if (isSkipped(page, page.url.href)) return;
             if (get(page, root) === undefined) {
@@ -101,7 +101,7 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
     const scope = spec.scope === "group" ? "group" : "site";
     const isSkipped = guard(id, spec.when);
     return {
-        meta: { id, severity, scope, facts: [fact], docs: spec.docs },
+        meta: { id, severity, scope, facts: [fact], docs: spec.docs, fix: spec.fix },
         check(pages, group) {
             const byValue = new Map<string, string[]>();
             for (const page of pages) {
@@ -129,7 +129,7 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     log.debug({ rule: id, kind: subject.kind, when: when.length, ignored: Object.keys(spec.when ?? {}).length - when.length }, "subject rule compiled");
     const isSkipped = guard(id, Object.fromEntries(when.map(([path, expected]) => [path.slice(prefix.length), expected])));
     return {
-        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs },
+        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix },
         check(_pages, _group, site) {
             const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !isSkipped(facts, name));
             log.debug({ rule: id, subjects: judged.length }, "subjects judged");
@@ -154,7 +154,10 @@ export function compileRule(id: string, spec: RuleSpec): Rule {
     if (!spec.fact && !spec.expect) {
         const make = ruleMaker(id);
         if (!make) throw new ConfigError(`rule ${id}: needs fact and expect, or unique, or a built-in ID`);
-        return guarded(make(severityOf(id, spec, "warning")), guard(id, spec.when));
+        const rule = make(severityOf(id, spec, "warning"));
+        // A ruleset entry’s `docs` and `fix` win over the built-in’s own.
+        Object.assign(rule.meta, spec.docs && { docs: spec.docs }, spec.fix && { fix: spec.fix });
+        return guarded(rule, guard(id, spec.when));
     }
     if (!spec.fact || !spec.expect) throw new ConfigError(`rule ${id}: needs both fact and expect`);
     try {

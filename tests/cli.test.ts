@@ -159,6 +159,22 @@ describe("cli", () => {
         assert.ok(presets.values().every((preset) => preset.description.length > 0));
     });
 
+    it("explains a declarative, a built-in and a plugin rule, and refuses an unknown one", async () => {
+        const declarative = await spiderlint(directory, "explain", "html/theme-color-schemes", "--format", "json");
+        assert.equal(declarative.code, 0, declarative.stderr);
+        const rule = JSON.parse(declarative.stdout) as { kind: string; facts: string[]; expect: object; fix: string; docs: string };
+        assert.deepEqual([rule.kind, rule.facts], ["declarative", ["html.metas"]]);
+        assert.ok(rule.expect && rule.fix && rule.docs, declarative.stdout);
+        const builtin = await spiderlint(directory, "explain", "links/redirected-internal", "--no-color");
+        assert.match(builtin.stdout, /^kind\s+built-in$/m);
+        assert.match(builtin.stdout, /^docs\s+https:/m);
+        const plugin = await spiderlint(directory, "explain", "axe/color-contrast", "--format", "json");
+        assert.deepEqual((JSON.parse(plugin.stdout) as { rulesets: string[] }).rulesets, ["axe", "axe:wcag"]);
+        const unknown = await spiderlint(directory, "explain", "nope/missing");
+        const bare = await spiderlint(directory, "explain");
+        assert.deepEqual([unknown.code, bare.code], [2, 2]);
+    });
+
     it("covers every shipped rule with the all preset", async () => {
         const every = await spiderlint(directory, "rules", "--format", "json");
         const all = await spiderlint(directory, "rules", "all", "--format", "json");

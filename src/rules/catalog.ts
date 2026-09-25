@@ -6,9 +6,11 @@ import type { Paint, Style } from "../color.ts";
 import type { Config } from "../config/index.ts";
 import { groupsOf } from "../index.ts";
 import { log } from "../logger.ts";
+import { ConfigError } from "../config/index.ts";
+import { ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
 import { compileRulesets, lookup, presetNames, resolveRuleset } from "./rulesets.ts";
-import type { Scope, Severity } from "./types.ts";
+import type { RuleSpec, Scope, Severity } from "./types.ts";
 
 const PREFIX = "spiderlint:";
 const TONE: Record<string, Style> = { error: "red", warning: "yellow", info: "blue", off: "dim" };
@@ -21,6 +23,14 @@ export interface RuleInfo {
     rulesets: string[];
     facts: string[];
     docs?: string;
+}
+
+export interface RuleExplanation extends RuleInfo {
+    kind: "declarative" | "unique" | "built-in";
+    expect?: Record<string, unknown>;
+    when?: Record<string, unknown>;
+    message?: string;
+    fix?: string;
 }
 
 export interface PresetInfo {
@@ -58,7 +68,7 @@ function closure(name: string, rulesets: Config["rulesets"]): string[] {
 }
 
 // Every rule the named rulesets resolve to, or every rule any ruleset defines.
-export function listRules(config: Config, names: string[]): RuleInfo[] {
+export function listRules(config: Config, names: string[]): RuleExplanation[] {
     const severities = running(config);
     const all = sources(config);
     const homes = new Map<string, string[]>();
@@ -68,11 +78,24 @@ export function listRules(config: Config, names: string[]): RuleInfo[] {
     }
     const specs = Object.assign({}, ...(names.length > 0 ? names : all).map((name) => resolveRuleset(name, config.rulesets))) as ReturnType<typeof resolveRuleset>;
     log.debug({ rulesets: names, rules: Object.keys(specs).length }, "catalog rules resolved");
-    return Object.entries(specs).toSorted(([a], [b]) => a.localeCompare(b)).map(([id, spec]) => {
-        const preset = spec.severity ?? "warning";
-        const { meta } = compileRule(id, { ...spec, severity: preset === "off" ? "warning" : preset });
-        return { id, severity: [...(severities.get(id) ?? ["off"])].join("/"), preset, scope: meta.scope, rulesets: homes.get(id) ?? [], facts: meta.facts, docs: meta.docs };
-    });
+    return Object.entries(specs).toSorted(([a], [b]) => a.localeCompare(b)).map(([id, spec]) => describeRule(id, spec, severities, homes.get(id) ?? []));
+}
+
+// One rule’s catalog row, compiled at its preset severity so an `off` rule still has a meta.
+function describeRule(id: string, spec: RuleSpec, severities: Map<string, Set<string>>, rulesets: string[]): RuleExplanation {
+    const preset = spec.severity ?? "warning";
+    const { meta } = compileRule(id, { ...spec, severity: preset === "off" ? "warning" : preset });
+    const kind = spec.unique ? "unique" : spec.fact ? "declarative" : "built-in";
+    return { id, severity: [...(severities.get(id) ?? ["off"])].join("/"), preset, scope: meta.scope, rulesets, facts: meta.facts, docs: meta.docs, kind, expect: spec.expect, when: spec.when, message: spec.message, fix: meta.fix };
+}
+
+// Everything known about one rule; a rule no ruleset carries and no plugin makes is a config error.
+export function explainRule(config: Config, id: string): RuleExplanation {
+    const found = listRules(config, []).find((rule) => rule.id === id);
+    log.debug({ rule: id, found: found !== undefined, maker: ruleMaker(id) !== undefined }, "rule explained");
+    if (found) return found;
+    if (ruleMaker(id)) return describeRule(id, { severity: "off" }, running(config), []);
+    throw new ConfigError(`rule ${id}: not defined (see spiderlint rules)`);
 }
 
 // Every shipped preset, with whether a configured group runs it.
@@ -97,6 +120,24 @@ function table(rows: string[][], paint: Paint, style: (row: number, column: numb
 export function formatRules(rules: RuleInfo[], paint: Paint): string {
     const rows = [["RULE", "SEVERITY", "SCOPE", "RULESET", "DOCS"], ...rules.map((rule) => [rule.id, rule.severity, rule.scope, rule.rulesets.join(", "), rule.docs ?? ""])];
     return table(rows, paint, (_row, column, cell) => (column === 1 ? TONE[cell.split("/", 1)[0] ?? ""] : column === 4 ? "dim" : undefined));
+}
+
+// One labelled line per field the rule carries; schemas as compact JSON.
+export function formatExplanation(rule: RuleExplanation, paint: Paint): string {
+    const rows: [string, string | undefined][] = [
+        ["severity", `${rule.severity} (preset ${rule.preset})`],
+        ["scope", rule.scope],
+        ["kind", rule.kind],
+        ["rulesets", rule.rulesets.join(", ") || undefined],
+        ["reads", rule.facts.join(", ")],
+        ["expect", rule.expect && JSON.stringify(rule.expect)],
+        ["when", rule.when && JSON.stringify(rule.when)],
+        ["message", rule.message],
+        ["fix", rule.fix],
+        ["docs", rule.docs],
+    ];
+    const lines = rows.filter((row): row is [string, string] => row[1] !== undefined).map(([label, value]) => `${paint("dim", label.padEnd(9))}${value}`);
+    return [paint("bold", rule.id), ...lines].join("\n");
 }
 
 export function formatPresets(presets: PresetInfo[], paint: Paint): string {

@@ -33,6 +33,7 @@ export interface RuleMeta {
     scope: Scope;
     facts: string[];
     docs?: string;
+    fix?: string;
 }
 
 // `undefined` from a page rule means the `when` guard skipped it.
@@ -66,6 +67,7 @@ export interface RuleSpec {
     scope?: Scope;
     severity?: Severity;
     docs?: string;
+    fix?: string;
     message?: string;
 }
 
