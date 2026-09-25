@@ -6,7 +6,8 @@ import { HtmlValidate, StaticConfigLoader, type RuleConfig } from "html-validate
 import { a11y, document as wholeDocument, recommended, standard } from "html-validate/presets";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import type { Finding, Make, RulesetConfig, Severity } from "../rules/types.ts";
+import type { Make, RulesetConfig, Severity } from "../rules/types.ts";
+import { messageRule } from "./messages.ts";
 import { definePlugin } from "./types.ts";
 
 const UPSTREAM = { recommended, document: wholeDocument, standard, a11y };
@@ -56,21 +57,9 @@ function severities(presets: Upstream[]): Record<string, Exclude<Severity, "off"
     return Object.fromEntries(Object.entries(merged).filter(([id, severity]) => severity !== "off" && !IGNORED.has(id))) as Record<string, Exclude<Severity, "off">>;
 }
 
-// One finding per distinct message of rule `id` on a page, its locations as the value.
+// The page rule of html-validate rule `id`.
 function rule(id: string): Make {
-    const ruleId = `${PREFIX}${id}`;
-    return (severity) => ({
-        meta: { id: ruleId, severity, scope: "page", facts: [`${ID}.messages`], docs: `https://html-validate.org/rules/${id}.html` },
-        check(page: Facts) {
-            const facts = page[ID] as HtmlValidateFacts | undefined;
-            if (!facts) return;
-            const byMessage = Map.groupBy(facts.messages.filter((message) => message.rule === id), (message) => message.message);
-            log.debug({ rule: ruleId, url: page.url.href, messages: byMessage.size }, "html-validate messages judged");
-            const locate = (hits: HtmlValidateFacts["messages"]) => hits.map(({ line, column, selector }) => ({ line, column, ...(selector && { selector }) }));
-            const lines = (hits: HtmlValidateFacts["messages"]) => hits.map(({ line, column, selector, source }) => [`${line}:${column}`, selector, source].filter(Boolean).join(" "));
-            return byMessage.entries().map(([message, hits]): Finding => ({ rule: ruleId, severity, scope: "page", url: page.url.href, group: page.group, message, value: locate(hits), locations: lines(hits) })).toArray();
-        },
-    });
+    return messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`);
 }
 
 // A spiderlint preset from html-validate presets.
