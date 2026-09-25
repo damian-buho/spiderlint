@@ -22,6 +22,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - The DNS behind every crawled host
 - One finding per template, not per page
 - Image weight measured, not estimated
+- Dead links, on the site and off it
 - Each origin checked once, beyond its pages
 - Page dependencies fetched once
 - Rules as data, with presets
