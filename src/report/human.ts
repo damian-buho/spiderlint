@@ -100,7 +100,8 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
     const message = shortMessage(finding, origin);
     const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
-        return [`${head} — ${finding.occurrences} pages (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
+        const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
+        return [`${head} — ${pages} (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
     }
     if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint, limit)];
     const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;

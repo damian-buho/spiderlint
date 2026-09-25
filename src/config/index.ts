@@ -14,6 +14,8 @@ export interface GroupConfig {
     match?: string[];
     rules?: string[];
     fetch?: FetchMode;
+    // Pages per group an expensive extractor runs on; `all` runs it on every page.
+    sample?: number | "all";
 }
 
 export interface FoldConfig {

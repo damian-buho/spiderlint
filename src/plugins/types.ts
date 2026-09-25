@@ -13,6 +13,8 @@ export interface Extractor {
     id: string;
     // `browser` runs only on a rendered page, handed over as `live`, and forces the browser crawl.
     mode?: "browser";
+    // `expensive` runs on at most the group’s `sample` pages; `cheap`, the default, on every page.
+    cost?: "cheap" | "expensive";
     extract(page: Facts, body: string, live?: Page): Promise<unknown>;
 }
 

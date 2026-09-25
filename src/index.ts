@@ -20,11 +20,12 @@ import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
+import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { extract, extractorsFor, isBrowserFact, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
+import { extract, extractorsFor, isBrowserFact, isSampledFact, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
-import { runRules, type RuleRun } from "./rules/run.ts";
+import { cell, runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
@@ -164,17 +165,26 @@ function counted(cost: Cost, ids: string[]): void {
     for (const id of ids) cost.extractors[id] = (cost.extractors[id] ?? 0) + 1;
 }
 
-// Stored pages an extractor never saw get its facts from their stored body, so a new rule needs no re-crawl.
-async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], cost: Cost): Promise<void> {
-    const unserved = active.filter((extractor) => extractor.mode === "browser" && pages.some((page) => page.html && page[extractor.id] === undefined));
-    if (unserved.length > 0) log.warn({ extractors: unserved.map((extractor) => extractor.id) }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
-    for (const page of pages) {
-        const missing = active.filter((extractor) => page[extractor.id] === undefined);
-        if (missing.length === 0) continue;
-        const body = await store.body(page.url.href);
-        log.debug({ url: page.url.href, extractors: missing.map((extractor) => extractor.id), hasBody: body !== undefined }, "stored page backfilled");
-        if (body !== undefined) counted(cost, await extract(page, body, missing));
+// Stored pages an extractor never saw get its facts from their stored body, the lowest URLs filling each sample, so a new rule needs no re-crawl.
+async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], cost: Cost, sample: Sampler): Promise<void> {
+    const ordered = pages.toSorted((a, b) => a.url.href.localeCompare(b.url.href));
+    for (const page of ordered) {
+        for (const extractor of active) if (page[extractor.id] !== undefined) sample.seed(page, extractor.id);
     }
+    const unserved = new Set<string>();
+    for (const page of ordered) {
+        const missing = sample.take(page, active.filter((extractor) => page[extractor.id] === undefined));
+        for (const extractor of missing) if (extractor.mode === "browser" && page.html) unserved.add(extractor.id);
+        const runnable = missing.filter((extractor) => extractor.mode !== "browser");
+        if (runnable.length === 0) continue;
+        const body = await store.body(page.url.href);
+        log.debug({ url: page.url.href, extractors: runnable.map((extractor) => extractor.id), hasBody: body !== undefined }, "stored page backfilled");
+        if (body === undefined) continue;
+        const added = await extract(page, body, runnable);
+        sample.release(page, runnable, added);
+        counted(cost, added);
+    }
+    if (unserved.size > 0) log.warn({ extractors: [...unserved] }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
 }
 
 // Why the run needs a browser: each group pinning `browser` and each enabled rule reading a fact only a rendered page has.
@@ -204,6 +214,15 @@ function crawlHash(config: Config): string {
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
+// (group, rule) cells whose rule reads an expensive extractor’s facts in a group larger than its sample.
+function sampledCells(pages: Facts[], rulesByGroup: Map<string, Rule[]>, groups: Record<string, GroupConfig>): Set<string> {
+    const sample = new Sampler(groups);
+    const sizes = tally(pages.map((page) => page.group));
+    const cells = [...rulesByGroup].flatMap(([group, rules]) => rules.filter((rule) => (sizes[group] ?? 0) > sample.cap(group) && rule.meta.facts.some((fact) => isSampledFact(fact))).map((rule) => cell(group, rule.meta.id)));
+    log.debug({ cells }, "sampled cells");
+    return new Set(cells);
+}
+
 type Lint = (crawled: Crawled, started: Date) => Report;
 
 // Compiles groups and rules up front, so a config error fails before the first request.
@@ -223,6 +242,7 @@ function linter(config: Config): Lint {
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
         const run = runRules(pages, rulesByGroup, site);
+        run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         const summary = summarize(pages, run, rules, started, cost, rulesets);
         log.info(summary, "lint done");
@@ -244,11 +264,11 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 }
 
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
-async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[]): Promise<Crawled> {
+async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[], sample: Sampler): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
     const cost: Cost = { extractors: {} };
-    await backfill(pages, store, active, cost);
+    await backfill(pages, store, active, cost, sample);
     attachResources(pages, await store.resources());
     const site = await store.site();
     warnUnserved(site, siteActive);
@@ -262,7 +282,8 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const rules = enabledRules(config);
     const active = extractorsFor(rules);
     const siteActive = siteExtractorsFor(rules);
-    if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive);
+    const sample = new Sampler(groupsOf(config));
+    if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
     const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
@@ -279,7 +300,10 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
             fetched += 1;
             revalidated += facts.http.revalidated ? 1 : 0;
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
-            counted(cost, await extract(facts, body, active, live));
+            const chosen = sample.take(facts, active);
+            const added = await extract(facts, body, chosen, live);
+            sample.release(facts, chosen, added);
+            counted(cost, added);
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
@@ -359,7 +383,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };
         const rules = enabledRules(config);
-        await backfill(pages, store, extractorsFor(rules), cost);
+        await backfill(pages, store, extractorsFor(rules), cost, new Sampler(groupsOf(config)));
         attachResources(pages, await store.resources());
         const site = await store.site();
         warnUnserved(site, siteExtractorsFor(rules));

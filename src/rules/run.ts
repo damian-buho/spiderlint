@@ -10,6 +10,8 @@ export interface RuleRun {
     findings: Finding[];
     applicable: Map<string, number>;
     checks: { total: number; failed: number; errored: number };
+    // Cells whose rule saw only the group’s sample.
+    sampled?: Set<string>;
 }
 
 // Key of the (group, rule) cell the fold reads.

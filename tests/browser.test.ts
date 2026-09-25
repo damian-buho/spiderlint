@@ -75,7 +75,7 @@ describe("browser fetch", { skip }, () => {
 
     before(async () => {
         site = await serveFixture();
-        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser", "axe"] } }, exclude: ["/tmp/**"] });
+        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser", "axe"], sample: "all" } }, exclude: ["/tmp/**"] });
     });
 
     after(() => site.close());

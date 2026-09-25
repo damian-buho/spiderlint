@@ -71,7 +71,7 @@ const schema = {
         },
         groups: {
             type: "object",
-            additionalProperties: { type: "object", additionalProperties: false, properties: { match: { type: "array", items: { type: "string" } }, rules: { type: "array", items: { type: "string" } }, fetch: fetchMode } },
+            additionalProperties: { type: "object", additionalProperties: false, properties: { match: { type: "array", items: { type: "string" } }, rules: { type: "array", items: { type: "string" } }, fetch: fetchMode, sample: { oneOf: [{ type: "integer", minimum: 1 }, { const: "all" }] } } },
         },
         rulesets: {
             type: "object",

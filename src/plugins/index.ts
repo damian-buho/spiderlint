@@ -55,6 +55,12 @@ export function isBrowserFact(fact: string): boolean {
     return root === "browser" || allExtractors().some((extractor) => extractor.mode === "browser" && extractor.id === root);
 }
 
+// Whether reading `fact` needs an expensive extractor, whose facts only the group’s sample carries.
+export function isSampledFact(fact: string): boolean {
+    const root = fact.split(".", 1)[0];
+    return allExtractors().some((extractor) => extractor.cost === "expensive" && extractor.id === root);
+}
+
 // Adds a plugin; a rule, preset or extractor name already taken is a config error.
 function register(plugin: Plugin): void {
     const taken = new Set(allExtractors().map((extractor) => extractor.id));

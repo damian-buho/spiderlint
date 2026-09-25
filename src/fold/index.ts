@@ -37,7 +37,7 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         const first = findings[0] as Finding;
         const located = samples.map((url) => [url, findings.filter((finding) => finding.url === url).flatMap((finding) => finding.locations ?? [])] as const).filter(([, locations]) => locations.length > 0);
         const { locations: _locations, ...shared } = first;
-        out.push({ ...shared, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string, ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }) });
+        out.push({ ...shared, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string, ...(run.sampled?.has(key) && { sampled: applicable }), ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }) });
     }
     log.debug({ before: run.findings.length, after: out.length }, "fold done");
     return out;

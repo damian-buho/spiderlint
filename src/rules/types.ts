@@ -20,6 +20,8 @@ export interface Finding {
     urls?: string[];
     occurrences?: number;
     coverage?: number;
+    // Pages of the group an expensive extractor ran on, when it did not run on all of them.
+    sampled?: number;
     samples?: string[];
     // The locations each sample page reported, keyed by its URL.
     sampleLocations?: Record<string, string[]>;
