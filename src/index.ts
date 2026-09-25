@@ -259,7 +259,8 @@ function linter(config: Config): Lint {
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         const summary = summarize(pages, run, rules, started, cost, rulesets);
-        log.info(summary, "lint done");
+        log.debug(summary, "lint summary");
+        log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
         return { pages, findings, summary };
     };
 }
@@ -362,7 +363,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     else cost.http = { pages: fetched, revalidated };
     const answered = Object.values(results);
     if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached).length, cached: answered.filter((result) => result.cached).length };
-    log.info({ cost }, "crawl cost");
+    log.debug({ cost }, "crawl cost");
     return { pages: memory.pages, site, cost };
 }
 
