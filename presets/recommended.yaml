@@ -15,5 +15,6 @@ extends:
   - spiderlint:resources
   - spiderlint:origin
   - spiderlint:dns:core
+  - spiderlint:images
 rules:
   http/consistent-origin: info
