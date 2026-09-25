@@ -46,6 +46,7 @@ SPDX-License-Identifier: MIT
 - Un enlace que no lleva a ninguna parte, a este sitio o a otro, es un solo hallazgo con la lista de páginas que lo contienen.
 - Los enlaces a otros sitios se comprueban una vez por ejecución y se recuerdan durante una semana, así que una nueva ejecución no les envía nada.
 - Un sitio que solo pide al verificador que vaya más despacio no se informa como roto.
+- Los feeds que una página anuncia en su cabecera también se rastrean y comprueban, aunque ningún enlace apunte a ellos.
 
 ### Cada origen comprobado una vez, más allá de sus páginas
 
@@ -58,11 +59,18 @@ SPDX-License-Identifier: MIT
 - Los scripts, hojas de estilo, imágenes y marcos que cargan las páginas se descargan una vez por ejecución, sea cual sea su origen.
 - Una dependencia rota o insegura es un solo hallazgo con la lista de páginas que la usan, no un hallazgo por página.
 - Se informan los scripts de otro origen sin hash de integridad y los recursos HTTP sin cifrar en páginas HTTPS.
+- El manifiesto de la aplicación web se descarga y se juzga como cualquier otra dependencia.
+
+### robots.txt leído como lo leen los rastreadores
+
+- Se informa de un robots.txt que impide a todos los rastreadores entrar en todo el sitio, porque saca el sitio de los resultados de búsqueda.
+- Los rastreadores de IA que nombra se listan por propósito —entrenamiento, búsqueda o petición de un usuario—, con los que bloquea y los nombres que ningún proveedor usa ya.
+- Se informan las Content Signals que dicen algo distinto de sí o no a la búsqueda, a la entrada de IA o al entrenamiento de IA.
 
 ### Reglas como datos, con preajustes
 
 - Una regla es una ruta de hecho más un JSON Schema, así que una comprobación nueva no requiere código.
-- Los preajustes incluidos cubren SEO, cabeceras de seguridad, TLS, cookies, redirecciones, sitemaps, enlaces y recursos de página.
+- Los preajustes incluidos cubren SEO, cabeceras de seguridad, TLS, cookies, redirecciones, sitemaps, robots.txt, enlaces y recursos de página.
 - Cada grupo de URL ejecuta sus propios conjuntos de reglas, y la severidad de cualquier regla se puede cambiar o desactivar desde la línea de órdenes, el entorno o el projectfile.
 - El marcado de cada página se puede validar contra el estándar HTML y en busca de defectos de accesibilidad; un defecto que comparte toda una plantilla es un solo hallazgo, no uno por página.
 - Los complementos añaden sus propios hechos, reglas y preajustes junto a los incluidos.
@@ -80,6 +88,7 @@ SPDX-License-Identifier: MIT
 - El certificado, el protocolo TLS y la dirección remota se leen de la conexión que sirvió cada página, así que dos backends tras un mismo nombre se informan en lugar de quedar ocultos.
 - Los certificados a punto de caducar, los certificados rechazados y las versiones de TLS obsoletas son hallazgos.
 - Los tiempos, las cadenas de redirección y los atributos de las cookies se registran para cada página, y los valores de las cookies nunca salen del rastreador.
+- Se informa de una cookie `__Host-` que los navegadores rechazarían sin avisar y de una precarga que una pista temprana promete y la página luego abandona.
 
 ### Los archivos que un sitio publica junto a sus páginas
 

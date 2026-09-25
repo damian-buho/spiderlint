@@ -8,3 +8,4 @@ SPDX-License-Identifier: MIT
 - Scripts, style sheets, images and frames the pages load are fetched once per run, whatever their origin.
 - A broken or insecure dependency is one finding listing the pages that use it, not one finding per page.
 - Cross-origin scripts without integrity hashes and plain-HTTP resources on HTTPS pages are reported.
+- The web app manifest is fetched and judged like any other dependency.

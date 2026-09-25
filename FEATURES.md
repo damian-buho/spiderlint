@@ -44,6 +44,7 @@ SPDX-License-Identifier: MIT
 - A link that leads nowhere, to this site or to another one, is one finding listing every page that carries it.
 - Links to other sites are checked once per run and remembered for a week, so a re-run sends them nothing.
 - A site that only asks the checker to slow down is not reported as dead.
+- Feeds a page advertises in its head are crawled and checked too, even when no link points to them.
 
 ### Each origin checked once, beyond its pages
 
@@ -56,11 +57,18 @@ SPDX-License-Identifier: MIT
 - Scripts, style sheets, images and frames the pages load are fetched once per run, whatever their origin.
 - A broken or insecure dependency is one finding listing the pages that use it, not one finding per page.
 - Cross-origin scripts without integrity hashes and plain-HTTP resources on HTTPS pages are reported.
+- The web app manifest is fetched and judged like any other dependency.
+
+### robots.txt read the way crawlers read it
+
+- A robots.txt that shuts every crawler out of the whole site is reported, since it takes the site out of search results.
+- The AI crawlers it names are listed by purpose — training, search or user fetch — with the ones it shuts out and the names no vendor sends any more.
+- Content Signals that say something other than yes or no to search, AI input or AI training are reported.
 
 ### Rules as data, with presets
 
 - A rule is a fact path plus a JSON Schema, so a new check needs no code.
-- Bundled presets cover SEO, security headers, TLS, cookies, redirects, sitemaps, links and page resources.
+- Bundled presets cover SEO, security headers, TLS, cookies, redirects, sitemaps, robots.txt, links and page resources.
 - Each URL group runs its own rule sets, and any rule’s severity can be changed or switched off from the command line, the environment or the projectfile.
 - Every page’s markup can be validated against the HTML standard and for accessibility defects; a defect a whole template shares is one finding, not one per page.
 - Plugins add their own facts, rules and presets beside the bundled ones.
@@ -78,6 +86,7 @@ SPDX-License-Identifier: MIT
 - Certificate, TLS protocol and remote address are read from the connection that served each page, so two backends behind one name are reported instead of hidden.
 - Certificates close to expiry, rejected certificates and outdated TLS versions are findings.
 - Timings, redirect chains and cookie flags are recorded for every page, and cookie values never leave the crawler.
+- A `__Host-` cookie browsers would silently reject, and a preload an early hint promises that the page then drops, are reported.
 
 ### The files a site publishes beside its pages
 
