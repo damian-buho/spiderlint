@@ -177,6 +177,26 @@ describe("loadSettings", () => {
         assert.deepEqual(settings.overrides, { "html/one-h1": "error", "http/hsts": "warning" });
     });
 
+    it("reads each sites.<name> as its own settings over the shared ones", () => {
+        const file = path.join(directory, "sites.yaml");
+        writeFileSync(file, ["org:", "  spiderlint:", "    max-pages: 5", "    sites:", "      static:", "        targets: [https://beta.dbuho.me/]", "        canonical-origin: https://dbuho.me", "      preview:", "        targets: [https://f.dbuho.me/]", "        fetch: browser"].join("\n"));
+        const { settings, sites } = loadSettings(file);
+        assert.deepEqual(settings, { maxPages: 5 });
+        assert.deepEqual(sites, { static: { seeds: ["https://beta.dbuho.me/"], canonicalOrigin: "https://dbuho.me" }, preview: { seeds: ["https://f.dbuho.me/"], fetch: "browser" } });
+    });
+
+    it("rejects shared targets beside sites", () => {
+        const file = path.join(directory, "sites-targets.yaml");
+        writeFileSync(file, ["org:", "  spiderlint:", "    targets: [https://a.test/]", "    sites:", "      b:", "        targets: [https://b.test/]"].join("\n"));
+        assert.throws(() => loadSettings(file), /org\.spiderlint\/targets: with sites/);
+    });
+
+    it("rejects a misspelt key inside a site", () => {
+        const file = path.join(directory, "sites-bad.yaml");
+        writeFileSync(file, ["org:", "  spiderlint:", "    sites:", "      b:", "        tragets: [https://b.test/]"].join("\n"));
+        assert.throws(() => loadSettings(file), /org\.spiderlint\/sites\/b: unknown key "tragets"/);
+    });
+
     it("surfaces a misspelt nested key as a ConfigError naming its path", () => {
         const file = path.join(directory, "bad.yaml");
         writeFileSync(file, ["org:", "  spiderlint:", "    groups:", "      posts:", "        mtach: [/posts/**]"].join("\n"));

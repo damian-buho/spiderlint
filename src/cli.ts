@@ -57,6 +57,7 @@ Crawl:
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
+  --site NAMES          audit these org.spiderlint.sites only, repeatable (all)
   --rules RULESETS      run these rulesets in every group (recommended)
   --disabled-rules IDS  skip these rules
   --error IDS           report these rules as errors
@@ -82,7 +83,7 @@ Store and cache:
   -V, --version         show the version
 
 IDS and RULESETS are comma-separated; see spiderlint rules and presets.
-With no url, targets come from org.spiderlint in the config.
+With no url, targets come from org.spiderlint in the config, one run per site.
 Exit codes: 0 clean, 1 findings, 2 usage, 3 nothing fetched, 4 failure.
 
 Examples:
@@ -224,6 +225,7 @@ function parseFlags(argv: string[]) {
                 warning: { type: "string", multiple: true },
                 info: { type: "string", multiple: true },
                 "log-level": { type: "string" },
+                site: { type: "string", multiple: true },
             },
         });
     } catch (error) {
@@ -231,6 +233,8 @@ function parseFlags(argv: string[]) {
         throw error;
     }
 }
+
+type Flags = Exclude<ReturnType<typeof parseFlags>, TypeError>["values"];
 
 // Exit codes: 0 clean, 1 findings, 2 usage or config, 3 no seed fetched or an --offline miss, 4 the run failed.
 async function main(argv: string[]): Promise<number> {
@@ -249,16 +253,19 @@ async function main(argv: string[]): Promise<number> {
         return 0;
     }
     const [command = "", ...seeds] = positionals;
-    const isStored = ["crawl", "lint", "report"].includes(command);
     if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
         console.error(usage(painter(process.stderr, values.color)));
         return 2;
     }
     try {
-        const { settings: fileSettings } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
-        let config = overlay<Config>(defaults(), fileSettings);
-        config = overlay<Config>(config, environmentSettings(process.env));
-        config = overlay<Config>(config, flagSettings(values, tokens));
+        const { settings: fileSettings, sites } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
+        // Shared settings, then the site’s patch, then environment and flags.
+        const configFor = (site: Settings): Config => {
+            let merged = overlay<Config>(defaults(), fileSettings);
+            for (const patch of [site, environmentSettings(process.env), flagSettings(values, tokens)]) merged = overlay<Config>(merged, patch);
+            return merged;
+        };
+        const config = configFor({});
         if (command === "rules" || command === "presets") {
             await loadPlugins(config.plugins);
             const paint = painter(process.stdout, values.color);
@@ -270,6 +277,31 @@ async function main(argv: string[]): Promise<number> {
         // `cache purge` may name a bucket before its urls.
         const bucket = command === "cache" && seeds[0] === "purge" && PURGEABLE.has(seeds[1] ?? "") ? seeds[1] : undefined;
         const targets = command === "cache" ? seeds.slice(bucket ? 2 : 1) : seeds;
+        const named = (values.site ?? []).flatMap((raw) => splitIds(raw));
+        const unknown = named.filter((name) => !Object.hasOwn(sites, name));
+        if (unknown.length > 0) throw new ConfigError(`--site: unknown site ${unknown.join(", ")} (declared: ${Object.keys(sites).join(", ") || "none"})`);
+        // Command-line urls win over every declared site; with none declared the shared settings are the one site.
+        const chosen = targets.length > 0 || Object.keys(sites).length === 0 ? [["", {}] as const] : Object.entries(sites).filter(([name]) => named.length === 0 || named.includes(name));
+        if (chosen.length > 1 && config.format !== "human") throw new ConfigError(`--format ${config.format}: one document per run, pick a site with --site (declared: ${Object.keys(sites).join(", ")})`);
+        let worst = 0;
+        for (const [name, site] of chosen) {
+            if (name) log.info({ site: name }, "site selected");
+            if (name && chosen.length > 1) console.log(`\n${name}`);
+            worst = Math.max(worst, await run(command, seeds, targets, bucket, configFor(site), values));
+        }
+        return worst;
+    } catch (error) {
+        const isConfig = error instanceof ConfigError;
+        const isOfflineMiss = error instanceof OfflineMiss;
+        log.error({ error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, "audit aborted");
+        return isConfig ? 2 : isOfflineMiss ? 3 : 4;
+    }
+}
+
+// One command over one site’s config; the exit code as main documents it.
+async function run(command: string, seeds: string[], targets: string[], bucket: string | undefined, config: Config, values: Flags): Promise<number> {
+    const isStored = ["crawl", "lint", "report"].includes(command);
+    {
         if (targets.length > 0) config.seeds = targets;
         // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
@@ -318,11 +350,6 @@ async function main(argv: string[]): Promise<number> {
         else if (command === "groups") console.log(groupsOf(report));
         else console.log(format(report, painter(process.stdout, values.color), config.fold === false));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
-    } catch (error) {
-        const isConfig = error instanceof ConfigError;
-        const isOfflineMiss = error instanceof OfflineMiss;
-        log.error({ error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, "audit aborted");
-        return isConfig ? 2 : isOfflineMiss ? 3 : 4;
     }
 }
 

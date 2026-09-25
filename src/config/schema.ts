@@ -27,7 +27,7 @@ const ruleSpec = {
 
 // The org.spiderlint subtree, as documented in AGENTS.md ## Configuration.
 // additionalProperties: false at every level so a misspelt key fails closed.
-const schema = {
+const site = {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -88,6 +88,9 @@ const schema = {
         },
     },
 };
+
+// Each `sites.<name>` entry carries the same keys as the subtree, minus `sites`.
+const schema = { ...site, properties: { ...site.properties, sites: { type: "object", additionalProperties: site } } };
 
 const validate = ajv.compile(schema);
 

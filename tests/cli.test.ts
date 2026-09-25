@@ -95,6 +95,28 @@ describe("cli", () => {
         assert.match(run.stderr, /usage: spiderlint/i);
     });
 
+    it("audits every declared site into its own store, or the ones --site names", async () => {
+        const project = await mkdtemp(path.join(directory, "sites-"));
+        const other = site.origin.replace("127.0.0.1", "localhost");
+        const document = ["org:", "  spiderlint:", "    max-pages: 1", "    sites:", "      static:", `        targets: [${site.origin}/]`, "      preview:", `        targets: [${other}/]`, "        max-pages: 2"].join("\n");
+        await writeFile(path.join(project, "projectfile.yaml"), document);
+        const stores = path.join(project, "cache", "spiderlint");
+        const all = await spiderlint(project, "audit", "--config", "projectfile.yaml", "--fail-on", "never");
+        assert.equal(all.code, 0, all.stderr);
+        assert.match(all.stdout, /^static$/m);
+        assert.match(all.stdout, /^preview$/m);
+        await stat(path.join(stores, new URL(site.origin).host));
+        await stat(path.join(stores, new URL(other).host));
+        const one = await spiderlint(project, "lint", "--config", "projectfile.yaml", "--site", "preview", "--format", "json", "--fail-on", "never");
+        assert.equal(one.code, 0, one.stderr);
+        assert.equal((JSON.parse(one.stdout) as { summary: { pages: number } }).summary.pages, 2);
+        const unknown = await spiderlint(project, "lint", "--config", "projectfile.yaml", "--site", "nope");
+        assert.equal(unknown.code, 2);
+        assert.match(unknown.stderr, /unknown site nope \(declared: (static, preview|preview, static)\)/);
+        const machine = await spiderlint(project, "lint", "--config", "projectfile.yaml", "--format", "json");
+        assert.equal(machine.code, 2);
+    });
+
     it("rejects an unknown flag in one line, with no stack trace", async () => {
         const run = await spiderlint(directory, "lint", "https://a.test/", "--log-levl", "error");
         assert.equal(run.code, 2);

@@ -80,6 +80,14 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     return settings;
 }
 
+// Shared settings plus one patch per `sites.<name>`; a site key replaces the shared one whole.
+function resolve(raw: unknown): { settings: Settings; sites: Record<string, Settings> } {
+    const { sites = {}, ...shared } = validateSubtree(raw) as { sites?: Record<string, Record<string, unknown>> } & Record<string, unknown>;
+    if (Object.keys(sites).length > 0 && shared.targets !== undefined) throw new ConfigError("org.spiderlint/targets: with sites, every target belongs to a sites.<name>.targets");
+    log.debug({ sites: Object.keys(sites) }, "sites declared");
+    return { settings: fromSubtree(shared), sites: Object.fromEntries(Object.entries(sites).map(([name, site]) => [name, fromSubtree(site)])) };
+}
+
 // First recognised projectfile encoding present in the working directory.
 function discover(): string | undefined {
     return DISCOVER_NAMES.find((name) => existsSync(name));
@@ -103,23 +111,23 @@ function readPlainYaml(document: string): unknown {
 // Resolves the org.spiderlint subtree: explicit --config, else cwd discovery, else no file.
 // pf-cli reads the document when it is on PATH; an explicit --config file falls back to a
 // direct YAML parse otherwise, so outsiders need no pf-cli install (AGENTS.md ## Configuration).
-export function loadSettings(explicit: string | undefined): { settings: Settings; document: string | undefined } {
+export function loadSettings(explicit: string | undefined): { settings: Settings; sites: Record<string, Settings>; document: string | undefined } {
     if (explicit !== undefined && !existsSync(explicit)) throw new ConfigError(`config file not found: ${explicit}`);
     const document = explicit ?? discover();
     if (document === undefined) {
         log.debug({}, "no projectfile found, using defaults");
-        return { settings: {}, document: undefined };
+        return { settings: {}, sites: {}, document: undefined };
     }
     const pfResult = runPfCli(document);
     if (pfResult === undefined) {
         if (explicit === undefined) {
             log.info({ document }, "pf-cli not found, skipping projectfile config");
-            return { settings: {}, document };
+            return { settings: {}, sites: {}, document };
         }
         log.debug({ document }, "pf-cli not found, parsing config file directly");
-        return { settings: fromSubtree(validateSubtree(readPlainYaml(document))), document };
+        return { ...resolve(readPlainYaml(document)), document };
     }
     if (pfResult.error !== undefined) throw new ConfigError(`pf-cli: cannot read ${SUBTREE} from ${document}: ${pfResult.error}`);
     log.debug({ document }, "config subtree loaded via pf-cli");
-    return { settings: fromSubtree(validateSubtree(pfResult.raw)), document };
+    return { ...resolve(pfResult.raw), document };
 }

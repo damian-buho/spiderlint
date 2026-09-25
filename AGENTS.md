@@ -17,7 +17,7 @@ run (browser when any group pins it or any enabled rule reads `browser.*`); site
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
-`sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; the store with `crawl`, `lint`,
+`sarif`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
@@ -59,7 +59,7 @@ plugins over one page cache.
 
 | Term      | Meaning                                                                                                                           |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Target    | A seed URL, from the command line or `org.spiderlint.targets`. With neither, the command prints its usage.                        |
+| Target    | A seed URL, from the command line, `org.spiderlint.targets` or a site’s `targets`. With none, the command prints its usage.       |
 | Page      | One fetched URL: request, response, body, and everything derived from them.                                                       |
 | Facts     | The JSON document extractors build for a page. Rules read facts and nothing else.                                                 |
 | Extractor | Code that turns a page into facts: static (the body) or live (the open browser page). A site extractor does one origin or host.   |
@@ -91,7 +91,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 
 ## Discovery
 
-- Seeds: CLI URLs, then projectfile `links`, then `spiderlint.targets`.
+- Seeds: CLI URLs, else each selected site’s `targets`, else `spiderlint.targets`. Projectfile `links` never seed a crawl.
 - Sitemap: `robots.txt` `Sitemap:` lines plus `/sitemap.xml`, `/sitemap.txt` and `/sitemap_index.xml` when no seed names a sitemap. spiderlint fetches every file and every same-host file an index names itself, gunzips by magic bytes, and hands the text to Crawlee’s parser; each file becomes a `site.sitemaps` entry. Union with discovered links. The difference is itself lint input: `sitemap/orphan` (listed, never linked) and `sitemap/unlisted` (linked, never listed); a file that does not fetch, does not parse or names no URL is `sitemap/unreadable`.
 - Robots: spiderlint reads `robots.txt` through the `robots` bucket and hands it to Crawlee’s `respectRobotsTxtFile` — disallowed URLs are skipped and logged through `onSkippedRequest`; a `4xx` allows everything and a `5xx` or no answer disallows everything (RFC 9309 §2.3.1); `Crawl-delay` maps to `sameDomainDelaySecs`, the longest over the seed origins, since Crawlee applies one delay to every domain. `--no-robots` prints a warning and is intended for staging hosts.
 - Scope: `origin` (default), `host` (any port and scheme), `domain` (subdomains). Scope governs what is CRAWLED — which pages are fetched and parsed for more links.
@@ -399,7 +399,20 @@ org:
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
     groups: { … }
     rulesets: { … }
+    sites:                             # optional; one run and one store per site
+      static:
+        targets: [https://beta.dbuho.me/]
+        canonical-origin: https://dbuho.me
+      preview:
+        targets: [https://f.dbuho.me/]
+        fetch: browser
 ```
+
+A `sites.<name>` entry takes every key above except `sites`, and each key it sets
+replaces the shared one whole. Without a URL, `audit`, `crawl`, `lint`, `report`,
+`groups` and `cache` run once per site, `--site` narrows the set, and the exit code
+is the worst of the runs. Shared `targets` beside `sites` is a config error, and so
+is `json` or `sarif` over more than one site, since each is one document.
 
 The shape is registered in `projectfile/specification/spec/registry.yaml`
 with a fragment under `spec/shapes/org.spiderlint.yaml` once v1 ships.
