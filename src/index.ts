@@ -14,12 +14,13 @@ import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
 import { robotsFacts } from "./facts/robots.ts";
+import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { extract, extractorsFor, isBrowserFact, loadPlugins } from "./plugins/index.ts";
-import type { Extractor } from "./plugins/types.ts";
+import { extract, extractorsFor, isBrowserFact, loadPlugins, siteExtractorsFor } from "./plugins/index.ts";
+import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
@@ -223,21 +224,25 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 }
 
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
-async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[]): Promise<Crawled> {
+async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[]): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
     const cost: Cost = { extractors: {} };
     await backfill(pages, store, active, cost);
     attachResources(pages, await store.resources());
-    return { pages, site: await store.site(), cost };
+    const site = await store.site();
+    warnUnserved(site, siteActive);
+    return { pages, site, cost };
 }
 
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
 async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
-    const active = extractorsFor(enabledRules(config));
-    if (config.cacheMode === "offline") return servedOffline(earlier, store, active);
+    const rules = enabledRules(config);
+    const active = extractorsFor(rules);
+    const siteActive = siteExtractorsFor(rules);
+    if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
     const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
@@ -265,6 +270,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
     await store?.saveResources(results);
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory)));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };
@@ -327,9 +333,12 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
     return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };
-        await backfill(pages, store, extractorsFor(enabledRules(config)), cost);
+        const rules = enabledRules(config);
+        await backfill(pages, store, extractorsFor(rules), cost);
         attachResources(pages, await store.resources());
-        const report = withPrevious(lint({ pages, site: await store.site(), cost }, started), store.last);
+        const site = await store.site();
+        warnUnserved(site, siteExtractorsFor(rules));
+        const report = withPrevious(lint({ pages, site, cost }, started), store.last);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });
@@ -352,7 +361,7 @@ export async function warmCache(overrides: Partial<Config>, directory: string): 
 }
 
 export { loadPlugins } from "./plugins/index.ts";
-export { definePlugin, type Extractor, type Plugin } from "./plugins/types.ts";
+export { definePlugin, type Extractor, type Plugin, type SiteContext, type SiteExtractor } from "./plugins/types.ts";
 
 // The last stored report, with the stored facts, for re-formatting.
 export async function reportStore(directory: string): Promise<Report> {

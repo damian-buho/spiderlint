@@ -20,7 +20,7 @@ describe("resource rules", () => {
     it("reports an http: resource on https: pages only", () => {
         const script: ResourceFacts = { url: "http://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" };
         const rule = builtin["resources/mixed-content"]?.("error") as AggregateRule;
-        const findings = rule.check([page("https://site.test/", [script]), page("https://site.test/b", [script]), page("http://site.test/c", [script])]);
+        const findings = rule.check([page("https://site.test/", [script]), page("https://site.test/b", [script]), page("http://site.test/c", [script])]) ?? [];
         assert.equal(findings.length, 1);
         assert.equal(findings[0]?.message, "script loads over http: on 2 https: pages");
         assert.deepEqual(findings[0]?.urls, ["https://site.test/", "https://site.test/b"]);

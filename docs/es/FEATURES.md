@@ -26,6 +26,12 @@ SPDX-License-Identifier: MIT
 - Los resultados salen en texto, JSON o SARIF, así que las vistas de análisis de código muestran una fila por defecto.
 - Cada ejecución termina con el número de comprobaciones superadas y una nota de la S a la F, para comparar sitios y versiones de un vistazo.
 
+### Cada origen comprobado una vez, más allá de sus páginas
+
+- Se pide a propósito una página inexistente, así que un falso 404, o una página de error que filtra una traza de pila o la versión del servidor, es un hallazgo.
+- HTTP plano debe llevar a HTTPS en una sola redirección permanente, y la página de inicio no debe redirigir a los visitantes según su idioma.
+- Los plugins añaden sus propias comprobaciones por origen o por host; sus resultados se reutilizan entre ejecuciones y sus peticiones nunca salen del host que comprueban.
+
 ### Dependencias de página descargadas una sola vez
 
 - Los scripts, hojas de estilo, imágenes y marcos que cargan las páginas se descargan una vez por ejecución, sea cual sea su origen.

@@ -17,7 +17,7 @@ export interface Fetched<T> {
 }
 
 // Exponential backoff with jitter; a Retry-After in seconds wins, capped at the timeout.
-function delay(attempt: number, retryAfter?: string): number {
+export function delay(attempt: number, retryAfter?: string): number {
     const seconds = Number(retryAfter ?? NaN);
     return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, TIMEOUT_MS) : 500 * 2 ** attempt + Math.random() * 250;
 }

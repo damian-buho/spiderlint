@@ -252,9 +252,9 @@ async function main(argv: string[]): Promise<number> {
     }
     try {
         const { settings: fileSettings } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
-        let config = overlay(defaults(), fileSettings);
-        config = overlay(config, environmentSettings(process.env));
-        config = overlay(config, flagSettings(values, tokens));
+        let config = overlay<Config>(defaults(), fileSettings);
+        config = overlay<Config>(config, environmentSettings(process.env));
+        config = overlay<Config>(config, flagSettings(values, tokens));
         if (command === "rules" || command === "presets") {
             await loadPlugins(config.plugins);
             const paint = painter(process.stdout, values.color);

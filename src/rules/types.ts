@@ -39,9 +39,10 @@ export interface PageRule {
     check(page: Facts): Finding[] | undefined;
 }
 
+// `undefined` from an aggregate rule means it had no subject to judge.
 export interface AggregateRule {
     meta: RuleMeta & { scope: "group" | "site" };
-    check(pages: Facts[], group?: string, site?: SiteFacts): Finding[];
+    check(pages: Facts[], group?: string, site?: SiteFacts): Finding[] | undefined;
 }
 
 export type Rule = PageRule | AggregateRule;

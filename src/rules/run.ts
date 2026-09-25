@@ -47,7 +47,7 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
             const before = run.findings.length;
             if (isPageRule(rule)) runPageRule(rule, members, group, run);
             else if (rule.meta.scope === "group") {
-                const found = rule.check(members, group, facts);
+                const found = rule.check(members, group, facts) ?? [];
                 judged(run, found, members.length);
                 run.findings.push(...found);
             }
@@ -57,7 +57,8 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
     }
     for (const rule of site.values()) {
         const found = rule.check(pages, undefined, facts);
-        log.debug({ rule: rule.meta.id, scope: "site", pages: pages.length, findings: found.length }, "rule ran");
+        log.debug({ rule: rule.meta.id, scope: "site", pages: pages.length, findings: found?.length, isSkipped: found === undefined }, "rule ran");
+        if (found === undefined) continue;
         judged(run, found, pages.length);
         run.findings.push(...found);
     }

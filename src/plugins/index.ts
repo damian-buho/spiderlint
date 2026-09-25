@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Page } from "playwright";
 import { ConfigError } from "../config/index.ts";
+import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { builtin } from "../rules/builtin.ts";
@@ -13,9 +14,10 @@ import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
 import axe from "./axe.ts";
 import htmlValidate from "./html-validate.ts";
-import type { Extractor, Plugin } from "./types.ts";
+import origin from "./origin.ts";
+import type { Extractor, Plugin, SiteExtractor } from "./types.ts";
 
-const plugins: Plugin[] = [htmlValidate, axe];
+const plugins: Plugin[] = [htmlValidate, axe, origin];
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.
@@ -36,6 +38,10 @@ function allExtractors(): Extractor[] {
     return plugins.flatMap((plugin) => plugin.extractors ?? []);
 }
 
+function allSiteExtractors(): SiteExtractor[] {
+    return plugins.flatMap((plugin) => plugin.sites ?? []);
+}
+
 // Whether reading `fact` needs a rendered page: `browser.*`, or the key of a browser-mode extractor.
 export function isBrowserFact(fact: string): boolean {
     const root = fact.split(".", 1)[0];
@@ -49,10 +55,11 @@ function register(plugin: Plugin): void {
     const rules = Object.keys(plugin.rules ?? {}).filter((id) => ruleMaker(id));
     const presets = Object.keys(plugin.presets ?? {}).filter((name) => shipped.has(name));
     const extractors = (plugin.extractors ?? []).map((extractor) => extractor.id).filter((id) => taken.has(id));
-    const clash = [...rules, ...presets, ...extractors];
+    const sites = (plugin.sites ?? []).filter((site) => allSiteExtractors().some((other) => other.id === site.id && other.per === site.per)).map((site) => `site.${site.per}s.*.${site.id}`);
+    const clash = [...rules, ...presets, ...extractors, ...sites];
     if (clash.length > 0) throw new ConfigError(`plugin ${plugin.name}: ${clash.join(", ")} already defined`);
     plugins.push(plugin);
-    log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0 }, "plugin registered");
+    log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0, sites: plugin.sites?.length ?? 0 }, "plugin registered");
 }
 
 // Imports each named plugin once: a path from the working directory, else a package installed beside spiderlint.
@@ -81,6 +88,17 @@ export function extractorsFor(rules: Rule[]): Extractor[] {
     const roots = new Set(rules.flatMap((rule) => rule.meta.facts.map((fact) => fact.split(".", 1)[0])));
     const active = allExtractors().filter((extractor) => roots.has(extractor.id));
     log.debug({ extractors: active.map((extractor) => extractor.id), roots: roots.size }, "extractors chosen");
+    return active;
+}
+
+// Site extractors whose ID sits under `site.origins.*` or `site.hosts.*` in a fact some rule reads.
+export function siteExtractorsFor(rules: Rule[]): SiteExtractor[] {
+    const read = new Set(rules.flatMap((rule) => rule.meta.facts.flatMap((fact) => {
+        const subject = subjectPath(fact);
+        return subject ? [`${subject.kind}\t${subject.id}`] : [];
+    })));
+    const active = allSiteExtractors().filter((extractor) => read.has(`${extractor.per}s\t${extractor.id}`));
+    log.debug({ extractors: active.map((extractor) => extractor.id), read: read.size }, "site extractors chosen");
     return active;
 }
 

@@ -57,7 +57,7 @@ const schema = {
         cache: {
             type: "object",
             additionalProperties: false,
-            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
+            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
         },
         "fail-on": { enum: ["error", "warning", "info", "never"] },
         format: { enum: ["human", "json", "sarif"] },

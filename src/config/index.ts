@@ -50,6 +50,8 @@ export interface Config {
     plugins: string[];
     cacheMode: CacheMode;
     cacheTtl: Partial<Record<BucketName, number>>;
+    // Whether site extractor probes may reach loopback, private and link-local addresses.
+    allowPrivate: boolean;
 }
 
 export function defaults(): Config {
@@ -78,6 +80,7 @@ export function defaults(): Config {
         plugins: [],
         cacheMode: "use",
         cacheTtl: {},
+        allowPrivate: true,
     };
 }
 

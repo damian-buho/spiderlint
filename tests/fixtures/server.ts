@@ -79,6 +79,11 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>403</title></head><body><h1>Forbidden</h1></body></html>");
             return;
         }
+        if (pathname === "/favicon.ico") {
+            response.writeHead(200, { "content-type": "image/x-icon" });
+            response.end(Buffer.from([0, 0, 1, 0]));
+            return;
+        }
         if (pathname === "/big.bin") {
             response.writeHead(200, { "content-type": "application/octet-stream", "content-length": BIG });
             response.end(Buffer.alloc(BIG));

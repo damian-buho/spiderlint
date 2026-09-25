@@ -39,6 +39,10 @@ export interface SitemapFileFacts {
 export interface SiteFacts {
     sitemaps: SitemapFileFacts[];
     redirects?: Record<string, string>;
+    // Site extractor facts by origin, then by extractor ID.
+    origins?: Record<string, Record<string, unknown>>;
+    // Site extractor facts by hostname, then by extractor ID.
+    hosts?: Record<string, Record<string, unknown>>;
 }
 
 export interface CookieFacts {

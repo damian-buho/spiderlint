@@ -21,7 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
-extractors, the bundled `html-validate` and `axe`; the fixture site. Not yet: adaptive fetch and a
+extractors, site extractors per origin or host with the `origins` bucket and the probe address guard, the bundled `html-validate`, `axe` and `origin`; the fixture site. Not yet: adaptive fetch and a
 fetch mode per group, the `probes` bucket, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
@@ -62,7 +62,7 @@ plugins over one page cache.
 | Target    | A seed URL, from the command line or `org.spiderlint.targets`. With neither, the command prints its usage.                        |
 | Page      | One fetched URL: request, response, body, and everything derived from them.                                                       |
 | Facts     | The JSON document extractors build for a page. Rules read facts and nothing else.                                                 |
-| Extractor | Code that turns a page into facts. Static (needs the body) or live (needs the open browser page). Cheap or expensive.             |
+| Extractor | Code that turns a page into facts: static (the body) or live (the open browser page). A site extractor does one origin or host.   |
 | Resource  | A sub-request a page depends on: script, style, image, font, iframe, preload. Any origin. Fetched and linted, never crawled.      |
 | Group     | A named set of pages, matched by URL glob or regular expression. A page is in exactly one group. A group approximates a template. |
 | Ruleset   | A named map of rules, extendable. Presets ship as rulesets.                                                                       |
@@ -198,7 +198,9 @@ Facts about the site rather than one page form a second document, handed to
 group and site rules beside the pages:
 
 ```yaml
-site:     { sitemaps: [{ url, status, urls, sitemaps, error }] }
+site:     { sitemaps: [{ url, status, urls, sitemaps, error }],
+            origins: { "https://example.org": { <site extractor ID>: … } },   # per: origin
+            hosts: { "example.org": { <site extractor ID>: … } } }           # per: host
 ```
 
 Plugins add their own top-level key (`lighthouse`, `axe`, `htmlvalidate`).
@@ -261,6 +263,7 @@ rulesets:
 - `message` is the finding’s sentence, `{got}` standing for the offending value (`none` when absent); every shipped declarative rule carries one. Without it the finding reads AJV’s wording against the fact path. An override that sets `expect` without `message` drops the inherited one, which may state the old bounds.
 - `when` is a map of fact path to a constant or to a JSON Schema the fact must satisfy (`http.status: {minimum: 200, maximum: 299}`); the rule is skipped, not failed, when any entry differs. This is how TLS rules stay quiet on `.onion` hosts. A ruleset-level `when` is merged into every rule it carries — `seo` uses it to judge 2xx pages only, so a 404 page is a `links/broken-internal` finding and never a duplicate title.
 - A page rule whose extractor did not run — the fact path’s top-level key is absent, as `html` is on a JSON or RSS document — is skipped, not failed. Only a key present with a missing field is a finding.
+- A `fact` under `site.origins.*.` or `site.hosts.*.` is a site rule judged once per subject whose facts carry the extractor’s ID, keyed by the origin or host, so it never folds; only `when` paths under the same prefix apply, and with no such subject it counts no check.
 - A rule entry with neither `fact` nor `unique` names a built-in TypeScript rule by ID (`links/broken-internal: error`); an unknown ID is a config error.
 - `scope: page` (default) runs per page. `scope: group` and `scope: site` receive every facts document of that group or of the crawl; `unique: <fact>` is the only built-in aggregate, anything else is a TypeScript rule.
 
@@ -343,6 +346,7 @@ pays only for what changed.
 | `resources`  | resource URL                              | the site’s store               | RFC 9111, else 24 hours — a CDN asset shared by every page is fetched once                   |
 | `robots`     | host                                      | `$XDG_CACHE_HOME/spiderlint/`  | 24 hours (RFC 9309 §2.4)                                                                     |
 | `sitemaps`   | sitemap URL                               | the site’s store               | `Last-Modified`, else 24 hours                                                               |
+| `origins`    | `(site extractor, origin or host)`        | the site’s store               | 24 hours; a failed or timed-out run is not stored                                            |
 | `extractors` | `(extractor, version, URL, sha256(body))` | the site’s store               | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
 | `browser`    | sub-resource URL                          | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
 
@@ -383,6 +387,7 @@ org:
       resources: { ttl: 24h }          # when the origin sends no Cache-Control or Expires
       robots: { ttl: 24h }             # also caps what the origin allows (RFC 9309 §2.4)
       sitemaps: { ttl: 24h }
+      origins: { ttl: 24h }
     fail-on: error
     format: human
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
@@ -430,6 +435,9 @@ export default definePlugin({
 - Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
 - An extractor with `mode: browser` gets the crawler’s live Playwright page as `live`, runs only on a rendered HTML page, and forces the browser crawl as a `browser.*` rule does. `lint` and `--offline` cannot backfill it from a stored body; a store lacking its facts warns once.
+- `sites: [{ id, per: origin|host, timeout?, extract(subject, context) }]` runs once per origin (scheme, host, port) or hostname the crawl kept pages on, after the crawl, `NUMPROCS` subjects at a time, each abandoned after `timeout` (60 s). Facts land under `site.origins[<origin>].<id>` or `site.hosts[<host>].<id>`; `undefined` adds nothing, a throw or a timeout warns and leaves the key absent. `context` holds the subject’s `pages`, an abort `signal`, and `fetch(url, { method: GET|HEAD, headers, redirect: manual|follow })`: the spiderlint user agent, a 10 s timeout, one retry on a network error, `429` or `503`, a 1 MB body cap, and every URL and followed hop on the subject’s host.
+- A site extractor runs only when an enabled rule reads `site.origins.*.<id>` or `site.hosts.*.<id>`. Its facts persist with the site document and are reused from the `origins` bucket while fresh; `lint` and `--offline` cannot backfill one, and warn once when the stored site facts lack it.
+- `origin` probes each origin: `GET /spiderlint-<uuid>` (logged at `info`, so an owner finds it in their access log), plain `http://<host>/`, `/` in four `Accept-Language`s, and `/favicon.ico`. Rules: `origin/soft-404`, `origin/error-page` (HTML, not empty, no stack trace, no versioned `Server`), `origin/https-entry` (one `301` or `308` to `https://<host>/`; skipped on `.onion`), `origin/locale-redirect`, `origin/favicon`. Preset `origin`; `all` carries it, `recommended` does not.
 - Later: `formatters` and `sources`; `cost: expensive` on extractors, obeying the group `sample`; the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `severity`, `line`, `column`, `offset`, `size`, `selector`, `source` — the tag at the offset — and `context`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value and `line:column selector <tag>` as `locations`. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
 - `axe` runs axe-core through `@axe-core/playwright` in the crawler’s own rendered page (pa11y would launch a second browser), with axe’s default rule set: no experimental, AAA or obsolete rules. Facts are `axe.version`, `axe.violations[]` and `axe.incomplete[]` (`rule`, `impact`, `tags`, `description`, `help`, `error`, and `nodes[]` with `target`, `html`, `xpath`, `ancestry`, `impact`, `summary` and the `any`/`all`/`none` checks, each with `message`, `data` and `related` elements); each axe rule is the rule `axe/<id>`, one finding per violated rule per page with its impact and elements as the value and `selector <tag>, related: …` as `locations`. Presets: `axe` (WCAG A and AA rules as errors, best practices as warnings), `axe:wcag`, `axe:best-practice`; `all` carries them, `recommended` does not.
@@ -455,6 +463,7 @@ export default definePlugin({
 - User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
 - Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
+- Site extractor probes send `GET` or `HEAD` only and never leave their subject’s host. With `allowPrivate: false`, which `serve` is to set, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root.
 - The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.
@@ -490,7 +499,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # contract, registry, bundled html-validate and axe (lighthouse next)
+├── plugins/            # contract, registry, bundled html-validate, axe and origin (lighthouse next)
 └── i18n/
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 locales/                # es/, uk/
