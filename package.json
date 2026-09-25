@@ -26,6 +26,7 @@
     "crawlee": "3.18.1",
     "dns-packet": "5.6.1",
     "html-validate": "11.16.0",
+    "htmlhint": "1.9.2",
     "http-cache-semantics": "4.2.0",
     "picomatch": "4.0.7",
     "pino": "10.3.1",

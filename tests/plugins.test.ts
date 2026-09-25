@@ -11,6 +11,7 @@ import { audit, crawl, lintStore, loadPlugins } from "../src/index.ts";
 import { ConfigError, defaults } from "../src/config/index.ts";
 import type { Facts } from "../src/facts/types.ts";
 import htmlValidate, { type HtmlValidateFacts } from "../src/plugins/html-validate.ts";
+import htmlhint, { type HtmlHintFacts } from "../src/plugins/htmlhint.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { listPresets } from "../src/rules/catalog.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
@@ -45,6 +46,22 @@ describe("html-validate extractor", () => {
 
     it("skips a truncated body, whose cut-off elements would all fail", async () => {
         assert.equal(await extractor?.extract(stubPage(false, true), BODY), undefined);
+    });
+});
+
+describe("htmlhint extractor", () => {
+    const hinter = htmlhint.extractors?.[0];
+
+    it("reports unpaired tags and duplicate IDs with their line, column and tag", async () => {
+        const body = '<!DOCTYPE html><html lang="en"><head><title>t</title></head><body><p id="a"><b>x</p><p id="a">y</p></body></html>';
+        const facts = (await hinter?.extract(stubPage(false), body)) as HtmlHintFacts;
+        const pair = facts.messages.find((message) => message.rule === "tag-pair");
+        assert.deepEqual([pair?.line, pair?.source], [1, "</p>"]);
+        assert.ok(facts.messages.some((message) => message.rule === "id-unique"));
+    });
+
+    it("skips a truncated body, whose cut-off tags would all fail", async () => {
+        assert.equal(await hinter?.extract(stubPage(false, true), BODY), undefined);
     });
 });
 
@@ -95,9 +112,17 @@ describe("plugins", () => {
         assert.ok(formatHuman(report).includes(`at ${first[0]}`));
     });
 
+    it("hints every HTML page once a rule reads htmlhint, each htmlhint rule on its own", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["htmlhint", "htmlhint:extra"], fold: false, cacheMode: "off" });
+        assert.ok(report.pages.some((page) => page.htmlhint !== undefined) && report.pages.every((page) => page.htmlhint === undefined || page.html !== undefined));
+        const alt = report.findings.find((finding) => finding.rule === "htmlhint/alt-require" && finding.url.endsWith("/posts/3"));
+        assert.equal(alt?.severity, "warning");
+        assert.match(alt?.locations?.[0] ?? "", /^\d+:\d+ <img src="\/figure\.png">$/);
+    });
+
     it("runs no extractor no enabled rule reads", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"], cacheMode: "off" });
-        assert.ok(report.pages.every((page) => page.htmlvalidate === undefined));
+        assert.ok(report.pages.every((page) => page.htmlvalidate === undefined && page.htmlhint === undefined));
     });
 
     it("validates stored bodies on lint, so a crawl made without the rules needs no re-crawl", async () => {
