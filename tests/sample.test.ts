@@ -39,10 +39,15 @@ describe("sample", () => {
         assert.equal(posts(report.pages).filter((page) => page.length !== undefined).length, 5);
     });
 
-    it("runs it on every page of a group sampling all", () => {
+    it("runs no extractor on a group whose rules read none of its facts", () => {
         const html = report.pages.filter((page) => page.group === "default" && page.html);
         assert.ok(html.length > 3);
-        assert.ok(html.every((page) => page.heavy !== undefined));
+        assert.ok(html.every((page) => page.heavy === undefined && page.length === undefined));
+    });
+
+    it("runs it on every page of a group sampling all", async () => {
+        const all = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, groups: { ...GROUPS, posts: { ...GROUPS.posts, sample: "all" } }, cacheMode: "off" });
+        assert.equal(posts(all.pages).filter((page) => page.heavy !== undefined).length, 5);
     });
 
     it("runs it on every page when no group is declared", async () => {

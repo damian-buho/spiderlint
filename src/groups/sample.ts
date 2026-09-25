@@ -15,9 +15,12 @@ export class Sampler {
     readonly #groups: ReturnType<typeof compileGroups>;
     readonly #caps: Map<string, number>;
     readonly #taken = new Map<string, number>();
+    // Extractor IDs each group’s rules read; absent, every extractor serves every group.
+    readonly #wanted: Map<string, Set<string>> | undefined;
 
-    constructor(groups: Record<string, GroupConfig>) {
+    constructor(groups: Record<string, GroupConfig>, wanted?: Map<string, Set<string>>) {
         this.#groups = compileGroups(groups);
+        this.#wanted = wanted;
         this.#caps = new Map(Object.entries(groups).map(([name, group]) => [name, group.sample === "all" ? Infinity : (group.sample ?? SAMPLE_DEFAULT)]));
     }
 
@@ -40,11 +43,14 @@ export class Sampler {
         this.#taken.set(key, (this.#taken.get(key) ?? 0) + 1);
     }
 
-    // Every cheap extractor, and each expensive one while `page`’s group has a slot left, which it reserves.
+    // Every cheap extractor `page`’s group reads, and each expensive one while the group has a slot left, which it reserves.
     take(page: Facts, active: Extractor[]): Extractor[] {
         const group = this.groupOf(page);
         const cap = this.cap(group);
-        return active.filter((extractor) => {
+        const wanted = this.#wanted?.get(group);
+        const read = wanted ? active.filter((extractor) => wanted.has(extractor.id)) : active;
+        log.debug({ url: page.url.href, group, active: active.length, read: read.length }, "group extractors");
+        return read.filter((extractor) => {
             if (extractor.cost !== "expensive") return true;
             const key = this.#key(group, extractor.id);
             const taken = this.#taken.get(key) ?? 0;

@@ -157,10 +157,21 @@ function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void 
     }
 }
 
+// Each group’s rules, flags applied.
+function rulesOf(config: Config): Map<string, Rule[]> {
+    const disabledRules = new Set(config.disabledRules);
+    return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
+}
+
 // Every rule some group runs, flags applied.
 function enabledRules(config: Config): Rule[] {
-    const disabledRules = new Set(config.disabledRules);
-    return Object.values(groupsOf(config)).flatMap((group) => compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides));
+    return rulesOf(config).values().toArray().flat();
+}
+
+// A sampler handing each page only the extractors its own group’s rules read.
+function samplerOf(config: Config): Sampler {
+    const wanted = new Map(rulesOf(config).entries().map(([group, rules]) => [group, new Set(extractorsFor(rules).map((extractor) => extractor.id))]));
+    return new Sampler(groupsOf(config), wanted);
 }
 
 // Counts one run of each extractor in `ids`.
@@ -232,8 +243,7 @@ type Lint = (crawled: Crawled, started: Date) => Report;
 function linter(config: Config): Lint {
     const groups = groupsOf(config);
     const matchers = compileGroups(groups);
-    const disabledRules = new Set(config.disabledRules);
-    const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
+    const rulesByGroup = rulesOf(config);
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     warnUnknown(config, groups);
@@ -285,7 +295,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     const rules = enabledRules(config);
     const active = extractorsFor(rules);
     const siteActive = siteExtractorsFor(rules);
-    const sample = new Sampler(groupsOf(config));
+    const sample = samplerOf(config);
     if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
@@ -389,7 +399,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };
         const rules = enabledRules(config);
-        await backfill(pages, store, extractorsFor(rules), cost, new Sampler(groupsOf(config)));
+        await backfill(pages, store, extractorsFor(rules), cost, samplerOf(config));
         attachResources(pages, await store.resources());
         const site = await store.site();
         warnUnserved(site, siteExtractorsFor(rules));

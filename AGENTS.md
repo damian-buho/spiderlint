@@ -451,7 +451,7 @@ export default definePlugin({
 ```
 
 - Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset or extractor ID is a config error.
-- An extractor runs only when an enabled rule reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
+- An extractor runs on a page only when a rule of the page’s group reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
 - Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
 - An extractor with `mode: browser` gets the crawler’s live Playwright page as `live`, runs only on a rendered HTML page, and forces the browser crawl as a `browser.*` rule does. `lint` and `--offline` cannot backfill it from a stored body; a store lacking its facts warns once.
