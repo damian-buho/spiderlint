@@ -33,7 +33,7 @@ const HEADERS: Record<string, Record<string, string>> = {
 };
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
-async function body(pathname: string, origin: string): Promise<[string, Buffer] | undefined> {
+async function body(pathname: string, origin: string, local: string): Promise<[string, Buffer] | undefined> {
     const bare = pathname.endsWith("/") ? `${pathname}index.html` : pathname;
     const candidates = /\.\w+$/.test(bare) ? [bare] : [`${bare}.html`, `${bare}/index.html`];
     for (const candidate of candidates) {
@@ -42,7 +42,7 @@ async function body(pathname: string, origin: string): Promise<[string, Buffer] 
             const raw = await readFile(new URL(candidate.slice(1), SITE));
             // eslint-disable-next-line unicorn/prefer-https -- fixture.test mirrors the plain-http origin the fixture server runs on
             const placeholder = "http://fixture.test";
-            const cdn = origin.replace("//127.0.0.1:", "//localhost:");
+            const cdn = local.replace("//127.0.0.1:", "//localhost:");
             // eslint-disable-next-line unicorn/prefer-https -- the CDN placeholder mirrors the same plain-http server
             const cdnPlaceholder = "http://fixture-cdn.test";
             return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin).replaceAll(cdnPlaceholder, () => cdn))]; // `fixture.test` is the site, `fixture-cdn.test` the same server under another origin.
@@ -90,7 +90,8 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             return;
         }
         const isGzip = pathname.endsWith(".gz");
-        const found = await body(isGzip ? pathname.slice(0, -3) : pathname, builtFor ?? `http://${request.headers.host}`);
+        const local = `http://${request.headers.host}`;
+        const found = await body(isGzip ? pathname.slice(0, -3) : pathname, builtFor ?? local, local);
         if (!found) {
             response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");
