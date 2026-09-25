@@ -14,6 +14,7 @@ import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap } from "./crawl/sitemap.ts";
 import { attachResources, fetchResources } from "./crawl/resources.ts";
 import { robotsFacts } from "./facts/robots.ts";
+import { dnsClient } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, SiteFacts } from "./facts/types.ts";
 import { fold } from "./fold/index.ts";
@@ -270,7 +271,8 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory));
     await store?.saveResources(results);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory)));
+    const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };

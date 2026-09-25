@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Page } from "playwright";
+import type { DnsClient } from "../crawl/dns.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
@@ -15,9 +16,10 @@ export interface Extractor {
     extract(page: Facts, body: string, live?: Page): Promise<unknown>;
 }
 
-// What a site extractor may touch: its subject’s pages, and GET or HEAD probes that stay on its host.
+// What a site extractor may touch: its subject’s pages, GET or HEAD probes that stay on its host, and DNS queries to the configured resolver.
 export interface SiteContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
+    dns: DnsClient;
     pages: readonly Facts[];
     signal: AbortSignal;
 }
@@ -29,6 +31,8 @@ export interface SiteExtractor {
     per: "origin" | "host";
     // Milliseconds before the run gives up on one subject; 60 s when unset.
     timeout?: number;
+    // `false` skips the `origins` bucket and runs on every crawl, for an extractor whose queries cache themselves.
+    cached?: false;
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 

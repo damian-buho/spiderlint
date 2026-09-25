@@ -14,6 +14,7 @@ import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Repo
 import { ConfigError, originOf, overlay, defaults, type BrowserName, type Config, type FailOn, type FetchMode } from "./config/index.ts";
 import { environmentSettings } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
+import { parseResolver } from "./crawl/dns.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
 import { formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
@@ -52,6 +53,7 @@ Crawl:
   --no-keepalive        one connection per request
   --no-resources        skip scripts, styles, images and fonts
   --canonical-origin U  origin the pages are built for; its URLs count as the crawled one’s
+  --resolver LIST       DNS servers the dns plugin asks, address[:port],… (system)
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
@@ -151,6 +153,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     const overrides = overridesInOrder(tokens);
     return {
         ...(values["canonical-origin"] !== undefined && { canonicalOrigin: originOf("--canonical-origin", values["canonical-origin"] as string) }),
+        ...(values.resolver !== undefined && { resolver: parseResolver(values.resolver as string) }),
         ...(values.fetch !== undefined && { fetch: values.fetch as FetchMode }),
         ...(values.browser !== undefined && { browser: values.browser as BrowserName }),
         ...(values.scope !== undefined && { scope: values.scope as Scope }),
@@ -199,6 +202,7 @@ function parseFlags(argv: string[]) {
                 offline: { type: "boolean" },
                 "older-than": { type: "string" },
                 "canonical-origin": { type: "string" },
+                resolver: { type: "string" },
                 fetch: { type: "string" },
                 browser: { type: "string" },
                 scope: { type: "string" },

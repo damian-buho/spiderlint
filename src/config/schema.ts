@@ -33,6 +33,7 @@ const schema = {
     properties: {
         targets: { type: "array", items: { type: "string" } },
         "canonical-origin": { type: "string" },
+        resolver: { type: "string" },
         rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
         browser: { enum: ["chromium", "firefox", "webkit"] },
@@ -57,7 +58,7 @@ const schema = {
         cache: {
             type: "object",
             additionalProperties: false,
-            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
+            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins", "dns"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
         },
         "fail-on": { enum: ["error", "warning", "info", "never"] },
         format: { enum: ["human", "json", "sarif"] },

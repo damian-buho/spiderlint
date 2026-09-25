@@ -4,6 +4,7 @@
 
 import type { Bucket } from "../cache/index.ts";
 import type { Config } from "../config/index.ts";
+import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { probe } from "../crawl/probe.ts";
 import { width } from "../crawl/resources.ts";
@@ -29,17 +30,17 @@ function subjects(pages: Facts[], per: SiteExtractor["per"]): Map<string, Facts[
 }
 
 // One subject’s facts, abandoned with its probes once the extractor’s timeout passes.
-async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate">): Promise<unknown> {
+async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate">, dns: DnsClient): Promise<unknown> {
     const timeout = extractor.timeout ?? TIMEOUT_MS;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
-    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal }) };
+    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal }), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) } };
     const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(`timed out after ${timeout} ms`)), { once: true }));
     return Promise.race([extractor.extract(subject, context), expired]);
 }
 
 // Runs each active extractor once per subject, from `bucket` while fresh, and returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate">, bucket: SiteBucket): Promise<string[]> {
+export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate">, bucket: SiteBucket, dns: DnsClient): Promise<string[]> {
     const jobs = active.flatMap((extractor) => [...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members })));
     log.info({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length }, "site extractors start");
     const ran: string[] = [];
@@ -47,14 +48,14 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
     const worker = async () => {
         for (const { extractor, subject, members } of queue) {
             const key = `${extractor.id}\t${subject}`;
-            const entry = await bucket.get(key);
+            const entry = extractor.cached === false ? undefined : await bucket.get(key);
             let value = entry && bucket.isFresh(entry) ? entry.value : undefined;
             log.debug({ extractor: extractor.id, subject, cached: value !== undefined }, "site extractor subject");
             if (value === undefined) {
                 try {
-                    value = await runOne(extractor, subject, members, config);
+                    value = await runOne(extractor, subject, members, config, dns);
                     ran.push(extractor.id);
-                    if (value !== undefined) await bucket.set(key, value);
+                    if (value !== undefined && extractor.cached !== false) await bucket.set(key, value);
                 } catch (error) {
                     log.warn({ extractor: extractor.id, subject, error: reason(error) }, "site extractor failed");
                 }

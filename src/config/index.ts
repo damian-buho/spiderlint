@@ -50,8 +50,10 @@ export interface Config {
     plugins: string[];
     cacheMode: CacheMode;
     cacheTtl: Partial<Record<BucketName, number>>;
-    // Whether site extractor probes may reach loopback, private and link-local addresses.
+    // Whether site extractor probes may reach loopback, private and link-local addresses, and query name servers directly.
     allowPrivate: boolean;
+    // `system`, or a comma list of `address[:port]` the dns plugin queries.
+    resolver: string;
 }
 
 export function defaults(): Config {
@@ -81,6 +83,7 @@ export function defaults(): Config {
         cacheMode: "use",
         cacheTtl: {},
         allowPrivate: true,
+        resolver: "system",
     };
 }
 
