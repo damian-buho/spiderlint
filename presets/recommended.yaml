@@ -14,5 +14,6 @@ extends:
   - spiderlint:sitemap
   - spiderlint:resources
   - spiderlint:origin
+  - spiderlint:dns:core
 rules:
   http/consistent-origin: info
