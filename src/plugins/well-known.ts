@@ -163,7 +163,7 @@ const llmsTxt: Check = async (text, { url }, context) => {
         const answer = isProbed ? await context.link(link) : { status: statuses.get(link) };
         probed += isProbed ? 1 : 0;
         log.debug({ link, status: answer.status, isProbed }, "llms.txt link judged");
-        if (answer.status === undefined || ("refused" in answer && answer.refused)) continue;
+        if (answer.status === undefined || ("refused" in answer && answer.refused) || ("walled" in answer && answer.walled)) continue;
         if (answer.status === 0) errors.push(`${link} is unreachable: ${"error" in answer ? answer.error : "no answer"}`);
         else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
     }

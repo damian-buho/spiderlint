@@ -57,7 +57,7 @@ describe("well-known plugin", () => {
         assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
     });
 
-    it("probes an uncrawled llms.txt link once, then answers it from the probes bucket", async () => {
+    it("probes a broken uncrawled llms.txt link again on every run", async () => {
         const cache = await mkdtemp(path.join(tmpdir(), "spiderlint-llms-"));
         const saved = process.env.XDG_CACHE_HOME;
         process.env.XDG_CACHE_HOME = cache;
@@ -68,7 +68,7 @@ describe("well-known plugin", () => {
             const report = await audit(options);
             const requested = new Set(broken.requested.slice(before));
             assert.ok(requested.has("/llms.txt"), "the agents extractor ran again");
-            assert.ok(!requested.has("/uncrawled"), "the link came from the probes bucket");
+            assert.ok(requested.has("/uncrawled"), "a broken answer is never stored");
             assert.match(report.findings.find((finding) => finding.rule === "well-known/llms-txt-valid")?.message ?? "", /\/uncrawled answers 404/);
         } finally {
             if (saved === undefined) delete process.env.XDG_CACHE_HOME;

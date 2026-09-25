@@ -9,7 +9,11 @@ import { VERSION } from "../src/agent.ts";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { openBucket } from "../src/cache/index.ts";
+import { answerOf } from "../src/crawl/links.ts";
 import { crawlDelayOf, robotsLoader } from "../src/crawl/robots.ts";
+import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
+import { builtin } from "../src/rules/builtin.ts";
+import type { AggregateRule } from "../src/rules/types.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { painter } from "../src/color.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
@@ -109,7 +113,7 @@ describe("audit", () => {
         assert.equal(dead?.message, "http.status is 404; linked from 12 pages");
     });
 
-    it("reports only the dead external link, and probes it once across runs", async () => {
+    it("reports only the dead external link, and asks it again on the next run", async () => {
         const [dead, ...rest] = of("links/broken-external");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${cdn()}/gone`);
@@ -118,7 +122,19 @@ describe("audit", () => {
         const probes = () => site.requested.filter((pathname) => pathname === "/gone").length;
         assert.equal(probes(), 1);
         await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"] });
-        assert.equal(probes(), 1, "the probes bucket answers the second run");
+        assert.equal(probes(), 2, "a broken answer is never stored");
+    });
+
+    it("stores a bot wall answer and never judges it", async () => {
+        const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
+        const href = `${cdn()}/walled`;
+        const first = await answerOf(href, { allowPrivate: true }, bucket, new AbortController().signal);
+        assert.deepEqual(first, { status: 403, method: "HEAD", walled: true });
+        const second = await answerOf(href, { allowPrivate: true }, bucket, new AbortController().signal);
+        assert.equal(second.cached, true);
+        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const page = { url: new URL(`${site.origin}/`), html: { links: { external: [href] } } } as unknown as Facts;
+        assert.deepEqual(rule?.check([page], undefined, { sitemaps: [], links: { [href]: first } } as unknown as SiteFacts), []);
     });
 
     it("judges no SEO fact on a page outside 2xx", () => {

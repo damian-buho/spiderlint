@@ -8,10 +8,15 @@ import type { Facts, LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import { PrivateAddress } from "./guard.ts";
-import { probe } from "./probe.ts";
+import { probe, type Probe } from "./probe.ts";
 import { width } from "./resources.ts";
 
 export type ProbeBucket = Bucket<LinkFacts>;
+
+// A Cloudflare challenge or LinkedIn’s 999: the answer says nothing about the page.
+function isWalled(answer: Probe): boolean {
+    return answer.headers["cf-mitigated"] === "challenge" || answer.status === 999;
+}
 
 // A HEAD, then a GET when the server refuses HEAD; a network failure is status 0 with its error.
 async function probeOne(href: string, config: Pick<Config, "allowPrivate">, signal: AbortSignal): Promise<LinkFacts> {
@@ -19,20 +24,23 @@ async function probeOne(href: string, config: Pick<Config, "allowPrivate">, sign
     try {
         const head = await probe(href, { method: "HEAD", redirect: "follow" }, options);
         const answer = head.status === 405 ? await probe(href, { method: "GET", redirect: "follow" }, options) : head;
-        log.debug({ url: href, head: head.status, status: answer.status }, "external link probed");
-        return { status: answer.status, method: head.status === 405 ? "GET" : "HEAD" };
+        const isWall = isWalled(answer);
+        log.debug({ url: href, head: head.status, status: answer.status, isWall }, "external link probed");
+        return { status: answer.status, method: head.status === 405 ? "GET" : "HEAD", ...(isWall && { walled: true as const }) };
     } catch (error) {
         log.debug({ url: href, error: reason(error) }, "external link unreachable");
         return { status: 0, error: reason(error), ...(error instanceof PrivateAddress && { refused: true as const }) };
     }
 }
 
-// One link’s answer, from `bucket` while fresh; a failure is never stored, so the next run asks again.
+// One link’s answer, from `bucket` while fresh; only a healthy or walled answer is stored, so a broken link is asked again every run.
 export async function answerOf(href: string, config: Pick<Config, "allowPrivate">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
     const entry = await bucket.get(href);
     if (entry && bucket.isFresh(entry)) return { ...entry.value, cached: true };
     const answer = await probeOne(href, config, signal);
-    if (answer.status > 0) await bucket.set(href, answer);
+    const isStored = answer.status > 0 && (answer.status < 400 || answer.walled === true);
+    log.debug({ url: href, status: answer.status, isStored }, "external link answer");
+    if (isStored) await bucket.set(href, answer);
     return answer;
 }
 
@@ -56,7 +64,8 @@ export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPriv
     const workers = Array.from({ length: Math.min(width(config.concurrency), hrefs.length) }, worker);
     await Promise.all(workers);
     const all = Object.values(answers);
-    const failed = all.filter((answer) => answer.status === 0 || answer.status >= 400).length;
-    log.info({ links: hrefs.length, cached, failed }, "external links probed");
+    const walled = all.filter((answer) => answer.walled).length;
+    const failed = all.filter((answer) => !answer.walled && (answer.status === 0 || answer.status >= 400)).length;
+    log.info({ links: hrefs.length, cached, failed, walled }, "external links probed");
     return answers;
 }
