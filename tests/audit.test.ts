@@ -78,9 +78,11 @@ describe("audit", () => {
         assert.equal(crawlDelayOf(await robots(`${site.origin}/`)), 0.01);
     });
 
-    it("reads head links, hreflang, JSON-LD, scripts and robots directives into facts", () => {
+    it("reads charset, head links, hreflang, JSON-LD, scripts and robots directives into facts", () => {
         const about = report.pages.find((page) => page.url.pathname === "/about");
         assert.equal(about?.html?.dir, "ltr");
+        assert.match(about?.html?.charset?.declared ?? "", /^utf-8$/);
+        assert.ok((about?.html?.charset?.offset ?? 0) > 0 && (about?.html?.charset?.offset ?? 2048) < 1024, `offset ${about?.html?.charset?.offset}`);
         assert.deepEqual(about?.html?.head.links.find((link) => link.rel === "icon"), { rel: "icon", href: `${site.origin}/favicon.svg`, type: "image/svg+xml" });
         assert.deepEqual(about?.html?.hreflang, [{ lang: "es", href: `${site.origin}/es/about` }]);
         assert.deepEqual(about?.html?.jsonld[0], { "@context": "https://schema.org", "@type": "AboutPage" });
@@ -204,7 +206,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}269 of 316 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}282 of 329 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
         assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
     });
 
@@ -236,8 +238,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 316, failed: 47, errored: 6, passed: 269 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8513, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 329, failed: 47, errored: 6, passed: 282 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8571, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

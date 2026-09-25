@@ -234,7 +234,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                 const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing)) };
                 if (isHtml) {
                     const $ = await parseWithCheerio();
-                    facts.html = extractHtml($, url, config.scope);
+                    facts.html = extractHtml($, text, url, config.scope);
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests) };
                 }

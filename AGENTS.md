@@ -180,7 +180,7 @@ http:     { status, version, redirects: [{ url }],
             cookies: [{ name, secure, httpOnly, sameSite }] }
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
             cert: { subject, issuer, notBefore, notAfter, daysLeft, san: [], fingerprint256 } }
-html:     { lang, dir, title, h1: [], h2: [], canonical,
+html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], canonical,   # offset: byte where the declaring <meta> ends
             meta: { name: content }, property: { og:title: … },
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },

@@ -71,12 +71,21 @@ function jsonld($: CheerioAPI): unknown[] {
         .get();
 }
 
-// Static HTML facts from the parsed document; the http fetch mode is enough.
-export function extractHtml($: CheerioAPI, page: URL, scope: Scope): HtmlFacts {
+const CHARSET = /<meta\s[^>]*?charset\s*=\s*["']?\s*([^\s"';>]+)[^>]*>/i;
+
+// The first `<meta>` declaring an encoding, with the byte offset where that element ends.
+function charsetOf(body: string): HtmlFacts["charset"] {
+    const match = CHARSET.exec(body);
+    return match?.[1] ? { declared: match[1], offset: Buffer.byteLength(body.slice(0, match.index + match[0].length)) } : undefined;
+}
+
+// Static HTML facts from the parsed document and its source; the http fetch mode is enough.
+export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope): HtmlFacts {
     const anchors = hrefs($, "a[href]", page).map((url) => url.href);
     return {
         lang: $("html").attr("lang"),
         dir: $("html").attr("dir"),
+        charset: charsetOf(body),
         title: $("head > title").first().text().trim() || undefined,
         h1: $("h1").map((_, element) => $(element).text().trim()).get(),
         canonical: $('link[rel="canonical"]').attr("href"),

@@ -78,6 +78,7 @@ export interface TlsFacts {
 export interface HtmlFacts {
     lang?: string;
     dir?: string;
+    charset?: { declared: string; offset: number };
     title?: string;
     h1: string[];
     canonical?: string;

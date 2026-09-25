@@ -44,6 +44,12 @@ rules:
     severity: warning
     message: "a right-to-left language should set <html dir=rtl>, found {got}"
     docs: https://www.w3.org/International/questions/qa-html-dir
+  html/charset:
+    fact: html.charset
+    expect: {type: object, required: [declared, offset], properties: {declared: {pattern: "^(?i:utf-?8)$"}, offset: {maximum: 1024}}}
+    severity: warning
+    message: "<meta charset> should declare UTF-8 within the first 1024 bytes, found {got}"
+    docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
   html/favicon:
     fact: html.head.links
     expect: {contains: {required: [rel], properties: {rel: {pattern: "(?i:(^|\\s)icon(\\s|$))"}}}}

@@ -120,7 +120,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                         ...(contentType.encoding && { charset: contentType.encoding }),
                     },
                     ...(cap?.tls && { tls: cap.tls }),
-                    ...(isHtml && { html: extractHtml($, url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
+                    ...(isHtml && { html: extractHtml($, body.toString(), url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
                 };
                 if (earlier) facts.http = revalidated(earlier.facts, facts);
                 revalidatedPages += earlier ? 1 : 0;
