@@ -196,7 +196,7 @@ const dnssec: SiteExtractor = {
         const keys = records<DnskeyData>(dnskey, "DNSKEY").map(({ data }) => ({ algorithm: data.algorithm, flags: data.flags }));
         const soonest = records<RrsigData>(a, "RRSIG").toSorted((x, y) => x.data.expiration - y.data.expiration)[0]?.data;
         const isSigned = delegation.length > 0;
-        const failed = isSigned ? await bogus(host, a, context) : false;
+        const failed = isSigned && await bogus(host, a, context);
         log.debug({ host, zone, ds: delegation.length, dnskey: keys.length, ad: a.ad, rcode: a.rcode, bogus: failed }, "dnssec read");
         return {
             zone,

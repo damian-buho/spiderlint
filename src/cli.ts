@@ -166,7 +166,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.sitemap !== undefined && { sitemap: values.sitemap as boolean }),
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
-        ...(values.unfold !== undefined && { fold: (values.unfold as boolean) ? false : { threshold: 0.8, min: 3 } }),
+        ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: values["fail-on"] as FailOn }),
         ...(values.format !== undefined && { format: values.format as Config["format"] }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),

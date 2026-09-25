@@ -60,7 +60,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_EXCLUDE !== undefined && { exclude: list(environment.SPIDERLINT_EXCLUDE) }),
         ...(environment.SPIDERLINT_ROBOTS !== undefined && { robots: isTruthy("SPIDERLINT_ROBOTS", environment.SPIDERLINT_ROBOTS) }),
         ...(environment.SPIDERLINT_SITEMAP !== undefined && { sitemap: isTruthy("SPIDERLINT_SITEMAP", environment.SPIDERLINT_SITEMAP) }),
-        ...(environment.SPIDERLINT_FOLD !== undefined && { fold: isTruthy("SPIDERLINT_FOLD", environment.SPIDERLINT_FOLD) ? { threshold: 0.8, min: 3 } : false }),
+        ...(environment.SPIDERLINT_FOLD !== undefined && { fold: isTruthy("SPIDERLINT_FOLD", environment.SPIDERLINT_FOLD) && { threshold: 0.8, min: 3 } }),
         ...(environment.SPIDERLINT_FAIL_ON !== undefined && { failOn: pick("SPIDERLINT_FAIL_ON", environment.SPIDERLINT_FAIL_ON, FAIL_ONS) }),
         ...(environment.SPIDERLINT_FORMAT !== undefined && { format: pick("SPIDERLINT_FORMAT", environment.SPIDERLINT_FORMAT, FORMATS) }),
         ...(environment.SPIDERLINT_CACHE !== undefined && { cacheMode: pick("SPIDERLINT_CACHE", environment.SPIDERLINT_CACHE, CACHE_MODES) }),
