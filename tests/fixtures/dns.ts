@@ -1,0 +1,128 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: MIT
+
+import { createSocket } from "node:dgram";
+import { createServer } from "node:net";
+import type { AddressInfo } from "node:net";
+import dnsPacket, { type Answer, type Packet } from "dns-packet";
+
+export interface DnsFixture {
+    server: string;
+    port: number;
+    queries: string[];
+    close(): Promise<void>;
+}
+
+interface Zone {
+    rcode?: string;
+    answers?: Answer[];
+    // Sets `AD`; `CD` retries of a `bogus` name answer NOERROR, others SERVFAIL.
+    ad?: boolean;
+    bogus?: boolean;
+    // Truncated over UDP, whole over TCP.
+    truncate?: boolean;
+    // Direct queries (no `RD`) answered authoritatively.
+    authoritative?: boolean;
+}
+
+const FAR = Math.floor(Date.UTC(2099, 0, 1) / 1000);
+const SOON = Math.floor(Date.now() / 1000) + 2 * 86_400;
+
+// An SVCB RDATA with keys in ascending order, the shape RFC 9460 §2.2 demands.
+export function svcb(priority: number, target: string, parameters: [number, Buffer][]): Buffer {
+    const name = target === "." ? [Buffer.from([0])] : [...target.split(".").map((label) => Buffer.concat([Buffer.from([label.length]), Buffer.from(label)])), Buffer.from([0])];
+    const head = Buffer.alloc(2);
+    head.writeUInt16BE(priority);
+    const encoded = parameters.map(([key, value]) => {
+        const prefix = Buffer.alloc(4);
+        prefix.writeUInt16BE(key);
+        prefix.writeUInt16BE(value.length, 2);
+        return Buffer.concat([prefix, value]);
+    });
+    return Buffer.concat([head, ...name, ...encoded]);
+}
+
+function alpn(...ids: string[]): Buffer {
+    return Buffer.concat(ids.map((id) => Buffer.concat([Buffer.from([id.length]), Buffer.from(id)])));
+}
+
+function rrsig(name: string, expiration: number): Answer {
+    return { type: "RRSIG", name, ttl: 300, data: { typeCovered: "A", algorithm: 13, labels: 2, originalTTL: 300, expiration, inception: expiration - 86_400 * 30, keyTag: 1, signersName: name.split(".").slice(-2).join("."), signature: Buffer.alloc(64) } } as Answer;
+}
+
+function soa(name: string, serial: number): Answer {
+    return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire: 86_400, minimum: 300 } } as Answer;
+}
+
+// `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `bogus.fixture` fails validation.
+const ZONES: Record<string, Zone> = {
+    ".|SOA": { ad: true, answers: [soa(".", 1)] },
+    "good.fixture|SOA": { answers: [soa("good.fixture", 7)], authoritative: true },
+    "good.fixture|A": { ad: true, answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.1" }, rrsig("good.fixture", FAR)] },
+    "good.fixture|AAAA": { answers: [{ type: "AAAA", name: "good.fixture", ttl: 300, data: "2001:db8::1" }] },
+    "good.fixture|UNKNOWN_65": { answers: [{ type: "UNKNOWN_65", name: "good.fixture", ttl: 300, data: svcb(1, ".", [[1, alpn("h2", "h3")], [4, Buffer.from([192, 0, 2, 1])], [6, Buffer.from("20010db8000000000000000000000001", "hex")]]) } as unknown as Answer] },
+    "good.fixture|CAA": { answers: [{ type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "issue", value: "letsencrypt.org" } }, { type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "iodef", value: "mailto:caa@good.fixture" } }] },
+    "good.fixture|DS": { answers: [{ type: "DS", name: "good.fixture", ttl: 300, data: { keyTag: 1, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
+    "good.fixture|DNSKEY": { answers: [{ type: "DNSKEY", name: "good.fixture", ttl: 300, data: { flags: 257, algorithm: 13, key: Buffer.alloc(64) } }] },
+    "good.fixture|NSEC3PARAM": { answers: [{ type: "NSEC3PARAM", name: "good.fixture", ttl: 300, data: Buffer.from([1, 0, 0, 0, 0]) } as unknown as Answer] },
+    "good.fixture|NS": { answers: [{ type: "NS", name: "good.fixture", ttl: 300, data: "ns1.good.fixture" }, { type: "NS", name: "good.fixture", ttl: 300, data: "ns2.good.fixture" }] },
+    "ns1.good.fixture|A": { answers: [{ type: "A", name: "ns1.good.fixture", ttl: 300, data: "127.0.0.1" }] },
+    "ns2.good.fixture|AAAA": { answers: [{ type: "AAAA", name: "ns2.good.fixture", ttl: 300, data: "::1" }] },
+    "ns2.good.fixture|A": { answers: [{ type: "A", name: "ns2.good.fixture", ttl: 300, data: "127.0.0.1" }] },
+    "big.good.fixture|A": { truncate: true, answers: [{ type: "A", name: "big.good.fixture", ttl: 300, data: "192.0.2.9" }] },
+    "bad.fixture|SOA": { answers: [soa("bad.fixture", 3)] },
+    "www.bad.fixture|A": { answers: [{ type: "CNAME", name: "www.bad.fixture", ttl: 300, data: "a.bad.fixture" }, { type: "CNAME", name: "a.bad.fixture", ttl: 300, data: "b.bad.fixture" }, { type: "CNAME", name: "b.bad.fixture", ttl: 300, data: "c.bad.fixture" }, { type: "A", name: "c.bad.fixture", ttl: 300, data: "198.51.100.1" }, rrsig("c.bad.fixture", SOON)] },
+    "bad.fixture|DS": { answers: [{ type: "DS", name: "bad.fixture", ttl: 300, data: { keyTag: 2, algorithm: 5, digestType: 1, digest: Buffer.alloc(20) } }] },
+    "bad.fixture|DNSKEY": { answers: [{ type: "DNSKEY", name: "bad.fixture", ttl: 300, data: { flags: 257, algorithm: 5, key: Buffer.alloc(64) } }] },
+    "bad.fixture|NSEC3PARAM": { answers: [{ type: "NSEC3PARAM", name: "bad.fixture", ttl: 300, data: Buffer.from([1, 0, 0, 10, 4, 1, 2, 3, 4]) } as unknown as Answer] },
+    "bad.fixture|NS": { answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }] },
+    "ns1.bad.fixture|A": { answers: [{ type: "A", name: "ns1.bad.fixture", ttl: 300, data: "127.0.0.1" }] },
+    "old.bad.fixture|A": { rcode: "NXDOMAIN", answers: [{ type: "CNAME", name: "old.bad.fixture", ttl: 300, data: "gone.elsewhere.fixture" }] },
+    "bogus.fixture|SOA": { answers: [soa("bogus.fixture", 1)] },
+    "bogus.fixture|DS": { answers: [{ type: "DS", name: "bogus.fixture", ttl: 300, data: { keyTag: 3, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
+    "bogus.fixture|A": { bogus: true, answers: [{ type: "A", name: "bogus.fixture", ttl: 300, data: "192.0.2.3" }] },
+};
+
+// The reply to one query, from the zone table; an unknown name is NOERROR with no answers.
+function answer(query: Packet, isTcp: boolean, isValidating: boolean): Buffer {
+    const question = query.questions?.[0];
+    const zone = ZONES[`${question?.name || "."}|${question?.type}`] ?? {};
+    const isDirect = ((query.flags ?? 0) & dnsPacket.RECURSION_DESIRED) === 0;
+    const isChecked = ((query.flags ?? 0) & dnsPacket.CHECKING_DISABLED) === 0;
+    const isBogus = zone.bogus === true && isValidating && isChecked;
+    const isTruncated = zone.truncate === true && !isTcp;
+    const flags = (isBogus ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
+    return dnsPacket.encode({ type: "response", id: query.id, flags, questions: query.questions, answers: isBogus || isTruncated ? [] : (zone.answers ?? []) } as Packet);
+}
+
+// A resolver answering the fixture zones over UDP and TCP on one ephemeral port; `isValidating` sets `AD` where signed.
+export async function serveDns(isValidating = true): Promise<DnsFixture> {
+    const queries: string[] = [];
+    const udp = createSocket("udp4");
+    udp.on("message", (message, peer) => {
+        const query = dnsPacket.decode(message);
+        queries.push(`${query.questions?.[0]?.name}|${query.questions?.[0]?.type}`);
+        udp.send(answer(query, false, isValidating), peer.port, peer.address);
+    });
+    await new Promise<void>((resolve) => udp.bind(0, "127.0.0.1", resolve));
+    const { port } = udp.address();
+    const tcp = createServer((socket) => {
+        socket.once("data", (chunk: Buffer) => {
+            const reply = answer(dnsPacket.decode(chunk.subarray(2)), true, isValidating);
+            const prefix = Buffer.alloc(2);
+            prefix.writeUInt16BE(reply.length);
+            socket.end(Buffer.concat([prefix, reply]));
+        });
+    });
+    await new Promise<void>((resolve) => tcp.listen(port, "127.0.0.1", resolve));
+    return {
+        server: `127.0.0.1:${port}`,
+        port: (tcp.address() as AddressInfo).port,
+        queries,
+        close: async () => {
+            udp.close();
+            await new Promise<void>((resolve) => tcp.close(() => resolve()));
+        },
+    };
+}

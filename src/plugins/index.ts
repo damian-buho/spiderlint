@@ -13,11 +13,12 @@ import { builtin } from "../rules/builtin.ts";
 import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
 import axe from "./axe.ts";
+import dns from "./dns.ts";
 import htmlValidate from "./html-validate.ts";
 import origin from "./origin.ts";
 import type { Extractor, Plugin, SiteExtractor } from "./types.ts";
 
-const plugins: Plugin[] = [htmlValidate, axe, origin];
+const plugins: Plugin[] = [htmlValidate, axe, origin, dns];
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.

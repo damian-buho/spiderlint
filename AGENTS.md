@@ -21,7 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps` and `robots`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `rules` and `presets`; plugins with extractors, rules and presets, browser-mode
-extractors, site extractors per origin or host with the `origins` bucket and the probe address guard, the bundled `html-validate`, `axe` and `origin`; the fixture site. Not yet: adaptive fetch and a
+extractors, site extractors per origin or host with the `origins` bucket and the probe address guard, the bundled `html-validate`, `axe`, `origin` and `dns` with the `dns` bucket and `--resolver`; the fixture site. Not yet: adaptive fetch and a
 fetch mode per group, the `probes` bucket, `explain`, plugin formatters and sources, `lighthouse`, localised
 messages, `links/broken-external`, the `i18n` preset, `checkstyle` and `csv`.
 The rest of this document is the specification the remaining parts are built from.
@@ -347,6 +347,7 @@ pays only for what changed.
 | `robots`     | host                                      | `$XDG_CACHE_HOME/spiderlint/`  | 24 hours (RFC 9309 §2.4)                                                                     |
 | `sitemaps`   | sitemap URL                               | the site’s store               | `Last-Modified`, else 24 hours                                                               |
 | `origins`    | `(site extractor, origin or host)`        | the site’s store               | 24 hours; a failed or timed-out run is not stored                                            |
+| `dns`        | `(server, name, type, CD)`                | the site’s store               | the smallest record TTL of the answer, at least the bucket TTL (60 s)                        |
 | `extractors` | `(extractor, version, URL, sha256(body))` | the site’s store               | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
 | `browser`    | sub-resource URL                          | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
 
@@ -369,6 +370,7 @@ org:
   spiderlint:
     targets: [https://f.dbuho.me/]     # optional; the command-line urls win
     canonical-origin: https://dbuho.me # optional; the origin a staging twin’s pages are built for
+    resolver: system                   # or 9.9.9.9,[2620:fe::fe]:53; the servers the dns plugin asks
     rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
     browser: chromium                  # chromium | firefox | webkit
@@ -388,6 +390,7 @@ org:
       robots: { ttl: 24h }             # also caps what the origin allows (RFC 9309 §2.4)
       sitemaps: { ttl: 24h }
       origins: { ttl: 24h }
+      dns: { ttl: 60 }                 # a floor; the record TTL wins above it
     fail-on: error
     format: human
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
@@ -413,7 +416,7 @@ spiderlint explain <rule>                 docs, default severity, fact it reads
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
-Flags mirror the config keys (`--rules`, `--canonical-origin`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
+Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--format`, `--output`, `--fail-on`, `--unfold`,
 `--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,
@@ -438,6 +441,7 @@ export default definePlugin({
 - `sites: [{ id, per: origin|host, timeout?, extract(subject, context) }]` runs once per origin (scheme, host, port) or hostname the crawl kept pages on, after the crawl, `NUMPROCS` subjects at a time, each abandoned after `timeout` (60 s). Facts land under `site.origins[<origin>].<id>` or `site.hosts[<host>].<id>`; `undefined` adds nothing, a throw or a timeout warns and leaves the key absent. `context` holds the subject’s `pages`, an abort `signal`, and `fetch(url, { method: GET|HEAD, headers, redirect: manual|follow })`: the spiderlint user agent, a 10 s timeout, one retry on a network error, `429` or `503`, a 1 MB body cap, and every URL and followed hop on the subject’s host.
 - A site extractor runs only when an enabled rule reads `site.origins.*.<id>` or `site.hosts.*.<id>`. Its facts persist with the site document and are reused from the `origins` bucket while fresh; `lint` and `--offline` cannot backfill one, and warn once when the stored site facts lack it.
 - `origin` probes each origin: `GET /spiderlint-<uuid>` (logged at `info`, so an owner finds it in their access log), plain `http://<host>/`, `/` in four `Accept-Language`s, and `/favicon.ico`. Rules: `origin/soft-404`, `origin/error-page` (HTML, not empty, no stack trace, no versioned `Server`), `origin/https-entry` (one `301` or `308` to `https://<host>/`; skipped on `.onion`), `origin/locale-redirect`, `origin/favicon`. Preset `origin`; `recommended` and `all` carry it.
+- `dns` runs three `per: host` extractors, `cached: false` so they skip the `origins` bucket and each answer lives in the `dns` bucket for its record TTL. They query `context.dns`: the `resolver` servers over UDP with TCP on truncation, `DO` and `AD` set, 3 s per try, 2 tries per server. IP literals and special-use or overlay names (`localhost`, `test`, `invalid`, `example`, `local`, `onion`, `i2p`, `alt`, `internal`, `home.arpa`) are never queried; the zone is the nearest name answering `SOA` at or below the registrable domain (`tldts`, private suffixes included). `dns` holds `zone`, `a`, `aaaa`, `cname`, `https` (RFC 9460, parsed by `crawl/svcb.ts`, `hintsMatch` where the target is the owner), `h3` (`record` vs `altSvc` of the host’s pages), `caa` (RFC 8659 climb to the registrable domain, `issuer` from the served certificate’s organisation through a CA map, absent when unknown) and `dangling` (linked or loaded names under the zone, at most 32, whose CNAME ends in NXDOMAIN). `dnssec` holds `signed`, `ds`, `dnskey`, `ad`, `rrsig` (`expires`, `daysLeft`, `left` share of the validity window) and `nsec3`; `bogus` is present only when the resolver sets `AD` on the root SOA, otherwise one run-level warning. `nameservers` holds `servers` (each asked for the zone SOA directly, recursion off), `serials` and `networks` (distinct /24 and /48). Presets `dns` (17 rules) and `dns:core` (`https-record`, `caa`, `caa-issuer`, `dangling-cname`, `dnssec`, `dnssec-bogus`, which skip `nameservers`); `recommended` carries `dns:core`.
 - Later: `formatters` and `sources`; `cost: expensive` on extractors, obeying the group `sample`; the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `severity`, `line`, `column`, `offset`, `size`, `selector`, `source` — the tag at the offset — and `context`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value and `line:column selector <tag>` as `locations`. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
 - `axe` runs axe-core through `@axe-core/playwright` in the crawler’s own rendered page (pa11y would launch a second browser), with axe’s default rule set: no experimental, AAA or obsolete rules. Facts are `axe.version`, `axe.violations[]` and `axe.incomplete[]` (`rule`, `impact`, `tags`, `description`, `help`, `error`, and `nodes[]` with `target`, `html`, `xpath`, `ancestry`, `impact`, `summary` and the `any`/`all`/`none` checks, each with `message`, `data` and `related` elements); each axe rule is the rule `axe/<id>`, one finding per violated rule per page with its impact and elements as the value and `selector <tag>, related: …` as `locations`. Presets: `axe` (WCAG A and AA rules as errors, best practices as warnings), `axe:wcag`, `axe:best-practice`; `all` carries them, `recommended` does not.
@@ -463,6 +467,7 @@ export default definePlugin({
 - User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
 - Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD` only.
+- DNS queries go to the configured `resolver` only, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.
 - Site extractor probes send `GET` or `HEAD` only and never leave their subject’s host. With `allowPrivate: false`, which `serve` is to set, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root.
@@ -499,7 +504,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # contract, registry, bundled html-validate, axe and origin (lighthouse next)
+├── plugins/            # contract, registry, bundled html-validate, axe, origin and dns (lighthouse next)
 └── i18n/
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 locales/                # es/, uk/
