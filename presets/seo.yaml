@@ -50,6 +50,12 @@ rules:
     severity: warning
     message: "<meta charset> should declare UTF-8 within the first 1024 bytes, found {got}"
     docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
+  html/privacy-policy:
+    fact: html.rels.privacy-policy
+    expect: {type: array, minItems: 1}
+    severity: info
+    message: "no link with rel=privacy-policy"
+    docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
   html/favicon:
     fact: html.head.links
     expect: {contains: {required: [rel], properties: {rel: {pattern: "(?i:(^|\\s)icon(\\s|$))"}}}}

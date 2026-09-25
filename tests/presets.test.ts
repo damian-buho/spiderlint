@@ -37,7 +37,7 @@ function page(patch: Patch = {}): Facts {
         crawl: { depth: 0, discoveredVia: "seed", referrers: [] },
         sitemap: { listed: patch.listed ?? true },
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
-        html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], inputs: [], ...patch.html },
+        html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {} },
     };
@@ -79,6 +79,8 @@ const FAILS: Record<string, Patch[]> = {
     "html/jsonld-parses": [{ html: { jsonld: [{ "@error": "Unexpected token" }] } }],
     "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: false, head: true }] } }],
     "html/img-dimensions": [{ html: { images: [{ src: "/a.png", alt: "" }] } }],
+    "html/first-img-lazy": [{ html: { images: [{ src: "/hero.png", alt: "", loading: "LAZY" }] } }],
+    "html/privacy-policy": [{ html: { rels: {} } }, { html: { rels: { "privacy-policy": [] } } }],
     "url/shape": [{ pathname: "/Posts/" }, { pathname: "/posts/hello_world/" }, { pathname: "/posts//x/" }],
     "resources/a11y-overlay": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
     "browser/unused-preload": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
@@ -103,6 +105,7 @@ const PASSES: Record<string, Patch[]> = {
     "html/hreflang-x-default": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }, { lang: "x-default", href: "https://site.test/" }] } }],
     "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: true, head: true }, { src: "https://site.test/b.js", async: false, defer: false, head: false }, { async: false, defer: false, head: true }] } }],
     "html/img-dimensions": [{ html: { images: [{ src: "/pixel.gif", alt: "", noscript: true }] } }],
+    "html/first-img-lazy": [{ html: { images: [] } }, { html: { images: [{ src: "/hero.png", alt: "", loading: "eager" }, { src: "/below.png", alt: "", loading: "lazy" }] } }],
     "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
 };
 

@@ -89,7 +89,8 @@ export interface HtmlFacts {
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     links: { internal: string[]; external: string[]; nofollow: string[] };
-    images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; noscript?: true }[];
+    images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; loading?: string; noscript?: true }[];
+    rels: Record<string, string[]>;
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];
 }
 

@@ -184,7 +184,8 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             meta: { name: content }, property: { og:title: … },
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },
-            images: [{ src, alt, width, height, srcset, noscript }], hreflang: [{ lang, href }],
+            images: [{ src, alt, width, height, srcset, loading, noscript }], hreflang: [{ lang, href }],
+            rels: { privacy-policy: [href] },                        # rel token → hrefs, over <a>, <area> and <link>
             inputs: [{ type, autocomplete, inputmode }],               # type lowercased, `text` when unset
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
             scripts: [{ src, type, async, defer, head }], wordCount, generator }

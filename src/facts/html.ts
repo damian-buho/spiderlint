@@ -58,6 +58,17 @@ function headLinks($: CheerioAPI, page: URL): HtmlFacts["head"]["links"] {
         .get();
 }
 
+// Hrefs per rel token, over `<a>`, `<area>` and `<link>`.
+function rels($: CheerioAPI, page: URL): HtmlFacts["rels"] {
+    const found: Record<string, Set<string>> = {};
+    for (const element of $("a[rel][href], area[rel][href], link[rel][href]")) {
+        const href = resolve(String($(element).attr("href")), page);
+        const tokens = String($(element).attr("rel")).toLowerCase().split(/\s+/);
+        for (const token of tokens) if (token) (found[token] ??= new Set()).add(href);
+    }
+    return Object.fromEntries(Object.entries(found).map(([token, hrefs]) => [token, [...hrefs]]));
+}
+
 // Each JSON-LD block parsed; an unparsable one is `{ "@error": message }`.
 function jsonld($: CheerioAPI): unknown[] {
     return $('script[type="application/ld+json"]')
@@ -108,11 +119,12 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
         },
         images: $("img")
             .map((_, element) => {
-                const [alt, width, height, srcset] = [$(element).attr("alt"), $(element).attr("width"), $(element).attr("height"), $(element).attr("srcset")];
+                const [alt, width, height, srcset, loading] = [$(element).attr("alt"), $(element).attr("width"), $(element).attr("height"), $(element).attr("srcset"), $(element).attr("loading")];
                 const isInNoscript = $(element).closest("noscript").length > 0;
-                return { src: String($(element).attr("src") ?? ""), ...(alt !== undefined && { alt }), ...(width !== undefined && { width }), ...(height !== undefined && { height }), ...(srcset !== undefined && { srcset }), ...(isInNoscript && { noscript: true as const }) };
+                return { src: String($(element).attr("src") ?? ""), ...(alt !== undefined && { alt }), ...(width !== undefined && { width }), ...(height !== undefined && { height }), ...(srcset !== undefined && { srcset }), ...(loading !== undefined && { loading }), ...(isInNoscript && { noscript: true as const }) };
             })
             .get(),
+        rels: rels($, page),
         inputs: $("input")
             .map((_, element) => {
                 const [autocomplete, inputmode] = [$(element).attr("autocomplete"), $(element).attr("inputmode")];

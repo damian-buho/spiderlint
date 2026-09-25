@@ -90,6 +90,12 @@ rules:
     severity: info
     message: "a script in <head> without async, defer or type=module blocks rendering: {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/script#defer
+  html/first-img-lazy:
+    fact: html.images.0
+    expect: {not: {type: object, required: [loading], properties: {loading: {pattern: "^(?i:lazy)$"}}}}
+    severity: info
+    message: "the first <img> is usually above the fold, and loading=lazy delays it: {got}"
+    docs: https://web.dev/articles/lcp-lazy-loading
   html/img-dimensions:
     fact: html.images
     expect: {items: {if: {not: {required: [noscript]}}, then: {required: [width, height]}}}

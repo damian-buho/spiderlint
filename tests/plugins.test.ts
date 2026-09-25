@@ -21,7 +21,7 @@ const EXCLUDE = ["/tmp/**"];
 // A minimal HTML page’s facts, rendered in Chromium when `isBrowser`.
 function stubPage(isBrowser: boolean, isTruncated = false): Facts {
     const http = { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 1, decoded: 1, ...(isTruncated && { truncated: true as const }) }, contentType: "text/html" };
-    const html = { h1: [], meta: {}, property: {}, head: { links: [] }, hreflang: [], jsonld: [], scripts: [], links: { internal: [], external: [], nofollow: [] }, images: [], inputs: [] };
+    const html = { h1: [], meta: {}, property: {}, head: { links: [] }, hreflang: [], jsonld: [], scripts: [], links: { internal: [], external: [], nofollow: [] }, images: [], rels: {}, inputs: [] };
     const browser = { timing: {}, console: { errors: [], warnings: [] }, weight: {} };
     return { url: { href: "https://example.test/", origin: "https://example.test", protocol: "https:", host: "example.test", pathname: "/", search: "" }, group: "default", crawl: { depth: 0, discoveredVia: "seed", referrers: [] }, http, html, ...(isBrowser && { browser }) };
 }
