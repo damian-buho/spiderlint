@@ -9,7 +9,7 @@ import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule 
 export interface RuleRun {
     findings: Finding[];
     applicable: Map<string, number>;
-    checks: { total: number; failed: number; errored: number; advised: number };
+    checks: { total: number; failed: number; errored: number };
 }
 
 // Key of the (group, rule) cell the fold reads.
@@ -23,7 +23,6 @@ function judged(run: RuleRun, found: Finding[], pages = 1): void {
     run.checks.total += 1;
     if (found.some((finding) => finding.severity === "error")) run.checks.errored += 1;
     if (found.some((finding) => finding.severity !== "info")) run.checks.failed += 1;
-    else if (found.length > 0) run.checks.advised += 1;
 }
 
 // One page rule over one group; `undefined` results are `when`-skips and do not count.
@@ -41,7 +40,7 @@ function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleR
 
 // Page and group rules run within their group; site rules run once over the crawl.
 export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, facts: SiteFacts): RuleRun {
-    const run: RuleRun = { findings: [], applicable: new Map(), checks: { total: 0, failed: 0, errored: 0, advised: 0 } };
+    const run: RuleRun = { findings: [], applicable: new Map(), checks: { total: 0, failed: 0, errored: 0 } };
     const site = new Map<string, AggregateRule>();
     for (const [group, rules] of rulesByGroup) {
         const members = pages.filter((page) => page.group === group);

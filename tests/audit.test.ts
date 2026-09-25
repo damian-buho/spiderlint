@@ -218,7 +218,7 @@ describe("audit", () => {
         const bundledReport = {
             pages: [stubPage("https://a.test/x"), stubPage("https://a.test/y"), stubPage("https://a.test/z")],
             findings: [stubCsp("https://a.test/y"), stubCsp("https://a.test/x"), { ...stubCsp("https://a.test/z"), message: "csp is weak" }],
-            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, checks: { total: 0, passed: 0, failed: 0, errored: 0, advised: 0 }, cost: { extractors: {} } },
+            summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
         assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
@@ -236,7 +236,7 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 316, failed: 47, errored: 6, advised: 29, passed: 269 });
+        assert.deepEqual(summary.checks, { total: 316, failed: 47, errored: 6, passed: 269 });
         assert.deepEqual(summary.rating, { grade: "B", score: 0.8513, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });

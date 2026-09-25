@@ -319,7 +319,7 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 
 - A check is one rule judged on one subject: a page rule on a page it was not `when`-skipped on, a group rule on a non-empty group, a site rule on a non-empty crawl. Counted before folding.
 - A check fails on any finding above `info`; several findings on one page are still one failed check. `info` is advice and passes.
-- The grade is fixed so it compares across sites: S with no finding at all, `info` included, then A ≥ 90 %, B ≥ 70 %, C ≥ 60 %, D ≥ 40 %, E ≥ 20 %, F below. A check failed with an `error` caps the grade at B. No checks, no grade.
+- The grade is fixed so it compares across sites: S with no failed check, then A ≥ 90 %, B ≥ 70 %, C ≥ 60 %, D ≥ 40 %, E ≥ 20 %, F below. A check failed with an `error` caps the grade at B. No checks, no grade.
 - A grade names the rulesets it was earned under (`rating A (seo, links)`); grades under different rulesets do not compare.
 
 ## Store
