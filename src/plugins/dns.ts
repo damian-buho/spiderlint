@@ -323,7 +323,7 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.hosts.*.dnssec.signed",
         expect: { const: true },
         message: "the zone is not signed with DNSSEC",
-        severity: "info",
+        severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9364",
     },
     "dns/dnssec-bogus": {

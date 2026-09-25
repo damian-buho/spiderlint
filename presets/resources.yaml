@@ -4,7 +4,7 @@
 ---
 description: Scripts, styles, images and fonts — status, mixed content, integrity, overlays
 rules:
-  resources/status: warning
+  resources/status: error
   resources/mixed-content: error
   resources/sri: warning
   resources/a11y-overlay:

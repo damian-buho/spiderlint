@@ -59,7 +59,7 @@ rules:
     fact: http.headers.content-security-policy
     expect: {type: string, pattern: "(?i:upgrade-insecure-requests)"}
     when: {url.protocol: "https:", http.headers.content-security-policy: {type: string}}
-    severity: info
+    severity: warning
     message: "Content-Security-Policy should carry upgrade-insecure-requests, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
   http/csp-trusted-types:

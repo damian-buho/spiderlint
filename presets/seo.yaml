@@ -21,7 +21,7 @@ rules:
   html/theme-color:
     fact: html.meta.theme-color
     expect: {type: string, minLength: 1}
-    severity: info
+    severity: warning
     message: "no meta theme-color"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
   html/color-scheme:

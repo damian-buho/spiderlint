@@ -93,6 +93,6 @@ rules:
   html/img-dimensions:
     fact: html.images
     expect: {items: {if: {not: {required: [noscript]}}, then: {required: [width, height]}}}
-    severity: info
+    severity: warning
     message: "an <img> without width and height shifts the layout as it loads: {got}"
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions
