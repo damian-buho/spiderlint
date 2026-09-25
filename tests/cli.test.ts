@@ -23,7 +23,7 @@ interface Run {
 // Runs the real binary outside any projectfile, with a private user cache and `extra` environment, asynchronously so the in-process fixture keeps answering.
 function spiderlintWith(extra: NodeJS.ProcessEnv, directory: string, ...flags: string[]): Promise<Run> {
     return new Promise((resolve) => {
-        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, XDG_CACHE_HOME: path.join(directory, "cache"), ...extra } }, (error, stdout, stderr) => {
+        execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, SPIDERLINT_LOG_FORMAT: "json", XDG_CACHE_HOME: path.join(directory, "cache"), ...extra } }, (error, stdout, stderr) => {
             resolve({ code: typeof error?.code === "number" ? error.code : 0, stdout, stderr });
         });
     });
