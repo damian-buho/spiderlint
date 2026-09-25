@@ -54,18 +54,23 @@ describe("store", () => {
         assert.equal(report.summary.pages, linted.summary.pages);
     });
 
-    it("measures a run against the last one of the same rulesets only, across a fresh crawl too", async () => {
+    it("measures a run against the last one that ran all its rules over the same crawl", async () => {
         const first = await lintStore({}, directory);
         const again = await lintStore({}, directory);
         assert.deepEqual(again.summary.previous, { started: first.summary.started, findings: first.summary.findings });
-        const other = await lintStore({ rules: ["tls"] }, directory);
-        assert.equal(other.summary.previous, undefined);
-        const fewer = await lintStore({ rules: ["tls"], disabledRules: ["tls/cert-expiry"] }, directory);
-        assert.equal(fewer.summary.previous, undefined);
+        const narrower = await lintStore({ rules: ["tls"], disabledRules: ["tls/cert-expiry"] }, directory);
+        assert.deepEqual(narrower.summary.previous?.findings, narrower.summary.findings, "a subset reads the wider run’s counts for its own rules");
+        const wider = await lintStore({}, directory);
+        assert.equal(wider.summary.previous, undefined, "the last run did not run every rule");
         const last = await lintStore({ rules: ["tls"] }, directory);
         const seeds = [`${site.origin}/`];
         const audited = await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"] }, { store: directory });
         assert.equal(audited.summary.previous?.started, last.summary.started);
+        const scoped = await mkdtemp(path.join(tmpdir(), "spiderlint-scope-"));
+        await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"] }, { store: scoped });
+        const fewerPages = await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"], maxPages: 1 }, { store: scoped });
+        await rm(scoped, { recursive: true, force: true });
+        assert.equal(fewerPages.summary.previous, undefined, "a crawl of another scope is no baseline");
     });
 
     it("keeps a body per page and no cookie value anywhere", async () => {

@@ -48,7 +48,9 @@ export interface Summary {
     rules: number;
     checks: Checks;
     rating?: Rating;
+    byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
+    crawlHash?: string;
     cost: Cost;
 }
 
@@ -98,7 +100,9 @@ function tally(keys: string[]): Record<string, number> {
 }
 
 // Run totals `human` prints and `json`/`sarif` embed; findings count before folding, so `--unfold` changes none.
-function summarize(pages: Facts[], run: RuleRun, rules: number, started: Date, cost: Cost, rulesets: string[]): Summary {
+function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date, cost: Cost, rulesets: string[]): Summary {
+    const byRule: Summary["byRule"] = Object.fromEntries(rules.map((id) => [id, {}]));
+    for (const { rule, severity } of run.findings) byRule[rule] = { ...byRule[rule], [severity]: (byRule[rule]?.[severity] ?? 0) + 1 };
     const checks = { ...run.checks, passed: run.checks.total - run.checks.failed };
     const severities = tally(run.findings.map((finding) => finding.severity));
     const rating = rate(checks, rulesets);
@@ -111,18 +115,32 @@ function summarize(pages: Facts[], run: RuleRun, rules: number, started: Date, c
         groups: tally(pages.map((page) => page.group)),
         statuses: Object.fromEntries(Object.entries(statuses).toSorted(([a], [b]) => Number(a) - Number(b))),
         findings: { total: run.findings.length, error: severities.error ?? 0, warning: severities.warning ?? 0, info: severities.info ?? 0 },
-        rules,
+        rules: rules.length,
+        byRule,
         checks,
         ...(rating && { rating }),
         cost,
     };
 }
 
-// The last stored run’s findings for `report` to measure progress against, when it ran the same rulesets and as many rules.
-function withPrevious(report: Report, last: Summary | undefined): Report {
-    const isComparable = typeof last?.findings === "object" && last.rules === report.summary.rules && last.rating?.rulesets.join(",") === report.summary.rating?.rulesets.join(",");
-    log.debug({ last: last?.started, lastRules: last?.rules, rules: report.summary.rules, lastRulesets: last?.rating?.rulesets, rulesets: report.summary.rating?.rulesets, isComparable }, "previous run compared");
-    if (last && isComparable) report.summary.previous = { started: last.started, findings: last.findings };
+// The last stored run’s findings over this run’s rules, when it ran every one of them over the same crawl.
+function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
+    report.summary.crawlHash = manifest.configHash;
+    const ids = Object.keys(report.summary.byRule);
+    const earlier = last?.byRule ?? {};
+    const missing = ids.filter((id) => !Object.hasOwn(earlier, id));
+    const isComparable = last !== undefined && missing.length === 0 && last.crawlHash === manifest.configHash;
+    log.debug({ last: last?.started, rules: ids.length, missing: missing.length, lastCrawl: last?.crawlHash, crawl: manifest.configHash, isComparable }, "previous run compared");
+    if (!last || !isComparable) return report;
+    const findings: Summary["findings"] = { total: 0, error: 0, warning: 0, info: 0 };
+    for (const id of ids) {
+        const counts = Object.entries(earlier[id] ?? {}) as [Finding["severity"], number][];
+        for (const [severity, count] of counts) {
+            findings[severity] += count;
+            findings.total += count;
+        }
+    }
+    report.summary.previous = { started: last.started, findings };
     return report;
 }
 
@@ -194,7 +212,7 @@ function linter(config: Config): Lint {
     const disabledRules = new Set(config.disabledRules);
     const rulesByGroup = new Map<string, Rule[]>(Object.entries(groups).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
-    const rules = new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id)).size;
+    const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     warnUnknown(config, groups);
     return ({ pages, site, cost }, started) => {
         for (const page of pages) {
@@ -309,7 +327,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     await loadPlugins(config.plugins);
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
-        const report = withPrevious(lint(await crawlPages(config, store), started), store.last);
+        const report = withPrevious(lint(await crawlPages(config, store), started), store);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     };
@@ -341,7 +359,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         attachResources(pages, await store.resources());
         const site = await store.site();
         warnUnserved(site, siteExtractorsFor(rules));
-        const report = withPrevious(lint({ pages, site, cost }, started), store.last);
+        const report = withPrevious(lint({ pages, site, cost }, started), store);
         await store.saveReport({ findings: report.findings, summary: report.summary });
         return report;
     });
