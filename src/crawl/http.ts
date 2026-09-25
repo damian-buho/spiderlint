@@ -15,7 +15,6 @@ import { log } from "../logger.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import { width } from "./resources.ts";
-import { STRATEGY } from "./scope.ts";
 
 // The first value of a header that may repeat.
 function first(value: string | string[] | undefined): string | undefined {
@@ -134,8 +133,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                 log.debug({ url: url.href, status: facts.http.status, type: facts.http.contentType, bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
                 await onPage(facts, body.toString());
                 if (!isHtml) return;
-                const { processedRequests } = await enqueueLinks({ strategy: STRATEGY[config.scope], transformRequestFunction: frontier.transformRequestFunction });
-                log.debug({ url: url.href, enqueued: processedRequests.filter((entry) => !entry.wasAlreadyPresent).length }, "links enqueued");
+                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts) }, "links enqueued");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false }),

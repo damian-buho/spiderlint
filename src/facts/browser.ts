@@ -13,7 +13,7 @@ type Timing = ReturnType<Request["timing"]>;
 type Security = NonNullable<Awaited<ReturnType<Response["securityDetails"]>>>;
 
 // Playwright resource types that map onto a resource kind; the main document is never one.
-const KINDS: Record<string, ResourceFacts["kind"]> = { script: "script", stylesheet: "style", image: "image", font: "font", document: "iframe" };
+const KINDS: Record<string, ResourceFacts["kind"]> = { script: "script", stylesheet: "style", image: "image", font: "font", document: "iframe", manifest: "manifest" };
 
 // Header pairs as the facts document holds them: lower-cased names, repeated ones as arrays.
 export function headerFacts(pairs: { name: string; value: string }[]): Record<string, string | string[]> {

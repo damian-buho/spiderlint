@@ -14,6 +14,7 @@ const SOURCES: [string, ResourceFacts["kind"], string][] = [
     ["img[src]", "image", "src"],
     ["iframe[src]", "iframe", "src"],
     ['link[rel~="preload"][href]', "preload", "href"],
+    ['link[rel~="manifest"][href]', "manifest", "href"],
 ];
 
 // Every candidate URL of a `srcset`, descriptors dropped.

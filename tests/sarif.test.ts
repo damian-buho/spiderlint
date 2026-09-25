@@ -69,8 +69,8 @@ describe("formatSarif", () => {
         assert.equal(invocation.executionSuccessful, true);
         assert.equal(invocation.startTimeUtc, report.summary.started);
         assert.equal(Date.parse(invocation.endTimeUtc) - Date.parse(invocation.startTimeUtc), report.summary.durationMs);
-        assert.deepEqual(invocation.properties.statuses, { "200": 14, "404": 1 });
-        assert.equal(invocation.properties.pages, 15);
+        assert.deepEqual(invocation.properties.statuses, { "200": 15, "404": 1 });
+        assert.equal(invocation.properties.pages, 16);
     });
 
     it("maps severity to the SARIF level vocabulary", () => {

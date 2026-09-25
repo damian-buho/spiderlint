@@ -18,7 +18,6 @@ import { isParsed } from "./body.ts";
 import { width } from "./resources.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
-import { STRATEGY } from "./scope.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
@@ -241,8 +240,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml) return;
-                const { processedRequests } = await enqueueLinks({ strategy: STRATEGY[config.scope], transformRequestFunction: frontier.transformRequestFunction });
-                log.debug({ url: url.href, enqueued: processedRequests.filter((entry) => !entry.wasAlreadyPresent).length }, "links enqueued");
+                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts) }, "links enqueued");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false }),

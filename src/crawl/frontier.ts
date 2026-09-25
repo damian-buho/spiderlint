@@ -2,15 +2,20 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { ProxyConfiguration, type Configuration, type Request, type RequestQueue, type RequestTransform } from "crawlee";
+import { ProxyConfiguration, type Configuration, type EnqueueLinksOptions, type Request, type RequestQueue, type RequestTransform } from "crawlee";
 import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
 import type { Facts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { crawlDelayOf, type RobotsFor } from "./robots.ts";
-import { isInScope } from "./scope.ts";
+import { isInScope, STRATEGY } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
+
+// Feed media types a head `rel=alternate` names; such a feed is crawled as a page.
+const FEED_TYPES = new Set(["application/rss+xml", "application/atom+xml", "application/feed+json"]);
+
+type EnqueueLinks = (options: EnqueueLinksOptions) => Promise<{ processedRequests: { wasAlreadyPresent: boolean }[] }>;
 
 export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> | void;
 
@@ -176,6 +181,16 @@ export class Frontier {
             crawl: { depth: request.crawlDepth, discoveredVia: request.crawlDepth > 0 ? "link" : this.#seeds.has(request.url) ? "seed" : "sitemap", referrers: [], ...(request.url !== url.href && { requested: request.url }) },
             ...(this.#sitemap.size > 0 && { sitemap: listing ?? { listed: false } }),
         };
+    }
+
+    // The page’s anchors, then its head feeds, queued under the scope and globs; returns how many were new.
+    async enqueue(enqueueLinks: EnqueueLinks, facts: Facts): Promise<number> {
+        const options = { strategy: STRATEGY[this.#config.scope], transformRequestFunction: this.transformRequestFunction };
+        const heads = facts.html?.head.links ?? [];
+        const feeds = heads.filter((link) => /\balternate\b/i.test(link.rel ?? "") && FEED_TYPES.has(link.type?.toLowerCase() ?? "")).flatMap((link) => (link.href ? [link.href] : []));
+        log.debug({ url: facts.url.href, feeds }, "head feeds found");
+        const batches = [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])];
+        return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length;
     }
 
     // Seeds first, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket.

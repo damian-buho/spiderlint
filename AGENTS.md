@@ -63,7 +63,7 @@ plugins over one page cache.
 | Page      | One fetched URL: request, response, body, and everything derived from them.                                                       |
 | Facts     | The JSON document extractors build for a page. Rules read facts and nothing else.                                                 |
 | Extractor | Code that turns a page into facts: static (the body) or live (the open browser page). A site extractor does one origin or host.   |
-| Resource  | A sub-request a page depends on: script, style, image, font, iframe, preload. Any origin. Fetched and linted, never crawled.      |
+| Resource  | A sub-request a page depends on: script, style, image, font, iframe, preload, manifest. Any origin; linted, never crawled.        |
 | Group     | A named set of pages, matched by URL glob or regular expression. A page is in exactly one group. A group approximates a template. |
 | Ruleset   | A named map of rules, extendable. Presets ship as rulesets.                                                                       |
 | Rule      | `fact` + `expect` (JSON Schema) + `severity`, or a TypeScript function. Scoped `page`, `group`, or `site`.                        |
@@ -99,6 +99,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
 - Limits: `--max-pages` (`maxRequestsPerCrawl`), `--max-depth` (`maxCrawlDepth`), `--include` / `--exclude` globs applied before enqueue.
 - Bodies: HTML, XML and JSON are read up to `--max-body-size` (10 MB); any other type is judged by its headers and its download aborted once they arrive — one round trip, where `HEAD` then `GET` would cost two. `http.size.truncated` marks both.
+- Head feeds (`rel=alternate` of an RSS, Atom or JSON Feed type) are queued with the anchors under the same scope and globs, and crawled as pages; `rel=manifest` is a resource of kind `manifest`.
 - `rel=nofollow` and `<meta name=robots content=nofollow>` are facts, not crawl barriers — the owner audits their own site.
 
 ## Fetch
@@ -192,7 +193,7 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             inputs: [{ type, autocomplete, inputmode }],               # type lowercased, `text` when unset
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
             scripts: [{ src, type, async, defer, head }], wordCount, generator }
-resources: [{ url, kind: script|style|image|font|iframe|preload, origin: same|cross,
+resources: [{ url, kind: script|style|image|font|iframe|preload|manifest, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
               http: { status, headers, timing, size, contentType }, tls: { … },
               <resource extractor ID>: … }]
@@ -555,7 +556,7 @@ projectfile.yaml
 ## Testing
 
 - `node --test --experimental-strip-types tests/**/*.test.ts`, no other runner.
-- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
+- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a head-only Atom feed and a web manifest, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
 - Formatter output is snapshot-tested; SARIF is validated against the 2.1.0 schema.
 - No test reaches the network. External-link probes point at the same local server.
 - `tests/browser.test.ts` skips its Chromium suite when a launch fails, which it does in the node tool image `npm-test` runs in; the image self-test is where Chromium is proven.

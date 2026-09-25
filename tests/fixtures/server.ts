@@ -19,7 +19,7 @@ export interface Fixture {
 }
 
 const SITE = new URL("site/", import.meta.url);
-const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml" };
+const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml", webmanifest: "application/manifest+json" };
 
 
 // Size of `/big.bin`, a binary no crawl should download.

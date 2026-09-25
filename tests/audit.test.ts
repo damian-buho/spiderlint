@@ -49,9 +49,20 @@ describe("audit", () => {
     const cdn = () => site.origin.replace("//127.0.0.1:", "//localhost:");
 
     it("crawls every linked page in scope, and only those", () => {
-        assert.deepEqual(paths(), ["/", "/about", "/app/", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
+        assert.deepEqual(paths(), ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
         assert.ok(!site.requested.includes("/private/secret"), "robots.txt disallow is honoured");
         assert.ok(!site.requested.includes("/tmp/skipme"), "--exclude is applied before enqueue");
+    });
+
+    it("crawls a head-only feed as a page and fetches the manifest as a resource", () => {
+        const home = report.pages.find((page) => page.url.pathname === "/");
+        const atom = report.pages.find((page) => page.url.pathname === "/atom.xml");
+        assert.equal(atom?.crawl.discoveredVia, "link");
+        assert.equal(atom?.html, undefined);
+        const manifest = home?.resources?.find((resource) => resource.kind === "manifest");
+        assert.equal(manifest?.url, `${site.origin}/site.webmanifest`);
+        assert.equal(manifest?.http?.status, 200);
+        assert.equal(manifest?.http?.contentType, "application/manifest+json");
     });
 
     it("fetches a sitemap-only page and facts every page against the sitemap", () => {
@@ -101,7 +112,7 @@ describe("audit", () => {
     it("assigns each page to the first matching group", () => {
         const counts: Record<string, number> = {};
         for (const page of report.pages) counts[page.group] = (counts[page.group] ?? 0) + 1;
-        assert.deepEqual(counts, { default: 6, app: 1, posts: 5, tags: 3 });
+        assert.deepEqual(counts, { default: 7, app: 1, posts: 5, tags: 3 });
     });
 
     it("reports a dead in-scope link once, with its referrers", () => {
@@ -253,8 +264,8 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}15 \(14 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}298 of 345 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}16 fetches\nresources {2}\d+ requests$/);
-        assert.deepEqual(report.summary.cost.http, { pages: 16, revalidated: 0 });
+        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}299 of 346 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests$/);
+        assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
 
     it("colors severities when painted, and matches the plain text once styles are stripped", () => {
@@ -279,14 +290,14 @@ describe("audit", () => {
 
     it("sums bytes, pages per group and per status into the run summary", () => {
         const { summary } = report;
-        assert.equal(summary.pages, 15);
+        assert.equal(summary.pages, 16);
         assert.equal(summary.bytes, report.pages.reduce((sum, page) => sum + page.http.size.body, 0));
-        assert.deepEqual(summary.groups, { default: 6, app: 1, posts: 5, tags: 3 });
-        assert.deepEqual(summary.statuses, { "200": 14, "404": 1 });
+        assert.deepEqual(summary.groups, { default: 7, app: 1, posts: 5, tags: 3 });
+        assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 345, failed: 47, errored: 6, passed: 298 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8638, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 346, failed: 47, errored: 6, passed: 299 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8642, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });
@@ -349,13 +360,13 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } } });
         assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts").length, 0);
         const csp = report.findings.find((finding) => finding.rule === "http/csp");
-        assert.equal(csp?.occurrences, 15);
+        assert.equal(csp?.occurrences, 16);
     });
 
     it("accepts either CSP frame-ancestors or X-Frame-Options against framing", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } }, fold: false });
         const framed = report.findings.filter((finding) => finding.rule === "http/frame-options").map((finding) => new URL(finding.url).pathname);
-        assert.equal(framed.length, 14);
+        assert.equal(framed.length, 15);
         assert.ok(!framed.includes("/about") && !framed.includes("/posts/1"));
     });
 
@@ -439,8 +450,8 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`] });
         const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/consistent-origin");
         assert.equal(rest.length, 0);
-        assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+: fixture-a \(9\), fixture-b \(5\)$/);
-        assert.equal(origin?.urls?.length, 14);
+        assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+: fixture-a \(10\), fixture-b \(5\)$/);
+        assert.equal(origin?.urls?.length, 15);
     });
 
     it("passes the tls, cookies and redirects presets on a clean page", async () => {

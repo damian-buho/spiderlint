@@ -86,7 +86,7 @@ describe("store", () => {
         const pages = await crawl({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"] }, directory, true);
         const paths = new Set(pages.map((page) => page.url.pathname));
         assert.deepEqual(site.requested.slice(before).filter((request) => paths.has(request)), []);
-        assert.equal(pages.length, 15);
+        assert.equal(pages.length, 16);
     });
 
     it("refuses a second process on a locked store with exit 2", async () => {
@@ -125,7 +125,7 @@ describe("store", () => {
     it("audits offline from the store without a single request", async () => {
         const before = site.requested.length;
         const offline = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], cacheMode: "offline" }, { store: directory });
-        assert.equal(offline.pages.length, 15);
+        assert.equal(offline.pages.length, 16);
         assert.equal(site.requested.length, before);
     });
 
@@ -136,7 +136,7 @@ describe("store", () => {
     it("measures every bucket present", async () => {
         const buckets = await cacheStatus(directory);
         const pages = buckets.find((bucket) => bucket.bucket === "pages");
-        assert.equal(pages?.entries, 15);
+        assert.equal(pages?.entries, 16);
         assert.ok((pages?.bytes ?? 0) > 0);
         const absent = await cacheStatus(path.join(directory, "absent"));
         assert.deepEqual(absent.map((bucket) => bucket.bucket).filter((bucket) => bucket !== "robots"), []);

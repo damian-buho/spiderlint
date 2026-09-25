@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+
+SPDX-License-Identifier: MIT
+-->
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Fixture Atom feed</title><id>http://fixture.test/atom.xml</id><updated>2026-09-01T00:00:00Z</updated><link href="http://fixture.test/"/><entry><title>Post 2</title><id>http://fixture.test/posts/2</id><updated>2026-09-01T00:00:00Z</updated><link href="http://fixture.test/posts/2"/></entry></feed>
