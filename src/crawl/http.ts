@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { CheerioCrawler, Configuration } from "crawlee";
+import { CheerioCrawler, Configuration, type CheerioCrawlingContext } from "crawlee";
 import type { Readable } from "node:stream";
 import { USER_AGENT } from "../agent.ts";
 import type { Config } from "../config/index.ts";
@@ -12,8 +12,7 @@ import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, earlyHintsHook, redactHeaders, redirectHook, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
-import { bridgeCrawleeLog } from "./log.ts";
+import type { CrawlStorage, Earlier, Frontier, OnPage } from "./frontier.ts";
 import { width } from "./resources.ts";
 
 // The first value of a header that may repeat.
@@ -51,19 +50,34 @@ function socketOf(source: unknown): Transport["socket"] {
     return stream.socket ?? stream.request?.socket;
 }
 
-// Fetches seeds, follows in-scope links through the frontier; storage stays in memory.
-export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string): Promise<CrawlResult> {
-    bridgeCrawleeLog();
-    const frontier = await Frontier.open(config, cache);
+// Hands a request its group renders to the browser before fetching it.
+class Crawler extends CheerioCrawler {
+    readonly #frontier: Frontier;
+
+    constructor(options: ConstructorParameters<typeof CheerioCrawler>[0], config: Configuration, frontier: Frontier) {
+        super(options, config);
+        this.#frontier = frontier;
+    }
+
+    protected override async _runRequestHandler(context: CheerioCrawlingContext): Promise<void> {
+        const isHanded = await this.#frontier.handOff(context.request);
+        log.debug({ url: context.request.url, isHanded }, "request crawler chosen");
+        return isHanded ? undefined : super._runRequestHandler(context);
+    }
+}
+
+// The http crawler of a frontier: fetches and parses without rendering; storage stays in memory.
+export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, storage?: CrawlStorage, proxy?: string): { crawler: CheerioCrawler; stats(): { pages: number; revalidated: number } } {
+    let pages = 0;
     const revalidating = new WeakMap<object, Earlier>();
     const hinted = new WeakMap<object, NonNullable<Facts["http"]["earlyHints"]>>();
     const hopped = new WeakMap<object, Facts["http"]["redirects"]>();
     let revalidatedPages = 0;
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
-    const crawler = new CheerioCrawler(
+    const crawler = new Crawler(
         {
             additionalMimeTypes: ["*/*"],
-            ...frontier.options(storage, proxy),
+            ...frontier.options("http", storage, proxy),
             maxConcurrency: width(config.concurrency),
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
@@ -133,15 +147,15 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                 };
                 if (earlier) facts.http = revalidated(earlier.facts, facts);
                 revalidatedPages += earlier ? 1 : 0;
+                pages += 1;
                 log.debug({ url: url.href, status: facts.http.status, type: facts.http.contentType, bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
                 await onPage(facts, body.toString());
                 if (!isHtml) return;
-                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts) }, "links enqueued");
+                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false }),
+        frontier,
     );
-    await frontier.run(crawler, cache.robots);
-    if (revalidatedPages > 0) log.info({ revalidated: revalidatedPages }, "pages revalidated");
-    return { site: frontier.site(), launches: 0 };
+    return { crawler, stats: () => ({ pages, revalidated: revalidatedPages }) };
 }

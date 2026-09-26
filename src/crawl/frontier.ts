@@ -9,6 +9,7 @@ import type { Config } from "../config/index.ts";
 import type { Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { crawlDelayOf, robotsFactsOf, type RobotsFor } from "./robots.ts";
+import type { CrawlerMode, GroupMode, Router } from "./route.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
 import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 
@@ -19,14 +20,18 @@ type EnqueueLinks = (options: EnqueueLinksOptions) => Promise<{ processedRequest
 
 export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> | void;
 
-// What a crawl found about the site, and how many browsers it launched.
+// What a crawl found about the site, the pages each crawler handled, and how many browsers it launched.
 export interface CrawlResult {
     site: SiteFacts;
+    pages: Partial<Record<CrawlerMode, number>>;
+    revalidated: number;
     launches: number;
     // Sub-resource responses the browser received, by the URL the page asked for.
-    responses?: Map<string, Logged>;
+    responses: Map<string, Logged>;
     // Handshakes a browser crawl sent for the TLS facts Chromium does not report.
-    tlsProbes?: number;
+    tlsProbes: number;
+    // Each group’s fetch mode, an adaptive one as it settled.
+    modes: Record<string, GroupMode>;
 }
 
 // One response from the browser’s network log; `body` only where a resource extractor reads its type.
@@ -53,7 +58,7 @@ export interface Earlier {
 // Persistent crawl state a store lends the crawler; absent, everything stays in memory.
 export interface CrawlStorage {
     config: Configuration;
-    requestQueue: RequestQueue;
+    queues: Record<CrawlerMode, RequestQueue>;
     earlier?: (href: string) => Promise<Earlier | undefined>;
 }
 
@@ -66,17 +71,17 @@ function globMatchers(config: Config): Globs {
     return { include: config.include.map((glob) => picomatch(glob)), exclude: config.exclude.map((glob) => picomatch(glob)) };
 }
 
-// The one crawler call a frontier drives, whatever the crawler class.
-interface Runnable {
+// The crawler calls a frontier drives, whatever the crawler class.
+export interface Runnable {
     run(requests: string[]): Promise<unknown>;
-    addRequests(requests: string[]): Promise<unknown>;
+    addRequests(requests: (string | { url: string; crawlDepth: number })[]): Promise<unknown>;
     getRequestQueue(): Promise<{ isFinished(): Promise<boolean> }>;
 }
 
-// What every fetch mode shares: seeds, sitemap, globs, robots, the page budget and the visited set.
+// What every fetch mode shares: seeds, sitemap, globs, robots, the page budget, the visited set, and which crawler each URL goes to.
 export class Frontier {
-    static async open(config: Config, cache: CrawlCache): Promise<Frontier> {
-        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps, config.canonicalOrigin) : { index: new Map(), files: [] });
+    static async open(config: Config, cache: CrawlCache, router: Router): Promise<Frontier> {
+        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps, config.canonicalOrigin) : { index: new Map(), files: [] }, router);
     }
 
     readonly #config: Config;
@@ -88,7 +93,8 @@ export class Frontier {
     #robots: RobotsFileFacts[] = [];
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     #handled = 0;
-    #crawler?: Runnable;
+    readonly #router: Router;
+    readonly #crawlers = new Map<CrawlerMode, Runnable>();
     #hasStraggled = false;
     readonly files: SitemapFileFacts[];
 
@@ -104,8 +110,9 @@ export class Frontier {
         return false;
     };
 
-    private constructor(config: Config, sitemaps: Sitemaps) {
+    private constructor(config: Config, sitemaps: Sitemaps, router: Router) {
         this.#config = config;
+        this.#router = router;
         this.#seeds = new Set(config.seeds);
         this.#sitemap = sitemaps.index;
         this.#globs = globMatchers(config);
@@ -131,18 +138,28 @@ export class Frontier {
         return extra;
     }
 
-    // Finished once the queue drains and no sitemap straggler is left to add.
+    // Queues each request on the crawler its group needs.
+    async #add(requests: { url: string; crawlDepth: number }[]): Promise<void> {
+        const byCrawler = Object.groupBy(requests, (request) => this.#router.queue(request.url));
+        for (const [mode, batch = []] of Object.entries(byCrawler)) {
+            log.debug({ crawler: mode, requests: batch.length }, "requests routed");
+            await this.#crawlers.get(mode as CrawlerMode)?.addRequests(batch);
+        }
+    }
+
+    // Finished once every crawler’s queue drains and no sitemap straggler is left to add.
     async #isFinished(): Promise<boolean> {
-        const crawler = this.#crawler as Runnable;
-        const queue = await crawler.getRequestQueue();
-        if (!(await queue.isFinished())) return false;
+        for (const crawler of this.#crawlers.values()) {
+            const queue = await crawler.getRequestQueue();
+            if (!(await queue.isFinished())) return false;
+        }
         if (this.#hasStraggled) return true;
         this.#hasStraggled = true;
         const stragglers = this.#stragglers();
         const isOverBudget = this.#config.maxPages > 0 && this.#handled >= this.#config.maxPages;
         log.debug({ stragglers: stragglers.length, handled: this.#handled, isOverBudget }, "queue drained");
         if (isOverBudget || stragglers.length === 0) return true;
-        await crawler.addRequests(stragglers);
+        await this.#add(stragglers.map((url) => ({ url, crawlDepth: 0 })));
         return false;
     }
 
@@ -169,15 +186,15 @@ export class Frontier {
         else log.warn({ url: seed, reason }, "seed not crawled");
     }
 
-    // Crawler options every adapter passes through unchanged.
-    options(storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    // Crawler options every adapter passes through unchanged; crawlers running side by side split the rate.
+    options(mode: CrawlerMode, storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
-            ...(storage && { requestQueue: storage.requestQueue }),
+            ...(storage && { requestQueue: storage.queues[mode] }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
             // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
             sessionPoolOptions: { blockedStatusCodes: [] },
             maxRequestsPerCrawl: this.#config.maxPages || undefined,
-            maxRequestsPerMinute: this.#config.rate || undefined,
+            maxRequestsPerMinute: this.#config.rate ? Math.max(1, Math.floor(this.#config.rate / this.#router.crawlers.length)) : undefined,
             ...(proxy && { proxyConfiguration: new ProxyConfiguration({ proxyUrls: [proxy] }) }),
             maxCrawlDepth: this.#config.maxDepth || undefined,
             respectRobotsTxtFile: this.#config.robots && { userAgent: "spiderlint" },
@@ -211,15 +228,31 @@ export class Frontier {
         };
     }
 
-    // The page’s anchors, then its head feeds, queued under the scope and globs unless the seeds are the whole frontier; returns how many were new.
-    async enqueue(enqueueLinks: EnqueueLinks, facts: Facts): Promise<number> {
+    // Hands a request to the browser before any fetch when its group renders there; true once handed.
+    async handOff(request: Request): Promise<boolean> {
+        if (!this.#crawlers.has("browser") || !(await this.#router.handOff(request.url))) return false;
+        await this.#crawlers.get("browser")?.addRequests([{ url: request.url, crawlDepth: request.crawlDepth }]);
+        return true;
+    }
+
+    // The page’s anchors, then its head feeds, queued under the scope and globs on the crawler their group needs, unless the seeds are the whole frontier; returns how many were new.
+    async enqueue(enqueueLinks: EnqueueLinks, facts: Facts, mode: CrawlerMode): Promise<number> {
         if (!this.#config.follow) return 0;
-        const options = { strategy: STRATEGY[this.#config.scope], transformRequestFunction: this.transformRequestFunction };
+        const routed: string[] = [];
+        const transformRequestFunction: RequestTransform = (request) => {
+            const kept = this.transformRequestFunction(request);
+            const isRouted = kept && isInScope(new URL(request.url), new URL(facts.url.href), this.#config.scope) && this.#router.queue(request.url) !== mode;
+            if (!isRouted) return kept;
+            routed.push(request.url);
+            return false;
+        };
+        const options = { strategy: STRATEGY[this.#config.scope], transformRequestFunction };
         const heads = facts.html?.head.links ?? [];
         const feeds = heads.filter((link) => /\balternate\b/i.test(link.rel ?? "") && FEED_TYPES.has(link.type?.toLowerCase() ?? "")).flatMap((link) => (link.href ? [link.href] : []));
         log.debug({ url: facts.url.href, feeds }, "head feeds found");
         const batches = [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])];
-        return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length;
+        await this.#add(routed.map((url) => ({ url, crawlDepth: facts.crawl.depth + 1 })));
+        return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length + routed.length;
     }
 
     // What the crawl learnt about the site: sitemap files, and each seed origin’s robots.txt when one was read.
@@ -227,14 +260,19 @@ export class Frontier {
         return { sitemaps: this.files, ...(this.#robots.length > 0 && { robots: this.#robots }) };
     }
 
-    // Seeds first, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket.
-    async run(crawler: Runnable, robots: RobotsFor): Promise<void> {
+    // Seeds first, each on its group’s crawler, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket, a crawl-delay stretched over the crawlers sharing it.
+    async run(crawlers: Partial<Record<CrawlerMode, Runnable>>, robots: RobotsFor): Promise<void> {
         const answer = (url: string) => (this.#config.robots ? robots(url) : Promise.resolve(undefined));
-        Object.assign(crawler, { getRobotsTxtFileForUrl: answer });
         const delay = this.#config.robots ? await this.#crawlDelay(robots) : 0;
-        if (delay > 0) Object.assign(crawler, { sameDomainDelayMillis: delay * 1000 });
-        this.#crawler = crawler;
-        await crawler.run(this.#config.seeds);
+        const running = Object.entries(crawlers) as [CrawlerMode, Runnable][];
+        for (const [mode, crawler] of running) {
+            Object.assign(crawler, { getRobotsTxtFileForUrl: answer });
+            if (delay > 0) Object.assign(crawler, { sameDomainDelayMillis: delay * 1000 * running.length });
+            this.#crawlers.set(mode, crawler);
+        }
+        const seeds = Object.groupBy(this.#config.seeds, (seed) => this.#router.queue(seed));
+        log.debug({ crawlers: running.map(([mode]) => mode), http: seeds.http?.length ?? 0, browser: seeds.browser?.length ?? 0 }, "seeds routed");
+        await Promise.all(running.map(([mode, crawler]) => crawler.run(seeds[mode] ?? [])));
         const isRead = this.#config.robots || this.#config.sitemap;
         const files = isRead ? await Promise.all(this.#origins().map(async (origin) => robotsFactsOf(await robots(origin)))) : [];
         this.#robots = files.filter((facts) => facts !== undefined);

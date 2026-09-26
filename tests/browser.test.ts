@@ -65,8 +65,8 @@ describe("fetch mode", () => {
         assert.equal(report.pages[0]?.http.version, "1.1");
     });
 
-    it("refuses adaptive until it exists", async () => {
-        await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "adaptive" }), ConfigError);
+    it("refuses a group pinned above an http pin", async () => {
+        await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "http", groups: { app: { match: ["/app/**"], fetch: "adaptive" } } }), (error: Error) => error instanceof ConfigError && error.message.includes("group app"));
     });
 });
 
@@ -117,6 +117,28 @@ describe("browser fetch", { skip }, () => {
         const stored = page("/posts/3")?.axe as AxeFacts;
         assert.equal(stored.violations.find((violation) => violation.rule === "image-alt")?.nodes[0]?.xpath, "/html/body/img");
         assert.ok(Array.isArray(stored.incomplete) && stored.version.length > 0);
+    });
+
+    it("crawls a browser group and an http group side by side in one run", async () => {
+        const mixed = await audit({ seeds: [`${site.origin}/`], groups: { app: { match: ["/app/**"], fetch: "browser", rules: ["seo"] }, default: { rules: ["seo"] } }, exclude: ["/tmp/**"] });
+        const at = (pathname: string) => mixed.pages.find((entry) => entry.url.pathname === pathname);
+        assert.deepEqual(mixed.summary.fetch, { app: "browser", default: "http" });
+        assert.deepEqual(mixed.pages.map((entry) => entry.url.pathname).toSorted((a, b) => a.localeCompare(b)), ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
+        assert.equal(at("/app/")?.html?.meta.description, "Rendered by the application shell once its script runs in a browser.");
+        assert.ok(at("/app/")?.browser);
+        assert.equal(at("/about")?.browser, undefined);
+        const { browser, http } = mixed.summary.cost;
+        assert.deepEqual([browser?.pages, browser?.launches], [1, 1]);
+        assert.equal(http?.pages, mixed.pages.length, "the redirecting /old-about is fetched too");
+    });
+
+    it("settles an adaptive group on the browser when rendering changes its tags, and on http when it does not", async () => {
+        const adaptive = await audit({ seeds: [`${site.origin}/`], fetch: "adaptive", groups: { app: { match: ["/app/**"] }, posts: { match: ["/posts/**"] }, default: {} }, rules: ["seo"], exclude: ["/tmp/**"] });
+        const posts = adaptive.pages.filter((entry) => entry.url.pathname.startsWith("/posts/"));
+        assert.equal(adaptive.summary.fetch?.app, "browser");
+        assert.equal(adaptive.summary.fetch?.posts, "http");
+        assert.equal(adaptive.pages.find((entry) => entry.url.pathname === "/app/")?.html?.meta.description, "Rendered by the application shell once its script runs in a browser.");
+        assert.deepEqual([posts.length, posts.filter((entry) => entry.browser).length], [5, 3], "three renders settle a group; the rest stay on http");
     });
 
     it("records the transport of each response", async () => {

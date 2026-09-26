@@ -40,10 +40,10 @@ function key(url: string): string {
     return createHash("sha256").update(url).digest("hex");
 }
 
-type Storages = [Dataset, KeyValueStore, KeyValueStore, RequestQueue];
+type Storages = [Dataset, KeyValueStore, KeyValueStore, RequestQueue, RequestQueue];
 
 async function openStorages(config: Configuration): Promise<Storages> {
-    return [await Dataset.open("facts", { config }), await KeyValueStore.open("bodies", { config }), await KeyValueStore.open("records", { config }), await RequestQueue.open("frontier", { config })];
+    return [await Dataset.open("facts", { config }), await KeyValueStore.open("bodies", { config }), await KeyValueStore.open("records", { config }), await RequestQueue.open("frontier", { config }), await RequestQueue.open("frontier-browser", { config })];
 }
 
 
@@ -79,8 +79,8 @@ export class DiskStore {
             const stored = await storages[0].map((item) => item as unknown as Facts);
             for (const facts of stored) for (const href of [facts.url.href, facts.crawl.requested]) if (href) earlier.set(href, facts);
             const crawlerState = await KeyValueStore.open(undefined, { config });
-            const [facts, , records, frontier] = storages;
-            await Promise.all([facts, records, frontier, crawlerState].map((storage) => storage.drop()));
+            const [facts, , records, frontier, rendering] = storages;
+            await Promise.all([facts, records, frontier, rendering, crawlerState].map((storage) => storage.drop()));
             storages = await openStorages(config);
         }
         const { configHash, fresh, seeds = [] } = mode;
@@ -108,7 +108,8 @@ export class DiskStore {
     readonly facts: Dataset;
     readonly bodies: KeyValueStore;
     readonly records: KeyValueStore;
-    readonly frontier: RequestQueue;
+    // One frontier per crawler, so a resumed run hands each its own.
+    readonly frontiers: { http: RequestQueue; browser: RequestQueue };
     readonly manifest: Manifest;
     readonly earlier: Map<string, Facts>;
     readonly last?: Summary;
@@ -121,7 +122,7 @@ export class DiskStore {
         this.facts = storages[0];
         this.bodies = storages[1];
         this.records = storages[2];
-        this.frontier = storages[3];
+        this.frontiers = { http: storages[3], browser: storages[4] };
         this.#release = release;
         this.manifest = manifest;
     }

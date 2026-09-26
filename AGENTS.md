@@ -12,8 +12,8 @@ rulesets scoped by URL group. One template with a missing `<h1>` is one
 finding, not a finding per page.
 
 Status: v1 in progress. Implemented: http and browser crawl with link
-discovery, scope, depth, glob and body-size limits; `auto` fetch derived per
-run (browser when any group pins it or any enabled rule reads `browser.*`); sitemap discovery and facts; transport,
+discovery, scope, depth, glob and body-size limits; a fetch mode derived per
+group, both crawlers side by side in one run, and `adaptive` detection per group; sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
@@ -21,8 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
-extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, `lighthouse` and localised
+extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: `lighthouse` and localised
 messages.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -31,7 +30,7 @@ recorded so the v1 shape does not block them.
 ## Key facts
 
 - Base: `b19/node-26`, TypeScript run directly by Node (`--experimental-strip-types`), no build step — same as [textlint-server](../textlint-server/AGENTS.md)
-- Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, `AdaptivePlaywrightCrawler` to decide per page
+- Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, both side by side when groups need both
 - Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
 - Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses
@@ -104,11 +103,11 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 
 ## Fetch
 
-| Mode       | Crawlee class               | When                                                                              |
-| ---------- | --------------------------- | --------------------------------------------------------------------------------- |
-| `http`     | `HttpCrawler` + cheerio     | Default. 10–50× cheaper than a browser.                                           |
-| `browser`  | `PlaywrightCrawler`         | SPAs, pages whose meta tags are rendered client-side.                             |
-| `adaptive` | `AdaptivePlaywrightCrawler` | Unknown sites: samples `renderingTypeDetectionRatio` pages and switches per page. |
+| Mode       | Crawlee class           | When                                                                                    |
+| ---------- | ----------------------- | --------------------------------------------------------------------------------------- |
+| `http`     | `HttpCrawler` + cheerio | Default. 10–50× cheaper than a browser.                                                 |
+| `browser`  | `PlaywrightCrawler`     | SPAs, pages whose meta tags are rendered client-side.                                   |
+| `adaptive` | both                    | Unknown sites: renders a group’s first pages, then settles the whole group on one mode. |
 
 The mode is DERIVED per group, never guessed. Every fact path belongs to an
 extractor, and every extractor declares the mode it needs (`html.*` and
@@ -116,15 +115,27 @@ extractor, and every extractor declares the mode it needs (`html.*` and
 A group’s mode is the highest mode any of its enabled rules reads — one rule
 on `browser.console.errors` upgrades its whole group, and since a page is
 fetched once, upgrading the group is exactly upgrading the job for those
-pages. `spiderlint groups` prints the derived mode and the rule that forced it.
+pages. `spiderlint groups` prints each group’s mode; the rule that forced it is logged at `debug`.
 
 `fetch` values: `auto` (default — derived as above; a group nothing forces
-runs `adaptive`, so a site that renders its meta tags client-side never
-costs a second run), `http` (pin; a browser-only rule is then a config error,
-exit `2`, unless it is `off`), `browser` (force everything), `adaptive`
-(Crawlee decides per page everywhere nothing forces `browser`).
-Overridable per group (`groups.app.fetch: browser`) for sites whose meta tags
-are rendered client-side — a site property no rule can declare.
+runs `http`, so a default run never launches a browser), `http` (pin; a
+browser-only rule, or a group pinned `browser` or `adaptive`, is then a config
+error, exit `2`), `browser` (force everything), `adaptive` (every group
+nothing forces `browser` detects its own mode).
+Overridable per group (`groups.app.fetch: browser` or `adaptive`) for sites whose
+meta tags are rendered client-side — a site property no rule can declare.
+
+One run starts only the crawlers its groups need, side by side over one
+frontier: a URL is queued on its group’s crawler, matched by URL alone, since
+its response is not known yet. An `adaptive` group queues on http, which hands
+its first three pages to the browser; each rendered page’s `html` facts (title,
+lang, canonical, `h1`, meta, `og:` properties, internal links) are compared
+with the same response’s static HTML. One difference settles the group on
+`browser`, three agreements on `http`; later pages wait for the verdict, and
+a group still undecided after 60 s renders. So a group’s pages are fetched
+one way once it settles, and a rendered page costs no second request.
+Crawlee’s `AdaptivePlaywrightCrawler` is not used: its HTTP path reads no
+socket, timings or `304`, and it decides per page, which would split a group’s facts.
 
 `browser` picks the Playwright engine (`--browser`, `SPIDERLINT_BROWSER`). The image ships Chromium only; `firefox` and `webkit` run where Playwright has them installed, and one that is missing is a config error naming `npx playwright install <name>`.
 
@@ -159,7 +170,7 @@ the `TLSSocket` behind the `IncomingMessage` in http mode
 `authorizationError`), `response.securityDetails()` and `serverAddr()` in
 browser mode. One name can front two backends — a CDN edge for `/blog/*`, an
 origin for `/app/*`, each with its own certificate, protocol and address — and
-a once-per-host probe would hide that. With keep-alive, pages sharing a
+a once-per-host probe would hide that, which is why browser mode’s handshake is keyed by host and address and trusted only on Chromium’s certificate. With keep-alive, pages sharing a
 connection share the same observation; `--no-keepalive` forces a fresh
 handshake per page for a complete census at the cost of speed.
 The CLI trusts the OS certificate store beside Node’s bundled roots, as
@@ -240,7 +251,7 @@ groups:
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
 - `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables, and is the implicit `default` group’s, so a config without groups checks every page. A crawl takes the first arrivals; `lint` backfilling a stored crawl fills each sample with the lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
-- `spiderlint groups <url>` is the dry run: crawls, prints the page count and derived fetch mode per group (with the rule that forced it), and lists pages that fell through to `default`.
+- `spiderlint groups <url>` is the dry run: crawls, prints the page count and fetch mode per group, and lists pages that fell through to `default`.
 
 ## Rules
 
@@ -343,7 +354,7 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
-- Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `report` and `cache` find it from their URLs or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue` `frontier` the frontier so `--resume` continues a killed run.
+- Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `report` and `cache` find it from their URLs or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue`s `frontier` and `frontier-browser` each crawler’s frontier, so `--resume` continues a killed run.
 - `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `report` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
@@ -493,7 +504,7 @@ export default definePlugin({
 
 ## Concurrency and limits
 
-- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`.
+- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`. Two crawlers side by side split `rate` and each wait twice the delay, so the site sees the pace one crawler would keep.
 - Lint from store runs extractors and rules inline, in the one process.
 - Retries: `maxRequestRetries: 3` with Crawlee’s backoff; `429` and `503` honour `Retry-After`. `retryOnBlocked` stays off — evading bot protection on someone else’s site is not this tool’s job.
 - Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30. Later: `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.

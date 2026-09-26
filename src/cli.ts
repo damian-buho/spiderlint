@@ -39,7 +39,7 @@ Commands:
   cache warm [url…]     fetch robots.txt and sitemaps only
 
 Crawl:
-  --fetch MODE          auto, http or browser (auto)
+  --fetch MODE          auto, http, browser or adaptive (auto)
   --browser NAME        chromium, firefox or webkit (chromium)
   --scope SCOPE         origin, host or domain (origin)
   --concurrency N       pages in flight, 0 for NUMPROCS, halved in a browser (0)
@@ -133,7 +133,8 @@ function exitCode(report: Report, failOn: FailOn): number {
 function groupsOf(report: Report): string {
     const counts: Record<string, number> = {};
     for (const page of report.pages) counts[page.group] = (counts[page.group] ?? 0) + 1;
-    const lines = Object.entries(counts).map(([group, pages]) => `${group}: ${pages} pages`);
+    const modes = new Map(Object.entries(report.summary.fetch ?? {}));
+    const lines = Object.entries(counts).map(([group, pages]) => `${group}: ${pages} pages${modes.has(group) ? `, fetch ${modes.get(group)}` : ""}`);
     const fell = report.pages.filter((page) => page.group === "default").map((page) => `  ${page.url.href}`);
     return [...lines, ...(fell.length > 0 ? ["fell through to default:", ...fell] : [])].join("\n");
 }

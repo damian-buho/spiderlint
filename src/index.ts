@@ -7,9 +7,9 @@ import { ConfigError, defaults, type Config, type GroupConfig } from "./config/i
 import type { Stored } from "./cache/http.ts";
 import { ExtractorCache } from "./cache/extractors.ts";
 import { OfflineMiss, openBucket } from "./cache/index.ts";
-import { crawlBrowser } from "./crawl/browser.ts";
 import type { Earlier } from "./crawl/frontier.ts";
-import { crawlHttp } from "./crawl/http.ts";
+import { crawlSite } from "./crawl/crawl.ts";
+import { Router, type GroupMode } from "./crawl/route.ts";
 import { onOrigin } from "./crawl/scope.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap, mediaOf } from "./crawl/sitemap.ts";
@@ -59,6 +59,8 @@ export interface Summary {
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
     crawlHash?: string;
+    // Each group’s fetch mode, an adaptive one as it settled; absent on a re-lint.
+    fetch?: Record<string, GroupMode>;
     cost: Cost;
 }
 
@@ -209,30 +211,30 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
     if (unserved.size > 0) log.warn({ extractors: [...unserved] }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
 }
 
-// Why the run needs a browser: each group pinning `browser` and each enabled rule reading a fact only a rendered page has.
-function browserReasons(config: Config): string[] {
+// Each group’s mode: a run pin wins, else the group’s own, else the run’s; a `browser` pin or a rule reading a rendered-only fact renders, an `http` pin refuses both.
+function groupModes(config: Config): Record<string, GroupMode> {
     const disabledRules = new Set(config.disabledRules);
-    return Object.entries(groupsOf(config)).flatMap(([name, group]) => {
-        if (group.fetch === "browser") return [`group ${name}`];
+    const refused: string[] = [];
+    const modes: Record<string, GroupMode> = {};
+    const groups = Object.entries(groupsOf(config));
+    for (const [name, group] of groups) {
         const rules = compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides);
-        return rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
-    });
-}
-
-// A pin wins; `auto` renders only when a group or a rule asks for it, and an `http` pin refuses both.
-function fetchMode(config: Config): "http" | "browser" {
-    if (config.fetch === "adaptive") throw new ConfigError("fetch mode adaptive is not implemented yet; use auto, http or browser");
-    if (config.fetch === "browser") return "browser";
-    const reasons = browserReasons(config);
-    log.debug({ fetch: config.fetch, reasons }, "fetch mode derived");
-    if (config.fetch === "http" && reasons.length > 0) throw new ConfigError(`fetch http cannot serve ${reasons.join(", ")}; use --fetch browser or turn them off`);
-    return reasons.length > 0 ? "browser" : "http";
+        const readers = rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
+        const pin = config.fetch === "http" || config.fetch === "browser" ? config.fetch : (group.fetch ?? config.fetch);
+        const isPinnedAbove = config.fetch === "http" && (group.fetch === "browser" || group.fetch === "adaptive");
+        if (pin === "http") refused.push(...readers, ...(isPinnedAbove ? [`group ${name}`] : []));
+        modes[name] = pin === "browser" || readers.length > 0 ? "browser" : pin === "adaptive" ? "adaptive" : "http";
+        log.debug({ group: name, fetch: config.fetch, pin, readers, mode: modes[name] }, "group fetch mode derived");
+    }
+    if (refused.length > 0) throw new ConfigError(`fetch http cannot serve ${refused.join(", ")}; use --fetch browser or turn them off`);
+    return modes;
 }
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
     const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
-    const shape = { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
+    const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
+    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -255,7 +257,7 @@ function linter(config: Config): Lint {
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     warnUnknown(config, groups);
-    return ({ pages, site, cost }, started) => {
+    return ({ pages, site, cost, fetch }, started) => {
         for (const page of pages) {
             page.group = assignGroup(page, matchers);
             page.robots = robotsFacts(page);
@@ -265,7 +267,7 @@ function linter(config: Config): Lint {
         const run = runRules(pages, rulesByGroup, site);
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
-        const summary = summarize(pages, run, rules, started, cost, rulesets);
+        const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
         log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
         return { pages, findings, summary, site };
@@ -276,6 +278,7 @@ export interface Crawled {
     pages: Facts[];
     site: SiteFacts;
     cost: Cost;
+    fetch?: Record<string, GroupMode>;
 }
 
 // The previous crawl’s facts and body for `href`, when the store still holds both.
@@ -324,25 +327,20 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const sample = samplerOf(config);
     if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample, config);
     for (const facts of earlier) memory.add(facts);
-    const fetch = fetchMode(config);
+    const router = new Router(groupsOf(config), groupModes(config));
     const resourceActive = resourceExtractorsFor(rules);
     const isKeptType = (type: string) => resourceActive.some((extractor) => extractor.types.some((prefix) => type.startsWith(prefix)));
-    const crawl: typeof crawlHttp = fetch === "http" ? crawlHttp : (...crawlArguments) => crawlBrowser(...crawlArguments, isKeptType);
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     const robots = config.robots ? cache.robots : undefined;
-    log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
+    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
     const extractors = extractorCache(config, store, cost);
-    let fetched = 0;
-    let revalidated = 0;
     const redirects: Record<string, string> = {};
-    const { site, launches, responses, tlsProbes = 0 } = await crawl(
+    const { site, pages, revalidated, launches, responses, tlsProbes, modes } = await crawlSite(
         config,
         async (facts, body, live) => {
-            fetched += 1;
             if (proxy) delete facts.http.remote;
-            revalidated += facts.http.revalidated ? 1 : 0;
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
@@ -351,8 +349,10 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
-        store && { config: store.config, requestQueue: store.frontier, earlier: (href) => earlierPage(store, href) },
+        router,
+        store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href) },
         proxy,
+        isKeptType,
     );
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
@@ -369,12 +369,12 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
-    if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched, tlsProbes };
-    else cost.http = { pages: fetched, revalidated };
+    if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };
+    if (pages.http !== undefined) cost.http = { pages: pages.http, revalidated };
     const answered = Object.values(results);
     if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached && !result.logged).length, cached: answered.filter((result) => result.cached).length, logged: answered.filter((result) => result.logged).length };
     log.debug({ cost }, "crawl cost");
-    return { pages: memory.pages, site, cost };
+    return { pages: memory.pages, site, cost, fetch: modes };
 }
 
 // Runs `work` against a locked store, stamping it finished only when `work` succeeds.

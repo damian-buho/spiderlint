@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { load } from "cheerio";
 import { existsSync } from "node:fs";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
@@ -16,8 +17,8 @@ import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
 import { width } from "./resources.ts";
-import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Logged, type OnPage } from "./frontier.ts";
-import { bridgeCrawleeLog } from "./log.ts";
+import type { CrawlStorage, Frontier, Logged, OnPage } from "./frontier.ts";
+import type { Router } from "./route.ts";
 import { TlsProber } from "./tls-probe.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
@@ -175,6 +176,12 @@ async function bodyOf(page: Page, response: Response, observation: Observation, 
     return { raw, text: HTML_TYPES.has(type) ? await page.content() : isParsed(type) ? raw.toString("utf8") : "" };
 }
 
+// The html facts of the document as served, before any script ran.
+function staticHtml(raw: Buffer, url: URL, scope: Config["scope"]): Facts["html"] {
+    const source = raw.toString("utf8");
+    return extractHtml(load(source) as unknown as Parameters<typeof extractHtml>[0], source, url, scope);
+}
+
 // The first URL of a redirect chain, without its fragment.
 function requestedUrl(request: Request): string {
     let first = request;
@@ -217,11 +224,18 @@ function launcherOf(name: BrowserName): BrowserType {
     return launcher;
 }
 
-// Renders every page in the configured browser; facts come from the rendered DOM and the browser’s own network log.
-export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false): Promise<CrawlResult> {
+// What a browser crawl spent and kept: pages rendered, browser launches, sub-resource responses by requested URL, TLS probes.
+export interface BrowserStats {
+    pages: number;
+    launches: number;
+    responses: Map<string, Logged>;
+    tlsProbes: number;
+}
+
+// The browser crawler of a frontier: facts come from the rendered DOM and the browser’s own network log; an adaptive group’s rendered page is compared with its static HTML.
+export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
     const launcher = launcherOf(config.browser);
-    bridgeCrawleeLog();
-    const frontier = await Frontier.open(config, cache);
+    let pages = 0;
     const observations = new WeakMap<CrawleeRequest, Observation>();
     const responses = new Map<string, Logged>();
     const prober = proxy ? undefined : new TlsProber(config.allowPrivate);
@@ -232,7 +246,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     log.debug({ openPages, concurrency: config.concurrency }, "browser concurrency");
     const crawler = new Crawler(
         {
-            ...frontier.options(storage, proxy),
+            ...frontier.options("browser", storage, proxy),
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             maxConcurrency: openPages,
@@ -277,15 +291,16 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
+                if (router.isDetecting(url.href)) router.detected(url.href, isHtml ? staticHtml(raw, url, config.scope) : undefined, facts.html);
+                pages += 1;
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml) return;
-                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts) }, "links enqueued");
+                log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false }),
         observations,
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
-    await frontier.run(crawler, cache.robots);
-    return { site: frontier.site(), launches, responses, tlsProbes: prober?.probes ?? 0 };
+    return { crawler, stats: () => ({ pages, launches, responses, tlsProbes: prober?.probes ?? 0 }) };
 }

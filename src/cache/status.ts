@@ -24,7 +24,7 @@ function layout(root: string | undefined): [string, string[], string][] {
     return root === undefined ? files : [
         ["pages", [path.join(root, "datasets/facts"), path.join(root, "key_value_stores/bodies"), bucketDirectory("pages", root) as string], ".json"],
         ["records", [path.join(root, "key_value_stores/records")], ".json"],
-        ["frontier", [path.join(root, "request_queues/frontier")], ".json"],
+        ["frontier", [path.join(root, "request_queues/frontier"), path.join(root, "request_queues/frontier-browser")], ".json"],
         ...files,
     ];
 }
