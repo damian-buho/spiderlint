@@ -6,7 +6,12 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { TlsProber } from "../src/crawl/tls-probe.ts";
 import { withProbe } from "../src/facts/browser.ts";
-import type { TlsFacts } from "../src/facts/types.ts";
+import type { DnsClient } from "../src/crawl/dns.ts";
+import type { SiteFacts, TlsFacts } from "../src/facts/types.ts";
+import { log } from "../src/logger.ts";
+import tlsProbe from "../src/plugins/tls-probe.ts";
+import { compileRulesets } from "../src/rules/rulesets.ts";
+import { runRules } from "../src/rules/run.ts";
 import { serveTls, type TlsFixture } from "./fixtures/tls.ts";
 
 const fixture = await serveTls();
@@ -58,5 +63,55 @@ describe("probed browser TLS", () => {
         assert.equal(withProbe("https://a.test/", seen, "QUIC", undefined).version, "3.0");
         // eslint-disable-next-line unicorn/prefer-https -- a plain-text page is the case under test
         assert.deepEqual(withProbe("http://a.test/", undefined, undefined, undefined), { version: "1.1" });
+    });
+});
+
+// The `tls-probe` facts of `origin`, connecting to 127.0.0.1 whatever `localhost` resolves to.
+async function probed(origin: string): Promise<unknown> {
+    const [extractor] = tlsProbe.sites ?? [];
+    const signal = AbortSignal.timeout(60_000);
+    return extractor?.extract(origin, { pages: [], signal, dns: undefined as unknown as DnsClient, fetch: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), address: async () => "127.0.0.1" });
+}
+
+// `[rule, severity]` of each `tls-probe` finding over one origin’s facts.
+function judged(origin: string, facts: unknown): [string, string][] {
+    const site: SiteFacts = { sitemaps: [], origins: { [origin]: { tlsProbe: facts } } };
+    return runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), site).findings.map((finding): [string, string] => [finding.rule, finding.severity]);
+}
+
+describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () => {
+    it("fails a server that still accepts TLS 1.1", async () => {
+        const legacy = await serveTls(["http/1.1"], { minVersion: "TLSv1.1", ciphers: "DEFAULT@SECLEVEL=0" });
+        try {
+            const facts = await probed(legacy?.origin ?? "");
+            assert.ok((facts as { legacy: string[] }).legacy.includes("TLSv1.1"));
+            assert.deepEqual(judged(legacy?.origin ?? "", facts), [["tls-probe/legacy-protocols", "warning"]]);
+        } finally {
+            await legacy?.close();
+        }
+    });
+
+    it("passes a TLS 1.3-only server with a complete chain", async () => {
+        const modern = await serveTls(["http/1.1"], { minVersion: "TLSv1.3" });
+        try {
+            const facts = await probed(modern?.origin ?? "");
+            assert.deepEqual(facts, { address: "127.0.0.1", legacy: [], chain: { sent: 1, complete: true }, ocsp: { responder: false, stapled: false }, earlyData: false });
+            assert.deepEqual(judged(modern?.origin ?? "", facts), []);
+        } finally {
+            await modern?.close();
+        }
+    });
+
+    it("skips with one warning where openssl is not on PATH", async (context) => {
+        const warn = context.mock.method(log, "warn");
+        const path = process.env.PATH;
+        process.env.PATH = "/nonexistent";
+        try {
+            assert.equal(await probed("https://localhost:9"), undefined);
+            assert.equal(await probed("https://localhost:9"), undefined);
+        } finally {
+            process.env.PATH = path;
+        }
+        assert.equal(warn.mock.calls.filter((call) => String(call.arguments[1]).includes("openssl not found")).length, 1);
     });
 });

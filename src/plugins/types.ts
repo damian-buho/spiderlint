@@ -47,6 +47,8 @@ export interface SiteContext {
     // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;
+    // The address a raw socket or external tool may connect to for a host; a private one throws unless allowed.
+    address(host: string): Promise<string>;
     // The subject’s crawled pages; for a linked host, the pages that link or load it.
     pages: readonly Facts[];
     signal: AbortSignal;
@@ -63,7 +65,7 @@ export interface SiteExtractor {
     timeout?: number;
     // `false` skips the `origins` bucket and runs on every crawl, for an extractor whose queries cache themselves.
     cached?: false;
-    // Queries DNS directly, which no proxy carries, so a proxied run skips it.
+    // Queries DNS or connects directly, which no proxy carries, so a proxied run skips it.
     resolves?: true;
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }

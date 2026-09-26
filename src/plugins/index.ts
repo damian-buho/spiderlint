@@ -27,11 +27,12 @@ import manifest from "./manifest.ts";
 import markup from "./markup.ts";
 import origin from "./origin.ts";
 import structuredData from "./structured-data.ts";
+import tlsProbe from "./tls-probe.ts";
 import trackers from "./trackers.ts";
 import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
+const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, origin, dns, tlsProbe, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));

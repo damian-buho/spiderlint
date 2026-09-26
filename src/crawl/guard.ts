@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from "node:dns";
+import dns, { lookup as dnsLookup, type LookupAddress, type LookupOptions } from "node:dns";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 import { log } from "../logger.ts";
 
@@ -20,6 +20,14 @@ export function isPrivate(address: string): boolean {
 // A refused address, named so the log and the fact say why.
 export class PrivateAddress extends Error {
     readonly code = "EPRIVATE";
+}
+
+// The address a raw socket to `hostname` may connect to, through the run’s lookup; a private one is refused unless allowed.
+export async function connectable(hostname: string, isPrivateAllowed: boolean): Promise<string> {
+    const address = isIP(hostname) === 0 ? await new Promise<string>((resolve, reject) => dns.lookup(hostname, (error, found) => (error ? reject(error) : resolve(found)))) : hostname;
+    log.debug({ hostname, address, isPrivateAllowed }, "socket address resolved");
+    if (!isPrivateAllowed && isPrivate(address)) throw new PrivateAddress(`${hostname} resolves to private address ${address}`);
+    return address;
 }
 
 // A DNS lookup that fails when any answer is private, so the socket connects only to an address it checked.

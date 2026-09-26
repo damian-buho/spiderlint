@@ -11,6 +11,7 @@ import { answerOf, type ProbeBucket } from "../crawl/links.ts";
 import { probe, RobotsDisallowed } from "../crawl/probe.ts";
 import type { RobotsFor } from "../crawl/robots.ts";
 import { width } from "../crawl/resources.ts";
+import { connectable } from "../crawl/guard.ts";
 import { log } from "../logger.ts";
 import type { SiteContext, SiteExtractor } from "../plugins/types.ts";
 import type { Facts, SiteFacts } from "./types.ts";
@@ -61,7 +62,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
     const timeout = extractor.timeout ?? TIMEOUT_MS;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
-    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, ...(isLinked && { linked: true as const }) };
+    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }) };
     const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(`timed out after ${timeout} ms`)), { once: true }));
     return Promise.race([extractor.extract(subject, context), expired]);
 }

@@ -24,3 +24,4 @@ libxext6                                 # X11 miscellaneous extension library
 libxfixes3                               # X11 miscellaneous fixes extension library
 libxkbcommon0                            # XKB keymap library
 libxrandr2                               # X11 RandR extension library
+openssl                                  # s_client for the tls-probe plugin
