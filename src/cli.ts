@@ -50,8 +50,8 @@ Crawl:
   --max-pages N         page limit, 0 for none (0)
   --max-depth N         link depth limit, 0 for none (0)
   --max-body-size B     body cap in bytes (10000000)
-  --include-urls GLOB   crawl matching URLs only, repeatable
-  --exclude-urls GLOB   skip matching URLs, repeatable
+  --include-urls GLOB   crawl URLs whose path and query match only, repeatable
+  --exclude-urls GLOB   skip URLs whose path and query match, repeatable
   --source ID:ARG       add a plugin source’s URLs, list:FILE crawls a URL list only, repeatable
   --no-robots           ignore robots.txt
   --no-sitemap          skip sitemap discovery
@@ -89,14 +89,14 @@ Store and cache:
   -h, --help            show this screen
   -V, --version         show the version
 
-IDS and RULESETS are comma-separated; see spiderlint rules and presets.
+IDS and RULESETS are comma-separated, an ID may be a glob (lighthouse/*); see spiderlint rules and presets.
 With no url, targets come from org.spiderlint in the config, one run per site.
 Exit codes: 0 clean, 1 findings, 2 usage, 3 nothing fetched, 4 failure.
 
 Examples:
   spiderlint audit https://example.com/
   spiderlint audit https://example.com/ --format sarif > report.sarif
-  spiderlint audit https://example.com/ --rules all
+  spiderlint audit https://example.com/ --rules all --exclude-rules 'lighthouse/*'
   spiderlint audit --source list:urls.txt
   spiderlint crawl https://example.com/
   spiderlint lint https://example.com/ --fail-on warning

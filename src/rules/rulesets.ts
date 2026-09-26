@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readdirSync, readFileSync } from "node:fs";
+import picomatch from "picomatch";
 import { parse } from "yaml";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
@@ -63,6 +64,11 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     return merged;
 }
 
+// Whether a rule ID is `pattern` or matches it as a glob (`lighthouse/*`).
+export function isRuleMatch(id: string, pattern: string): boolean {
+    return id === pattern || picomatch.isMatch(id, pattern);
+}
+
 // Every rule ID the named rulesets define, `off` ones included.
 export function ruleIds(names: string[], rulesets: Record<string, RulesetConfig>): Set<string> {
     return new Set(names.flatMap((name) => Object.keys(resolveRuleset(name, rulesets))));
@@ -75,7 +81,9 @@ export function compileRulesets(names: string[], rulesets: Record<string, Rulese
     for (const name of names) Object.assign(specs, resolveRuleset(name, rulesets));
     const rules: Rule[] = [];
     for (const [id, spec] of Object.entries(specs)) {
-        const severity: Severity | undefined = disabledRules.has(id) ? "off" : (overrides[id] ?? spec.severity);
+        const isDisabled = [...disabledRules].some((pattern) => isRuleMatch(id, pattern));
+        const override = overrides[id] ?? Object.entries(overrides).find(([pattern]) => isRuleMatch(id, pattern))?.[1];
+        const severity: Severity | undefined = isDisabled ? "off" : (override ?? spec.severity);
         if (severity === "off") {
             log.debug({ rule: id }, "rule off");
             continue;

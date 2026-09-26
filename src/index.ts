@@ -28,7 +28,7 @@ import { log, logRelativeTo } from "./logger.ts";
 import { isProgressOn, progressDone } from "./progress.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
-import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
+import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
@@ -159,8 +159,8 @@ function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
 // An --exclude-rules or severity override naming no rule of any group matches nothing; say so.
 function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void {
     const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
-    for (const id of [...config.disabledRules, ...Object.keys(config.overrides)]) {
-        if (!known.has(id)) log.warn({ rule: id, known: known.size }, "rule option names no known rule");
+    for (const pattern of [...config.disabledRules, ...Object.keys(config.overrides)]) {
+        if ([...known].every((id) => !isRuleMatch(id, pattern))) log.warn({ rule: pattern, known: known.size }, "rule option names no known rule");
     }
 }
 

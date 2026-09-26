@@ -304,7 +304,7 @@ because facts are always retained even when bodies are not.
 - `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
 - Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), the `robots` preset over `site.robots` — `robots/disallow-all` (`*` shut out of `/` with no `Allow`), `robots/ai-crawlers` (`info`: the AI crawler tokens a `robots.txt` names, by purpose, with retired ones marked) and `robots/content-signal` (only `search`, `ai-input`, `ai-train`, each `yes` or `no`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.
-- Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--exclude-rules` override per ID.
+- Severity: `error` | `warning` | `info` | `off`. `--error`, `--warning`, `--info`, `--exclude-rules` override per ID or picomatch glob (`lighthouse/*`), an exact ID winning over a glob; a rule glob excluding every rule an extractor feeds skips that extractor.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs, fix }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 

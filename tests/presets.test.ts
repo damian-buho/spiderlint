@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
-import { presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
+import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import type { PageRule } from "../src/rules/types.ts";
 
 interface Patch {
@@ -118,6 +118,16 @@ const specs = resolveRuleset("spiderlint:all", {});
 const check = (id: string, patch: Patch) => (compileRule(id, specs[id] ?? {}) as PageRule).check(page(patch)) ?? [];
 
 describe("presets", () => {
+    it("excludes and overrides rules by ID or glob", () => {
+        const spec = { fact: "html.title", expect: { minLength: 3 } };
+        const rulesets = { t: { rules: { "a/x": spec, "a/y": spec, "b/z": spec } } };
+        const severities = (excluded: string[], overrides = {}) => Object.fromEntries(compileRulesets(["t"], rulesets, new Set(excluded), overrides).map((rule) => [rule.meta.id, rule.meta.severity]));
+        assert.deepEqual(Object.keys(severities(["a/*"])), ["b/z"]);
+        assert.deepEqual(Object.keys(severities(["a/x"])), ["a/y", "b/z"]);
+        assert.deepEqual(Object.keys(severities(["**"])), []);
+        assert.deepEqual(severities([], { "a/*": "info", "a/y": "error" }), { "a/x": "info", "a/y": "error", "b/z": "warning" });
+    });
+
     it("lists performance, and recommended extends it", () => {
         assert.ok(presetNames().includes("performance"));
         assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));
