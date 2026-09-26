@@ -24,6 +24,21 @@ export interface LighthouseFacts {
 
 // The offending value’s placeholder in a rule message.
 const GOT = "{got}";
+// The Lighthouse run in flight: its marks are process-global and Chromium traces once, so runs queue.
+const lane = { tail: Promise.resolve() };
+
+// Runs `audit` once every earlier call has settled.
+async function queued<T>(audit: () => Promise<T>): Promise<T> {
+    const previous = lane.tail;
+    const { promise, resolve } = Promise.withResolvers<void>();
+    lane.tail = promise;
+    await previous;
+    try {
+        return await audit();
+    } finally {
+        resolve();
+    }
+}
 
 // Runs Lighthouse in a new tab of the crawler’s Chromium, reached through its DevTools port; Lighthouse loads on first use.
 async function extract(page: Facts, _body: string, live?: Page): Promise<LighthouseFacts | undefined> {
@@ -34,7 +49,8 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Lightho
         return;
     }
     const { default: lighthouse } = await import("lighthouse");
-    const result = await lighthouse(page.url.href, { port, output: "json", logLevel: "error" });
+    log.debug({ url: page.url.href, port }, "Lighthouse queued");
+    const result = await queued(() => lighthouse(page.url.href, { port, output: "json", logLevel: "error" }));
     const lhr = result?.lhr;
     if (!lhr) return;
     if (lhr.runtimeError) throw new Error(`${lhr.runtimeError.code}: ${lhr.runtimeError.message}`);
