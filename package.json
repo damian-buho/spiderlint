@@ -30,6 +30,7 @@
     "htmlhint": "1.9.2",
     "http-cache-semantics": "4.2.0",
     "lighthouse": "13.5.0",
+    "log-update": "8.0.0",
     "picomatch": "4.0.7",
     "pino": "10.3.1",
     "pino-pretty": "13.1.3",

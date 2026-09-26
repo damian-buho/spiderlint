@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { logUpdateStderr } from "log-update";
 import { relative } from "./crawl/scope.ts";
 import { log } from "./logger.ts";
 
 const BAR_WIDTH = 20;
 const REDRAW_MS = 1000;
-const CLEAR = "\r\u{1B}[2K";
 
 // The status line: whether it draws, what it shows, the origin trimmed from its URL.
 const state = { isOn: false, isShown: false, done: 0, total: 0, page: "", step: "", since: 0, origin: "" };
@@ -33,25 +33,28 @@ export function progressDone(done: number): void {
     progressDraw();
 }
 
-// The line as drawn: a bar, done/known, the step, the page, seconds on the step, cut to the terminal width.
+// The line as drawn: a bar, done/known, the step, the page, seconds on the step.
 function line(): string {
     const { done } = state;
     const total = Math.max(done, state.total);
     const filled = total > 0 ? Math.min(BAR_WIDTH, Math.round((done / total) * BAR_WIDTH)) : 0;
     const seconds = state.since > 0 ? `${Math.round((Date.now() - state.since) / 1000)} s` : "";
-    const text = [`▕${"█".repeat(filled)}${"░".repeat(BAR_WIDTH - filled)}▏`, `${done}/${total}`, state.step, relative(state.page, state.origin), seconds].filter(Boolean).join(" ");
-    return text.slice(0, Math.max(0, (process.stderr.columns || 80) - 1));
+    return [`▕${"█".repeat(filled)}${"░".repeat(BAR_WIDTH - filled)}▏`, `${done}/${total}`, state.step, relative(state.page, state.origin), seconds].filter(Boolean).join(" ");
 }
 
-// Clears the drawn line so a log entry can take its place.
-export function progressClear(): void {
-    if (state.isShown) process.stderr.write(CLEAR);
+// Draws the line again in place.
+function progressDraw(): void {
+    if (state.isShown) logUpdateStderr(line());
 }
 
-// Draws the line again under whatever was just written.
-export function progressDraw(): void {
-    if (!state.isShown) return;
-    process.stderr.write(`${CLEAR}${line()}`);
+// Writes `text` above the line, or straight to stderr while it is hidden.
+export function progressPrint(text: string): void {
+    if (!state.isShown) {
+        process.stderr.write(text);
+        return;
+    }
+    logUpdateStderr.persist(text);
+    progressDraw();
 }
 
 // Reads the known total, keeping the last one when the queue cannot answer, and redraws.
@@ -72,7 +75,8 @@ export function trackProgress(known: () => Promise<number>, origin: string): () 
     timer.unref();
     return () => {
         clearInterval(timer);
-        progressClear();
+        logUpdateStderr.clear();
+        logUpdateStderr.done();
         state.isShown = false;
     };
 }

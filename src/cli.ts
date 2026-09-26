@@ -264,9 +264,9 @@ async function main(argv: string[]): Promise<number> {
     if (values["log-level"] !== undefined && !isLogLevel(values["log-level"])) return usageError(`--log-level: unknown level ${values["log-level"]}`);
     if (values["log-level"] !== undefined) log.level = values["log-level"];
     logColor(values.color);
-    const isProgress = values.progress ?? (process.stderr.isTTY && process.env.SPIDERLINT_LOG_FORMAT !== "json" && log.level !== "silent");
+    const isProgress = values.progress ?? (process.stderr.isTTY && process.stderr.columns > 0 && process.env.SPIDERLINT_LOG_FORMAT !== "json" && log.level !== "silent");
     enableProgress(isProgress);
-    log.debug({ isProgress, flag: values.progress, isTTY: process.stderr.isTTY }, "status line chosen");
+    log.debug({ isProgress, flag: values.progress, isTTY: process.stderr.isTTY, columns: process.stderr.columns }, "status line chosen");
     if (values.help) {
         console.log(usage(painter(process.stdout, values.color)));
         return 0;

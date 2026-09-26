@@ -7,7 +7,7 @@ import pretty from "pino-pretty";
 import { Writable } from "node:stream";
 import { painter, type Style } from "./color.ts";
 import { relative, singleOrigin } from "./crawl/scope.ts";
-import { progressClear, progressDraw } from "./progress.ts";
+import { progressPrint } from "./progress.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
 
@@ -50,12 +50,10 @@ export function oneLine(entry: Record<string, unknown>, messageKey: string): str
     ].filter(Boolean).join(" ");
 }
 
-// Stderr under the status line: each entry clears it, prints, and draws it back.
+// Stderr under the status line, which each entry prints above.
 const stderr = new Writable({
     write(chunk: Buffer, _encoding, done) {
-        progressClear();
-        process.stderr.write(chunk);
-        progressDraw();
+        progressPrint(chunk.toString("utf8"));
         done();
     },
 });
