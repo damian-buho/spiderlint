@@ -14,14 +14,20 @@ import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
 import axe from "./axe.ts";
 import dns from "./dns.ts";
+import feeds from "./feeds.ts";
 import htmlValidate from "./html-validate.ts";
 import htmlhint from "./htmlhint.ts";
 import images from "./images.ts";
+import linkText from "./link-text.ts";
+import manifest from "./manifest.ts";
+import markup from "./markup.ts";
 import origin from "./origin.ts";
+import structuredData from "./structured-data.ts";
+import trackers from "./trackers.ts";
 import type { Extractor, PageContext, Plugin, ResourceExtractor, SiteExtractor } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [htmlValidate, htmlhint, axe, origin, dns, images, wellKnown];
+const plugins: Plugin[] = [htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers];
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.
