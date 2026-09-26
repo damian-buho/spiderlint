@@ -49,7 +49,7 @@ describe("well-known plugin", () => {
     });
 
     it("reports only the absent security.txt, llms.txt and Markdown sources where every other file is missing", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["well-known", "agents"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["well-known", "agents"], cacheMode: "off" });
         assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
     });
 
@@ -137,7 +137,7 @@ describe("well-known plugin", () => {
 
     it("probes only the files of the enabled preset", async () => {
         const before = site.requested.length;
-        await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["well-known:security"], cacheMode: "off" });
+        await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["well-known:security"], cacheMode: "off" });
         const probed = new Set(site.requested.slice(before));
         assert.ok(probed.has("/.well-known/security.txt"));
         assert.ok(!probed.has("/llms.txt"));

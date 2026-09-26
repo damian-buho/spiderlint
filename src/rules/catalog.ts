@@ -55,7 +55,7 @@ function running(config: Config): Map<string, Set<string>> {
     const severities = new Map<string, Set<string>>();
     const groups = Object.entries(groupsOf(config));
     for (const [group, { rules }] of groups) {
-        const compiled = compileRulesets(rules, config.rulesets, new Set(config.disabledRules), config.overrides);
+        const compiled = compileRulesets(rules, config.rulesets, new Set(config.excludeRules), config.overrides);
         log.debug({ group, rulesets: rules, rules: compiled.length }, "catalog group compiled");
         for (const { meta } of compiled) severities.set(meta.id, (severities.get(meta.id) ?? new Set()).add(meta.severity));
     }

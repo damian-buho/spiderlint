@@ -54,7 +54,7 @@ describe("formatCheckstyle and formatCsv", () => {
 
     before(async () => {
         site = await serveFixture();
-        report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"] });
+        report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
     });
 
     after(() => site.close());

@@ -15,7 +15,7 @@ import { CORE_KEYS, validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "resolver" | "resolve" | "pluginSettings">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "resolver" | "resolve" | "pluginSettings">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -30,14 +30,14 @@ const KEYS: [string, keyof Settings][] = [
     ["max-depth", "maxDepth"],
     ["max-body-size", "maxBodySize"],
     ["keepalive", "keepalive"],
-    ["include-urls", "include"],
-    ["exclude-urls", "exclude"],
+    ["include-urls", "includeUrls"],
+    ["exclude-urls", "excludeUrls"],
     ["robots", "robots"],
     ["sitemap", "sitemap"],
     ["fold", "fold"],
     ["fail-on", "failOn"],
     ["format", "format"],
-    ["exclude-rules", "disabledRules"],
+    ["exclude-rules", "excludeRules"],
     ["rules", "rules"],
     ["groups", "groups"],
     ["rulesets", "rulesets"],

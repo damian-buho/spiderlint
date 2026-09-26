@@ -38,8 +38,8 @@ describe("store", () => {
 
     it("lints stored facts into the findings a streaming audit reports", async () => {
         const seeds = [`${site.origin}/`];
-        const streamed = await audit({ seeds, exclude: ["/tmp/**"] });
-        const pages = await crawl({ seeds, exclude: ["/tmp/**"] }, directory);
+        const streamed = await audit({ seeds, excludeUrls: ["/tmp/**"] });
+        const pages = await crawl({ seeds, excludeUrls: ["/tmp/**"] }, directory);
         assert.equal(pages.length, streamed.pages.length);
         const requests = site.requested.length;
         const linted = await lintStore({}, directory);
@@ -58,17 +58,17 @@ describe("store", () => {
         const first = await lintStore({}, directory);
         const again = await lintStore({}, directory);
         assert.deepEqual(again.summary.previous, { started: first.summary.started, findings: first.summary.findings });
-        const narrower = await lintStore({ rules: ["tls"], disabledRules: ["tls/cert-expiry"] }, directory);
+        const narrower = await lintStore({ rules: ["tls"], excludeRules: ["tls/cert-expiry"] }, directory);
         assert.deepEqual(narrower.summary.previous?.findings, narrower.summary.findings, "a subset reads the wider run’s counts for its own rules");
         const wider = await lintStore({}, directory);
         assert.equal(wider.summary.previous, undefined, "the last run did not run every rule");
         const last = await lintStore({ rules: ["tls"] }, directory);
         const seeds = [`${site.origin}/`];
-        const audited = await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"] }, { store: directory });
+        const audited = await audit({ seeds, excludeUrls: ["/tmp/**"], rules: ["tls"] }, { store: directory });
         assert.equal(audited.summary.previous?.started, last.summary.started);
         const scoped = await mkdtemp(path.join(tmpdir(), "spiderlint-scope-"));
-        await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"] }, { store: scoped });
-        const fewerPages = await audit({ seeds, exclude: ["/tmp/**"], rules: ["tls"], maxPages: 1 }, { store: scoped });
+        await audit({ seeds, excludeUrls: ["/tmp/**"], rules: ["tls"] }, { store: scoped });
+        const fewerPages = await audit({ seeds, excludeUrls: ["/tmp/**"], rules: ["tls"], maxPages: 1 }, { store: scoped });
         await rm(scoped, { recursive: true, force: true });
         assert.equal(fewerPages.summary.previous, undefined, "a crawl of another scope is no baseline");
     });
@@ -83,7 +83,7 @@ describe("store", () => {
 
     it("resumes a finished crawl without fetching a page again", async () => {
         const before = site.requested.length;
-        const pages = await crawl({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"] }, directory, true);
+        const pages = await crawl({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"] }, directory, true);
         const paths = new Set(pages.map((page) => page.url.pathname));
         assert.deepEqual(site.requested.slice(before).filter((request) => paths.has(request)), []);
         assert.equal(pages.length, 16);
@@ -110,7 +110,7 @@ describe("store", () => {
 
     it("revalidates a re-crawl and keeps the content facts of every 304", async () => {
         const again = path.join(directory, "revalidate");
-        const options = { seeds: [`${site.origin}/`], exclude: ["/tmp/**"], fetchResources: false };
+        const options = { seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], fetchResources: false };
         const first = await audit(options, { store: again });
         const second = await audit(options, { store: again });
         const revalidated = second.pages.filter((page) => page.http.revalidated);
@@ -124,7 +124,7 @@ describe("store", () => {
 
     it("answers an unchanged page from the extractors bucket instead of analysing it again", async () => {
         const again = path.join(directory, "extractors");
-        const options = { seeds: [`${site.origin}/`], exclude: ["/tmp/**"], fetchResources: false, rules: ["html-validate", "htmlhint"] };
+        const options = { seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], fetchResources: false, rules: ["html-validate", "htmlhint"] };
         const first = await audit(options, { store: again });
         const second = await audit(options, { store: again });
         assert.ok((first.summary.cost.extractors.htmlvalidate ?? 0) > 10);
@@ -138,7 +138,7 @@ describe("store", () => {
 
     it("audits offline from the store without a single request", async () => {
         const before = site.requested.length;
-        const offline = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], cacheMode: "offline" }, { store: directory });
+        const offline = await audit({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], cacheMode: "offline" }, { store: directory });
         assert.equal(offline.pages.length, 16);
         assert.equal(site.requested.length, before);
     });

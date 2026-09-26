@@ -76,14 +76,14 @@ export function ruleIds(names: string[], rulesets: Record<string, RulesetConfig>
 
 // Union of the named rulesets, compiled; `off` rules — including `--exclude-rules` and a
 // `--error`/`--warning`/`--info` override landing on `off` — are dropped (AGENTS.md ## Rules).
-export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>, disabledRules: Set<string> = new Set(), overrides: Record<string, Exclude<Severity, "off">> = {}): Rule[] {
+export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>, excludeRules: Set<string> = new Set(), overrides: Record<string, Exclude<Severity, "off">> = {}): Rule[] {
     const specs: Record<string, RuleSpec> = {};
     for (const name of names) Object.assign(specs, resolveRuleset(name, rulesets));
     const rules: Rule[] = [];
     for (const [id, spec] of Object.entries(specs)) {
-        const isDisabled = [...disabledRules].some((pattern) => isRuleMatch(id, pattern));
+        const isExcluded = [...excludeRules].some((pattern) => isRuleMatch(id, pattern));
         const override = overrides[id] ?? Object.entries(overrides).find(([pattern]) => isRuleMatch(id, pattern))?.[1];
-        const severity: Severity | undefined = isDisabled ? "off" : (override ?? spec.severity);
+        const severity: Severity | undefined = isExcluded ? "off" : (override ?? spec.severity);
         if (severity === "off") {
             log.debug({ rule: id }, "rule off");
             continue;

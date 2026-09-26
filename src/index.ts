@@ -159,15 +159,15 @@ function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
 // An --exclude-rules or severity override naming no rule of any group matches nothing; say so.
 function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void {
     const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
-    for (const pattern of [...config.disabledRules, ...Object.keys(config.overrides)]) {
+    for (const pattern of [...config.excludeRules, ...Object.keys(config.overrides)]) {
         if ([...known].every((id) => !isRuleMatch(id, pattern))) log.warn({ rule: pattern, known: known.size }, "rule option names no known rule");
     }
 }
 
 // Each group’s rules, flags applied.
 function rulesOf(config: Config): Map<string, Rule[]> {
-    const disabledRules = new Set(config.disabledRules);
-    return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides)]));
+    const excludeRules = new Set(config.excludeRules);
+    return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, excludeRules, config.overrides)]));
 }
 
 // Every rule some group runs, flags applied.
@@ -214,12 +214,12 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
 
 // Each group’s mode: a run pin wins, else the group’s own, else the run’s; a `browser` pin or a rule reading a rendered-only fact renders, an `http` pin refuses both.
 function groupModes(config: Config): Record<string, GroupMode> {
-    const disabledRules = new Set(config.disabledRules);
+    const excludeRules = new Set(config.excludeRules);
     const refused: string[] = [];
     const modes: Record<string, GroupMode> = {};
     const groups = Object.entries(groupsOf(config));
     for (const [name, group] of groups) {
-        const rules = compileRulesets(group.rules, config.rulesets, disabledRules, config.overrides);
+        const rules = compileRulesets(group.rules, config.rulesets, excludeRules, config.overrides);
         const readers = rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
         const pin = config.fetch === "http" || config.fetch === "browser" ? config.fetch : (group.fetch ?? config.fetch);
         const isPinnedAbove = config.fetch === "http" && (group.fetch === "browser" || group.fetch === "adaptive");
@@ -233,7 +233,7 @@ function groupModes(config: Config): Record<string, GroupMode> {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
     const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
     const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);

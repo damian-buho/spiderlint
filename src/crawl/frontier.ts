@@ -68,7 +68,7 @@ interface Globs {
 }
 
 function globMatchers(config: Config): Globs {
-    return { include: config.include.map((glob) => picomatch(glob)), exclude: config.exclude.map((glob) => picomatch(glob)) };
+    return { include: config.includeUrls.map((glob) => picomatch(glob)), exclude: config.excludeUrls.map((glob) => picomatch(glob)) };
 }
 
 // The crawler calls a frontier drives, whatever the crawler class.

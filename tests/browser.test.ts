@@ -80,7 +80,7 @@ describe("browser fetch", { skip }, () => {
 
     before(async () => {
         site = await serveFixture();
-        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser", "axe"], sample: "all" } }, exclude: ["/tmp/**"] });
+        report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["seo", "browser", "axe"], sample: "all" } }, excludeUrls: ["/tmp/**"] });
     });
 
     after(() => site.close());
@@ -124,7 +124,7 @@ describe("browser fetch", { skip }, () => {
     });
 
     it("crawls a browser group and an http group side by side in one run", async () => {
-        const mixed = await audit({ seeds: [`${site.origin}/`], groups: { app: { match: ["/app/**"], fetch: "browser", rules: ["seo"] }, default: { rules: ["seo"] } }, exclude: ["/tmp/**"] });
+        const mixed = await audit({ seeds: [`${site.origin}/`], groups: { app: { match: ["/app/**"], fetch: "browser", rules: ["seo"] }, default: { rules: ["seo"] } }, excludeUrls: ["/tmp/**"] });
         const at = (pathname: string) => mixed.pages.find((entry) => entry.url.pathname === pathname);
         assert.deepEqual(mixed.summary.fetch, { app: "browser", default: "http" });
         assert.deepEqual(mixed.pages.map((entry) => entry.url.pathname).toSorted((a, b) => a.localeCompare(b)), ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
@@ -137,7 +137,7 @@ describe("browser fetch", { skip }, () => {
     });
 
     it("settles an adaptive group on the browser when rendering changes its tags, and on http when it does not", async () => {
-        const adaptive = await audit({ seeds: [`${site.origin}/`], fetch: "adaptive", groups: { app: { match: ["/app/**"] }, posts: { match: ["/posts/**"] }, default: {} }, rules: ["seo"], exclude: ["/tmp/**"] });
+        const adaptive = await audit({ seeds: [`${site.origin}/`], fetch: "adaptive", groups: { app: { match: ["/app/**"] }, posts: { match: ["/posts/**"] }, default: {} }, rules: ["seo"], excludeUrls: ["/tmp/**"] });
         const posts = adaptive.pages.filter((entry) => entry.url.pathname.startsWith("/posts/"));
         assert.equal(adaptive.summary.fetch?.app, "browser");
         assert.equal(adaptive.summary.fetch?.posts, "http");

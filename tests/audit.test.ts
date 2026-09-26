@@ -39,7 +39,7 @@ describe("audit", () => {
 
     before(async () => {
         site = await serveFixture();
-        report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"] });
+        report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
     });
 
     after(() => site.close());
@@ -147,13 +147,13 @@ describe("audit", () => {
         assert.deepEqual(dead?.urls, [`${site.origin}/about`]);
         const probes = () => site.requested.filter((pathname) => pathname === "/gone").length;
         assert.equal(probes(), 1);
-        await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"] });
+        await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
         assert.equal(probes(), 2, "a broken answer is never stored");
     });
 
     it("never probes nor reports a link to an excluded host", async () => {
         const before = site.requested.filter((pathname) => pathname === "/gone").length;
-        const excluded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], linkExclude: ["localhost"] });
+        const excluded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], linkExclude: ["localhost"] });
         assert.equal(site.requested.filter((pathname) => pathname === "/gone").length, before);
         assert.deepEqual(excluded.findings.filter((finding) => finding.rule === "links/broken-external"), []);
     });
@@ -328,12 +328,12 @@ describe("staging twin", () => {
     after(() => site.close());
 
     it("reports every self reference to the production origin without canonical-origin", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], sitemap: false });
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], sitemap: false });
         assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical-self").length > 1);
     });
 
     it("accepts the page’s twin, still flags a wrong path, and reads the production sitemap from the twin", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, exclude: ["/tmp/**"], canonicalOrigin: production, fold: false });
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], canonicalOrigin: production, fold: false });
         const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
         assert.deepEqual(of("html/canonical-self").map((finding) => [finding.url, finding.message]), [[`${site.origin}/about`, `canonical link names ${production}/about/, not this page`]]);
         assert.deepEqual(of("html/og-url-self").map((finding) => finding.url), [`${site.origin}/orphan`]);
@@ -529,7 +529,7 @@ describe("audit options", () => {
     });
 
     it("reports a sitemap page nothing links to, and a linked page no sitemap lists", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], groups: { default: { rules: ["sitemap"] } }, fold: false });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], groups: { default: { rules: ["sitemap"] } }, fold: false });
         const paths = (rule: string) => report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(paths("sitemap/orphan"), ["/orphan"]);
         assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
@@ -550,7 +550,7 @@ describe("audit options", () => {
 
     it("fetches a resource every page loads once, and reports it once", async () => {
         const before = site.requested.filter((path) => path === "/cdn/lib.js").length;
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"] });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"] });
         assert.equal(site.requested.filter((path) => path === "/cdn/lib.js").length - before, 1);
         const statuses = report.findings.filter((finding) => finding.rule === "resources/status");
         assert.deepEqual(statuses.map((finding) => finding.message).toSorted((a, b) => a.localeCompare(b)), ["image answers 404; used by 2 pages", "script answers 404; used by 13 pages"]);
@@ -583,7 +583,7 @@ describe("audit options", () => {
     });
 
     it("drops an --exclude-rules rule entirely, across every group", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, disabledRules: ["html/one-h1"] });
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeRules: ["html/one-h1"] });
         assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 0);
     });
 

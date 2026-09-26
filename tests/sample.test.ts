@@ -23,7 +23,7 @@ describe("sample", () => {
         site = await serveFixture();
         directory = await mkdtemp(path.join(tmpdir(), "spiderlint-sample-"));
         await loadPlugins(["./tests/fixtures/sample-plugin.ts"]);
-        report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, groups: GROUPS, fold: { threshold: 0.8, min: 2 }, cacheMode: "off" });
+        report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, groups: GROUPS, fold: { threshold: 0.8, min: 2 }, cacheMode: "off" });
     });
 
     after(async () => {
@@ -46,12 +46,12 @@ describe("sample", () => {
     });
 
     it("runs it on every page of a group sampling all", async () => {
-        const all = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, groups: { ...GROUPS, posts: { ...GROUPS.posts, sample: "all" } }, cacheMode: "off" });
+        const all = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, groups: { ...GROUPS, posts: { ...GROUPS.posts, sample: "all" } }, cacheMode: "off" });
         assert.equal(posts(all.pages).filter((page) => page.heavy !== undefined).length, 5);
     });
 
     it("runs it on every page when no group is declared", async () => {
-        const plain = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["heavy"], cacheMode: "off" });
+        const plain = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["heavy"], cacheMode: "off" });
         const html = plain.pages.filter((page) => page.html);
         assert.ok(html.length > 3);
         assert.ok(html.every((page) => page.heavy !== undefined));
@@ -67,7 +67,7 @@ describe("sample", () => {
 
     it("backfills a stored crawl on the lowest URLs of each group", async () => {
         const store = path.join(directory, "store");
-        await crawl({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"] }, store);
+        await crawl({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"] }, store);
         const linted = await lintStore({ groups: GROUPS }, store);
         const sampled = posts(linted.pages).filter((page) => page.heavy !== undefined).map((page) => page.url.pathname);
         assert.deepEqual(sampled.toSorted((a, b) => a.localeCompare(b)), ["/posts/1", "/posts/2"]);

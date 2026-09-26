@@ -56,7 +56,7 @@ describe("network", () => {
         it(`sends pages, resources and robots.txt through the ${kind} proxy`, async () => {
             const proxy = await serve();
             try {
-                const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, proxy: proxy.url, rules: ["seo", "resources"], concurrency: 2, cacheMode: "off" });
+                const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, proxy: proxy.url, rules: ["seo", "resources"], concurrency: 2, cacheMode: "off" });
                 assert.ok(report.pages.length > 3);
                 assert.ok(proxy.seen.length >= report.pages.length, `${proxy.seen.length} requests proxied for ${report.pages.length} pages`);
                 assert.ok(report.pages.every((page) => page.http.remote === undefined));

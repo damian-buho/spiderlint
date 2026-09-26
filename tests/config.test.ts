@@ -127,14 +127,14 @@ describe("environmentSettings", () => {
         assert.throws(() => environmentSettings({ SPIDERLINT_CANONICAL_ORIGIN: "ftp://dbuho.me" }), ConfigError);
     });
 
-    it("parses disabled rules and merges the three override buckets", () => {
+    it("parses excluded rules and merges the three override buckets", () => {
         const settings = environmentSettings({
             SPIDERLINT_EXCLUDE_RULES: "html/canonical-self,http/hsts",
             SPIDERLINT_OVERRIDE_ERROR: "html/one-h1",
             SPIDERLINT_OVERRIDE_INFO: "html/one-h1 html/title-length",
         });
         assert.deepEqual(settings, {
-            disabledRules: ["html/canonical-self", "http/hsts"],
+            excludeRules: ["html/canonical-self", "http/hsts"],
             overrides: { "html/one-h1": "info", "html/title-length": "info" },
         });
     });
@@ -174,7 +174,7 @@ describe("loadSettings", () => {
             ["org:", "  spiderlint:", "    exclude-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"),
         );
         const { settings } = loadSettings(file);
-        assert.deepEqual(settings.disabledRules, ["html/canonical-self"]);
+        assert.deepEqual(settings.excludeRules, ["html/canonical-self"]);
         assert.deepEqual(settings.overrides, { "html/one-h1": "error", "http/hsts": "warning" });
     });
 

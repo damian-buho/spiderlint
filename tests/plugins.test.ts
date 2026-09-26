@@ -99,7 +99,7 @@ describe("plugins", () => {
     });
 
     it("validates every HTML page once a rule reads htmlvalidate, and reports each rule on its own", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["html-validate"], fold: false, cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["html-validate"], fold: false, cacheMode: "off" });
         const validated = new Set(report.pages.filter((page) => page.htmlvalidate !== undefined).map((page) => page.url.pathname));
         assert.ok(validated.has("/posts/3") && !validated.has("/feed.xml"));
         const alt = report.findings.find((finding) => finding.rule === "html-validate/wcag/h37" && finding.url.endsWith("/posts/3"));
@@ -109,7 +109,7 @@ describe("plugins", () => {
     });
 
     it("keeps the locations of each folded sample page and prints them under it", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["html-validate"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["html-validate"], cacheMode: "off" });
         const sri = report.findings.find((finding) => finding.rule === "html-validate/require-sri");
         const first = sri?.sampleLocations?.[sri.samples?.[0] ?? ""] ?? [];
         assert.match(first[0] ?? "", /<script src="[^"]+\/cdn\/lib\.js">/);
@@ -118,7 +118,7 @@ describe("plugins", () => {
     });
 
     it("hints every HTML page once a rule reads htmlhint, each htmlhint rule on its own", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["htmlhint", "htmlhint:extra"], fold: false, cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["htmlhint", "htmlhint:extra"], fold: false, cacheMode: "off" });
         assert.ok(report.pages.some((page) => page.htmlhint !== undefined) && report.pages.every((page) => page.htmlhint === undefined || page.html !== undefined));
         const alt = report.findings.find((finding) => finding.rule === "htmlhint/alt-require" && finding.url.endsWith("/posts/3"));
         assert.equal(alt?.severity, "warning");
@@ -126,13 +126,13 @@ describe("plugins", () => {
     });
 
     it("runs no extractor no enabled rule reads", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"], cacheMode: "off" });
         assert.ok(report.pages.every((page) => page.htmlvalidate === undefined && page.htmlhint === undefined));
     });
 
     it("validates stored bodies on lint, so a crawl made without the rules needs no re-crawl", async () => {
         const store = path.join(directory, "store");
-        await crawl({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"] }, store);
+        await crawl({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"] }, store);
         const linted = await lintStore({ rules: ["html-validate"] }, store);
         assert.ok(linted.findings.some((finding) => finding.rule.startsWith("html-validate/")));
     });
@@ -141,7 +141,7 @@ describe("plugins", () => {
         await loadPlugins(["./tests/fixtures/plugin.ts"]);
         assert.ok(listPresets(defaults()).some((preset) => preset.name === "words"));
         assert.equal(resolveRuleset("all", {})["words/enough"]?.severity, "warning");
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["words"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["words"], cacheMode: "off" });
         assert.ok(report.pages.every((page) => page.words !== undefined));
         assert.deepEqual(report.findings.map((finding) => new URL(finding.url).pathname), ["/missing"]);
     });

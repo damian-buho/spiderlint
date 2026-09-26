@@ -44,15 +44,15 @@ export interface Config {
     maxResourcesPerPage: number;
     // Hosts, each with its subdomains, whose off-scope links are never probed.
     linkExclude: string[];
-    include: string[];
-    exclude: string[];
+    includeUrls: string[];
+    excludeUrls: string[];
     robots: boolean;
     sitemap: boolean;
     fold: FoldConfig | false;
     failOn: FailOn;
     // A built-in format or one a loaded plugin adds.
     format: string;
-    disabledRules: string[];
+    excludeRules: string[];
     overrides: Record<string, Exclude<Severity, "off">>;
     rules?: string[];
     groups: Record<string, GroupConfig>;
@@ -90,14 +90,14 @@ export function defaults(): Config {
         fetchResources: true,
         maxResourcesPerPage: 200,
         linkExclude: [],
-        include: [],
-        exclude: [],
+        includeUrls: [],
+        excludeUrls: [],
         robots: true,
         sitemap: true,
         fold: { threshold: 0.8, min: 3 },
         failOn: "error",
         format: "human",
-        disabledRules: [],
+        excludeRules: [],
         overrides: {},
         groups: {},
         rulesets: {},

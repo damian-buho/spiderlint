@@ -33,7 +33,7 @@ describe("origin preset", () => {
     after(() => Promise.all([site.close(), soft.close(), trace.close()]));
 
     it("probes the fixture origin once and faults only its plain http entry", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["origin"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["origin"], cacheMode: "off" });
         assert.deepEqual(rules(report), ["origin/https-entry"]);
         assert.equal(report.findings[0]?.url, site.origin);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
@@ -54,7 +54,7 @@ describe("origin preset", () => {
 
     it("probes nothing when no enabled rule reads site.origins", async () => {
         const before = site.requested.length;
-        await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"], cacheMode: "off" });
+        await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"], cacheMode: "off" });
         assert.ok(site.requested.slice(before).every((pathname) => !pathname.startsWith("/spiderlint-") && pathname !== "/favicon.ico"));
     });
 });
@@ -77,7 +77,7 @@ describe("site extractor plugins", () => {
     it("runs a per-host extractor once, keys its facts by host, and gives up on one past its timeout", async () => {
         const store = path.join(directory, "store");
         const started = Date.now();
-        const report = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["hosts"] }, { store });
+        const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["hosts"] }, { store });
         assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.url, finding.value]), [["hosts/robots-gone", "127.0.0.1", 200]]);
         assert.deepEqual(runs, { robots: 1, stuck: 1 });
         assert.ok(Date.now() - started < 10_000, "the stuck extractor is abandoned at its timeout");
@@ -85,8 +85,8 @@ describe("site extractor plugins", () => {
 
     it("answers a re-crawl from the origins bucket and an offline audit from the store", async () => {
         const store = path.join(directory, "store");
-        const again = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["hosts"] }, { store });
-        const offline = await audit({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["hosts"], cacheMode: "offline" }, { store });
+        const again = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["hosts"] }, { store });
+        const offline = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["hosts"], cacheMode: "offline" }, { store });
         assert.deepEqual(runs, { robots: 1, stuck: 2 });
         assert.deepEqual(rules(again), ["hosts/robots-gone"]);
         assert.deepEqual(rules(offline), ["hosts/robots-gone"]);
@@ -94,7 +94,7 @@ describe("site extractor plugins", () => {
 
     it("skips its rules on a store crawled without them, probing nothing", async () => {
         const store = path.join(directory, "plain");
-        await crawl({ seeds: [`${site.origin}/`], exclude: EXCLUDE, rules: ["seo"] }, store);
+        await crawl({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"] }, store);
         const linted = await lintStore({ rules: ["hosts"] }, store);
         assert.deepEqual(linted.findings, []);
         assert.equal(linted.summary.checks.total, 0);
