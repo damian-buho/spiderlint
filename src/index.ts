@@ -25,7 +25,7 @@ import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { extract, extractorsFor, isBrowserFact, isSampledFact, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
+import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
@@ -366,7 +366,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
     const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules)));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };

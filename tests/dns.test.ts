@@ -11,7 +11,8 @@ import { Bucket, type BucketName } from "../src/cache/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { dnsClient, parseResolver, servers, type DnsClient, type StoredReply } from "../src/crawl/dns.ts";
 import { parseSvcb } from "../src/crawl/svcb.ts";
-import type { Facts, SiteFacts } from "../src/facts/types.ts";
+import { extractSites } from "../src/facts/sites.ts";
+import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
 import dns, { isSpecialUse } from "../src/plugins/dns.ts";
 import { compileRulesets } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
@@ -40,11 +41,15 @@ async function extract(host: string, pages: Facts[], client: DnsClient): Promise
     return facts;
 }
 
-// Rule IDs `preset` reports over a site document of these hosts, sorted.
-function findings(hosts: Record<string, Record<string, unknown>>, preset = "dns"): string[] {
-    const site: SiteFacts = { sitemaps: [], hosts };
+// Rule IDs `preset` reports over a site document, sorted.
+function findings(hosts: Record<string, Record<string, unknown>>, preset = "dns", linked?: string[]): string[] {
+    return keyed({ sitemaps: [], hosts, ...(linked && { linked }) }, preset).map(([rule]) => rule);
+}
+
+// `[rule, subject]` of every finding `preset` reports over `site`, sorted.
+function keyed(site: SiteFacts, preset: string): [string, string][] {
     const run = runRules([], new Map([["default", compileRulesets([preset], {})]]), site);
-    return run.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b));
+    return run.findings.map((finding): [string, string] => [finding.rule, finding.url]).toSorted(([a], [b]) => a.localeCompare(b));
 }
 
 describe("resolver setting", () => {
@@ -116,7 +121,7 @@ describe("dns plugin", () => {
     it("finds each fault of a bad zone", async () => {
         const facts = await extract("www.bad.fixture", [page("www.bad.fixture", "Let's Encrypt", ["https://old.bad.fixture/x", "https://elsewhere.example/"])], dnsClient(fixture.server, off(), true, fixture.port));
         assert.equal((facts.dns as { zone: string }).zone, "bad.fixture");
-        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/caa", "dns/cname-chain", "dns/dangling-cname", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-consistent", "dns/ns-count", "dns/ns-diversity", "dns/nsec3-iterations", "dns/rrsig-expiry"]);
+        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-consistent", "dns/ns-count", "dns/ns-diversity", "dns/nsec3-iterations", "dns/rrsig-expiry"]);
     });
 
     it("judges CAA against the certificate actually served, and h3 against Alt-Svc", async () => {
@@ -151,6 +156,21 @@ describe("dns plugin", () => {
         assert.deepEqual((facts.dns as { agents: object[] }).agents, [{ priority: 1, target: "agents.quiet.fixture", alpn: ["h2"] }]);
         const plainZone = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal("forSale" in (plainZone.dns as object), false);
+    });
+
+    it("judges a resource host under the crawled domain as its own subject, for linked rules only", async () => {
+        const home = page("www.bad.fixture", "Let's Encrypt", ["https://elsewhere.example/"]);
+        home.resources = [{ url: "https://old.bad.fixture/app.js", kind: "script", origin: "cross" }] as Facts["resources"];
+        const site: SiteFacts = { sitemaps: [] };
+        const client = dnsClient(fixture.server, off(), false);
+        const active = (dns.sites ?? []).filter((extractor) => extractor.id === "dns");
+        await extractSites([home], site, active, { allowPrivate: true, concurrency: 1, linkExclude: [] }, new Bucket("origins", undefined, 60, "off"), client, new Bucket<LinkFacts>("probes", undefined, 60, "off"), undefined, new Set(["dns"]));
+        assert.deepEqual(site.linked, ["old.bad.fixture"]);
+        assert.deepEqual(site.hosts?.["old.bad.fixture"]?.dns, { cname: [{ name: "old.bad.fixture", target: "gone.elsewhere.fixture", ttl: 300 }], dangling: "gone.elsewhere.fixture" });
+        assert.equal((site.hosts?.["www.bad.fixture"]?.dns as { dangling: unknown }).dangling, false);
+        const reported = keyed(site, "dns");
+        assert.deepEqual(reported.filter(([rule]) => rule === "dns/dangling-cname"), [["dns/dangling-cname", "old.bad.fixture"]]);
+        assert.ok(reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/dangling-cname"), "only the linked rule judges the linked host");
     });
 
     it("never asks a name server directly when direct queries are off", async () => {

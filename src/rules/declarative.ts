@@ -137,10 +137,11 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     log.debug({ rule: id, kind: subject.kind, when: when.length, ignored: Object.keys(spec.when ?? {}).length - when.length }, "subject rule compiled");
     const isSkipped = guard(id, Object.fromEntries(when.map(([path, expected]) => [path.slice(prefix.length), expected])));
     return {
-        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix },
+        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
         check(_pages, _group, site) {
-            const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !isSkipped(facts, name) && !isWithheld(facts, subject.path, id, name));
-            log.debug({ rule: id, subjects: judged.length }, "subjects judged");
+            const unjudged = new Set(spec.linked === true ? [] : (site?.linked ?? []));
+            const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !unjudged.has(name) && !isSkipped(facts, name) && !isWithheld(facts, subject.path, id, name));
+            log.debug({ rule: id, subjects: judged.length, linked: spec.linked === true }, "subjects judged");
             return judged.length === 0 ? undefined : judged.flatMap(([name, facts]) => {
                 const value = get(facts, subject.path);
                 if (validate(value)) return [];

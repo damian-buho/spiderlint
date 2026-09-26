@@ -22,6 +22,7 @@ const ruleSpec = {
         severity,
         docs: { type: "string" },
         message: { type: "string" },
+        linked: { type: "boolean" },
     },
 };
 

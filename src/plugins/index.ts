@@ -168,6 +168,16 @@ export function siteExtractorsFor(rules: Rule[]): SiteExtractor[] {
     return active;
 }
 
+// IDs of the `per: host` site extractors a `linked` rule reads, which then also run on linked hosts.
+export function linkedSiteExtractors(rules: Rule[]): Set<string> {
+    const ids = new Set(rules.filter((rule) => rule.meta.linked).flatMap((rule) => rule.meta.facts.flatMap((fact) => {
+        const subject = subjectPath(fact);
+        return subject?.kind === "hosts" ? [subject.id] : [];
+    })));
+    log.debug({ extractors: [...ids] }, "site extractors judging linked hosts");
+    return ids;
+}
+
 // Resource extractors whose ID is the second key of a `resources.<id>` fact some rule reads.
 export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
     const read = new Set(rules.flatMap((rule) => rule.meta.facts.flatMap((fact) => {

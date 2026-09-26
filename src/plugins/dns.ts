@@ -13,9 +13,6 @@ import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
-// Linked hosts under the zone checked for a dangling CNAME, at most.
-const MAX_LINKED = 32;
-
 // Suffixes of special-use names, never queried.
 const SPECIAL_USE = ["localhost", "test", "invalid", "example", "local", "onion", "i2p", "alt", "internal", "home.arpa"];
 
@@ -94,20 +91,11 @@ async function zoneOf(host: string, dns: DnsClient): Promise<string | undefined>
     return domain;
 }
 
-// Every hostname the subject’s pages link or load under `zone`, the subject aside.
-function linkedHosts(host: string, zone: string, pages: readonly Facts[]): string[] {
-    const urls = pages.flatMap((page) => [...(page.html?.links.internal ?? []), ...(page.html?.links.external ?? []), ...(page.resources ?? []).map((resource) => resource.url)]);
-    const hosts = new Set(urls.flatMap((url) => (URL.canParse(url) ? [new URL(url).hostname] : [])).filter((name) => name !== host && (name === zone || name.endsWith(`.${zone}`))));
-    log.debug({ host, zone, linked: hosts.size }, "linked hosts under the zone");
-    return [...hosts].slice(0, MAX_LINKED);
-}
-
-// A linked name whose CNAME chain ends in NXDOMAIN, with the target that no longer exists.
-async function dangling(name: string, dns: DnsClient): Promise<{ name: string; target: string } | undefined> {
-    const reply = await dns.query(name, "A");
+// The last CNAME target of an A answer that ends in NXDOMAIN, a name open to takeover; `false` otherwise.
+function dangling(host: string, reply: Reply): string | false {
     const target = records<string>(reply, "CNAME").at(-1)?.data;
-    log.debug({ name, rcode: reply.rcode, target }, "linked host resolved");
-    return target && reply.rcode === "NXDOMAIN" ? { name, target } : undefined;
+    log.debug({ host, rcode: reply.rcode, target }, "cname chain resolved");
+    return (reply.rcode === "NXDOMAIN" && target) || false;
 }
 
 // The CAA set of the nearest name from `host` up to the registrable domain that has one (RFC 8659 §3).
@@ -152,6 +140,11 @@ const addresses: SiteExtractor = {
     cached: false,
     resolves: true,
     async extract(host, context) {
+        if (context.linked) {
+            if (isIP(host) !== 0 || isSpecialUse(host)) return;
+            const a = await context.dns.query(host, "A");
+            return { cname: records<string>(a, "CNAME").map(({ name, data, ttl }) => ({ name, target: data, ttl })), dangling: dangling(host, a) };
+        }
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
         const [a, aaaa, https, sale, agents] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64")]);
@@ -165,9 +158,8 @@ const addresses: SiteExtractor = {
         const agentServices = services(host, agents, "UNKNOWN_64");
         const authorised = await caa(host, zone, context.dns);
         const allowed = authorised && issuer(host, authorised, context.pages);
-        const linked = await Promise.all(linkedHosts(host, zone, context.pages).map((name) => dangling(name, context.dns)));
-        const broken = linked.filter((entry) => entry !== undefined);
-        log.debug({ host, zone, a: v4.length, aaaa: v6.length, https: hinted.length, caa: authorised?.at, dangling: broken.length, forSale: forSale.length, agents: agentServices.length }, "dns records read");
+        const broken = dangling(host, a);
+        log.debug({ host, zone, a: v4.length, aaaa: v6.length, https: hinted.length, caa: authorised?.at, dangling: broken, forSale: forSale.length, agents: agentServices.length }, "dns records read");
         return {
             zone,
             a: v4,
@@ -387,8 +379,9 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/dangling-cname": {
         fact: "site.hosts.*.dns.dangling",
-        expect: { maxItems: 0 },
-        message: "a linked name under the zone is a CNAME to a name that does not exist, open to takeover (got {got})",
+        expect: { const: false },
+        linked: true,
+        message: "the name is a CNAME to a name that does not exist, open to takeover (got {got})",
         severity: "error",
         docs: "https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeovers",
     },

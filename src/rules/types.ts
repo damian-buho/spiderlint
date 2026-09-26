@@ -34,6 +34,8 @@ export interface RuleMeta {
     facts: string[];
     docs?: string;
     fix?: string;
+    // Also judges hosts the crawl only links or loads under its registrable domains.
+    linked?: true;
 }
 
 // `undefined` from a page rule means the `when` guard skipped it.
@@ -69,6 +71,8 @@ export interface RuleSpec {
     docs?: string;
     fix?: string;
     message?: string;
+    // A `site.hosts.*.` rule that also judges hosts the crawl only links or loads under its registrable domains; off by default.
+    linked?: boolean;
 }
 
 export type RuleEntry = RuleSpec | Severity;

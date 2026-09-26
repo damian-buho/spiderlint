@@ -47,8 +47,11 @@ export interface SiteContext {
     // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;
+    // The subject’s crawled pages; for a linked host, the pages that link or load it.
     pages: readonly Facts[];
     signal: AbortSignal;
+    // Set when the subject is a host the crawl only links or loads, never crawled.
+    linked?: true;
 }
 
 // Facts about one origin or host, run once per subject after the crawl and stored under `site.origins` or `site.hosts`.

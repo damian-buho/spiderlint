@@ -86,6 +86,8 @@ export interface SiteFacts {
     origins?: Record<string, Record<string, unknown>>;
     // Site extractor facts by hostname, then by extractor ID.
     hosts?: Record<string, Record<string, unknown>>;
+    // Hosts in `hosts` the crawl only links or loads, judged by `linked` rules alone.
+    linked?: string[];
 }
 
 export interface CookieFacts {
