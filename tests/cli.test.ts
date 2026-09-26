@@ -70,6 +70,14 @@ describe("cli", () => {
         assert.match(seed?.error ?? "", /ECONNREFUSED/);
     });
 
+    it("exits 2 on a seed that is not an http or https URL, before any request", async () => {
+        for (const seed of ["ftp://example.com/", "example.com"]) {
+            const run = await spiderlint(directory, "audit", seed, "--no-cache");
+            assert.equal(run.code, 2);
+            assert.match(run.stderr, /not an http or https URL/);
+        }
+    });
+
     it("exits 3 on lint and report of a site never crawled, creating no store", async () => {
         for (const command of ["lint", "report"]) {
             const run = await spiderlint(directory, command, "https://never-crawled.example/");

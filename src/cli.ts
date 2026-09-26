@@ -323,13 +323,15 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
     const isStored = ["crawl", "lint", "report"].includes(command);
     {
         if (targets.length > 0) config.seeds = targets;
+        const invalid = config.seeds.find((seed) => !URL.canParse(seed) || !["http:", "https:"].includes(new URL(seed).protocol));
+        if (invalid !== undefined) throw new ConfigError(`${invalid}: not an http or https URL`);
         // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
         log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
         const format = FORMATTERS[config.format];
         const failOn = RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "groups"].includes(command) || (command === "cache" && seeds[0] === "warm");
-        if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store) || targets.some((target) => !URL.canParse(target))) {
+        if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store)) {
             console.error(usage(painter(process.stderr, values.color)));
             return 2;
         }
