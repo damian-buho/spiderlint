@@ -8,7 +8,7 @@ import { mkdtempSync } from "node:fs";
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { gzipSync } from "node:zlib";
+import { brotliCompressSync, gzipSync, zstdCompressSync } from "node:zlib";
 import type { AddressInfo } from "node:net";
 
 export interface Fixture {
@@ -68,7 +68,10 @@ function isolateUserCache(): string | undefined {
     return process.env.XDG_CACHE_HOME;
 }
 
-// Serves tests/fixtures/site on an ephemeral loopback port, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for; `builtFor` bakes pages for another origin.
+// The coding `/` is sent in, the first of `br`, `zstd` and `gzip` a request accepts.
+const CODINGS: [string, (body: Buffer) => Buffer][] = [["br", brotliCompressSync], ["zstd", zstdCompressSync], ["gzip", gzipSync]];
+
+// Serves tests/fixtures/site on an ephemeral loopback port, `/` in the coding asked for, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for; `builtFor` bakes pages for another origin.
 export async function serveFixture(builtFor?: string): Promise<Fixture> {
     const userCache = isolateUserCache();
     const requested: string[] = [];
@@ -129,8 +132,10 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end();
             return;
         }
-        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], etag, server, ...HEADERS[pathname] });
-        response.end(isGzip ? gzipSync(found[1]) : found[1]);
+        const coding = pathname === "/" ? CODINGS.find(([name]) => String(request.headers["accept-encoding"] ?? "").includes(name)) : undefined;
+        const encoded = coding && { "content-encoding": coding[0], vary: "Accept-Encoding" };
+        response.writeHead(200, { "content-type": isGzip ? "application/gzip" : found[0], etag, server, ...encoded, ...HEADERS[pathname] });
+        response.end(isGzip ? gzipSync(found[1]) : coding ? coding[1](found[1]) : found[1]);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     return {

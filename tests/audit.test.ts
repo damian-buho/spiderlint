@@ -394,6 +394,15 @@ describe("audit options", () => {
         assert.ok((size?.body ?? 0) < 50_000_000, `received ${size?.body} bytes`);
     });
 
+    it("keeps a compressed page’s coding and counts its bytes as received", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], maxPages: 1, sitemap: false, rules: ["performance"] });
+        const http = report.pages[0]?.http;
+        assert.equal(http?.headers["content-encoding"], "br");
+        assert.ok((http?.size.body ?? 0) < (http?.size.decoded ?? 0), `received ${http?.size.body} of ${http?.size.decoded} bytes`);
+        assert.match(report.pages[0]?.html?.title ?? "", /\S/);
+        assert.ok(report.findings.every((finding) => finding.rule !== "http/compression" || new URL(finding.url).pathname !== "/"));
+    });
+
     it("lints a 403 page instead of retrying it as blocked", async () => {
         const report = await audit({ seeds: [`${site.origin}/forbidden`], maxPages: 1, sitemap: false });
         assert.equal(report.pages[0]?.http.status, 403);

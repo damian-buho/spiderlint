@@ -12,7 +12,7 @@ rules:
       http.contentType: {pattern: "^(text/|application/([\\w.-]+\\+)?(json|xml|javascript)\\b|image/svg\\+xml)"}
       http.size.decoded: {minimum: 1024}
     severity: warning
-    message: "a text response over 1 KB should be sent br, gzip or zstd, found {got}"
+    message: "a text response over 1 KB should be sent br, zstd or gzip, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
   http/vary-encoding:
     fact: http.headers.vary

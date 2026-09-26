@@ -6,7 +6,7 @@ import { CheerioCrawler, Configuration } from "crawlee";
 import type { Readable } from "node:stream";
 import { USER_AGENT } from "../agent.ts";
 import type { Config } from "../config/index.ts";
-import { capped, isParsed, replayed, type Capped } from "./body.ts";
+import { ACCEPT_ENCODING, capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, earlyHintsHook, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
@@ -66,7 +66,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
             maxConcurrency: width(config.concurrency),
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
-                    Object.assign(gotOptions, { headers: { ...gotOptions.headers, "user-agent": USER_AGENT } });
+                    Object.assign(gotOptions, { decompress: false, headers: { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-encoding": ACCEPT_ENCODING } });
                     const hints: NonNullable<Facts["http"]["earlyHints"]> = [];
                     hinted.set(request, hints);
                     Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), earlyHintsHook(request.url, hints)] } });
