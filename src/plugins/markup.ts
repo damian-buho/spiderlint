@@ -49,8 +49,11 @@ const langSwitcher = pageRule("markup/lang-switcher", [`${ID}.switcher`, "html.h
     if (!facts || !page.html) return;
     const locations = facts.switcher.flatMap(({ href, lang, hreflang }) => {
         const expected = page.html?.hreflang.filter((alternate) => resolve(alternate.href, page.url.href) === href && alternate.lang !== "x-default").map((alternate) => alternate.lang) ?? [];
+        if (expected.length === 0) return [];
+        const pageLang = page.html?.lang;
+        if (pageLang && expected.every((tag) => isAgreeing(tag, pageLang))) return [];
         const declared = lang ?? hreflang;
-        if (expected.length === 0 || (declared && expected.some((tag) => isAgreeing(declared, tag)))) return [];
+        if (declared && expected.some((tag) => isAgreeing(declared, tag))) return [];
         return [`${href} ${declared ? `declares ${declared}, not` : "declares no lang for"} ${expected.join(", ")}`];
     });
     return locations.length === 0 ? [] : [{ message: `${locations.length} language switcher link${locations.length === 1 ? " does" : "s do"} not declare the language ${locations.length === 1 ? "it leads" : "they lead"} to`, value: locations, locations }];

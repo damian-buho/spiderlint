@@ -6,9 +6,10 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { audit, type Report } from "../src/index.ts";
 import trackers from "../src/plugins/trackers.ts";
+import markup from "../src/plugins/markup.ts";
 import type { MarkupFacts } from "../src/plugins/markup.ts";
 import type { Facts } from "../src/facts/types.ts";
-import type { AggregateRule } from "../src/rules/types.ts";
+import type { AggregateRule, PageRule } from "../src/rules/types.ts";
 import { serveSpec, type SpecSite } from "./fixtures/spec.ts";
 
 // The locations of every finding of `rule`.
@@ -101,6 +102,23 @@ describe("page plugins", () => {
         assert.equal(german.linktext, undefined);
     });
 });
+
+describe("markup/lang-switcher", () => {
+    const rule = markup.rules?.["markup/lang-switcher"]?.("warning") as PageRule;
+
+    it("ignores same-language navigation and still judges cross-language links", () => {
+        const monolingual = switcherPage("en", [{ lang: "en", href: "https://a.test/" }, { lang: "x-default", href: "https://a.test/" }], [{ href: "https://a.test/" }]);
+        assert.deepEqual(rule.check(monolingual), []);
+        const undeclared = switcherPage("en-GB", [{ lang: "es", href: "https://a.test/es/" }], [{ href: "https://a.test/es/" }]);
+        assert.equal(rule.check(undeclared)?.length, 1);
+        const declared = switcherPage("en", [{ lang: "es", href: "https://a.test/es/" }], [{ href: "https://a.test/es/", lang: "es", hreflang: "es" }]);
+        assert.deepEqual(rule.check(declared), []);
+    });
+});
+
+// A page with `hreflang` alternates and collected switcher links.
+const switcherPage = (lang: string | undefined, hreflang: { lang: string; href: string }[], switcher: MarkupFacts["switcher"]) =>
+    ({ url: { href: "https://a.test/" }, html: { lang, hreflang }, markup: { switcher, videos: [] } }) as unknown as Facts;
 
 // A page loading scripts from `urls`.
 const page = (href: string, urls: string[]) => ({ url: { href }, resources: urls.map((url) => ({ url, kind: "script", origin: "cross" })) }) as unknown as Facts;
