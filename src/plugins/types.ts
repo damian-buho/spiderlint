@@ -21,6 +21,8 @@ export interface Extractor {
     version?: string;
     // `false` runs on every crawl, for an extractor reading more than its page’s body, URL and content type.
     cached?: false;
+    // Opens Chromium’s DevTools port on loopback for the run, read back through `debuggingPort(live)`.
+    debugging?: true;
     extract(page: Facts, body: string, live?: Page, context?: PageContext): Promise<unknown>;
 }
 

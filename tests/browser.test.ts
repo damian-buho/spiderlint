@@ -11,6 +11,7 @@ import { parsePin } from "../src/crawl/resolve.ts";
 import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import type { KeyboardFacts } from "../src/plugins/keyboard.ts";
+import type { LighthouseFacts } from "../src/plugins/lighthouse.ts";
 import { serveGallery } from "./fixtures/images.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -226,6 +227,15 @@ describe("browser fetch", { skip }, () => {
         assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
         assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", inMain: false, skipsTo: { target: "#main", main: true } });
         assert.ok(keyboard("/live-clean")?.complete);
+    });
+
+    it("runs Lighthouse in the crawler’s Chromium on sampled pages only", async () => {
+        const report = await audit({ seeds: [`${site.origin}/about`, `${site.origin}/live-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["lighthouse"], sample: 1 } } });
+        const audited = report.pages.map((entry) => entry.lighthouse as LighthouseFacts | undefined).filter((facts) => facts !== undefined);
+        assert.equal(audited.length, 1);
+        assert.equal(audited[0]?.formFactor, "mobile");
+        assert.equal(typeof audited[0]?.scores.performance, "number");
+        assert.equal(typeof audited[0]?.vitals.lcp, "number");
     });
 
     it("renders a name pinned by --resolve through Chromium’s host resolver rules", async () => {

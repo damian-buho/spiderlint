@@ -21,8 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
-extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: `lighthouse` and localised
-messages.
+extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: localised messages.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
 recorded so the v1 shape does not block them.
@@ -378,7 +377,7 @@ pays only for what changed.
 | `sitemaps`   | sitemap URL                               | the site’s store               | `Last-Modified`, else 24 hours                                                               |
 | `origins`    | `(site extractor, origin or host)`        | the site’s store               | 24 hours; a failed or timed-out run is not stored                                            |
 | `dns`        | `(server, name, type, CD)`                | the site’s store               | the smallest record TTL of the answer, at least the bucket TTL (60 s)                        |
-| `extractors` | `(extractor, version, URL, sha256(body))` | the site’s store               | until the body changes — a Lighthouse run is never repeated on an unchanged page             |
+| `extractors` | `(extractor, version, URL, sha256(body))` | the site’s store               | until the body changes — an html-validate run is never repeated on an unchanged page         |
 | `browser`    | sub-resource URL                          | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
 
 - A re-crawl revalidates: `If-None-Match` / `If-Modified-Since` from the stored response, and a `304` keeps the content facts (`html.*`, `extractors`) while refreshing the transport facts (`http.*`, `tls.*`). `http.revalidated: true` records it. Stored pages are found by their requested URL too (`crawl.requested`), so a link through a redirect revalidates.
@@ -516,7 +515,8 @@ export default definePlugin({
 - A live extractor that changes page state (key presses, emulated media) opens its own page in the crawler’s context through `withPage` in `plugins/visit.ts`, so the crawler’s page stays as rendered for `axe` and every read-only extractor, and extractor order never matters.
 - `keyboard` (`cost: expensive`) presses Tab through a fresh page with transitions stilled, at most twice per candidate plus ten. Each stop records `visible` (the element, its pseudo-elements, parent or first ten children look different focused than blurred) and `obscuredBy` (a fixed or sticky element at the focused box’s centre). The walk ends `complete` when focus returns to its first stop or leaves the page; `trap` is where focus rests for 20 presses or cycles back to a later stop, and `unreached` lists shown candidates Tab never reached, a radio group reached through any radio. Rules `keyboard/tab-walk`, `focus-visible`, `focus-obscured` and `skip-link` (`info`: the first stop is inside `<main>` or a same-page link to it). Preset `keyboard`.
 - `live` (`cost: expensive`) loads a fresh page under `prefers-reduced-motion: reduce` and reads animations still running that are endless or longer than 5 s, autoplaying videos, `<div>` and `<span>` elements with their own click listener and no role (CDP `DOMDebugger.getEventListeners`, Chromium only, 200 at most), form fields under 16 px at the desktop viewport, and, facts only, service worker registrations and WebMCP tools (`navigator.modelContextTesting.listTools()`, where a polyfill defines `navigator.modelContext`). Rules `live/reduced-motion`, `click-listener` and `input-font-size` (`info`). Preset `live`. No BFCache check: Playwright launches Chromium with the back/forward cache disabled and the headless shell disables it again, so only `no-store` shows, which the header already says.
-- Next: `lighthouse`, reconnecting over CDP to the crawler’s Chromium via `playwright-lighthouse`, so it re-navigates but shares the browser. `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
+- `lighthouse` (`cost: expensive`, `debugging: true`) runs Lighthouse’s default mobile audit in a new tab of the crawler’s own Chromium, reached through its DevTools port, so pins, resolver and proxy carry over. `debugging` makes the crawl open that port on loopback, one free port per browser launch, and `debuggingPort(live)` reads it back; Firefox and WebKit have none and add no facts. Facts are `version`, `formFactor`, `scores` by category and `vitals` (`lcp`, `cls`, `tbt`, `fcp`, `si`, `ttfb`), which also answer lab Core Web Vitals. Rules: each score at least 0.9 and LCP, CLS, TBT and FCP within Lighthouse’s good bound, declarative so a group’s ruleset overrides the threshold. Runs overlap with the crawl, so a score reads worse than a lone run; `concurrency: 1` compares. Preset `lighthouse`; none of the three is in `recommended`.
+- `linkinator` is not wrapped: internal links are answered from the store and external ones by rate-limited `HEAD` probes with a per-host cache.
 
 ## Concurrency and limits
 
@@ -542,7 +542,7 @@ export default definePlugin({
 - DNS queries go to the configured `resolver` only, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.
 - Site and page extractor probes send `GET` or `HEAD` only and never leave their subject’s host; `context.link` alone reaches other hosts, as the off-scope link probe above. With `allowPrivate: false`, which `serve` is to set, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
-- Plugins load by explicit name only. Chromium runs as the `b19` user, never root.
+- Plugins load by explicit name only. Chromium runs as the `b19` user, never root. Its DevTools port opens on loopback only while a `debugging` extractor is active.
 - The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.
 
 ## Observability
@@ -575,7 +575,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters, bundled as the `report` plugin
-└── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, keyboard, live, origin, dns, tls-probe, images, well-known, feeds, structured-data, manifest, link-text, markup, trackers and list (lighthouse next)
+└── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, tls-probe, images, well-known, feeds, structured-data, manifest, link-text, markup, trackers and list
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
 docs/                   # features.d/, es/, uk/

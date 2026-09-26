@@ -4,6 +4,7 @@
 
 import { load } from "cheerio";
 import { existsSync } from "node:fs";
+import { createServer, type AddressInfo } from "node:net";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
@@ -27,6 +28,23 @@ const SETTLE_MS = 5000;
 // Pages a browser renders before a fresh one replaces it.
 const RETIRE_AFTER_PAGES = 1000;
 const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
+const PORT_ARGUMENT = "--remote-debugging-port=";
+// Each rendered page’s browser DevTools port, when an extractor asked for one.
+const ports = new WeakMap<Page, number>();
+
+// The DevTools port of the browser rendering `page`; undefined unless an active extractor is `debugging`.
+export function debuggingPort(page: Page): number | undefined {
+    return ports.get(page);
+}
+
+// A loopback port free right now, for the next browser to listen on.
+async function freePort(): Promise<number> {
+    const server = createServer();
+    await new Promise<void>((resolve, reject) => server.once("error", reject).listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    await new Promise((resolve) => server.close(resolve));
+    return port;
+}
 
 type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"]; security?: string };
 
@@ -234,8 +252,10 @@ export interface BrowserStats {
 }
 
 // The browser crawler of a frontier: facts come from the rendered DOM and the browser’s own network log; an adaptive group’s rendered page is compared with its static HTML.
-export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
+export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
     const launcher = launcherOf(config.browser);
+    const isPortOpen = isDebugged && config.browser === "chromium";
+    if (isDebugged && !isPortOpen) log.warn({ browser: config.browser }, "only Chromium opens a DevTools port; its extractors add nothing");
     let pages = 0;
     const observations = new WeakMap<CrawleeRequest, Observation>();
     const responses = new Map<string, Logged>();
@@ -256,6 +276,15 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 useFingerprints: false,
                 maxOpenPagesPerBrowser: openPages,
                 retireBrowserAfterPageCount: RETIRE_AFTER_PAGES,
+                preLaunchHooks: isPortOpen
+                    ? [
+                          async (pageId, launchContext) => {
+                              const port = await freePort();
+                              launchContext.launchOptions = { ...launchContext.launchOptions, args: [...(launchContext.launchOptions?.args ?? []), `${PORT_ARGUMENT}${port}`] };
+                              log.info({ pageId, port }, "browser DevTools port opened on loopback");
+                          },
+                      ]
+                    : [],
                 postLaunchHooks: [
                     (pageId) => {
                         launches += 1;
@@ -269,7 +298,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                     await page.addInitScript({ content: COOKIE_WRITES });
                 },
             ],
-            async requestHandler({ request, page, parseWithCheerio, enqueueLinks }) {
+            async requestHandler({ request, page, parseWithCheerio, enqueueLinks, browserController }) {
                 const observation = observations.get(request);
                 const response = observation?.document;
                 if (!observation || !response) return log.warn({ url: request.url }, "page rendered without a document response");
@@ -295,6 +324,8 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 if (router.isDetecting(url.href)) router.detected(url.href, isHtml ? staticHtml(raw, url, config.scope) : undefined, facts.html);
                 pages += 1;
+                const port = browserController.launchContext.launchOptions?.args?.findLast((argument) => argument.startsWith(PORT_ARGUMENT))?.slice(PORT_ARGUMENT.length);
+                if (port) ports.set(page, Number(port));
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");

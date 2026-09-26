@@ -353,6 +353,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
         store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href) },
         proxy,
         isKeptType,
+        active.some((extractor) => extractor.debugging),
     );
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
