@@ -15,8 +15,8 @@ describe("transport facts", () => {
         ]);
     });
 
-    it("redacts credentials and cookie values", () => {
-        assert.deepEqual(redactHeaders({ authorization: "Bearer x", "set-cookie": ["a=1; Secure"], server: "nginx" }), { authorization: "[redacted]", "set-cookie": ["a=[redacted]"], server: "nginx" });
+    it("redacts credentials and cookie values, keeping cookie attributes", () => {
+        assert.deepEqual(redactHeaders({ authorization: "Bearer x", "set-cookie": ["a=1; Secure"], server: "nginx" }), { authorization: "[redacted]", "set-cookie": ["a=[redacted]; Secure"], server: "nginx" });
     });
 
     it("drops HTTP/2 pseudo-headers, as a revalidating 304 carries them", () => {

@@ -208,10 +208,11 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             scripts: [{ src, type, async, defer, head }], wordCount, generator }
 resources: [{ url, kind: script|style|image|font|iframe|preload|manifest, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
-              http: { status, headers, timing, size, contentType }, tls: { … },
+              http: { status, headers, timing, size, contentType, cookies }, tls: { … },   # cookies: the resource’s own Set-Cookie, as http.cookies
               <resource extractor ID>: … }]
 browser:  { timing: { domContentLoaded, load }, console: { errors: [], warnings: [] },
-            weight: { script, style, image, font } }
+            weight: { script, style, image, font },
+            cookies: [] }                                                # document.cookie writes, as http.cookies; values cut in the page
 ```
 
 Facts about the site rather than one page form a second document, handed to
@@ -309,10 +310,10 @@ because facts are always retained even when bodies are not.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs, fix }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
 Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `tls`,
-`links`, `sitemap`, `browser` (console errors; never in `recommended`, which
+`links`, `sitemap`, `browser` (console errors and `cookies:browser`; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, hreflang targets answering `2xx`), `cookies` (Secure, HttpOnly,
-SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`, `__Secure-` and `SameSite=None` with `Secure`, a lifetime of at most 400 days), `robots` (in `recommended`), `redirects` (chain length, a temporary hop to a 2xx page, http→https→www hops, mixed content).
+SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`, `__Secure-` and `SameSite=None` with `Secure`, a lifetime of at most 400 days; one table in `plugins/cookies.ts` judges the page’s `http.cookies` as `cookies/<check>`, each resource’s own `Set-Cookie` as `cookies/resource-<check>` keyed by resource URL, and, as `cookies:browser`, what scripts write through `document.cookie` as `cookies/script-<check>`, HttpOnly aside. An init script wraps the `document.cookie` setter and cuts each value before it leaves the page; Chromium’s jar is not read, since it reports an unset SameSite as `Lax`, caps lifetimes and drops what it rejects), `robots` (in `recommended`), `redirects` (chain length, a temporary hop to a 2xx page, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
 not `2xx`), `resources/cache-control` (a hashed or `immutable` asset without
@@ -359,7 +360,7 @@ the one bucket a user re-lints from.
 - `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `report` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint` or `--resume` warns.
 - `proper-lockfile` on the manifest; a second process on the same store exits `2`.
-- Authorization, cookie and proxy-auth headers are redacted before anything is written.
+- Authorization, cookie and proxy-auth headers are redacted before anything is written; a `Set-Cookie` keeps its name and attributes, never its value.
 
 ## Cache
 

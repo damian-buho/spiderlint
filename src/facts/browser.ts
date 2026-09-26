@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 import { isIP } from "node:net";
-import type { Request, Response } from "playwright";
+import type { Page, Request, Response } from "playwright";
 import { log } from "../logger.ts";
-import { redirectHop } from "./transport.ts";
-import type { BrowserFacts, HttpFacts, ResourceFacts, TlsFacts } from "./types.ts";
+import { cookieFacts, redirectHop } from "./transport.ts";
+import type { BrowserFacts, CookieFacts, HttpFacts, ResourceFacts, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
 
@@ -15,6 +15,20 @@ type Security = NonNullable<Awaited<ReturnType<Response["securityDetails"]>>>;
 
 // Playwright resource types that map onto a resource kind; the main document is never one.
 const KINDS: Record<string, ResourceFacts["kind"]> = { script: "script", stylesheet: "style", image: "image", font: "font", document: "iframe", manifest: "manifest" };
+
+// Where the init script keeps each `document.cookie` write for the crawler to read back.
+const WRITES = "__spiderlintCookieWrites";
+
+// Wraps the `document.cookie` setter before any page script runs, keeping each write with its value cut out.
+export const COOKIE_WRITES = `(() => { const cookie = Object.getOwnPropertyDescriptor(Document.prototype, "cookie"); if (!cookie?.get || !cookie.set) return; const writes = []; Object.defineProperty(globalThis, "${WRITES}", { value: writes }); Object.defineProperty(Document.prototype, "cookie", { configurable: true, enumerable: cookie.enumerable, get: cookie.get, set(value) { writes.push(String(value).replace(/^([^=;]*)=[^;]*/, "$1=")); cookie.set.call(this, value); } }); })();`;
+
+// Cookies the page’s scripts wrote through `document.cookie`, read as Set-Cookie lines, deletions aside; values never leave the page.
+export async function scriptCookies(page: Page): Promise<CookieFacts[]> {
+    const writes = (await page.evaluate(`globalThis.${WRITES} ?? []`)) as string[];
+    const cookies = cookieFacts([...new Set(writes)]).filter((cookie) => (cookie.maxAge ?? 1) > 0);
+    log.debug({ url: page.url(), writes: writes.length, cookies: cookies.length }, "script cookie writes read");
+    return cookies;
+}
 
 // Header pairs as the facts document holds them: lower-cased names, repeated ones as arrays.
 export function headerFacts(pairs: { name: string; value: string }[]): Record<string, string | string[]> {

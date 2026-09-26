@@ -40,7 +40,7 @@ function page(patch: Patch = {}): Facts {
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: patch.redirects ?? [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
         html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
-        browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {} },
+        browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {}, cookies: [] },
     };
     facts.robots = robotsFacts(facts);
     return facts;

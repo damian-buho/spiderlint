@@ -438,8 +438,17 @@ describe("audit options", () => {
             { name: "session", secure: false, httpOnly: true, sameSite: "Lax", path: "/" },
             { name: "__Host-id", secure: true, httpOnly: true, sameSite: "Strict", path: "/" },
         ]);
-        assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]", "__Host-id=[redacted]"]);
+        assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]; Path=/; HttpOnly; SameSite=Lax", "__Host-id=[redacted]; Secure; Path=/; HttpOnly; SameSite=Strict"]);
         assert.ok(!JSON.stringify(report).includes("s3cr3t"));
+    });
+
+    it("judges a resource’s own Set-Cookie, keyed by the resource, and stores no value", async () => {
+        const report = await audit({ seeds: [`${site.origin}/cookie-sources`], maxPages: 1, sitemap: false, groups: { default: { rules: ["cookies"] } } });
+        const pixel = report.pages[0]?.resources?.find((resource) => resource.url.endsWith("/cookie-pixel.gif"));
+        assert.deepEqual(pixel?.http?.cookies, [{ name: "__Secure-px", secure: false, httpOnly: true, sameSite: "Lax", path: "/" }]);
+        const findings = report.findings.filter((finding) => finding.rule.startsWith("cookies/resource-")).map((finding) => [finding.rule, new URL(finding.url).pathname, finding.value]);
+        assert.deepEqual(findings, [["cookies/resource-secure-prefix", "/cookie-pixel.gif", ["__Secure-px"]]]);
+        assert.ok(!JSON.stringify(report).includes("px=1"));
     });
 
     it("reports a __Host- cookie with a Domain or a narrower Path, and passes a correct one", async () => {

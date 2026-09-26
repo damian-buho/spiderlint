@@ -9,7 +9,7 @@ import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
 import type { Logged } from "./frontier.ts";
 import { reason } from "./fetch.ts";
-import { redactHeaders } from "../facts/transport.ts";
+import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import type { ResourceExtractor } from "../plugins/types.ts";
 import type { ResourceResults } from "../store/disk.ts";
@@ -105,7 +105,8 @@ async function fetchOne(url: string, max: number, bucket: ResourceBucket, extrac
         log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
         const contentType = mediaType(headers["content-type"]);
         const hasFacts = facts !== undefined && Object.keys(facts).length > 0;
-        return { status, headers: redactHeaders(headers), ...(contentType && { contentType }), size: { body: bytes }, timing: { total: ms - (value.ms ?? 0) }, ...(cached && { cached }), ...(revalidated && { revalidated }), ...(hasFacts && { facts }) };
+        const cookies = cookieFacts(headers["set-cookie"], headers.date);
+        return { status, headers: redactHeaders(headers), ...(contentType && { contentType }), size: { body: bytes }, timing: { total: ms - (value.ms ?? 0) }, ...(cookies.length > 0 && { cookies }), ...(cached && { cached }), ...(revalidated && { revalidated }), ...(hasFacts && { facts }) };
     } catch (error) {
         if (error instanceof OfflineMiss) throw error;
         return { status: 0, headers: {}, size: { body: 0 }, timing: {}, error: reason(error) };
@@ -122,8 +123,9 @@ async function fromLog(url: string, logged: Logged, max: number, extractors: Res
     const contentType = mediaType(logged.headers["content-type"]);
     const { facts } = await extractBody(url, logged.status, contentType, logged.bytes, logged.body, max, extractors, cache);
     const hasFacts = facts !== undefined && Object.keys(facts).length > 0;
-    log.debug({ url, status: logged.status, bytes: logged.bytes, hasBody: logged.body !== undefined }, "resource answered from the browser log");
-    return { status: logged.status, headers: redactHeaders(logged.headers), ...(contentType && { contentType }), size: { body: logged.bytes }, timing: { ...(logged.ms !== undefined && { total: logged.ms }) }, logged: true, ...(hasFacts && { facts }) };
+    const cookies = cookieFacts(logged.headers["set-cookie"], logged.headers.date);
+    log.debug({ url, status: logged.status, bytes: logged.bytes, hasBody: logged.body !== undefined, cookies: cookies.length }, "resource answered from the browser log");
+    return { status: logged.status, headers: redactHeaders(logged.headers), ...(contentType && { contentType }), size: { body: logged.bytes }, timing: { ...(logged.ms !== undefined && { total: logged.ms }) }, ...(cookies.length > 0 && { cookies }), logged: true, ...(hasFacts && { facts }) };
 }
 
 // Hangs each fetched result off every page entry that names its URL.

@@ -141,6 +141,16 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end(PLAIN);
             return;
         }
+        if (pathname === "/cookie-sources") {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end('<!doctype html><html lang="en"><head><title>Cookie sources</title></head><body><img src="/cookie-pixel.gif" alt="" width="1" height="1"><script>document.cookie = "tracker=1; max-age=99999999"; document.cookie = "gone=; max-age=0"</script></body></html>');
+            return;
+        }
+        if (pathname === "/cookie-pixel.gif") {
+            response.writeHead(200, { "content-type": "image/gif", "set-cookie": ["__Secure-px=1; Path=/; SameSite=Lax; HttpOnly"] });
+            response.end(Buffer.from("R0lGODlhAQABAAAAACw=", "base64"));
+            return;
+        }
         if (pathname === "/favicon.ico") {
             response.writeHead(200, { "content-type": "image/x-icon" });
             response.end(Buffer.from([0, 0, 1, 0]));

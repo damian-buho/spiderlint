@@ -9,7 +9,7 @@ import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type P
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
 import { USER_AGENT } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
-import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
+import { COOKIE_WRITES, headerFacts, observedResources, scriptCookies, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
@@ -264,8 +264,9 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 ],
             },
             preNavigationHooks: [
-                ({ page, request }) => {
+                async ({ page, request }) => {
                     observations.set(request, observe(page));
+                    await page.addInitScript({ content: COOKIE_WRITES });
                 },
             ],
             async requestHandler({ request, page, parseWithCheerio, enqueueLinks }) {
@@ -288,7 +289,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                     const $ = await parseWithCheerio();
                     facts.html = extractHtml($, text, url, config.scope);
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
-                    facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests) };
+                    facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests), cookies: await scriptCookies(page) };
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");

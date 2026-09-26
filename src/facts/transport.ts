@@ -106,7 +106,7 @@ export function redactHeaders(headers: Record<string, string | string[] | undefi
     for (const [name, value] of Object.entries(headers)) {
         if (value === undefined || name.startsWith(":")) continue;
         if (SECRET.has(name)) out[name] = REDACTED;
-        else if (name === "set-cookie") out[name] = cookieFacts(value).map((cookie) => `${cookie.name}=${REDACTED}`);
+        else if (name === "set-cookie") out[name] = [value].flat().map((line) => line.replace(/^([^=;]*)=[^;]*/, (_pair, name: string) => `${name}=${REDACTED}`));
         else out[name] = value;
     }
     return out;

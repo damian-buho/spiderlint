@@ -181,6 +181,12 @@ describe("browser fetch", { skip }, () => {
         assert.equal(http?.size.truncated, true);
     });
 
+    it("judges cookies scripts write through document.cookie, without their values", async () => {
+        const written = await audit({ seeds: [`${site.origin}/cookie-sources`], maxPages: 1, sitemap: false, fetchResources: false, groups: { default: { rules: ["browser"] } } });
+        assert.deepEqual(written.pages[0]?.browser?.cookies, [{ name: "tracker", secure: false, httpOnly: false, maxAge: 99_999_999 }]);
+        assert.deepEqual(written.findings.map((finding) => finding.rule).filter((rule) => rule.startsWith("cookies/")).toSorted((a, b) => a.localeCompare(b)), ["cookies/script-lifetime", "cookies/script-same-site"]);
+    });
+
     it("renders a name pinned by --resolve through Chromium’s host resolver rules", async () => {
         const seed = `http://pinned.fixture:${new URL(site.origin).port}/about`;
         const pinned = await audit({ seeds: [seed], fetch: "browser", resolve: [parsePin("pinned.fixture:127.0.0.1")], maxPages: 1, sitemap: false, robots: false, fetchResources: false });

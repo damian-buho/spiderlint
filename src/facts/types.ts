@@ -167,7 +167,7 @@ export interface ResourceFacts {
     integrity?: string;
     crossorigin?: string;
     observed?: true;
-    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true; logged?: true };
+    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; cookies?: CookieFacts[]; error?: string; cached?: true; revalidated?: true; logged?: true };
     // A resource extractor’s facts, under the extractor’s ID.
     [extractor: string]: unknown;
 }
@@ -177,6 +177,8 @@ export interface BrowserFacts {
     timing: { domContentLoaded?: number; load?: number };
     console: { errors: string[]; warnings: string[] };
     weight: Partial<Record<"script" | "style" | "image" | "font", number>>;
+    // Cookies the page’s scripts wrote through `document.cookie`, without values.
+    cookies: CookieFacts[];
 }
 
 export interface Facts {

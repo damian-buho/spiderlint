@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 ---
 description: Checks that need a rendered page — console errors and unused preloads
+extends:
+  - spiderlint:cookies:browser
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:
