@@ -10,7 +10,7 @@ const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
 const BROWSERS = ["chromium", "firefox", "webkit"] as const;
 const SCOPES = ["origin", "host", "domain"] as const;
 const FAIL_ONS = ["error", "warning", "info", "never"] as const;
-const FORMATS = ["human", "json", "sarif"] as const;
+const FORMATS = ["human", "json", "sarif", "checkstyle", "csv"] as const;
 const CACHE_MODES = ["use", "off", "refresh", "offline"] as const;
 
 function isTruthy(name: string, raw: string): boolean {

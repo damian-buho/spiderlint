@@ -20,6 +20,8 @@ import { formatHuman } from "./report/human.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
+import { formatCheckstyle } from "./report/checkstyle.ts";
+import { formatCsv } from "./report/csv.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
@@ -70,7 +72,7 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json or sarif (human)
+  --format FORMAT       human, json, sarif, checkstyle or csv (human)
   --fail-on LEVEL       error, warning, info or never (error)
   --[no-]color          force or disable color (auto)
   --log-level LEVEL     trace, debug, info, warn, error or silent (info)
@@ -102,7 +104,7 @@ Examples:
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets", "explain"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint, isFull: boolean) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif };
+const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint, isFull: boolean) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv };
 
 // Title and headings bold, the command or flag column cyan, a trailing default dim, examples green.
 function usage(paint: Paint): string {

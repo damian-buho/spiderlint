@@ -23,7 +23,7 @@ export interface FoldConfig {
     min: number;
 }
 
-export type Format = "human" | "json" | "sarif";
+export type Format = "human" | "json" | "sarif" | "checkstyle" | "csv";
 
 export interface Config {
     seeds: string[];

@@ -62,7 +62,7 @@ const site = {
             properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins", "dns"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
         },
         "fail-on": { enum: ["error", "warning", "info", "never"] },
-        format: { enum: ["human", "json", "sarif"] },
+        format: { enum: ["human", "json", "sarif", "checkstyle", "csv"] },
         plugins: { type: "array", items: { type: "string" } },
         "disabled-rules": { type: "array", items: { type: "string" } },
         override: {
