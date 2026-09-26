@@ -144,7 +144,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => `${findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
     const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
-        row("pages", `${number(pages)} (${answers.join(", ")})`),
+        row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),
         row("size", size(bytes)),
         row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
         row("rules", number(rules)),

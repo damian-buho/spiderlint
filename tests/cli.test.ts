@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -55,6 +57,17 @@ describe("cli", () => {
     after(async () => {
         await site.close();
         await rm(directory, { recursive: true, force: true });
+    });
+
+    it("exits 3 naming the network error when a seed’s origin is unreachable", async () => {
+        const closed = createServer();
+        await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
+        const { port } = closed.address() as AddressInfo;
+        await new Promise((resolve) => closed.close(resolve));
+        const run = await spiderlint(directory, "audit", `http://127.0.0.1:${port}/`, "--no-cache", "--no-sitemap");
+        assert.equal(run.code, 3);
+        const seed = run.stderr.split("\n").filter(Boolean).map((line) => JSON.parse(line) as { msg: string; error?: string }).find((entry) => entry.msg.startsWith("seed not crawled"));
+        assert.match(seed?.error ?? "", /ECONNREFUSED/);
     });
 
     it("exits 4 when the run itself fails", async () => {

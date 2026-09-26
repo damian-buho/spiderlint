@@ -158,6 +158,15 @@ export class Frontier {
         return delay;
     }
 
+    // Why a seed was never fetched, naming the network error behind an unreachable robots.txt.
+    #explainSkippedSeed(seed: string): void {
+        const reason = this.#skipped.get(seed);
+        if (reason === undefined) return;
+        const error = this.#robots.find((facts) => facts.url === `${new URL(seed).origin}/robots.txt`)?.error;
+        if (error) log.error({ url: seed, error }, "seed not crawled: its robots.txt is unreachable, which disallows the whole origin (RFC 9309)");
+        else log.warn({ url: seed, reason }, "seed not crawled");
+    }
+
     // Crawler options every adapter passes through unchanged.
     options(storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
@@ -229,5 +238,6 @@ export class Frontier {
         log.debug({ isRead, files: this.#robots.length }, "robots.txt facts collected");
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
         if (this.#skipped.size > 0) log.info({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
+        for (const seed of this.#seeds) this.#explainSkippedSeed(seed);
     }
 }
