@@ -10,7 +10,7 @@ import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({
-    meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"] },
+    meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors" },
     check(pages: Facts[]) {
         const findings: Finding[] = [];
         for (const page of pages) {
@@ -24,7 +24,7 @@ const brokenInternal: Make = (severity) => ({
 
 // Every probed external link answering 4xx or 5xx, or nothing, once per target, with the pages linking to it; a 429, a bot wall, an excluded host or a refused address is not judged.
 const brokenExternal: Make = (severity) => ({
-    meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"] },
+    meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404" },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const answers = site?.links ?? {};
         const linking = new Map<string, string[]>();
@@ -122,9 +122,9 @@ export function resolve(raw: string, base: string): string {
 }
 
 // A page whose `fact` names a URL other than its own or its twin on the canonical origin; a page without the fact is skipped.
-function pointsHere(id: string, fact: string, label: string, read: (html: HtmlFacts) => string | undefined): Make {
+function pointsHere(id: string, fact: string, label: string, read: (html: HtmlFacts) => string | undefined, guide: Guide = {}): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "page", facts: [fact] },
+        meta: { id, severity, scope: "page", facts: [fact], ...guide },
         check(page: Facts) {
             const raw = page.html && read(page.html);
             if (raw === undefined) return;
@@ -230,17 +230,23 @@ export const builtin: Record<string, Make> = {
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     ...robotsRules,
-    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus),
+    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status" }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
         (resource, pages) => `${resource.kind} loads over http: on ${pages} https: pages`,
+        undefined,
+        undefined,
+        { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content" },
     ),
     "resources/sri": resourceRule(
         "resources/sri",
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
         (resource, pages) => (resource.integrity ? undefined : `cross-origin ${resource.kind} without integrity; used by ${pages} pages`),
+        undefined,
+        undefined,
+        { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity" },
     ),
-    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical),
-    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"]),
+    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls" }),
+    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata" }),
 };

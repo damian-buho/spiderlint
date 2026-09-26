@@ -137,6 +137,7 @@ rules:
     expect: {type: array, minItems: 1, maxItems: 1}
     severity: error
     message: "should have exactly one <h1>, found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
   html/canonical:
     fact: html.canonical
     expect: {type: string, pattern: "^https?://"}

@@ -92,20 +92,20 @@ const modernFormat = resourceRule("images/modern-format", isImage, (resource, pa
     const target = (["avif", "webp"] as const).filter((name) => encoded[name] !== undefined).toSorted((a, b) => (encoded[a] as number) - (encoded[b] as number))[0];
     const share = target && LEGACY.has(image.format) ? saved(image.bytes, encoded[target]) : undefined;
     return share === undefined ? undefined : `${image.format} of ${kB(image.bytes)} is ${kB(encoded[target as Target] as number)} as ${target} (${share} % smaller); used by ${pages} pages`;
-}, FACTS, valueOf);
+}, FACTS, valueOf, { docs: "https://web.dev/articles/choose-the-right-image-format" });
 
 // An image its own format re-encodes much smaller.
 const recompress = resourceRule("images/recompress", isImage, (resource, pages) => {
     const image = imageOf(resource) as ImageFacts;
     const share = saved(image.bytes, image.encoded?.same);
     return share === undefined ? undefined : `${image.format} of ${kB(image.bytes)} re-encodes to ${kB(image.encoded?.same as number)} (${share} % smaller); used by ${pages} pages`;
-}, FACTS, valueOf);
+}, FACTS, valueOf, { docs: "https://web.dev/articles/use-imagemin-to-compress-images" });
 
 // An image heavier than WEIGHT.
 const weight = resourceRule("images/weight", isImage, (resource, pages) => {
     const image = imageOf(resource) as ImageFacts;
     return image.bytes > WEIGHT ? `${image.format} of ${kB(image.bytes)} is above ${kB(WEIGHT)}; used by ${pages} pages` : undefined;
-}, FACTS, valueOf);
+}, FACTS, valueOf, { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia" });
 
 type Img = HtmlFacts["images"][number];
 

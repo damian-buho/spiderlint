@@ -308,12 +308,14 @@ const RULES: Record<string, RuleSpec> = {
         expect: { minItems: 1 },
         message: "no AAAA record, so the host is unreachable over IPv6",
         severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc3596",
     },
     "dns/cname-chain": {
         fact: "site.hosts.*.dns.cname",
         expect: { maxItems: 2 },
         message: "the name resolves through {got} of CNAME hops",
         severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
     },
     "dns/dangling-cname": {
         fact: "site.hosts.*.dns.dangling",
@@ -351,6 +353,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.dnssec.rrsig": { type: "object" } },
         message: "less than a quarter of the host’s signature validity is left, so re-signing has stalled (got {got})",
         severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc6781#section-4.4.2",
     },
     "dns/nsec3-iterations": {
         fact: "site.hosts.*.dnssec.nsec3",
@@ -373,6 +376,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.nameservers.serials": { type: "array" } },
         message: "a name server is lame or the servers disagree on the SOA serial (got {got})",
         severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
     },
     "dns/ns-diversity": {
         fact: "site.hosts.*.nameservers.networks",

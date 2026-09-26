@@ -124,12 +124,14 @@ export default definePlugin({
                     when: { "site.origins.*.notFound.status": { enum: [404, 410] } },
                     message: "the not-found page is not plain HTML free of stack traces and server versions (got {got})",
                     severity: "warning",
+                    docs: "https://owasp.org/www-community/Improper_Error_Handling",
                 },
                 "origin/https-entry": {
                     fact: "site.origins.*.entry",
                     expect: { required: ["status", "https"], properties: { status: { enum: [301, 308] }, https: { const: true } } },
                     message: "plain http does not redirect to https in one permanent hop (got {got})",
                     severity: "warning",
+                    docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
                 },
                 "origin/locale-redirect": {
                     fact: "site.origins.*.locale.distinct",

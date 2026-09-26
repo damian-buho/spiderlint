@@ -13,7 +13,7 @@ import type { Facts } from "../src/facts/types.ts";
 import htmlValidate, { type HtmlValidateFacts } from "../src/plugins/html-validate.ts";
 import htmlhint, { type HtmlHintFacts } from "../src/plugins/htmlhint.ts";
 import { formatHuman } from "../src/report/human.ts";
-import { listPresets } from "../src/rules/catalog.ts";
+import { listPresets, listRules } from "../src/rules/catalog.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -66,6 +66,11 @@ describe("htmlhint extractor", () => {
 });
 
 describe("rulesets", () => {
+    it("links docs from every shipped rule but the site-specific consistent-origin", () => {
+        const bare = listRules({ ...defaults(), rules: ["all"] }, ["all"]).filter((rule) => !rule.docs).map((rule) => rule.id);
+        assert.deepEqual(bare, ["http/consistent-origin"]);
+    });
+
     it("merges an overriding expect into the extended one, keyword by keyword", () => {
         const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": { expect: { minLength: 25 } } } } })["html/title-length"];
         assert.deepEqual(title?.expect, { type: "string", minLength: 25, maxLength: 60 });
