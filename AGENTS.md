@@ -369,7 +369,7 @@ pays only for what changed.
 - Writes are atomic (temp file + rename). Project buckets share the store’s lock, so a second process on the store exits `2`; the user bucket relies on atomic writes alone, so parallel audits of different sites never block each other.
 - `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`; an `--offline` audit lints the stored pages and fetches nothing. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
 - `spiderlint cache status` lists every bucket with entries, bytes, oldest and newest; `spiderlint cache purge [bucket] [--older-than 7d]` deletes; `spiderlint cache warm <url>` fills `robots` and `sitemaps` without crawling. The shape is `pf-cli cache status|warm|purge`, which the fleet already knows.
-- The action persists `$XDG_CACHE_HOME/spiderlint` through the forge’s cache keyed by target, so a CI run on an unchanged site is a run of `304`s.
+- The action persists its store through the forge’s cache keyed by job and `site` (`cache: false` turns it off), running the image as the runner’s uid so the cache step can read it; a CI run on an unchanged site is a run of `304`s.
 
 ## Configuration
 

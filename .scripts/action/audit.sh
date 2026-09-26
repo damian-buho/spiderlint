@@ -12,8 +12,6 @@ report_json="${RUNNER_TEMP}/${stem}.json"
 report_sarif="${RUNNER_TEMP}/${stem}.sarif"
 cache="${RUNNER_TEMP}/spiderlint-cache"
 mkdir --parents "${cache}"
-# The container user differs from the runner's; the store keeps its own owner-only modes inside.
-chmod 0777 "${cache}"
 
 # An action used at a version tag pulls the image of that tag.
 if [ -z "${VERSION}" ] && [[ "${ACTION_REF}" =~ ^v?([0-9]+(\.[0-9]+){0,2})$ ]]; then
@@ -42,7 +40,8 @@ if ! docker pull --quiet "${IMAGE}"; then
     echo "::warning::pull failed, trying a local ${IMAGE}"
 fi
 
-docker_run=(run --rm --network host
+# The runner's uid owns the store so the cache step can save it; gid 0 may write the image's home.
+docker_run=(run --rm --network host --user "$(id --user):0"
     --env XDG_CACHE_HOME=/cache
     --volume "${cache}:/cache"
     --volume "${GITHUB_WORKSPACE}:/src:ro"
