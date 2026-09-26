@@ -14,7 +14,7 @@ SPDX-License-Identifier: MIT
 ### Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 
 - Una página cuyas etiquetas, enlaces o contenido aparecen solo después de ejecutar sus scripts se renderiza en un navegador real, así que se revisa lo que ven los buscadores y los visitantes.
-- El navegador arranca solo cuando una regla activa lo necesita; un sitio sin reglas de ese tipo se rastrea por HTTP simple a toda velocidad.
+- Solo se renderizan las secciones que necesitan un navegador; el resto del sitio se rastrea por HTTP simple a toda velocidad en la misma ejecución, y una sección que renderiza sus etiquetas en el cliente se puede detectar sola.
 - Los errores de consola, los tiempos de carga y cada recurso que una página carga en tiempo de ejecución se convierten en hechos que las reglas pueden comprobar.
 - La accesibilidad se comprueba en la página renderizada frente a WCAG A y AA, así que también se detectan los defectos que introducen los scripts.
 
@@ -87,7 +87,7 @@ SPDX-License-Identifier: MIT
 
 - Un rastreo se puede guardar en disco y analizar de nuevo con reglas o grupos cambiados, sin acceso a la red.
 - Un rastreo interrumpido se reanuda donde se detuvo.
-- Un rastreo repetido solo pregunta al sitio si cada página, script y sitemap cambió, y reutiliza lo que no cambió.
+- Un rastreo repetido solo pregunta al sitio si cada página, script y sitemap cambió, y no vuelve a descargar ni a analizar lo que no cambió.
 - Las descargas binarias se juzgan por sus cabeceras y nunca se descargan completas, así que un archivo comprimido o un vídeo enlazado no consume ancho de banda.
 - Una copia de staging se audita como el sitio para el que está construida, así que sus enlaces y su sitemap que nombran la dirección de producción no se informan como errores.
 
