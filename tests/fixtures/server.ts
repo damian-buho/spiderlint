@@ -48,9 +48,14 @@ header a:focus { outline: none }
 .spin { animation: spin 1s linear infinite }
 @keyframes spin { to { transform: rotate(360deg) } }
 input { font-size: 12px }
+#ring:focus { outline: none; box-shadow: 0 0 0 3px blue }
+.grad { background: linear-gradient(#000, #333); width: 24px; height: 24px }
+.mask { mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect width='24' height='24'/%3E%3C/svg%3E"); background-color: currentColor; width: 24px; height: 24px }
+@media (prefers-contrast: more) { main p { color: #666 } }
 </style></head><body>
 <header><a href="/about">About</a></header>
 <main><p>Welcome</p><div class="spin">Loading</div><div id="open">Open</div><input aria-label="Name"><div style="height: 2000px"></div><a href="/posts/1">Post</a>
+<button id="ring">Ring</button><button class="grad" aria-label="Menu"></button><button class="mask" aria-label="Search"></button><p style="forced-color-adjust: none">Kept</p>
 <button id="a">A</button><button id="b">B</button></main>
 <div class="banner">We value your privacy</div>
 <img src="THIRD" alt="" width="1" height="1">
@@ -65,9 +70,11 @@ main p { color: #333 }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 1s linear infinite } }
 @keyframes spin { to { transform: rotate(360deg) } }
 input { font-size: 16px }
+#ring:focus { outline: 2px solid transparent; box-shadow: 0 0 0 3px blue }
+@media (prefers-contrast: more) { main p { color: #000 } }
 </style></head><body>
 <a href="#main">Skip to content</a><nav><a href="/about">About</a></nav>
-<main id="main"><p>Welcome</p><div class="spin">Loading</div><button id="open">Open</button><input aria-label="Name"><a href="/posts/1">Post</a></main>
+<main id="main"><p>Welcome</p><div class="spin">Loading</div><button id="open">Open</button><button id="ring">Ring</button><button aria-label="Menu"><svg width="16" height="16" aria-hidden="true"><rect width="16" height="16" fill="currentColor"/></svg></button><input aria-label="Name"><a href="/posts/1">Post</a></main>
 <script>document.getElementById("open").addEventListener("click", () => {});</script></body></html>`,
     "/live-skip": `<!doctype html><html lang="en"><head><title>Live skip</title></head><body>
 <a href="#main">Skip to content</a><main id="main"><button id="x">X</button><button id="y">Y</button><button id="z">Z</button></main>

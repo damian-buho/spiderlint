@@ -17,6 +17,8 @@ const ID = "live";
 const MAX_LISTENERS = 200;
 // Font size in CSS pixels under which iOS Safari zooms into a focused field.
 const MIN_FONT = 16;
+// Elements listed per forced-colours fact, at most.
+const MAX_FORCED = 50;
 
 export interface LiveFacts {
     // Animations still running once the page fell quiet under `prefers-reduced-motion: reduce`: endless, or longer than 5 s.
@@ -30,6 +32,10 @@ export interface LiveFacts {
     webmcp?: { tools: string[] };
     // Text axe finds too faint in the dark scheme; present only when the page claims dark support.
     dark?: (Element & { contrast?: string })[];
+    // Under forced colours: controls left with nothing drawn, and opted-out elements holding text in author colours.
+    forced: { icons: Element[]; optOut: (Element & { colors: string })[] };
+    // Whether a sheet answers `prefers-contrast: more`, and the text axe finds below 7:1 once it does.
+    contrast: { claimed: boolean; faint?: (Element & { contrast?: string })[] };
 }
 
 // What the page does under reduced motion, form fields below MIN_FONT, and the workers and WebMCP tools it registered.
@@ -50,9 +56,37 @@ const READ = `(async () => {
     const registrations = (await navigator.serviceWorker?.getRegistrations()) ?? [];
     const serviceWorkers = registrations.map((registration) => ({ scope: registration.scope, ...((registration.active ?? registration.waiting ?? registration.installing) && { script: (registration.active ?? registration.waiting ?? registration.installing).scriptURL }) }));
     const media = (sheet) => { try { return [sheet.media?.mediaText ?? "", ...[...sheet.cssRules].flatMap(function texts(rule) { return [rule.conditionText ?? "", ...(rule.cssRules ? [...rule.cssRules].flatMap(texts) : [])]; })]; } catch { return [sheet.media?.mediaText ?? ""]; } };
-    const isDark = [document.querySelector('meta[name="color-scheme"]')?.content ?? "", getComputedStyle(document.documentElement).colorScheme].some((value) => value.includes("dark")) || [...document.styleSheets].some((sheet) => media(sheet).some((text) => text.replaceAll(" ", "").includes("prefers-color-scheme:dark")));
+    const conditions = [...document.styleSheets].flatMap(media).map((text) => text.replaceAll(" ", ""));
+    const isDark = [document.querySelector('meta[name="color-scheme"]')?.content ?? "", getComputedStyle(document.documentElement).colorScheme].some((value) => value.includes("dark")) || conditions.some((text) => text.includes("prefers-color-scheme:dark"));
+    const isContrast = conditions.some((text) => /prefers-contrast(?::more|[)])/.test(text));
     const tools = "modelContext" in navigator ? ((await navigator.modelContextTesting?.listTools?.()) ?? []).map((tool) => tool.name) : undefined;
-    return { motion, videos, inputs, serviceWorkers, ...(tools && { webmcp: { tools } }), isDark };
+    return { motion, videos, inputs, serviceWorkers, ...(tools && { webmcp: { tools } }), isDark, isContrast };
+})()`;
+
+// Under forced colours: shown controls with no visible text, media or surviving paint, and opt-out roots holding visible text.
+const FORCED = `(() => {
+    ${DESCRIBE}
+    const shown = (node) => node.checkVisibility({ visibilityProperty: true }) && node.getBoundingClientRect().width > 0;
+    const hasText = (root) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.data.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const box = range.getBoundingClientRect();
+            if (box.width > 1 && box.height > 1) return true;
+        }
+        return false;
+    };
+    const paints = (node, pseudo) => {
+        const style = getComputedStyle(node, pseudo);
+        if (pseudo && !["none", "normal", '""'].includes(style.content)) return true;
+        return (style.backgroundImage !== "none" || style.maskImage !== "none") && (style.maskImage === "none" || style.forcedColorAdjust === "none");
+    };
+    const drawn = (control) => hasText(control) || [...control.querySelectorAll("img, svg, picture, canvas, video, object")].some(shown) || [control, ...control.querySelectorAll("*")].slice(0, 20).some((node) => paints(node, null) || paints(node, "::before") || paints(node, "::after"));
+    const icons = [...document.querySelectorAll('a[href], button, [role="button"]')].filter((control) => shown(control) && !drawn(control)).slice(0, ${MAX_FORCED}).map((control) => describe(control));
+    const optOut = [...document.querySelectorAll("body *")].filter((node) => getComputedStyle(node).forcedColorAdjust === "none" && getComputedStyle(node.parentElement).forcedColorAdjust !== "none" && shown(node) && hasText(node)).slice(0, ${MAX_FORCED}).map((node) => { const style = getComputedStyle(node); return { ...describe(node), colors: style.color + " on " + style.backgroundColor }; });
+    return { icons, optOut };
 })()`;
 
 // Describes an element CDP found taking clicks, when it is a `<div>` or `<span>` with no role outside a native control.
@@ -87,27 +121,42 @@ async function clickables(page: Page, url: string): Promise<Element[] | undefine
     }
 }
 
-// Text axe finds below its contrast ratio in the page as it renders now.
-async function faint(page: Page): Promise<(Element & { contrast?: string })[]> {
-    const results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
+// Text axe’s `rule` finds below its contrast ratio in the page as it renders now.
+async function faint(page: Page, rule = "color-contrast"): Promise<(Element & { contrast?: string })[]> {
+    const results = await new AxeBuilder({ page }).withRules([rule]).analyze();
     return results.violations.flatMap((violation) => violation.nodes).map((node) => {
         const data = node.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number; expectedContrastRatio?: string } | undefined;
         return { target: node.target.flat().join(" >>> "), html: /^<[^>]*>/.exec(node.html)?.[0] ?? node.html, ...(data?.contrastRatio !== undefined && { contrast: `${data.fgColor} on ${data.bgColor} ${data.contrastRatio}:1, needs ${data.expectedContrastRatio}` }) };
     });
 }
 
-// Reads a fresh copy of the page loaded as a visitor asking for reduced motion and a dark scheme, leaving the crawler’s own page as rendered.
+// Text axe finds below 7:1 in a fresh copy of the page loaded as a visitor asking for more contrast.
+async function enhanced(live: Page, url: string): Promise<(Element & { contrast?: string })[]> {
+    return withPage(live, async (fresh) => {
+        await fresh.emulateMedia({ contrast: "more" });
+        await visit(fresh, url);
+        const found = await faint(fresh, "color-contrast-enhanced");
+        log.debug({ url, faint: found.length }, "increased contrast read");
+        return found;
+    });
+}
+
+// Reads a fresh copy of the page loaded as a visitor asking for reduced motion and a dark scheme, then forcing colours, leaving the crawler’s own page as rendered.
 async function extract(page: Facts, _body: string, live?: Page): Promise<LiveFacts | undefined> {
     if (!live || !page.html) return;
-    return withPage(live, async (fresh) => {
+    const read = await withPage(live, async (fresh) => {
         await fresh.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
         await visit(fresh, page.url.href);
-        const { isDark, ...facts } = (await fresh.evaluate(READ)) as LiveFacts & { isDark: boolean };
+        const { isDark, isContrast, ...facts } = (await fresh.evaluate(READ)) as Omit<LiveFacts, "forced" | "contrast"> & { isDark: boolean; isContrast: boolean };
         const dark = isDark ? await faint(fresh) : undefined;
         const found = await clickables(fresh, page.url.href);
-        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts.serviceWorkers.length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length }, "live page read");
-        return { ...facts, ...(found && { clickables: found }), ...(dark && { dark }) };
+        await fresh.emulateMedia({ forcedColors: "active" });
+        const forced = (await fresh.evaluate(FORCED)) as LiveFacts["forced"];
+        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts.serviceWorkers.length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length, icons: forced.icons.length, optOut: forced.optOut.length, isContrast }, "live page read");
+        return { ...facts, ...(found && { clickables: found }), ...(dark && { dark }), forced, isContrast };
     });
+    const { isContrast, ...facts } = read;
+    return { ...facts, contrast: { claimed: isContrast, ...(isContrast && { faint: await enhanced(live, page.url.href) }) } };
 }
 
 const liveOf = (page: Facts) => page[ID] as LiveFacts | undefined;
@@ -139,14 +188,38 @@ const darkContrast = pageRule("live/dark-contrast", [`${ID}.dark`], (page) => {
     return faintText.length === 0 ? [] : [{ message: `${plural(faintText.length, "element is", "elements are")} too faint to read in the dark scheme the page claims to support`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
 }, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." });
 
+const forcedIcons = pageRule("live/forced-icons", [`${ID}.forced.icons`], (page) => {
+    const blank = liveOf(page)?.forced?.icons;
+    if (!blank) return;
+    return blank.length === 0 ? [] : [{ message: `${plural(blank.length, "control shows", "controls show")} nothing under forced colours: no visible text, and ${blank.length === 1 ? "its icon is" : "their icons are"} a gradient or a mask the system colours paint over`, value: blank.map((element) => element.target), locations: blank.map((element) => located(element)) }];
+}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`." });
+
+const forcedOptOut = pageRule("live/forced-opt-out", [`${ID}.forced.optOut`], (page) => {
+    const kept = liveOf(page)?.forced?.optOut;
+    if (!kept) return;
+    return kept.length === 0 ? [] : [{ message: `${plural(kept.length, "element keeps", "elements keep")} ${kept.length === 1 ? "its" : "their"} own text colours under forced colours`, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
+}, { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." });
+
+const contrastMore = pageRule("live/contrast-more", [`${ID}.contrast.claimed`], (page) => {
+    const contrast = liveOf(page)?.contrast;
+    if (!contrast) return;
+    return contrast.claimed ? [] : [{ message: "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours", value: false }];
+}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast", fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1." });
+
+const contrastEnhanced = pageRule("live/contrast-enhanced", [`${ID}.contrast.faint`], (page) => {
+    const faintText = liveOf(page)?.contrast?.faint;
+    if (!faintText) return;
+    return faintText.length === 0 ? [] : [{ message: `${plural(faintText.length, "element stays", "elements stay")} below 7:1 when the visitor asks for the more contrast the page answers`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
+}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html", fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text." });
+
 export default definePlugin({
     name: "live",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
-    rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize, "live/dark-contrast": darkContrast },
+    rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize, "live/dark-contrast": darkContrast, "live/forced-icons": forcedIcons, "live/forced-opt-out": forcedOptOut, "live/contrast-more": contrastMore, "live/contrast-enhanced": contrastEnhanced },
     presets: {
         live: {
-            description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme, click handlers on plain elements, form fields small enough to zoom",
-            rules: { "live/reduced-motion": "warning", "live/dark-contrast": "warning", "live/click-listener": "warning", "live/input-font-size": "info" },
+            description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme and under increased contrast, icons and opt-outs under forced colours, click handlers on plain elements, form fields small enough to zoom",
+            rules: { "live/reduced-motion": "warning", "live/dark-contrast": "warning", "live/contrast-enhanced": "warning", "live/forced-icons": "warning", "live/click-listener": "warning", "live/input-font-size": "info", "live/contrast-more": "info", "live/forced-opt-out": "info" },
         },
     },
 });

@@ -27,6 +27,8 @@ export interface Stop extends Element {
     visible: boolean;
     // The fixed or sticky element on top of the focused one’s centre.
     obscuredBy?: string;
+    // Whether focus still shows under forced colours; read only where `visible`.
+    forced?: boolean;
 }
 
 export interface KeyboardFacts {
@@ -47,6 +49,11 @@ interface Seen extends Stop {
 
 const CANDIDATES = `globalThis[Symbol.for("spiderlint.keyboard")]`;
 
+// A page script defining `look(element)`: the focus-relevant styles of the element, its pseudo-elements, parent and first ten children, outline only when drawn.
+const LOOK = `const PROPERTIES = ["outline-style", "outline-width", "outline-color", "box-shadow", "border-color", "border-width", "background-color", "color", "text-decoration-line"];
+    const read = (node, pseudo) => { const style = getComputedStyle(node, pseudo); return PROPERTIES.filter((name) => style.outlineStyle !== "none" || !name.startsWith("outline-")).map((name) => style.getPropertyValue(name)).join("|"); };
+    const look = (element) => [read(element, null), read(element, "::before"), read(element, "::after"), ...(element.parentElement ? [read(element.parentElement, null)] : []), ...[...element.children].slice(0, 10).map((child) => read(child, null))].join(" / ");`;
+
 // Lists what a keyboard user must reach and stills transitions, so a focus style reads settled; answers the count.
 const MARK = `(() => {
     const selector = 'a[href], area[href], button, input:not([type="hidden"]), select, textarea, summary, iframe, [contenteditable=""], [contenteditable="true"], audio[controls], video[controls], [tabindex]';
@@ -65,10 +72,8 @@ const INSPECT = `(() => {
     while (element?.shadowRoot?.activeElement) element = element.shadowRoot.activeElement;
     if (!element || element === document.body || element === document.documentElement) return null;
     const isAbove = (ancestor, node) => { for (let at = node; at; at = at.parentNode ?? at.host) if (at === ancestor) return true; return false; };
-    const PROPERTIES = ["outline-style", "outline-width", "outline-color", "box-shadow", "border-color", "border-width", "background-color", "color", "text-decoration-line"];
-    const read = (node, pseudo) => { const style = getComputedStyle(node, pseudo); return PROPERTIES.map((name) => style.getPropertyValue(name)).join("|"); };
-    const look = () => [read(element, null), read(element, "::before"), read(element, "::after"), ...(element.parentElement ? [read(element.parentElement, null)] : []), ...[...element.children].slice(0, 10).map((child) => read(child, null))].join(" / ");
-    const focused = look();
+    ${LOOK}
+    const focused = look(element);
     let obscuredBy;
     const box = element.getBoundingClientRect();
     const [x, y] = [box.left + box.width / 2, box.top + box.height / 2];
@@ -77,7 +82,7 @@ const INSPECT = `(() => {
         for (let node = hit; node; node = node.parentElement) if (["fixed", "sticky"].includes(getComputedStyle(node).position)) { obscuredBy = describe(node).target; break; }
     }
     element.blur?.();
-    const visible = look() !== focused;
+    const visible = look(element) !== focused;
     element.focus?.({ preventScroll: true });
     const main = document.querySelector("main, [role=main]");
     let skipsTo;
@@ -97,6 +102,22 @@ function missed(reached: number[]): string {
         const reached = new Set(${JSON.stringify(reached)});
         const groups = new Set([...reached].map((index) => candidates[index]).filter((element) => element?.type === "radio").map((element) => element.name));
         return candidates.filter((element, index) => !reached.has(index) && element.isConnected && element.checkVisibility({ visibilityProperty: true }) && !(element.type === "radio" && groups.has(element.name))).map((element) => describe(element));
+    })()`;
+}
+
+// Candidate indexes whose focus shows no change once refocused from script, as `INSPECT` compares.
+function unchanged(indexes: number[]): string {
+    return `(() => {
+        ${LOOK}
+        const candidates = ${CANDIDATES} ?? [];
+        return ${JSON.stringify(indexes)}.filter((index) => {
+            const element = candidates[index];
+            if (!element?.isConnected) return false;
+            element.focus({ preventScroll: true });
+            const focused = look(element);
+            element.blur();
+            return look(element) === focused;
+        });
     })()`;
 }
 
@@ -135,10 +156,13 @@ async function walk(page: Page, url: string): Promise<KeyboardFacts> {
         stops.push(stop);
     }
     const unreached = complete ? ((await page.evaluate(missed(stops.map((stop) => stop.index).filter((index) => index >= 0)))) as Element[]) : [];
-    log.debug({ url, candidates: count, limit, stops: stops.length, complete, trap, unreached: unreached.length }, "keyboard walked");
+    const shown = stops.filter((stop) => stop.visible && stop.index >= 0).map((stop) => stop.index);
+    await page.emulateMedia({ forcedColors: "active" });
+    const lost = new Set((await page.evaluate(unchanged(shown))) as number[]);
+    log.debug({ url, candidates: count, limit, stops: stops.length, complete, trap, unreached: unreached.length, forcedRead: shown.length, forcedLost: lost.size }, "keyboard walked");
     const [head] = stops;
     return {
-        stops: stops.map(({ target, html, visible, obscuredBy }) => ({ target, html, visible, ...(obscuredBy && { obscuredBy }) })),
+        stops: stops.map(({ target, html, visible, obscuredBy, index }) => ({ target, html, visible, ...(obscuredBy && { obscuredBy }), ...(visible && index >= 0 && { forced: !lost.has(index) }) })),
         complete,
         unreached,
         ...(trap && { trap }),
@@ -179,6 +203,12 @@ const focusObscured = pageRule("keyboard/focus-obscured", [`${ID}.stops`], (page
     return covered.length === 0 ? [] : [{ message: `${covered.length} focused element${covered.length === 1 ? " is" : "s are"} hidden under fixed or sticky content`, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop.obscuredBy}`) }];
 }, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html", fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content." });
 
+const forcedFocus = pageRule("keyboard/forced-focus", [`${ID}.stops`], (page) => {
+    const lost = keyboardOf(page)?.stops.filter((stop) => stop.forced === false);
+    if (!lost) return;
+    return lost.length === 0 ? [] : [{ message: `${lost.length} element${lost.length === 1 ? " loses its" : "s lose their"} focus indicator under forced colours`, value: lost.map((stop) => stop.target), locations: lost.map((stop) => located(stop)) }];
+}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Add `outline: 2px solid transparent` beside a `box-shadow` focus ring; forced colours drop the shadow and paint the outline." });
+
 const skipLink = pageRule("keyboard/skip-link", [`${ID}.first`], (page) => {
     const first = keyboardOf(page)?.first;
     if (!first) return;
@@ -188,11 +218,11 @@ const skipLink = pageRule("keyboard/skip-link", [`${ID}.first`], (page) => {
 export default definePlugin({
     name: "keyboard",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
-    rules: { "keyboard/tab-walk": tabWalk, "keyboard/focus-visible": focusVisible, "keyboard/focus-obscured": focusObscured, "keyboard/skip-link": skipLink },
+    rules: { "keyboard/tab-walk": tabWalk, "keyboard/focus-visible": focusVisible, "keyboard/focus-obscured": focusObscured, "keyboard/forced-focus": forcedFocus, "keyboard/skip-link": skipLink },
     presets: {
         keyboard: {
-            description: "Keyboard use on sampled pages: Tab reaches every control without a trap, focus shows and is not covered, a skip link comes first",
-            rules: { "keyboard/tab-walk": "warning", "keyboard/focus-visible": "warning", "keyboard/focus-obscured": "warning", "keyboard/skip-link": "info" },
+            description: "Keyboard use on sampled pages: Tab reaches every control without a trap, focus shows, also under forced colours, and is not covered, a skip link comes first",
+            rules: { "keyboard/tab-walk": "warning", "keyboard/focus-visible": "warning", "keyboard/focus-obscured": "warning", "keyboard/forced-focus": "warning", "keyboard/skip-link": "info" },
         },
     },
 });

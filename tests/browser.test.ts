@@ -12,6 +12,7 @@ import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import type { KeyboardFacts } from "../src/plugins/keyboard.ts";
 import type { LighthouseFacts } from "../src/plugins/lighthouse.ts";
+import type { LiveFacts } from "../src/plugins/live.ts";
 import { serveGallery } from "./fixtures/images.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -217,16 +218,20 @@ describe("browser fetch", { skip }, () => {
         assert.equal(report.pages.filter((entry) => entry.consent !== undefined).length, 1);
     });
 
-    it("walks keyboard, motion, dark contrast, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
+    it("walks keyboard, motion, dark and increased contrast, forced colours, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
         const report = await audit({ seeds: ["/live-bad", "/live-clean", "/live-skip"].map((path) => `${site.origin}${path}`), maxPages: 3, sitemap: false, fetchResources: false, groups: { default: { rules: ["keyboard", "live", "privacy"], sample: "all" } } });
         const failed = report.findings.filter((finding) => finding.rule !== "groups/heterogeneous").map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`).toSorted((a, b) => a.localeCompare(b));
-        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/dark-contrast", "live/input-font-size", "live/reduced-motion"];
-        assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk"]);
+        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/forced-focus", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/contrast-enhanced", "live/dark-contrast", "live/forced-icons", "live/forced-opt-out", "live/input-font-size", "live/reduced-motion"];
+        assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk", "/live-skip live/contrast-more"]);
         const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
         assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
         assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
         assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", inMain: false, skipsTo: { target: "#main", main: true } });
         assert.ok(keyboard("/live-clean")?.complete);
+        assert.deepEqual(keyboard("/live-bad")?.stops.filter((stop) => stop.forced === false).map((stop) => stop.target), ["#ring"], "a box-shadow ring vanishes under forced colours");
+        const live = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.live as LiveFacts | undefined;
+        assert.deepEqual(live("/live-bad")?.forced.icons.map((element) => element.target), ["body > main > button:nth-of-type(2)", "body > main > button:nth-of-type(3)"], "gradient and masked icons vanish, text and inline SVG stay");
+        assert.deepEqual(live("/live-bad")?.forced.optOut.map((element) => element.target), ["body > main > p:nth-of-type(2)"]);
         assert.equal((report.pages.find((entry) => entry.url.pathname === "/live-skip")?.live as { dark?: unknown } | undefined)?.dark, undefined, "a page claiming no dark scheme is not judged in one");
     });
 

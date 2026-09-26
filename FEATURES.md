@@ -15,7 +15,7 @@ SPDX-License-Identifier: MIT
 - Only the sections that need a browser are rendered; the rest of the site is crawled over plain HTTP at full speed in the same run, and a section that renders its tags client-side can be detected on its own.
 - Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
 - Accessibility is checked in the rendered page against WCAG A and AA, so defects that scripts introduce are caught too.
-- Keyboard use, motion and speed are tried on a few pages per template: Tab must reach every control and show where focus is, animations must stop when the visitor asks for less motion, text must stay readable in the dark scheme a page offers, and Lighthouse scores and lab Core Web Vitals come from the same browser.
+- Keyboard use, motion and speed are tried on a few pages per template: Tab must reach every control and show where focus is, animations must stop when the visitor asks for less motion, text must stay readable in the dark scheme and the higher contrast a page offers, focus and icons must survive Windows high contrast, and Lighthouse scores and lab Core Web Vitals come from the same browser.
 
 ### The DNS behind every crawled host
 
