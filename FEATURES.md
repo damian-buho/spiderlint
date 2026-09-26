@@ -38,6 +38,7 @@ SPDX-License-Identifier: MIT
 - Each heavy image is one finding with the pages that use it, across the whole site rather than a sample of pages.
 - Images that ship far more pixels than they display, or have no width and height to hold their place, are flagged per template.
 - Measurements are cached with the image, so a re-run measures only what changed.
+- Fonts, style sheets and scripts are weighed the same way: fonts that are not WOFF2, font faces that hide text while they load, and bytes minification would save.
 
 ### Dead links, on the site and off it
 

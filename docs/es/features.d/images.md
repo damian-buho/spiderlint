@@ -12,5 +12,6 @@ SPDX-License-Identifier: MIT
 - Cada imagen pesada es un solo hallazgo con las páginas que la usan, en todo el sitio y no en una muestra de páginas.
 - Se señalan por plantilla las imágenes que envían muchos más píxeles de los que muestran, o que no tienen ancho y alto para reservar su espacio.
 - Las mediciones se guardan en caché con la imagen, así que una nueva ejecución solo mide lo que cambió.
+- Las fuentes, hojas de estilo y scripts se pesan igual: fuentes que no son WOFF2, tipografías que ocultan el texto mientras cargan y los bytes que ahorraría la minificación.
 
 <!-- textlint-enable -->

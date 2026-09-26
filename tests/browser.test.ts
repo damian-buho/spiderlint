@@ -172,6 +172,20 @@ describe("browser fetch", { skip }, () => {
         }
     });
 
+    it("finds a lazy hero four times its box and an eager image below the fold, and passes the clean twin", async () => {
+        const gallery = await serveGallery();
+        try {
+            const live = await audit({ seeds: [`${gallery.origin}/live`, `${gallery.origin}/live-clean`], maxPages: 2, sitemap: false, robots: false, cacheMode: "off", groups: { default: { rules: ["images:live"], sample: "all" } } });
+            const findings = live.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname} ${(finding.locations ?? []).join(", ")}`).toSorted((a, b) => a.localeCompare(b));
+            assert.equal(findings.length, 3, findings.join("; "));
+            assert.match(findings[0] ?? "", /^images\/lazy-above-fold \/live \/wide\.jpg at \d+ px$/);
+            assert.match(findings[1] ?? "", /^images\/lazy-below-fold \/live \/small\.webp at \d{4} px$/);
+            assert.equal(findings[2], "images/rendered-oversize /live /wide.jpg 400 px shown at 100 px");
+        } finally {
+            await gallery.close();
+        }
+    });
+
     it("judges a download by its headers", async () => {
         const download = await audit({ seeds: [`${site.origin}/big.bin`], fetch: "browser", maxPages: 1, sitemap: false });
         const http = download.pages[0]?.http;
