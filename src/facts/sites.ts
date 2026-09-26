@@ -7,7 +7,8 @@ import type { Config } from "../config/index.ts";
 import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { answerOf, type ProbeBucket } from "../crawl/links.ts";
-import { probe } from "../crawl/probe.ts";
+import { probe, RobotsDisallowed } from "../crawl/probe.ts";
+import type { RobotsFor } from "../crawl/robots.ts";
 import { width } from "../crawl/resources.ts";
 import { log } from "../logger.ts";
 import type { SiteContext, SiteExtractor } from "../plugins/types.ts";
@@ -31,17 +32,17 @@ function subjects(pages: Facts[], per: SiteExtractor["per"]): Map<string, Facts[
 }
 
 // One subject’s facts, abandoned with its probes once the extractor’s timeout passes.
-async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate" | "linkExclude">, dns: DnsClient, probes: ProbeBucket): Promise<unknown> {
+async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], config: Pick<Config, "allowPrivate" | "linkExclude">, dns: DnsClient, probes: ProbeBucket, robots: RobotsFor | undefined): Promise<unknown> {
     const timeout = extractor.timeout ?? TIMEOUT_MS;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
-    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) } };
+    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) } };
     const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(`timed out after ${timeout} ms`)), { once: true }));
     return Promise.race([extractor.extract(subject, context), expired]);
 }
 
 // Runs each active extractor once per subject, from `bucket` while fresh, and returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket): Promise<string[]> {
+export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket, robots?: RobotsFor): Promise<string[]> {
     const jobs = active.flatMap((extractor) => [...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members })));
     log.info({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length }, "site extractors start");
     const ran: string[] = [];
@@ -54,11 +55,12 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
             log.debug({ extractor: extractor.id, subject, cached: value !== undefined }, "site extractor subject");
             if (value === undefined) {
                 try {
-                    value = await runOne(extractor, subject, members, config, dns, probes);
+                    value = await runOne(extractor, subject, members, config, dns, probes, robots);
                     ran.push(extractor.id);
                     if (value !== undefined && extractor.cached !== false) await bucket.set(key, value);
                 } catch (error) {
-                    log.warn({ extractor: extractor.id, subject, error: reason(error) }, "site extractor failed");
+                    if (error instanceof RobotsDisallowed) log.debug({ extractor: extractor.id, subject, error: reason(error) }, "site extractor withheld by robots.txt");
+                    else log.warn({ extractor: extractor.id, subject, error: reason(error) }, "site extractor failed");
                 }
             }
             if (value === undefined) continue;

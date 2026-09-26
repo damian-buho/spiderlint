@@ -52,6 +52,27 @@ describe("well-known plugin", () => {
         assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
     });
 
+    it("sends no probe robots.txt disallows and judges none of those files", async () => {
+        const withheld = await serveWellKnown("withheld");
+        try {
+            const report = await audit({ seeds: [`${withheld.origin}/`], rules: ["well-known"], cacheMode: "off" });
+            assert.deepEqual(rules(report), ["well-known/registered"]);
+            assert.deepEqual(withheld.requested.filter((requested) => requested.startsWith("/.well-known/")), []);
+        } finally {
+            await withheld.close();
+        }
+    });
+
+    it("probes every file with robots.txt off", async () => {
+        const withheld = await serveWellKnown("withheld");
+        try {
+            const report = await audit({ seeds: [`${withheld.origin}/`], rules: ["well-known"], robots: false, cacheMode: "off" });
+            assert.ok(rules(report).includes("well-known/security-txt-valid"));
+        } finally {
+            await withheld.close();
+        }
+    });
+
     it("takes a soft 404’s HTML for absence, not for malformed files", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
         assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);

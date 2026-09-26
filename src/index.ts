@@ -322,6 +322,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
+    const robots = config.robots ? cache.robots : undefined;
     log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
     let fetched = 0;
@@ -336,7 +337,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
-            const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal }) };
+            const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
             const added = await extract(facts, body, chosen, live, context);
             sample.release(facts, chosen, added);
             counted(cost, added);
@@ -357,7 +358,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     if (isProbed) site.links = await probeLinks(memory.pages, config, probes);
     const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };

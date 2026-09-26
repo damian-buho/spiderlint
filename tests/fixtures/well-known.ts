@@ -77,8 +77,8 @@ function broken(origin: string): Record<string, File> {
     };
 }
 
-// An origin serving every well-known and agent file, `valid` or `broken`; anything else is an HTML 404.
-export async function serveWellKnown(kind: "valid" | "broken"): Promise<Origin> {
+// An origin serving every well-known and agent file, `valid` or `broken`, `withheld` being `broken` behind a robots.txt disallowing `/.well-known/`; anything else is an HTML 404.
+export async function serveWellKnown(kind: "valid" | "broken" | "withheld"): Promise<Origin> {
     const requested: string[] = [];
     let files: Record<string, File> = {};
     const server: Server = createServer((request, response) => {
@@ -91,5 +91,6 @@ export async function serveWellKnown(kind: "valid" | "broken"): Promise<Origin> 
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     files = kind === "valid" ? valid(origin) : broken(origin);
+    if (kind === "withheld") files["/robots.txt"] = [200, "text/plain", "User-agent: *\nDisallow: /.well-known/\n"];
     return { origin, requested, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }

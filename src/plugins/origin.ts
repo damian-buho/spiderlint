@@ -4,7 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { reason } from "../crawl/fetch.ts";
-import type { Probe } from "../crawl/probe.ts";
+import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import { log } from "../logger.ts";
 import { definePlugin, type SiteExtractor } from "./types.ts";
 
@@ -48,6 +48,7 @@ const entry: SiteExtractor = {
             log.debug({ url, status: answer.status, target }, "plain http entry probed");
             return { url, status: answer.status, https: target === `https://${hostname}/`, ...(target && { location: target }) };
         } catch (error) {
+            if (error instanceof RobotsDisallowed) throw error;
             log.debug({ url, error: reason(error) }, "plain http entry unreachable");
             return { url, error: reason(error) };
         }

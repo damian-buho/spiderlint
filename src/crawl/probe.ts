@@ -12,6 +12,7 @@ import { log } from "../logger.ts";
 import { delay, reason } from "./fetch.ts";
 import { guardedLookup, isPrivate, PrivateAddress } from "./guard.ts";
 import { pace } from "./network.ts";
+import type { RobotsFor } from "./robots.ts";
 
 const ATTEMPTS = 2;
 const TIMEOUT_MS = 10_000;
@@ -41,7 +42,12 @@ export interface ProbeOptions {
     host: string;
     allowPrivate: boolean;
     signal: AbortSignal;
+    // The run’s robots.txt verdicts; unset when `robots` is off.
+    robots?: RobotsFor;
 }
+
+// A probe robots.txt disallows for `spiderlint`, never sent.
+export class RobotsDisallowed extends Error {}
 
 // Reads at most MAX_BODY bytes of a response as text.
 async function text(response: IncomingMessage): Promise<{ body: string; truncated?: true }> {
@@ -97,6 +103,11 @@ export async function probe(href: string, init: ProbeInit, options: ProbeOptions
     let url = new URL(href);
     for (let hop = 0; ; hop += 1) {
         if (url.hostname !== options.host) throw new Error(`probe ${url.href} leaves host ${options.host}`);
+        const robots = await options.robots?.(url.href);
+        if (robots && !robots.isAllowed(url.href, "spiderlint")) {
+            log.info({ url: url.href }, "robots.txt disallows the probe; skipped");
+            throw new RobotsDisallowed(`robots.txt disallows ${url.href}`);
+        }
         const answer = await retrying(url, init, options);
         const location = answer.headers.location;
         const isRedirect = answer.status >= 300 && answer.status < 400 && typeof location === "string";

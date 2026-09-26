@@ -122,6 +122,14 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
 }
 
 // One check per origin or host whose facts carry the extractor’s key, keyed by that subject; only `when` paths under the same subjects apply.
+// A subject whose path runs through a probe robots.txt withheld is skipped, not failed.
+function isWithheld(facts: unknown, path: string, rule: string, subject: string): boolean {
+    const parts = path.split(".");
+    const withheld = parts.find((_part, index) => (get(facts, parts.slice(0, index + 1).join(".")) as { disallowed?: unknown } | undefined)?.disallowed === true);
+    if (withheld) log.debug({ rule, subject, path, withheld }, "rule skipped, robots.txt withheld its probe");
+    return withheld !== undefined;
+}
+
 function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNullable<ReturnType<typeof subjectPath>>, validate: ValidateFunction): AggregateRule {
     const severity = severityOf(id, spec, "warning");
     const prefix = `site.${subject.kind}.*.`;
@@ -131,7 +139,7 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     return {
         meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix },
         check(_pages, _group, site) {
-            const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !isSkipped(facts, name));
+            const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !isSkipped(facts, name) && !isWithheld(facts, subject.path, id, name));
             log.debug({ rule: id, subjects: judged.length }, "subjects judged");
             return judged.length === 0 ? undefined : judged.flatMap(([name, facts]) => {
                 const value = get(facts, subject.path);

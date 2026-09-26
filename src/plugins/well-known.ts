@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { reason } from "../crawl/fetch.ts";
-import type { Probe, ProbeInit } from "../crawl/probe.ts";
+import { RobotsDisallowed, type Probe, type ProbeInit } from "../crawl/probe.ts";
 import { isJudged } from "../crawl/links.ts";
 import type { Facts, LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -345,6 +345,7 @@ async function probeFile(origin: string, path: string, spec: Spec, context: Site
     try {
         answer = await context.fetch(url, { redirect: "follow" });
     } catch (error) {
+        if (error instanceof RobotsDisallowed) return { url, disallowed: true };
         log.debug({ url, error: reason(error) }, "well-known file unreachable");
         return { url, present: false, error: reason(error) };
     }
@@ -366,7 +367,7 @@ async function probeSpec(origin: string, spec: Spec, context: SiteContext): Prom
     for (const path of spec.paths) {
         const answer = await probeFile(origin, path, spec, context);
         if (answer.present) return answer;
-        first ??= answer;
+        if (!first || first.disallowed) first = answer;
     }
     return first as Record<string, unknown>;
 }
