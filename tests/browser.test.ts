@@ -217,16 +217,17 @@ describe("browser fetch", { skip }, () => {
         assert.equal(report.pages.filter((entry) => entry.consent !== undefined).length, 1);
     });
 
-    it("walks keyboard, motion, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
+    it("walks keyboard, motion, dark contrast, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
         const report = await audit({ seeds: ["/live-bad", "/live-clean", "/live-skip"].map((path) => `${site.origin}${path}`), maxPages: 3, sitemap: false, fetchResources: false, groups: { default: { rules: ["keyboard", "live", "privacy"], sample: "all" } } });
         const failed = report.findings.filter((finding) => finding.rule !== "groups/heterogeneous").map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`).toSorted((a, b) => a.localeCompare(b));
-        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/input-font-size", "live/reduced-motion"];
+        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/dark-contrast", "live/input-font-size", "live/reduced-motion"];
         assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk"]);
         const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
         assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
         assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
         assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", inMain: false, skipsTo: { target: "#main", main: true } });
         assert.ok(keyboard("/live-clean")?.complete);
+        assert.equal((report.pages.find((entry) => entry.url.pathname === "/live-skip")?.live as { dark?: unknown } | undefined)?.dark, undefined, "a page claiming no dark scheme is not judged in one");
     });
 
     it("runs Lighthouse in the crawler’s Chromium on sampled pages only", async () => {

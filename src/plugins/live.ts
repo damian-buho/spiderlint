@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "playwright";
 import { reason } from "../crawl/fetch.ts";
 import type { Facts } from "../facts/types.ts";
@@ -27,6 +28,8 @@ export interface LiveFacts {
     serviceWorkers: { scope: string; script?: string }[];
     // Present when the page defines `navigator.modelContext`.
     webmcp?: { tools: string[] };
+    // Text axe finds too faint in the dark scheme; present only when the page claims dark support.
+    dark?: (Element & { contrast?: string })[];
 }
 
 // What the page does under reduced motion, form fields below MIN_FONT, and the workers and WebMCP tools it registered.
@@ -46,8 +49,10 @@ const READ = `(async () => {
     });
     const registrations = (await navigator.serviceWorker?.getRegistrations()) ?? [];
     const serviceWorkers = registrations.map((registration) => ({ scope: registration.scope, ...((registration.active ?? registration.waiting ?? registration.installing) && { script: (registration.active ?? registration.waiting ?? registration.installing).scriptURL }) }));
+    const media = (sheet) => { try { return [sheet.media?.mediaText ?? "", ...[...sheet.cssRules].flatMap(function texts(rule) { return [rule.conditionText ?? "", ...(rule.cssRules ? [...rule.cssRules].flatMap(texts) : [])]; })]; } catch { return [sheet.media?.mediaText ?? ""]; } };
+    const isDark = [document.querySelector('meta[name="color-scheme"]')?.content ?? "", getComputedStyle(document.documentElement).colorScheme].some((value) => value.includes("dark")) || [...document.styleSheets].some((sheet) => media(sheet).some((text) => text.replaceAll(" ", "").includes("prefers-color-scheme:dark")));
     const tools = "modelContext" in navigator ? ((await navigator.modelContextTesting?.listTools?.()) ?? []).map((tool) => tool.name) : undefined;
-    return { motion, videos, inputs, serviceWorkers, ...(tools && { webmcp: { tools } }) };
+    return { motion, videos, inputs, serviceWorkers, ...(tools && { webmcp: { tools } }), isDark };
 })()`;
 
 // Describes an element CDP found taking clicks, when it is a `<div>` or `<span>` with no role outside a native control.
@@ -82,16 +87,26 @@ async function clickables(page: Page, url: string): Promise<Element[] | undefine
     }
 }
 
-// Reads a fresh copy of the page loaded under `prefers-reduced-motion: reduce`, leaving the crawler’s own page as rendered.
+// Text axe finds below its contrast ratio in the page as it renders now.
+async function faint(page: Page): Promise<(Element & { contrast?: string })[]> {
+    const results = await new AxeBuilder({ page }).withRules(["color-contrast"]).analyze();
+    return results.violations.flatMap((violation) => violation.nodes).map((node) => {
+        const data = node.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number; expectedContrastRatio?: string } | undefined;
+        return { target: node.target.flat().join(" >>> "), html: /^<[^>]*>/.exec(node.html)?.[0] ?? node.html, ...(data?.contrastRatio !== undefined && { contrast: `${data.fgColor} on ${data.bgColor} ${data.contrastRatio}:1, needs ${data.expectedContrastRatio}` }) };
+    });
+}
+
+// Reads a fresh copy of the page loaded as a visitor asking for reduced motion and a dark scheme, leaving the crawler’s own page as rendered.
 async function extract(page: Facts, _body: string, live?: Page): Promise<LiveFacts | undefined> {
     if (!live || !page.html) return;
     return withPage(live, async (fresh) => {
-        await fresh.emulateMedia({ reducedMotion: "reduce" });
+        await fresh.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
         await visit(fresh, page.url.href);
-        const facts = (await fresh.evaluate(READ)) as LiveFacts;
+        const { isDark, ...facts } = (await fresh.evaluate(READ)) as LiveFacts & { isDark: boolean };
+        const dark = isDark ? await faint(fresh) : undefined;
         const found = await clickables(fresh, page.url.href);
-        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts.serviceWorkers.length, webmcp: facts.webmcp?.tools.length }, "live page read");
-        return { ...facts, ...(found && { clickables: found }) };
+        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts.serviceWorkers.length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length }, "live page read");
+        return { ...facts, ...(found && { clickables: found }), ...(dark && { dark }) };
     });
 }
 
@@ -118,14 +133,20 @@ const inputFontSize = pageRule("live/input-font-size", [`${ID}.inputs`], (page) 
     return small.length === 0 ? [] : [{ message: `${plural(small.length, "form field is", "form fields are")} set under ${MIN_FONT} px, so iOS Safari zooms in on focus`, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
 }, { docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag", fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen." });
 
+const darkContrast = pageRule("live/dark-contrast", [`${ID}.dark`], (page) => {
+    const faintText = liveOf(page)?.dark;
+    if (!faintText) return;
+    return faintText.length === 0 ? [] : [{ message: `${plural(faintText.length, "element is", "elements are")} too faint to read in the dark scheme the page claims to support`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
+}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." });
+
 export default definePlugin({
     name: "live",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
-    rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize },
+    rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize, "live/dark-contrast": darkContrast },
     presets: {
         live: {
-            description: "The rendered page on sampled pages: motion under reduced-motion, click handlers on plain elements, form fields small enough to zoom",
-            rules: { "live/reduced-motion": "warning", "live/click-listener": "warning", "live/input-font-size": "info" },
+            description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme, click handlers on plain elements, form fields small enough to zoom",
+            rules: { "live/reduced-motion": "warning", "live/dark-contrast": "warning", "live/click-listener": "warning", "live/input-font-size": "info" },
         },
     },
 });

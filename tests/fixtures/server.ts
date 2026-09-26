@@ -40,7 +40,8 @@ const HINTED: Record<string, [string[], string]> = {
 
 // Pages the live checks walk: every defect, its clean twin, and a script that skips a button; THIRD is a third-party pixel.
 const LIVE: Record<string, string> = {
-    "/live-bad": `<!doctype html><html lang="en"><head><title>Live bad</title><style>
+    "/live-bad": `<!doctype html><html lang="en"><head><title>Live bad</title><meta name="color-scheme" content="light dark"><style>
+main p { color: #333 }
 header { position: sticky; top: 0; height: 200px; background: #fff; z-index: 1 }
 header a:focus { outline: none }
 .banner { position: fixed; top: 300px; bottom: 0; left: 0; right: 0; background: #eee }
@@ -49,7 +50,7 @@ header a:focus { outline: none }
 input { font-size: 12px }
 </style></head><body>
 <header><a href="/about">About</a></header>
-<main><div class="spin">Loading</div><div id="open">Open</div><input aria-label="Name"><div style="height: 2000px"></div><a href="/posts/1">Post</a>
+<main><p>Welcome</p><div class="spin">Loading</div><div id="open">Open</div><input aria-label="Name"><div style="height: 2000px"></div><a href="/posts/1">Post</a>
 <button id="a">A</button><button id="b">B</button></main>
 <div class="banner">We value your privacy</div>
 <img src="THIRD" alt="" width="1" height="1">
@@ -58,13 +59,15 @@ document.getElementById("open").addEventListener("click", () => {});
 document.getElementById("b").addEventListener("keydown", (event) => { if (event.key === "Tab") { event.preventDefault(); document.getElementById("a").focus(); } });
 localStorage.setItem("visitor", "1");
 </script></body></html>`,
-    "/live-clean": `<!doctype html><html lang="en"><head><title>Live clean</title><style>
+    "/live-clean": `<!doctype html><html lang="en"><head><title>Live clean</title><meta name="color-scheme" content="light dark"><style>
+main p { color: #333 }
+@media (prefers-color-scheme: dark) { body { background: #111; color: #eee } main p { color: #ddd } }
 @media (prefers-reduced-motion: no-preference) { .spin { animation: spin 1s linear infinite } }
 @keyframes spin { to { transform: rotate(360deg) } }
 input { font-size: 16px }
 </style></head><body>
 <a href="#main">Skip to content</a><nav><a href="/about">About</a></nav>
-<main id="main"><div class="spin">Loading</div><button id="open">Open</button><input aria-label="Name"><a href="/posts/1">Post</a></main>
+<main id="main"><p>Welcome</p><div class="spin">Loading</div><button id="open">Open</button><input aria-label="Name"><a href="/posts/1">Post</a></main>
 <script>document.getElementById("open").addEventListener("click", () => {});</script></body></html>`,
     "/live-skip": `<!doctype html><html lang="en"><head><title>Live skip</title></head><body>
 <a href="#main">Skip to content</a><main id="main"><button id="x">X</button><button id="y">Y</button><button id="z">Z</button></main>
