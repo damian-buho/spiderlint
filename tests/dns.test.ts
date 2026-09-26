@@ -40,10 +40,10 @@ async function extract(host: string, pages: Facts[], client: DnsClient): Promise
     return facts;
 }
 
-// Rule IDs the `dns` preset reports over a site document of these hosts, sorted.
-function findings(hosts: Record<string, Record<string, unknown>>): string[] {
+// Rule IDs `preset` reports over a site document of these hosts, sorted.
+function findings(hosts: Record<string, Record<string, unknown>>, preset = "dns"): string[] {
     const site: SiteFacts = { sitemaps: [], hosts };
-    const run = runRules([], new Map([["default", compileRulesets(["dns"], {})]]), site);
+    const run = runRules([], new Map([["default", compileRulesets([preset], {})]]), site);
     return run.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b));
 }
 
@@ -132,6 +132,25 @@ describe("dns plugin", () => {
         assert.ok(findings({ "bogus.fixture": validated }).includes("dns/dnssec-bogus"));
         const unvalidated = await extract("bogus.fixture", [], dnsClient(plain.server, off(), false));
         assert.equal((unvalidated.dnssec as { bogus?: boolean }).bogus, undefined);
+    });
+
+    it("passes a name that sends no mail and fails each dns:mail rule on one that does", async () => {
+        const quiet = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.deepEqual(quiet.mail, { mx: [{ preference: 0, exchange: "." }], spf: ["v=spf1 -all"], dmarc: { at: "quiet.fixture", record: "v=DMARC1; p=reject", policy: "reject" } });
+        assert.deepEqual(findings({ "quiet.fixture": quiet }, "dns:mail"), []);
+        const sending = await extract("www.bad.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal((sending.mail as { dmarc: { policy: string } }).dmarc.policy, "none", "a subdomain takes the organisational sp= policy");
+        assert.deepEqual(findings({ "www.bad.fixture": sending }, "dns:mail"), ["dns/dmarc-reject", "dns/null-mx", "dns/spf-none"]);
+        const silent = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.deepEqual(findings({ "good.fixture": silent }, "dns:mail"), ["dns/dmarc-reject", "dns/null-mx", "dns/spf-none"]);
+    });
+
+    it("records _for-sale and _agents as facts only", async () => {
+        const facts = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.deepEqual((facts.dns as { forSale: string[] }).forSale, ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"]);
+        assert.deepEqual((facts.dns as { agents: object[] }).agents, [{ priority: 1, target: "agents.quiet.fixture", alpn: ["h2"] }]);
+        const plainZone = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal("forSale" in (plainZone.dns as object), false);
     });
 
     it("never asks a name server directly when direct queries are off", async () => {

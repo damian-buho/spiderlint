@@ -55,7 +55,7 @@ function soa(name: string, serial: number): Answer {
     return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire: 86_400, minimum: 300 } } as Answer;
 }
 
-// `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `bogus.fixture` fails validation.
+// `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `quiet.fixture` passes `dns:mail`; `bogus.fixture` fails validation.
 const ZONES: Record<string, Zone> = {
     ".|SOA": { ad: true, answers: [soa(".", 1)] },
     "good.fixture|SOA": { answers: [soa("good.fixture", 7)], authoritative: true },
@@ -79,6 +79,15 @@ const ZONES: Record<string, Zone> = {
     "bad.fixture|NS": { answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }] },
     "ns1.bad.fixture|A": { answers: [{ type: "A", name: "ns1.bad.fixture", ttl: 300, data: "127.0.0.1" }] },
     "old.bad.fixture|A": { rcode: "NXDOMAIN", answers: [{ type: "CNAME", name: "old.bad.fixture", ttl: 300, data: "gone.elsewhere.fixture" }] },
+    "quiet.fixture|SOA": { answers: [soa("quiet.fixture", 1)] },
+    "quiet.fixture|MX": { answers: [{ type: "MX", name: "quiet.fixture", ttl: 300, data: { preference: 0, exchange: "." } }] },
+    "quiet.fixture|TXT": { answers: [{ type: "TXT", name: "quiet.fixture", ttl: 300, data: ["v=spf1", " -all"] }, { type: "TXT", name: "quiet.fixture", ttl: 300, data: ["site-verification=1"] }] },
+    "_dmarc.quiet.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.quiet.fixture", ttl: 300, data: ["v=DMARC1; p=reject"] }] },
+    "_for-sale.quiet.fixture|TXT": { answers: [{ type: "TXT", name: "_for-sale.quiet.fixture", ttl: 300, data: ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"] }] },
+    "_agents.quiet.fixture|UNKNOWN_64": { answers: [{ type: "UNKNOWN_64", name: "_agents.quiet.fixture", ttl: 300, data: svcb(1, "agents.quiet.fixture", [[1, alpn("h2")]]) } as unknown as Answer] },
+    "www.bad.fixture|MX": { answers: [{ type: "MX", name: "www.bad.fixture", ttl: 300, data: { preference: 10, exchange: "mail.bad.fixture" } }] },
+    "www.bad.fixture|TXT": { answers: [{ type: "TXT", name: "www.bad.fixture", ttl: 300, data: ["v=spf1 include:mail.bad.fixture ~all"] }] },
+    "_dmarc.bad.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.bad.fixture", ttl: 300, data: ["v=DMARC1; p=reject; sp=none"] }] },
     "bogus.fixture|SOA": { answers: [soa("bogus.fixture", 1)] },
     "bogus.fixture|DS": { answers: [{ type: "DS", name: "bogus.fixture", ttl: 300, data: { keyTag: 3, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
     "bogus.fixture|A": { bogus: true, answers: [{ type: "A", name: "bogus.fixture", ttl: 300, data: "192.0.2.3" }] },

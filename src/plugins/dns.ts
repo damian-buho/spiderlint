@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { isIP } from "node:net";
-import type { Answer, CaaData, DnskeyData, DsData, RrsigData, SoaData } from "dns-packet";
+import type { Answer, CaaData, DnskeyData, DsData, MxData, RrsigData, SoaData } from "dns-packet";
 import { getDomain } from "tldts";
 import type { DnsClient, Reply } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
@@ -44,6 +44,23 @@ type Data<T> = Answer & { data: T; ttl?: number };
 // The answers of `type`, in wire order.
 function records<T>(reply: Reply, type: string): Data<T>[] {
     return reply.answers.filter((answer) => answer.type === type) as Data<T>[];
+}
+
+// Each TXT record’s character-strings joined, as RFC 7208 §3.3 reads them.
+function texts(reply: Reply): string[] {
+    return records<Buffer | Buffer[]>(reply, "TXT").map(({ data }) => (Array.isArray(data) ? data : [data]).map((chunk) => chunk.toString("utf8")).join(""));
+}
+
+// Parsed SVCB-shaped records of `type` (`UNKNOWN_64` SVCB, `UNKNOWN_65` HTTPS); an unparsable one warns and is dropped.
+function services(host: string, reply: Reply, type: string): Svcb[] {
+    return records<Buffer>(reply, type).flatMap(({ data }) => {
+        try {
+            return [parseSvcb(data)];
+        } catch (error) {
+            log.warn({ host, type, error: reason(error) }, "SVCB record unparsable");
+            return [];
+        }
+    });
 }
 
 function isSameName(a: string, b: string): boolean {
@@ -137,34 +154,31 @@ const addresses: SiteExtractor = {
     async extract(host, context) {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
-        const [a, aaaa, https] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65")]);
+        const [a, aaaa, https, sale, agents] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64")]);
         const v4 = records<string>(a, "A").map(({ data, ttl }) => ({ address: data, ttl }));
         const v6 = records<string>(aaaa, "AAAA").map(({ data, ttl }) => ({ address: data, ttl }));
-        const services = records<Buffer>(https, "UNKNOWN_65").flatMap(({ data }): (Svcb & { hintsMatch?: boolean })[] => {
-            try {
-                const record: Svcb & { hintsMatch?: boolean } = parseSvcb(data);
-                const isHinted = record.ipv4hint !== undefined || record.ipv6hint !== undefined;
-                if (isHinted && (record.target === "." || isSameName(record.target, host))) record.hintsMatch = isSameSet(record.ipv4hint ?? [], v4.map((entry) => entry.address)) && isSameSet(record.ipv6hint ?? [], v6.map((entry) => entry.address));
-                return [record];
-            } catch (error) {
-                log.warn({ host, error: reason(error) }, "HTTPS record unparsable");
-                return [];
-            }
+        const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { hintsMatch?: boolean } => {
+            const isHinted = record.ipv4hint !== undefined || record.ipv6hint !== undefined;
+            return isHinted && (record.target === "." || isSameName(record.target, host)) ? { ...record, hintsMatch: isSameSet(record.ipv4hint ?? [], v4.map((entry) => entry.address)) && isSameSet(record.ipv6hint ?? [], v6.map((entry) => entry.address)) } : record;
         });
+        const forSale = texts(sale);
+        const agentServices = services(host, agents, "UNKNOWN_64");
         const authorised = await caa(host, zone, context.dns);
         const allowed = authorised && issuer(host, authorised, context.pages);
         const linked = await Promise.all(linkedHosts(host, zone, context.pages).map((name) => dangling(name, context.dns)));
         const broken = linked.filter((entry) => entry !== undefined);
-        log.debug({ host, zone, a: v4.length, aaaa: v6.length, https: services.length, caa: authorised?.at, dangling: broken.length }, "dns records read");
+        log.debug({ host, zone, a: v4.length, aaaa: v6.length, https: hinted.length, caa: authorised?.at, dangling: broken.length, forSale: forSale.length, agents: agentServices.length }, "dns records read");
         return {
             zone,
             a: v4,
             aaaa: v6,
             cname: records<string>(a, "CNAME").map(({ name, data, ttl }) => ({ name, target: data, ttl })),
-            https: services,
-            ...(services.some((record) => record.priority > 0) && { h3: { record: services.some((record) => record.alpn?.includes("h3")), altSvc: hasAltSvcH3(context.pages) } }),
+            https: hinted,
+            ...(hinted.some((record) => record.priority > 0) && { h3: { record: hinted.some((record) => record.alpn?.includes("h3")), altSvc: hasAltSvcH3(context.pages) } }),
             ...(authorised && { caa: { ...authorised, ...(allowed && { issuer: allowed }) } }),
             dangling: broken,
+            ...(forSale.length > 0 && { forSale }),
+            ...(agentServices.length > 0 && { agents: agentServices }),
         };
     },
 };
@@ -255,6 +269,60 @@ const nameservers: SiteExtractor = {
         const networks = new Set(servers.flatMap((server) => server.addresses.map((address) => network(address)))).size;
         log.debug({ host, zone, servers: names.length, serials, networks }, "name servers read");
         return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }) };
+    },
+};
+
+// The DMARC record at the host, else at its organisational domain, with the policy that applies to the host (RFC 7489 §6.6.3).
+async function dmarc(host: string, dns: DnsClient): Promise<{ at: string; record: string; policy?: string } | undefined> {
+    const names = new Set([host, getDomain(host, { allowPrivateDomains: true }) ?? host]);
+    for (const name of names) {
+        const record = texts(await dns.query(`_dmarc.${name}`, "TXT")).find((entry) => /^v=DMARC1\s*(;|$)/i.test(entry));
+        log.debug({ host, name, found: record !== undefined }, "dmarc looked up");
+        if (!record) continue;
+        const tags = new Map(record.split(";").map((tag) => tag.split("=", 2).map((part) => part.trim().toLowerCase()) as [string, string]));
+        const policy = name === host ? tags.get("p") : (tags.get("sp") ?? tags.get("p"));
+        return { at: name, record, ...(policy && { policy }) };
+    }
+}
+
+// MX, SPF and DMARC of one host, for the `dns:mail` rules a name that sends no mail passes.
+const mail: SiteExtractor = {
+    id: "mail",
+    per: "host",
+    cached: false,
+    resolves: true,
+    async extract(host, context) {
+        const zone = await zoneOf(host, context.dns);
+        if (!zone) return;
+        const [mx, txt, policy] = await Promise.all([context.dns.query(host, "MX"), context.dns.query(host, "TXT"), dmarc(host, context.dns)]);
+        const exchanges = records<MxData>(mx, "MX").map(({ data }) => ({ preference: data.preference ?? 0, exchange: data.exchange }));
+        const spf = texts(txt).filter((entry) => /^v=spf1(\s|$)/i.test(entry));
+        log.debug({ host, zone, mx: exchanges.length, spf: spf.length, dmarc: policy?.policy }, "mail records read");
+        return { mx: exchanges, spf, ...(policy && { dmarc: policy }) };
+    },
+};
+
+const MAIL: Record<string, RuleSpec> = {
+    "dns/null-mx": {
+        fact: "site.hosts.*.mail.mx",
+        expect: { minItems: 1, maxItems: 1, items: { properties: { preference: { const: 0 }, exchange: { const: "." } } } },
+        message: "no null MX, so senders queue mail for a name that takes none (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7505",
+    },
+    "dns/spf-none": {
+        fact: "site.hosts.*.mail.spf",
+        expect: { minItems: 1, maxItems: 1, items: { pattern: String.raw`^[vV]=[sS][pP][fF]1\s+-[aA][lL][lL]\s*$` } },
+        message: "SPF is not a lone v=spf1 -all, so mail forged from this name is not refused (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
+    },
+    "dns/dmarc-reject": {
+        fact: "site.hosts.*.mail.dmarc",
+        expect: { type: "object", required: ["policy"], properties: { policy: { const: "reject" } } },
+        message: "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
     },
 };
 
@@ -392,9 +460,10 @@ const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/dangling-cna
 // Records, CAA, DNSSEC and name servers of every crawled host, asked of the configured resolver.
 export default definePlugin({
     name: "dns",
-    sites: [addresses, dnssec, nameservers],
+    sites: [addresses, dnssec, nameservers, mail],
     presets: {
         dns: { description: "DNS of every crawled host: HTTPS records, CAA, DNSSEC, name servers, dangling CNAMEs", rules: RULES },
+        "dns:mail": { description: "Null MX, a deny-all SPF and a DMARC reject policy, for names that send and take no mail", rules: MAIL },
         "dns:core": { description: "HTTPS record, CAA, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: Object.fromEntries(CORE.map((id) => [id, RULES[id] as RuleSpec])) },
     },
 });
