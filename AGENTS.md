@@ -423,7 +423,7 @@ A `sites.<name>` entry takes every key above except `sites`, and each key it set
 replaces the shared one whole. Without a URL, `audit`, `crawl`, `lint`, `report`,
 `groups` and `cache` run once per site, `--site` narrows the set, and the exit code
 is the worst of the runs. Shared `targets` beside `sites` is a config error, and so
-is `json` or `sarif` over more than one site, since each is one document.
+is `json` or `sarif` over more than one site, since each is one document. The action therefore audits one `site` per step, each with its own report paths and SARIF category.
 
 The shape is registered in `projectfile/specification/spec/registry.yaml`
 with a fragment under `spec/shapes/org.spiderlint.yaml` once v1 ships.

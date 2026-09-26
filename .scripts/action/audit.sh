@@ -7,8 +7,9 @@
 # Crawls once into a runner-side store, then renders human and SARIF from it without the network.
 set -euo pipefail
 
-report_json="${RUNNER_TEMP}/spiderlint-report.json"
-report_sarif="${RUNNER_TEMP}/spiderlint-report.sarif"
+stem="spiderlint-report${SITE:+-${SITE//[^A-Za-z0-9._-]/_}}"
+report_json="${RUNNER_TEMP}/${stem}.json"
+report_sarif="${RUNNER_TEMP}/${stem}.sarif"
 cache="${RUNNER_TEMP}/spiderlint-cache"
 mkdir --parents "${cache}"
 # The container user differs from the runner's; the store keeps its own owner-only modes inside.
@@ -23,10 +24,13 @@ done <<< "${URLS}"
 if [ -n "${CONFIG_FILE}" ]; then
     args+=(--config "${CONFIG_FILE}")
 fi
+if [ -n "${SITE}" ]; then
+    args+=(--site "${SITE}")
+fi
 if [ -n "${RULES}" ]; then
     args+=(--rules "${RULES}")
 fi
-echo "Seeds: ${#args[@]} argument(s), fail_on=${FAIL_ON}, image=${IMAGE}"
+echo "Seeds: ${#args[@]} argument(s), site=${SITE:-all}, fail_on=${FAIL_ON}, image=${IMAGE}"
 
 if ! docker pull --quiet "${IMAGE}"; then
     echo "::warning::pull failed, trying a local ${IMAGE}"
