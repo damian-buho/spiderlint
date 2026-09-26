@@ -78,6 +78,12 @@ describe("cli", () => {
         }
     });
 
+    it("names the command that aborted", async () => {
+        const run = await spiderlint(directory, "explain", "nope/nope");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /"command":"explain".*"msg":"explain aborted"/);
+    });
+
     it("exits 2 naming a flag with an invalid value, without the whole usage", async () => {
         const run = await spiderlint(directory, "audit", "https://example.com/", "--format", "nope");
         assert.equal(run.code, 2);
@@ -99,7 +105,7 @@ describe("cli", () => {
         await writeFile(file, "");
         const run = await spiderlint(directory, "crawl", `${site.origin}/`, "--store", path.join(file, "store"));
         assert.equal(run.code, 4);
-        assert.match(run.stderr, /"msg":"audit aborted"/);
+        assert.match(run.stderr, /"msg":"crawl aborted"/);
     });
 
     it("keeps each site’s store in the user cache, owner-only, so lint needs only the url", async () => {

@@ -312,7 +312,7 @@ async function main(argv: string[]): Promise<number> {
     } catch (error) {
         const isConfig = error instanceof ConfigError;
         const isOfflineMiss = error instanceof OfflineMiss || error instanceof NothingStored;
-        log.error({ error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, "audit aborted");
+        log.error({ command, error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, `${command} aborted`);
         return isConfig ? 2 : isOfflineMiss ? 3 : 4;
     }
 }
