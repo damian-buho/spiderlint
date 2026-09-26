@@ -156,4 +156,10 @@ describe("plugins", () => {
         await assert.rejects(loadPlugins([clash]), (error: Error) => error instanceof ConfigError && error.message.includes("links/broken-internal"));
         await assert.rejects(loadPlugins(["./tests/fixtures/absent.ts"]), ConfigError);
     });
+
+    it("refuses a plugin redefining a built-in format or a source", async () => {
+        const clash = path.join(directory, "format-clash.mjs");
+        await writeFile(clash, 'export default { name: "format-clash", formatters: { json: () => "" }, sources: [{ id: "list", urls: async () => [] }] };');
+        await assert.rejects(loadPlugins([clash]), (error: Error) => error instanceof ConfigError && error.message.includes("format json, source list"));
+    });
 });

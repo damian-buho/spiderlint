@@ -23,8 +23,6 @@ export interface FoldConfig {
     min: number;
 }
 
-export type Format = "human" | "json" | "sarif" | "checkstyle" | "csv";
-
 export interface Config {
     seeds: string[];
     canonicalOrigin?: string;
@@ -51,13 +49,18 @@ export interface Config {
     sitemap: boolean;
     fold: FoldConfig | false;
     failOn: FailOn;
-    format: Format;
+    // A built-in format or one a loaded plugin adds.
+    format: string;
     disabledRules: string[];
     overrides: Record<string, Exclude<Severity, "off">>;
     rules?: string[];
     groups: Record<string, GroupConfig>;
     rulesets: Record<string, RulesetConfig>;
     plugins: string[];
+    // `<id>:<argument>` per plugin source whose URLs join the seeds.
+    sources: string[];
+    // Whether links and sitemap URLs join the seeds; a source that does not follow clears it.
+    follow: boolean;
     cacheMode: CacheMode;
     cacheTtl: Partial<Record<BucketName, number>>;
     // Whether site extractor probes may reach loopback, private and link-local addresses, and query name servers directly.
@@ -94,6 +97,8 @@ export function defaults(): Config {
         groups: {},
         rulesets: {},
         plugins: [],
+        sources: [],
+        follow: true,
         cacheMode: "use",
         cacheTtl: {},
         allowPrivate: true,

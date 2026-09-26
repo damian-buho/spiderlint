@@ -12,9 +12,11 @@ import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
 import { ConfigError, originOf, overlay, defaults, proxyOf, type Config, type FailOn } from "./config/index.ts";
-import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, FORMATS, parseInteger, pick, SCOPES } from "./config/environment.ts";
+import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
+import { formatNames, pluginFormatter, withSources } from "./plugins/index.ts";
+import type { Formatter } from "./plugins/types.ts";
 import { formatHuman } from "./report/human.ts";
 import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
@@ -54,6 +56,7 @@ Crawl:
   --max-body-size B     body cap in bytes (10000000)
   --include GLOB        crawl matching URLs only, repeatable
   --exclude GLOB        skip matching URLs, repeatable
+  --source ID:ARG       add a plugin source’s URLs, list:FILE crawls a URL list only, repeatable
   --no-robots           ignore robots.txt
   --no-sitemap          skip sitemap discovery
   --no-keepalive        one connection per request
@@ -72,7 +75,7 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json, sarif, checkstyle or csv (human)
+  --format FORMAT       human, json, sarif, checkstyle, csv or a plugin’s (human)
   --fail-on LEVEL       error, warning, info or never (error)
   --[no-]color          force or disable color (auto)
   --log-level LEVEL     trace, debug, info, warn, error or silent (info)
@@ -96,6 +99,7 @@ Examples:
   spiderlint audit https://example.com/
   spiderlint audit https://example.com/ --format sarif > report.sarif
   spiderlint audit https://example.com/ --rules all
+  spiderlint audit --source list:urls.txt
   spiderlint crawl https://example.com/
   spiderlint lint https://example.com/ --fail-on warning
   spiderlint rules security-headers
@@ -104,7 +108,7 @@ Examples:
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets", "explain"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS: Record<Config["format"], (report: Report, paint: Paint, isFull: boolean) => string> = { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv };
+const FORMATTERS: Record<string, Formatter> = { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv };
 
 // Title and headings bold, the command or flag column cyan, a trailing default dim, examples green.
 function usage(paint: Paint): string {
@@ -172,6 +176,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values["max-depth"] !== undefined && { maxDepth: parseInteger("--max-depth", values["max-depth"] as string) }),
         ...(values["max-body-size"] !== undefined && { maxBodySize: parseInteger("--max-body-size", values["max-body-size"] as string) }),
         ...(values.include !== undefined && { include: values.include as string[] }),
+        ...(values.source !== undefined && { sources: values.source as string[] }),
         ...(values.exclude !== undefined && { exclude: values.exclude as string[] }),
         ...(values.robots !== undefined && { robots: values.robots as boolean }),
         ...(values.sitemap !== undefined && { sitemap: values.sitemap as boolean }),
@@ -179,7 +184,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: pick("--fail-on", values["fail-on"] as string, FAIL_ONS) }),
-        ...(values.format !== undefined && { format: pick("--format", values.format as string, FORMATS) }),
+        ...(values.format !== undefined && { format: values.format as string }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
         ...(values.rules !== undefined && { rules: (values.rules as string[]).flatMap((raw) => splitIds(raw)) }),
         ...(Object.keys(overrides).length > 0 && { overrides }),
@@ -224,6 +229,7 @@ function parseFlags(argv: string[]) {
                 "max-depth": { type: "string" },
                 "max-body-size": { type: "string" },
                 include: { type: "string", multiple: true },
+                source: { type: "string", multiple: true },
                 exclude: { type: "string", multiple: true },
                 robots: { type: "boolean" },
                 sitemap: { type: "boolean" },
@@ -321,13 +327,16 @@ async function main(argv: string[]): Promise<number> {
 async function run(command: string, seeds: string[], targets: string[], bucket: string | undefined, config: Config, values: Flags): Promise<number> {
     const isStored = ["crawl", "lint", "report"].includes(command);
     {
+        await loadPlugins(config.plugins);
         if (targets.length > 0) config.seeds = targets;
+        config = await withSources(config);
         const invalid = config.seeds.find((seed) => !URL.canParse(seed) || !["http:", "https:"].includes(new URL(seed).protocol));
         if (invalid !== undefined) throw new ConfigError(`${invalid}: not an http or https URL`);
         // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
         log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
-        const format = FORMATTERS[config.format];
+        const formatName = pick("--format", config.format, formatNames());
+        const format = FORMATTERS[formatName] ?? pluginFormatter(formatName);
         const failOn = RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "groups"].includes(command) || (command === "cache" && seeds[0] === "warm");
         if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store)) {

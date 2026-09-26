@@ -225,8 +225,8 @@ function fetchMode(config: Config): "http" | "browser" {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage } = config;
-    const shape = { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage };
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
+    const shape = { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 

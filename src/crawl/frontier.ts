@@ -112,7 +112,7 @@ export class Frontier {
 
     // A sitemap URL still unvisited once the link crawl settles joins the frontier as its own root.
     #stragglers(): string[] {
-        if (this.#sitemap.size === 0 || this.#config.seeds.length === 0) return [];
+        if (this.#sitemap.size === 0 || this.#config.seeds.length === 0 || !this.#config.follow) return [];
         const reference = new URL(this.#config.seeds[0] as string);
         const { include, exclude } = this.#globs;
         const extra = this.#sitemap
@@ -209,8 +209,9 @@ export class Frontier {
         };
     }
 
-    // The page’s anchors, then its head feeds, queued under the scope and globs; returns how many were new.
+    // The page’s anchors, then its head feeds, queued under the scope and globs unless the seeds are the whole frontier; returns how many were new.
     async enqueue(enqueueLinks: EnqueueLinks, facts: Facts): Promise<number> {
+        if (!this.#config.follow) return 0;
         const options = { strategy: STRATEGY[this.#config.scope], transformRequestFunction: this.transformRequestFunction };
         const heads = facts.html?.head.links ?? [];
         const feeds = heads.filter((link) => /\balternate\b/i.test(link.rel ?? "") && FEED_TYPES.has(link.type?.toLowerCase() ?? "")).flatMap((link) => (link.href ? [link.href] : []));

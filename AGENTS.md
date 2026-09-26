@@ -20,9 +20,9 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `sarif`, `checkstyle`, `csv`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules and presets, browser-mode
+`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
 extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, plugin formatters and sources, `lighthouse` and localised
+fetch mode per group, `lighthouse` and localised
 messages.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -409,6 +409,7 @@ org:
     fail-on: error
     format: human
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
+    sources: []                        # <id>:<argument>, list:urls.txt crawls those URLs only
     groups: { … }
     rulesets: { … }
     sites:                             # optional; one run and one store per site
@@ -445,7 +446,7 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
-`--rate`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include`, `--exclude`, `--proxy`, `--no-robots`,
+`--rate`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include`, `--exclude`, `--source`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--no-keepalive`, `--no-resources`, `--format`, `--fail-on`, `--unfold`, `--disabled-rules`,
 `--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
@@ -459,10 +460,12 @@ export default definePlugin({
   rules:      { 'html-validate/no-dup-id': (severity) => ({ meta, check }) }, // the built-ins’ shape
   presets:    { 'html-validate': { description, rules } },
   resources:  [{ id: 'images', types: ['image/png'], async extract(url, contentType, body) {…} }], // facts land under resources[].images
+  formatters: { junit: (report, paint, isFull) => '…' },                         // --format junit
+  sources:    [{ id: 'list', follow: false, async urls(argument, signal) {…} }], // sources: [list:urls.txt]
 })
 ```
 
-- Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset or extractor ID is a config error.
+- Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset, extractor, format or source ID is a config error.
 - An extractor runs on a page only when a rule of the page’s group reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
 - Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
 - Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
@@ -473,7 +476,10 @@ export default definePlugin({
 - `dns` runs three `per: host` extractors, `cached: false` so they skip the `origins` bucket and each answer lives in the `dns` bucket for its record TTL. They query `context.dns`: the `resolver` servers over UDP with TCP on truncation, `DO` and `AD` set, 3 s per try, 2 tries per server. IP literals and special-use or overlay names (`localhost`, `test`, `invalid`, `example`, `local`, `onion`, `i2p`, `alt`, `internal`, `home.arpa`) are never queried; the zone is the nearest name answering `SOA` at or below the registrable domain (`tldts`, private suffixes included). `dns` holds `zone`, `a`, `aaaa`, `cname`, `https` (RFC 9460, parsed by `crawl/svcb.ts`, `hintsMatch` where the target is the owner), `h3` (`record` vs `altSvc` of the host’s pages), `caa` (RFC 8659 climb to the registrable domain, `issuer` from the served certificate’s organisation through a CA map, absent when unknown) and `dangling` (linked or loaded names under the zone, at most 32, whose CNAME ends in NXDOMAIN). `dnssec` holds `signed`, `ds`, `dnskey`, `ad`, `rrsig` (`expires`, `daysLeft`, `left` share of the validity window) and `nsec3`; `bogus` is present only when the resolver sets `AD` on the root SOA, otherwise one run-level warning. `nameservers` holds `servers` (each asked for the zone SOA directly, recursion off), `serials` and `networks` (distinct /24 and /48). Presets `dns` (17 rules) and `dns:core` (`https-record`, `caa`, `caa-issuer`, `dangling-cname`, `dnssec`, `dnssec-bogus`, which skip `nameservers`); `recommended` carries `dns:core`.
 - `resources: [{ id, types, extract(url, contentType, body) }]` reads the body of every fetched `2xx` resource whose content type starts with one of `types`, as bytes, during its one `GET`; a body cut at `max-body-size` is read by none. It runs only when an enabled rule reads `resources.<id>`, facts land under `<id>` on every page’s entry for that URL, and they are stored with the response in the `resources` bucket, so a fresh or `304` answer reuses them; an entry an active extractor never read is fetched again in full. `undefined` adds nothing; a throw warns and leaves the key absent.
 - An extractor with `cost: expensive` runs on at most the group’s `sample` pages; `cheap`, the default, on every page.
-- Later: `formatters` and `sources`; the `extractors` cache bucket.
+- `formatters` maps a format name to `(report, paint, isFull) => string`; `--format` resolves it after the built-ins, and an unknown name lists every loaded one.
+- `sources` entries are `<id>:<argument>`; each source’s URLs join the seeds before the store is chosen, so they name it as seeds do. A source with `follow: false` makes the seeds the whole frontier: no link or sitemap URL joins them, while sitemaps are still read for their facts. A throw or 60 s without an answer is a config error.
+- `list` is the bundled source: one URL per line of a file (`-` for stdin), empty lines and `#` comments skipped, `follow: false`.
+- Later: the `extractors` cache bucket.
 - `html-validate` runs html-validate’s `recommended` and `document` presets. `require-sri` is narrowed to cross-origin scripts, which `resources/sri` also judges. A rendered DOM is Chromium’s serialisation, so browser mode adds html-validate’s `browser` preset. A body truncated at `max-body-size` is skipped: its cut-off elements would all fail. Facts are `htmlvalidate.messages[]` (`rule`, `message`, `severity`, `line`, `column`, `offset`, `size`, `selector`, `source` — the tag at the offset — and `context`); each html-validate rule is the rule `html-validate/<id>`, one finding per distinct message per page with its locations as the value and `line:column selector <tag>` as `locations`. Presets: `html-validate`, `html-validate:standard`, `html-validate:a11y`, `html-validate:document`; `all` carries them, `recommended` does not.
 - `htmlhint` runs htmlhint’s default ruleset and the rules it ships off that judge a defect rather than a house style (no quote, indent, attribute order or inline-script policy); a truncated body is skipped. Facts are `htmlhint.messages[]` (`rule`, `type`, `message`, `line`, `column`, `source` — htmlhint’s `raw` tag); each htmlhint rule is the rule `htmlhint/<id>` at the level htmlhint reports it, shaped as `html-validate`’s through `messages.ts`. Presets: `htmlhint` (the default ruleset), `htmlhint:extra` (the rest); `all` carries them, `recommended` does not.
 - `axe` (`cost: expensive`) runs axe-core through `@axe-core/playwright` in the crawler’s own rendered page (pa11y would launch a second browser), with axe’s default rule set: no experimental, AAA or obsolete rules. Facts are `axe.version`, `axe.violations[]` and `axe.incomplete[]` (`rule`, `impact`, `tags`, `description`, `help`, `error`, and `nodes[]` with `target`, `html`, `xpath`, `ancestry`, `impact`, `summary` and the `any`/`all`/`none` checks, each with `message`, `data` and `related` elements); each axe rule is the rule `axe/<id>`, one finding per violated rule per page with its impact and elements as the value and `selector <tag>, related: …` as `locations`. Presets: `axe` (WCAG A and AA rules as errors, best practices as warnings), `axe:wcag`, `axe:best-practice`; `all` carries them, `recommended` does not.
@@ -538,7 +544,7 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-└── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, origin, dns, images, well-known, feeds, structured-data, manifest, link-text, markup and trackers (lighthouse next)
+└── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, origin, dns, images, well-known, feeds, structured-data, manifest, link-text, markup, trackers and list (lighthouse next)
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
 docs/                   # features.d/, es/, uk/

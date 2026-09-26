@@ -5,7 +5,8 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Page } from "playwright";
-import { ConfigError } from "../config/index.ts";
+import { FORMATS } from "../config/environment.ts";
+import { ConfigError, type Config } from "../config/index.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -19,15 +20,18 @@ import htmlValidate from "./html-validate.ts";
 import htmlhint from "./htmlhint.ts";
 import images from "./images.ts";
 import linkText from "./link-text.ts";
+import list from "./list.ts";
 import manifest from "./manifest.ts";
 import markup from "./markup.ts";
 import origin from "./origin.ts";
 import structuredData from "./structured-data.ts";
 import trackers from "./trackers.ts";
-import type { Extractor, PageContext, Plugin, ResourceExtractor, SiteExtractor } from "./types.ts";
+import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers];
+const plugins: Plugin[] = [htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
+// Milliseconds before a source that has not answered aborts the run.
+const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.
@@ -42,6 +46,20 @@ export function pluginPreset(name: string): RulesetConfig | undefined {
 
 export function pluginPresetNames(): string[] {
     return plugins.flatMap((plugin) => Object.keys(plugin.presets ?? {}));
+}
+
+// A formatter a plugin adds, by format name.
+export function pluginFormatter(name: string): Formatter | undefined {
+    return plugins.find((plugin) => plugin.formatters?.[name])?.formatters?.[name];
+}
+
+// Every format name: the built-ins, then the plugins’.
+export function formatNames(): string[] {
+    return [...FORMATS, ...plugins.flatMap((plugin) => Object.keys(plugin.formatters ?? {}))];
+}
+
+function allSources(): Source[] {
+    return plugins.flatMap((plugin) => plugin.sources ?? []);
 }
 
 function allExtractors(): Extractor[] {
@@ -77,10 +95,12 @@ function register(plugin: Plugin): void {
     const extractors = (plugin.extractors ?? []).map((extractor) => extractor.id).filter((id) => taken.has(id));
     const sites = (plugin.sites ?? []).filter((site) => allSiteExtractors().some((other) => other.id === site.id && other.per === site.per)).map((site) => `site.${site.per}s.*.${site.id}`);
     const resources = (plugin.resources ?? []).filter((resource) => allResourceExtractors().some((other) => other.id === resource.id)).map((resource) => `resources.${resource.id}`);
-    const clash = [...rules, ...presets, ...extractors, ...sites, ...resources];
+    const formatters = Object.keys(plugin.formatters ?? {}).filter((name) => formatNames().includes(name)).map((name) => `format ${name}`);
+    const sources = (plugin.sources ?? []).filter((source) => allSources().some((other) => other.id === source.id)).map((source) => `source ${source.id}`);
+    const clash = [...rules, ...presets, ...extractors, ...sites, ...resources, ...formatters, ...sources];
     if (clash.length > 0) throw new ConfigError(`plugin ${plugin.name}: ${clash.join(", ")} already defined`);
     plugins.push(plugin);
-    log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0, sites: plugin.sites?.length ?? 0, resources: plugin.resources?.length ?? 0 }, "plugin registered");
+    log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0, sites: plugin.sites?.length ?? 0, resources: plugin.resources?.length ?? 0, formatters: Object.keys(plugin.formatters ?? {}), sources: (plugin.sources ?? []).map((source) => source.id) }, "plugin registered");
 }
 
 // Imports each named plugin once: a path from the working directory, else a package installed beside spiderlint.
@@ -102,6 +122,27 @@ export async function loadPlugins(names: string[]): Promise<void> {
         loaded.add(name).add(module.default.name);
         log.info({ plugin: module.default.name, specifier }, "plugin loaded");
     }
+}
+
+// Seeds with each `sources` entry’s URLs appended; one source that does not follow makes them the whole frontier.
+export async function withSources(config: Config): Promise<Config> {
+    let { seeds, follow } = config;
+    for (const entry of config.sources) {
+        const [id = "", ...rest] = entry.split(":");
+        const argument = rest.join(":");
+        const source = allSources().find((candidate) => candidate.id === id);
+        if (!source) throw new ConfigError(`source ${id}: unknown (known: ${allSources().map((candidate) => candidate.id).join(", ")})`);
+        let urls: string[];
+        try {
+            urls = await source.urls(argument, AbortSignal.timeout(SOURCE_MS));
+        } catch (error) {
+            throw new ConfigError(`source ${entry}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        seeds = [...seeds, ...urls];
+        follow &&= source.follow !== false;
+        log.info({ source: id, argument, urls: urls.length, follow }, "source read");
+    }
+    return { ...config, seeds: [...new Set(seeds)], follow };
 }
 
 // Extractors whose ID is the first key of a fact some rule reads.

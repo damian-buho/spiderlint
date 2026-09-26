@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 import type { Page } from "playwright";
+import type { Paint } from "../color.ts";
 import type { DnsClient } from "../crawl/dns.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
 import type { Facts, LinkFacts } from "../facts/types.ts";
+import type { Report } from "../index.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
 
 // Facts from one fetched page and its body, stored under `id`; undefined adds nothing.
@@ -56,6 +58,17 @@ export interface SiteExtractor {
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 
+// A report as text; `isFull` when folding is off.
+export type Formatter = (report: Report, paint: Paint, isFull: boolean) => string;
+
+// URLs for the frontier, read from what follows `<id>:` in `sources`.
+export interface Source {
+    id: string;
+    // `false` makes its URLs the whole frontier: no link or sitemap URL joins them.
+    follow?: false;
+    urls(argument: string, signal: AbortSignal): Promise<string[]>;
+}
+
 // A plugin module’s default export.
 export interface Plugin {
     name: string;
@@ -64,6 +77,8 @@ export interface Plugin {
     resources?: ResourceExtractor[];
     rules?: Record<string, Make>;
     presets?: Record<string, RulesetConfig>;
+    formatters?: Record<string, Formatter>;
+    sources?: Source[];
 }
 
 // Types a plugin’s default export.

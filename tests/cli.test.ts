@@ -91,6 +91,29 @@ describe("cli", () => {
         assert.doesNotMatch(run.stderr, /Usage:/);
     });
 
+    it("formats with a plugin formatter and seeds from a plugin source, which follows links", async () => {
+        const project = await mkdtemp(path.join(directory, "output-"));
+        const plugin = fileURLToPath(new URL("fixtures/output-plugin.ts", import.meta.url));
+        await writeFile(path.join(project, "spiderlint.yaml"), ["org:", "  spiderlint:", `    plugins: [${plugin}]`, `    sources: ["pair:${site.origin}"]`].join("\n"));
+        const run = await spiderlint(project, "audit", "--config", "spiderlint.yaml", "--format", "paths", "--no-cache", "--no-sitemap", "--fail-on", "never");
+        assert.equal(run.code, 0, run.stderr);
+        const paths = run.stdout.trim().split("\n");
+        assert.ok(paths.includes("/about") && paths.includes("/orphan") && paths.length > 2, run.stdout);
+    });
+
+    it("crawls a list:FILE source as the whole frontier, and refuses an unknown source", async () => {
+        const project = await mkdtemp(path.join(directory, "list-"));
+        const plugin = fileURLToPath(new URL("fixtures/output-plugin.ts", import.meta.url));
+        await writeFile(path.join(project, "spiderlint.yaml"), ["org:", "  spiderlint:", `    plugins: [${plugin}]`].join("\n"));
+        await writeFile(path.join(project, "urls.txt"), ["# two pages", `${site.origin}/about`, "", `${site.origin}/orphan`].join("\n"));
+        const run = await spiderlint(project, "audit", "--config", "spiderlint.yaml", "--source", "list:urls.txt", "--format", "paths", "--no-cache", "--fail-on", "never");
+        assert.equal(run.code, 0, run.stderr);
+        assert.equal(run.stdout, "/about\n/orphan\n");
+        const unknown = await spiderlint(project, "audit", "--config", "spiderlint.yaml", "--source", "nope:x", "--no-cache");
+        assert.equal(unknown.code, 2);
+        assert.match(unknown.stderr, /source nope: unknown \(known: list, pair\)/);
+    });
+
     it("exits 3 on lint and report of a site never crawled, creating no store", async () => {
         for (const command of ["lint", "report"]) {
             const run = await spiderlint(directory, command, "https://never-crawled.example/");
