@@ -6,7 +6,7 @@ import { isJudged } from "../crawl/links.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { robotsRules } from "./robots.ts";
-import type { Finding, Make, Severity } from "./types.ts";
+import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({
@@ -76,7 +76,7 @@ const sitemapUnreadable: Make = (severity) => ({
 });
 
 // A header's value, repeated fields joined; absent is empty.
-function header(page: Facts, name: string): string {
+export function header(page: Facts, name: string): string {
     const value = page.http.headers[name] ?? "";
     return Array.isArray(value) ? value.join(", ") : value;
 }
@@ -94,7 +94,7 @@ const frameOptions: Make = (severity) => ({
 });
 
 // Absolute targets of the `Link` entries carrying relation token `relation`.
-function linkTargets(raw: string, relation: string, base: string): string[] {
+export function linkTargets(raw: string, relation: string, base: string): string[] {
     const carries = new RegExp(String.raw`;\s*rel="?[^";]*\b${relation}\b`, "i");
     const entries = raw.match(/<[^>]*>[^,<]*/g) ?? [];
     return entries.filter((entry) => carries.test(entry)).map((entry) => resolve(entry.slice(1, entry.indexOf(">")), base));
@@ -114,7 +114,7 @@ const earlyHintsPreload: Make = (severity) => ({
 });
 
 // Fragment-free absolute form of a URL relative to the page; an unparsable value stays as written.
-function resolve(raw: string, base: string): string {
+export function resolve(raw: string, base: string): string {
     if (!URL.canParse(raw, base)) return raw;
     const url = new URL(raw, base);
     url.hash = "";
@@ -170,10 +170,28 @@ const consistentOrigin: Make = (severity) => ({
 
 export type Verdict = (resource: ResourceFacts, pages: number) => string | undefined;
 
-// A site rule keyed by resource URL: one finding per offending resource, its pages as `urls`.
-export function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict, facts = ["resources"], valueOf = (resource: ResourceFacts): unknown => resource.http?.status): Make {
+// A rule's docs link and one-line fix.
+export type Guide = Pick<RuleMeta, "docs" | "fix">;
+
+// What one page finding says; the rule fills in the rest.
+export type Offence = Pick<Finding, "message" | "value" | "locations">;
+
+// A page rule: one finding per offence `judge` returns, none when empty, skipped when undefined.
+export function pageRule(id: string, facts: string[], judge: (page: Facts) => Offence[] | undefined, guide: Guide = {}): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "site", facts },
+        meta: { id, severity, scope: "page", facts, ...guide },
+        check(page: Facts) {
+            const offences = judge(page);
+            log.debug({ rule: id, url: page.url.href, offences: offences?.length }, "page judged");
+            return offences?.map((offence) => ({ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, ...offence }));
+        },
+    });
+}
+
+// A site rule keyed by resource URL: one finding per offending resource, its pages as `urls`.
+export function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict, facts = ["resources"], valueOf = (resource: ResourceFacts): unknown => resource.http?.status, guide: Guide = {}): Make {
+    return (severity) => ({
+        meta: { id, severity, scope: "site", facts, ...guide },
         check(pages: Facts[]) {
             const usedBy = new Map<string, { resource: ResourceFacts; urls: string[] }>();
             const uses = pages.flatMap((page) => (page.resources ?? []).filter((resource) => isUsed(page, resource)).map((resource) => ({ page, resource })));
