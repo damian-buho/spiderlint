@@ -324,7 +324,8 @@ a long `max-age`), `resources/sri` (cross-origin script or style without
 and keyed by RESOURCE URL: a CDN script every page loads is one finding with
 `usedBy` and sample pages, never one per page. In browser mode a resource the page
 loaded is answered from Chromium’s network log, its body kept only for a type a
-resource extractor reads; only the rest is fetched.
+resource extractor reads; only the rest is fetched, an image with the `Accept`
+Chromium sends for one, so an origin negotiating AVIF or WebP answers as it would a browser.
 
 `recommended` also carries `http/consistent-origin` (`scope: site`, `info`): for
 each host it reports when `tls.cert.fingerprint256`, `tls.protocol`,

@@ -17,6 +17,9 @@ import { log } from "../logger.ts";
 
 type ResourceHttp = NonNullable<ResourceFacts["http"]>;
 
+// The Accept header Chromium sends for an image, so an origin negotiating AVIF or WebP answers as it would a browser.
+const IMAGE_ACCEPT = { accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" };
+
 // Pool width: `concurrency` when set, else NUMPROCS when the environment sets it, else the host's parallelism.
 export function width(concurrency = 0): number {
     if (concurrency > 0) return concurrency;
@@ -97,10 +100,10 @@ function isServed(stored: Stored<Consumed>, extractors: ResourceExtractor[]): bo
     return readers(extractors, stored.status, mediaType(stored.headers["content-type"])).every((extractor) => read.has(extractor.id));
 }
 
-// One cached or retried GET; a final failure is status 0 with its error.
-async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache): Promise<ResourceResults[string]> {
+// One cached or retried GET with `sent` headers; a final failure is status 0 with its error.
+async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache, sent: Record<string, string>): Promise<ResourceResults[string]> {
     try {
-        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors, cache), false, (stored) => isServed(stored, extractors));
+        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors, cache), false, (stored) => isServed(stored, extractors), sent);
         const { bytes, facts } = value;
         log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
         const contentType = mediaType(headers["content-type"]);
@@ -142,14 +145,15 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
 export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined)): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
-    log.info({ resources: urls.length, references: entries.length, fetch: config.fetchResources }, "resources found");
+    const images = new Set(entries.filter((entry) => entry.kind === "image").map((entry) => entry.url));
+    log.info({ resources: urls.length, references: entries.length, images: images.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
     const results = new Map<string, ResourceResults[string]>();
     const queue = urls.values();
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchOne(url, config.maxBodySize, bucket, extractors, cache));
+            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchOne(url, config.maxBodySize, bucket, extractors, cache, images.has(url) ? IMAGE_ACCEPT : {}));
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
