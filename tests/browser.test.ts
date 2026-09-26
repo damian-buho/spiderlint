@@ -124,7 +124,7 @@ describe("browser fetch", { skip }, () => {
         const facts = redirected.pages[0];
         assert.equal(facts?.url.pathname, "/about");
         assert.equal(facts?.crawl.requested, `${site.origin}/old-about`);
-        assert.deepEqual(facts?.http.redirects, [{ url: `${site.origin}/about` }]);
+        assert.deepEqual(facts?.http.redirects.map((hop) => [hop.url, hop.status]), [[`${site.origin}/about`, 301]]);
         assert.deepEqual(facts?.http.remote, { address: "127.0.0.1", family: "IPv4" });
         assert.equal(facts?.http.headers.server, "fixture-a");
         assert.equal(facts?.http.contentType, "text/html");

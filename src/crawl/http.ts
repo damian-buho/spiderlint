@@ -9,7 +9,7 @@ import type { Config } from "../config/index.ts";
 import { ACCEPT_ENCODING, capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
-import { cookieFacts, earlyHintsHook, redactHeaders, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
+import { cookieFacts, earlyHintsHook, redactHeaders, redirectHook, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Earlier, type OnPage } from "./frontier.ts";
@@ -57,6 +57,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
     const frontier = await Frontier.open(config, cache);
     const revalidating = new WeakMap<object, Earlier>();
     const hinted = new WeakMap<object, NonNullable<Facts["http"]["earlyHints"]>>();
+    const hopped = new WeakMap<object, Facts["http"]["redirects"]>();
     let revalidatedPages = 0;
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
     const crawler = new CheerioCrawler(
@@ -69,7 +70,9 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                     Object.assign(gotOptions, { decompress: false, headers: { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-encoding": ACCEPT_ENCODING } });
                     const hints: NonNullable<Facts["http"]["earlyHints"]> = [];
                     hinted.set(request, hints);
-                    Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), earlyHintsHook(request.url, hints)] } });
+                    const hops: Facts["http"]["redirects"] = [];
+                    hopped.set(request, hops);
+                    Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), earlyHintsHook(request.url, hints)], beforeRedirect: [...(gotOptions.hooks?.beforeRedirect ?? []), redirectHook(hops)] } });
                     const earlier = config.cacheMode === "use" ? await storage?.earlier?.(request.url) : undefined;
                     const conditional = earlier ? validators(earlier.facts.http.headers) : {};
                     log.debug({ url: request.url, isStored: earlier !== undefined, conditional: Object.keys(conditional) }, "page revalidation decided");
@@ -110,7 +113,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                     http: {
                         status: response.statusCode ?? 0,
                         ...(cap?.source.httpVersion && { version: cap.source.httpVersion }),
-                        redirects: (cap?.source.redirectUrls ?? []).map((redirect) => ({ url: String(redirect) })),
+                        redirects: (cap?.source.redirectUrls ?? []).map((redirect, index, all) => hopped.get(request)?.at(index - all.length) ?? { url: String(redirect) }),
                         headers: redactHeaders(response.headers),
                         ...(cap?.remote && { remote: cap.remote }),
                         timing: cap ? timingFacts(cap.source) : {},

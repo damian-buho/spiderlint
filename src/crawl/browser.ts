@@ -95,7 +95,7 @@ async function transportFacts(observation: Observation, size: Facts["http"]["siz
     return {
         http: {
             status: response.status(),
-            redirects: redirectFacts(response.request()),
+            redirects: await redirectFacts(response.request()),
             headers: redactHeaders(headers),
             ...(remote && { remote }),
             timing,

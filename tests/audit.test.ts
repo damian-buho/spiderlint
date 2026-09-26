@@ -423,7 +423,7 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/old-about`], maxPages: 1 });
         const http = report.pages[0]?.http;
         assert.equal(report.pages[0]?.url.pathname, "/about");
-        assert.deepEqual(http?.redirects, [{ url: `${site.origin}/about` }]);
+        assert.deepEqual(http?.redirects.map((hop) => [hop.url, hop.status, hop.headers?.location]), [[`${site.origin}/about`, 301, "/about"]]);
         assert.equal(report.pages[0]?.sitemap?.listed, true, "the sitemap entry follows the redirect");
         assert.equal(http?.version, "1.1");
         assert.equal(http?.remote?.address, "127.0.0.1");
@@ -456,6 +456,12 @@ describe("audit options", () => {
             const paths = report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
             assert.deepEqual(paths, ["/cookies"], rule);
         }
+    });
+
+    it("records the status of each redirect hop and who answered it", async () => {
+        const report = await audit({ seeds: [`${site.origin}/moved`], maxPages: 1, sitemap: false, groups: { default: { rules: ["redirects"] } } });
+        assert.deepEqual(report.pages[0]?.http.redirects.map((hop) => [new URL(hop.url).pathname, hop.status, hop.by]), [["/moving", 301, undefined], ["/about", 302, "fixture"]]);
+        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.message]), [["redirects/permanent", "reached through a temporary redirect (302)"]]);
     });
 
     it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {

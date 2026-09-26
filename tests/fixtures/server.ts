@@ -85,6 +85,16 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end();
             return;
         }
+        if (pathname === "/moved") {
+            response.writeHead(301, { location: "/moving" });
+            response.end();
+            return;
+        }
+        if (pathname === "/moving") {
+            response.writeHead(302, { location: "/about", "x-redirect-by": "fixture" });
+            response.end();
+            return;
+        }
         if (pathname === "/forbidden") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8" });
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>403</title></head><body><h1>Forbidden</h1></body></html>");

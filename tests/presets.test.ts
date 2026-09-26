@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { robotsFacts } from "../src/facts/robots.ts";
-import type { Facts, HtmlFacts } from "../src/facts/types.ts";
+import type { Facts, HtmlFacts, RedirectHop } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import type { PageRule } from "../src/rules/types.ts";
@@ -23,6 +23,7 @@ interface Patch {
     resources?: string[];
     warnings?: string[];
     html?: Partial<HtmlFacts>;
+    redirects?: RedirectHop[];
 }
 
 // A 2xx https: HTML page that every rule below passes, with the patch applied and robots derived as the linter does.
@@ -36,7 +37,7 @@ function page(patch: Patch = {}): Facts {
         group: "default",
         crawl: { depth: 0, discoveredVia: "seed", referrers: [] },
         sitemap: { listed: patch.listed ?? true },
-        http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
+        http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: patch.redirects ?? [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, contentType: patch.contentType ?? "text/html; charset=utf-8" },
         html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {} },
@@ -85,10 +86,12 @@ const FAILS: Record<string, Patch[]> = {
     "url/shape": [{ pathname: "/Posts/" }, { pathname: "/posts/hello_world/" }, { pathname: "/posts//x/" }],
     "resources/a11y-overlay": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
     "browser/unused-preload": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
+    "redirects/permanent": [{ redirects: [{ url: "https://site.test/a", status: 301 }, { url: "https://site.test/b", status: 302 }] }, { redirects: [{ url: "https://site.test/b", status: 307 }] }],
 };
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
 const PASSES: Record<string, Patch[]> = {
+    "redirects/permanent": [{ redirects: [{ url: "https://site.test/a", status: 301 }, { url: "https://site.test/b", status: 308 }] }, { status: 404, redirects: [{ url: "https://site.test/b", status: 302 }] }],
     "http/referrer-policy": [{ headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "0" } }],
     "http/compression": [{ decoded: 512, headers: { "content-encoding": "identity" } }, { contentType: "image/png", headers: { "content-encoding": "identity" } }],

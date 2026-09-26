@@ -5,6 +5,7 @@
 import { isIP } from "node:net";
 import type { Request, Response } from "playwright";
 import { log } from "../logger.ts";
+import { redirectHop } from "./transport.ts";
 import type { BrowserFacts, HttpFacts, ResourceFacts, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
@@ -45,11 +46,15 @@ export function timingFacts(timing: Timing): HttpFacts["timing"] {
     return Object.fromEntries(Object.entries(phases).filter(([, value]) => value !== undefined));
 }
 
-// Every URL the navigation passed through after the first, as got’s `redirectUrls` lists them.
-export function redirectFacts(request: Request): HttpFacts["redirects"] {
-    const chain: string[] = [];
-    for (let hop: Request | null = request; hop; hop = hop.redirectedFrom()) chain.unshift(hop.url());
-    return chain.slice(1).map((url) => ({ url }));
+// Every URL the navigation passed through after the first, with the status and headers of the response that sent it there.
+export async function redirectFacts(request: Request): Promise<HttpFacts["redirects"]> {
+    const hops: HttpFacts["redirects"] = [];
+    for (let hop = request, from = hop.redirectedFrom(); from; hop = from, from = from.redirectedFrom()) {
+        const response = await from.response();
+        const headers = response ? headerFacts(await response.headersArray()) : undefined;
+        hops.unshift(response && headers ? redirectHop(hop.url(), response.status(), headers) : { url: hop.url() });
+    }
+    return hops;
 }
 
 // The address Chromium connected to, with the family Node’s sockets report.

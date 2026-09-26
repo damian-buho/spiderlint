@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Redirect chain length
+description: Redirect chain length and permanent redirects
 rules:
   redirects/chain-length:
     fact: http.redirects
@@ -10,3 +10,11 @@ rules:
     severity: warning
     message: "takes more than 2 redirects to land ({got})"
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
+  redirects/permanent:
+    fact: http.redirects
+    expect: {type: array, items: {properties: {status: {enum: [301, 308]}}}}
+    when: {http.status: {minimum: 200, maximum: 299}}
+    severity: info
+    message: "reached through a temporary redirect ({got})"
+    fix: "answer a moved page with 301 or 308, not 302, 303 or 307"
+    docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side

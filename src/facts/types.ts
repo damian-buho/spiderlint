@@ -93,10 +93,19 @@ export interface CookieFacts {
     maxAge?: number;
 }
 
+export interface RedirectHop {
+    url: string;
+    status?: number;
+    headers?: Record<string, string | string[]>;
+    // `X-Redirect-By` or `Redirect-By`: the software that answered the hop.
+    by?: string;
+}
+
 export interface HttpFacts {
     status: number;
     version?: string;
-    redirects: { url: string }[];
+    // Each hop’s target, with the status and headers of the response that sent the crawler there.
+    redirects: RedirectHop[];
     headers: Record<string, string | string[]>;
     remote?: { address: string; family?: string };
     timing: Partial<Record<"wait" | "dns" | "tcp" | "tls" | "request" | "ttfb" | "download" | "total", number>>;

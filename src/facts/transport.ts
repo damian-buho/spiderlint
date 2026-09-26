@@ -6,7 +6,7 @@ import type { EventEmitter } from "node:events";
 import type { IncomingHttpHeaders } from "node:http";
 import type { TLSSocket } from "node:tls";
 import { log } from "../logger.ts";
-import type { CookieFacts, HttpFacts, TlsFacts } from "./types.ts";
+import type { CookieFacts, HttpFacts, RedirectHop, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
 const REDACTED = "[redacted]";
@@ -83,6 +83,21 @@ export function cookieFacts(setCookie: string | string[] | undefined, date?: str
         const maxAge = lifetime(flags, now);
         return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }), ...(maxAge !== undefined && { maxAge }) };
     });
+}
+
+// One redirect hop to `url`, from the status and raw headers of the response that sent it there.
+export function redirectHop(url: string, status: number, raw: Record<string, string | string[] | undefined>): RedirectHop {
+    const headers = redactHeaders(raw);
+    const by = [headers["x-redirect-by"] ?? headers["redirect-by"]].flat()[0];
+    log.debug({ url, status, by }, "redirect hop recorded");
+    return { url, status, headers, ...(by && { by }) };
+}
+
+// A got `beforeRedirect` hook appending each hop the request follows to `hops`.
+export function redirectHook(hops: RedirectHop[]): (options: { url?: URL | string }, response: { statusCode: number; headers: IncomingHttpHeaders }) => void {
+    return (options, response) => {
+        hops.push(redirectHop(String(options.url), response.statusCode, response.headers));
+    };
 }
 
 // Response headers with credentials and cookie values replaced, and HTTP/2 pseudo-headers dropped, before anything is stored or reported.
