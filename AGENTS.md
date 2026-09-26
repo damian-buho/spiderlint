@@ -542,7 +542,8 @@ presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
 docs/                   # features.d/, es/, uk/
 .container/             # image assets, as ignorelint
-action.yaml             # docker action: urls, store, sarif, fail_on, comment
+action.yaml             # composite action: one audit into a runner-side store, SARIF and a step summary from it
+.scripts/action/        # the action’s steps
 projectfile.yaml
 ```
 

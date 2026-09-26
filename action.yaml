@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+name: 'Spiderlint'
+description: 'Crawl a site and lint its SEO tags, security headers, TLS and links'
+author: 'Damián Búho'
+branding:
+  icon: globe
+  color: green
+inputs:
+  urls:
+    description: 'Newline-separated seed URLs. Empty takes the targets from the config file.'
+    required: false
+    default: ''
+  config_file:
+    description: 'Projectfile or plain YAML carrying the org.spiderlint subtree, relative to the workspace.'
+    required: false
+    default: ''
+  rules:
+    description: 'Comma-separated rulesets replacing every group’s rules (e.g. recommended,axe).'
+    required: false
+    default: ''
+  fail_on:
+    description: 'Severity that fails the job: error | warning | info | never'
+    required: false
+    default: 'error'
+  upload_sarif:
+    description: 'Upload the SARIF report to code scanning; needs the security-events: write permission.'
+    required: false
+    default: 'false'
+  version:
+    description: 'Image tag to pull (e.g. latest, 1.2.3).'
+    required: false
+    default: 'latest'
+  image:
+    description: 'Full image reference. Takes precedence over `version`.'
+    required: false
+    default: ''
+outputs:
+  exit_code:
+    description: 'spiderlint’s exit code: 0 clean, 1 findings at or above fail_on'
+    value: ${{ steps.audit.outputs.exit_code }}
+  report_json:
+    description: 'Path on the runner to the JSON report'
+    value: ${{ steps.audit.outputs.report_json }}
+  sarif_path:
+    description: 'Path on the runner to the SARIF report'
+    value: ${{ steps.audit.outputs.sarif_path }}
+runs:
+  using: composite
+  steps:
+    - name: Audit
+      id: audit
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image || format('ghcr.io/damian-buho/spiderlint:{0}', inputs.version) }}
+        URLS: ${{ inputs.urls }}
+        CONFIG_FILE: ${{ inputs.config_file }}
+        RULES: ${{ inputs.rules }}
+        FAIL_ON: ${{ inputs.fail_on }}
+      run: ${{ github.action_path }}/.scripts/action/audit.sh
+    - name: Upload SARIF
+      if: ${{ inputs.upload_sarif == 'true' && steps.audit.outputs.sarif_path != '' }}
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      with:
+        sarif_file: ${{ steps.audit.outputs.sarif_path }}
+        category: spiderlint
+    - name: Apply fail_on
+      if: ${{ steps.audit.outputs.exit_code == '1' }}
+      shell: bash
+      env:
+        FAIL_ON: ${{ inputs.fail_on }}
+      run: |
+        echo "::error::spiderlint found issues at or above ${FAIL_ON}"
+        exit 1
