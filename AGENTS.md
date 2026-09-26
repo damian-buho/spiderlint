@@ -442,10 +442,10 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
-`--rate`, `--max-pages`, `--max-depth`, `--proxy`, `--no-robots`,
-`--no-sitemap`, `--format`, `--output`, `--fail-on`, `--unfold`,
-`--fail-fast`, `--resume`, `--no-cache`, `--refresh`, `--offline`,
-`--header`, `--cookie`, `--user-agent`, `--locale`). Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
+`--rate`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include`, `--exclude`, `--proxy`, `--no-robots`,
+`--no-sitemap`, `--no-keepalive`, `--no-resources`, `--format`, `--fail-on`, `--unfold`, `--disabled-rules`,
+`--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
+Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
 ## Plugins
 
@@ -482,9 +482,9 @@ export default definePlugin({
 ## Concurrency and limits
 
 - Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`.
-- Lint from store: `piscina` worker pool sized `NUMPROCS` for static extractors; rules themselves are cheap and run inline.
+- Lint from store runs extractors and rules inline, in the one process.
 - Retries: `maxRequestRetries: 3` with Crawlee’s backoff; `429` and `503` honour `Retry-After`. `retryOnBlocked` stays off — evading bot protection on someone else’s site is not this tool’s job.
-- Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30; `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.
+- Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30. Later: `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.
 - Keep-alive is on; `--no-keepalive` trades connection reuse for one TLS observation per page.
 
 ## Tor, I2P, unusual hosts
@@ -497,7 +497,7 @@ export default definePlugin({
 ## Security
 
 - User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
-- Secrets arrive only through `--header` / `--cookie` / environment, are redacted from logs and the store, and never appear in findings.
+- No credential is sent. Later, a static `--header` / `--cookie` is redacted from logs and the store and never appears in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD`, or `GET` when `HEAD` is refused, through the address guard.
 - DNS queries go to the configured `resolver` only, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.
 - Site and page extractor probes send `GET` or `HEAD` only and never leave their subject’s host; `context.link` alone reaches other hosts, as the off-scope link probe above. With `allowPrivate: false`, which `serve` is to set, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
@@ -516,7 +516,7 @@ export default definePlugin({
 
 ## i18n
 
-- Finding messages, `human` output and `--help` in `en`, `es`, `uk` through `gettext-parser`, as textlint-server does. `--locale` and `LANG` select.
+- Finding messages, `human` output and `--help` are English. Later: `en`, `es`, `uk` through `gettext-parser`, as textlint-server does, selected by `--locale` and `LANG`.
 - Rule IDs, fact paths and config keys are never translated.
 - Docs are typographic (`’`, `…`); anything copied into generated docs (`description:` fields, help text) follows.
 
@@ -560,7 +560,7 @@ projectfile.yaml
 
 - `node --test --experimental-strip-types tests/**/*.test.ts`, no other runner.
 - `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a head-only Atom feed and a web manifest, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
-- Formatter output is snapshot-tested; SARIF is validated against the 2.1.0 schema.
+- Every formatter is tested for its shape; SARIF against `tests/fixtures/sarif-shape.schema.json`, a SARIF 2.1.0 shape written here, since the OASIS schema carries no SPDX licence.
 - No test reaches the network. External-link probes point at the same local server.
 - `tests/browser.test.ts` skips its Chromium suite when a launch fails, which it does in the node tool image `npm-test` runs in; the image self-test is where Chromium is proven.
 
