@@ -10,6 +10,9 @@ import type { Facts } from "../src/facts/types.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
 import { serveSpec, type SpecSite } from "./fixtures/spec.ts";
 
+// The locations of every finding of `rule`.
+const everyLocation = (report: Report, rule: string) => report.findings.filter((finding) => finding.rule === rule).flatMap((finding) => finding.locations ?? []);
+
 // Rule and path of each plugin finding, sorted.
 function found(report: Report, origin: string): string[] {
     return report.findings.filter((finding) => !finding.rule.startsWith("groups/")).map((finding) => `${finding.rule} ${finding.url.replace(origin, "")}`).toSorted((a, b) => a.localeCompare(b));
@@ -44,7 +47,13 @@ describe("page plugins", () => {
             "markup/lang-switcher /bad",
             "structured-data/breadcrumbs /gone",
             "structured-data/breadcrumbs /moved",
+            "structured-data/consistent /bad",
+            "structured-data/dates /bad",
+            "structured-data/deprecated /bad",
+            "structured-data/entities /#me",
+            "structured-data/entities /#org",
             "structured-data/parse /bad",
+            "structured-data/references /bad#nobody",
             "structured-data/required /bad",
         ]);
     });
@@ -58,10 +67,26 @@ describe("page plugins", () => {
 
     it("names the missing properties and the offending links", () => {
         const locations = (rule: string) => report.findings.find((finding) => finding.rule === rule)?.locations;
-        assert.deepEqual(locations("structured-data/required"), ["Event without startDate, location"]);
+        assert.deepEqual(locations("structured-data/required"), ["Event without startDate, location", "Recipe without image"]);
         assert.deepEqual(locations("markup/lang-switcher"), [`${site.origin}/es/ declares no lang for es`]);
         assert.deepEqual(locations("markup/input-type"), ["autocomplete=email on type=text"]);
         assert.match(report.findings.find((finding) => finding.rule === "manifest/fields")?.message ?? "", /lacks start_url, display, icons|lacks start_url, display/);
+    });
+
+    it("judges structured data against the page, the vocabulary and the rest of the site", () => {
+        assert.deepEqual(everyLocation(report, "structured-data/consistent"), [`WebPage names ${site.origin}/elsewhere, the canonical is ${site.origin}/bad`, "WebPage “Something else” appears in neither the title nor og:title"]);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "structured-data/references")?.urls, [`${site.origin}/bad`]);
+        assert.deepEqual(everyLocation(report, "structured-data/deprecated"), ["property ingredients → recipeIngredient", "type Taxi → TaxiService"]);
+        assert.deepEqual(everyLocation(report, "structured-data/dates"), ["Article dateCreated “yesterday” is not ISO 8601", "Article dateModified 2026-09-01 is before datePublished 2026-09-02"]);
+        assert.deepEqual(everyLocation(report, "structured-data/entities").toSorted((a, b) => a.localeCompare(b)), ["Corporation on 1 page", `${site.origin}/#me on 1 page`, `${site.origin}/bad#me on 1 page`, "Organization on 1 page"]);
+    });
+
+    it("reads Microdata and RDFa items into the JSON-LD node shape", () => {
+        const good = report.pages.find((page) => page.url.href === `${site.origin}/good`);
+        assert.deepEqual(good?.structureddata, {
+            microdata: [{ "@type": ["Person"], "@id": `${site.origin}/#me`, name: "Ana" }],
+            rdfa: [{ "@type": ["Event"], name: "Talk", startDate: "2026-10-01", location: { "@type": ["Place"], name: "Hall" } }],
+        });
     });
 
     it("judges link text only in a language it has phrases for", () => {
