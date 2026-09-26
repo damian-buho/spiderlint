@@ -520,7 +520,7 @@ export default definePlugin({
 
 ## Concurrency and limits
 
-- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`. Two crawlers side by side split `rate` and each wait twice the delay, so the site sees the pace one crawler would keep.
+- Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it, and renders one page at a time when an expensive browser extractor runs, trading speed for memory; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`. Two crawlers side by side split `rate` and each wait twice the delay, so the site sees the pace one crawler would keep.
 - Lint from store runs extractors and rules inline, in the one process.
 - Retries: `maxRequestRetries: 3` with Crawlee’s backoff; `429` and `503` honour `Retry-After`. `retryOnBlocked` stays off — evading bot protection on someone else’s site is not this tool’s job.
 - Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30. Later: `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.

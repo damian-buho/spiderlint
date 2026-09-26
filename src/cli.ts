@@ -43,7 +43,7 @@ Crawl:
   --fetch MODE          auto, http, browser or adaptive (auto)
   --browser NAME        chromium, firefox or webkit (chromium)
   --scope SCOPE         origin, host or domain (origin)
-  --concurrency N       pages in flight, 0 for NUMPROCS, halved in a browser (0)
+  --concurrency N       pages in flight, 0 for NUMPROCS, halved in a browser, 1 beside expensive extractors (0)
   --rate N              requests per minute, 0 for no limit (0)
   --proxy URL           http, https or socks5h proxy for every request (none)
   --max-pages N         page limit, 0 for none (0)

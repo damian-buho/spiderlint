@@ -252,7 +252,7 @@ export interface BrowserStats {
 }
 
 // The browser crawler of a frontier: facts come from the rendered DOM and the browser’s own network log; an adaptive group’s rendered page is compared with its static HTML.
-export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
+export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false, isExpensive = false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
     const launcher = launcherOf(config.browser);
     const isPortOpen = isDebugged && config.browser === "chromium";
     if (isDebugged && !isPortOpen) log.warn({ browser: config.browser }, "only Chromium opens a DevTools port; its extractors add nothing");
@@ -262,9 +262,9 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
     const prober = proxy ? undefined : new TlsProber(config.allowPrivate);
     if (proxy) log.warn({ fetch: "browser" }, "TLS probes would bypass the proxy; browser pages carry no cipher, ALPN, SAN or HTTP version");
     let launches = 0;
-    // Pages rendered at once, all in one browser: `concurrency`, else half of NUMPROCS.
-    const openPages = config.concurrency || Math.ceil(width() / 2);
-    log.debug({ openPages, concurrency: config.concurrency }, "browser concurrency");
+    // Pages rendered at once, all in one browser: `concurrency`, else one beside an expensive extractor, else half of NUMPROCS.
+    const openPages = config.concurrency || (isExpensive ? 1 : Math.ceil(width() / 2));
+    log.debug({ openPages, concurrency: config.concurrency, isExpensive }, "browser concurrency");
     const crawler = new Crawler(
         {
             ...frontier.options("browser", storage, proxy),

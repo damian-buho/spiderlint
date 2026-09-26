@@ -30,7 +30,7 @@ export interface Config {
     fetch: FetchMode;
     browser: BrowserName;
     scope: Scope;
-    // Pages or requests in flight; 0 is NUMPROCS, halved for a browser.
+    // Pages or requests in flight; 0 is NUMPROCS, halved for a browser, one beside an expensive browser extractor.
     concurrency: number;
     // Requests per minute; 0 is unlimited.
     rate: number;
