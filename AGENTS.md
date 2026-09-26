@@ -175,7 +175,7 @@ url:      { href, origin, protocol, host, pathname, search, twin }   # twin: the
 group:    posts
 crawl:    { depth, discoveredVia: seed|sitemap|link, referrers: [], inDegree, requested }
 robots:   { noindex, nofollow }                                    # <meta name=robots> and X-Robots-Tag, derived on every lint
-sitemap:  { listed, lastmod, changefreq, priority }
+sitemap:  { listed, lastmod, changefreq, priority, alternates: [{ lang, href }], images, videos }
 http:     { status, version, redirects: [{ url, status, headers, by }],
             headers: { name: value | [value] }, remote: { address, family },
             timing: { dns, tcp, tls, ttfb, download, total },
@@ -286,6 +286,7 @@ because facts are always retained even when bodies are not.
 
 - `unique: <fact>` at `scope: site` groups pages by the fact’s value and reports every value held by two or more DISTINCT URLs, one finding per value with the URL list. A redirect and its target count once. `html/unique-title`, `html/unique-description` and `html/unique-h1` are the SEO trio; `scope: group` narrows the same check to one template when a site legitimately repeats a title across sections.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
+- `sitemap/hreflang` (page) fails when the sitemap alternates and the page’s hreflang links both exist and differ; `sitemap/media` (site) probes each image and video entry through the `probes` bucket, keyed by the file.
 - `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
 - Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), the `robots` preset over `site.robots` — `robots/disallow-all` (`*` shut out of `/` with no `Allow`), `robots/ai-crawlers` (`info`: the AI crawler tokens a `robots.txt` names, by purpose, with retired ones marked) and `robots/content-signal` (only `search`, `ai-input`, `ai-train`, each `yes` or `no`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.

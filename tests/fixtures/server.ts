@@ -85,6 +85,17 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end();
             return;
         }
+        if (pathname === "/i18n/sitemap.xml") {
+            const origin = `http://${request.headers.host}`;
+            const alternates = (...langs: string[]) => langs.map((lang) => `<xhtml:link rel="alternate" hreflang="${lang}" href="/i18n/${lang}"/>`).join("");
+            response.writeHead(200, { "content-type": "application/xml" });
+            response.end(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<url><loc>${origin}/i18n/en</loc>${alternates("en", "es")}<image:image><image:loc>${origin}/i18n/missing.png</image:loc></image:image></url>
+<url><loc>${origin}/i18n/es</loc>${alternates("es")}<image:image><image:loc>${origin}/favicon.ico</image:loc></image:image><video:video><video:content_loc>${origin}/favicon.ico</video:content_loc></video:video></url>
+</urlset>`);
+            return;
+        }
         if (pathname === "/i18n/en" || pathname === "/i18n/es") {
             const lang = pathname.slice("/i18n/".length);
             const alternates = lang === "en" ? ["en", "es", "de"] : ["es"];

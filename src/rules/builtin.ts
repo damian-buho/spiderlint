@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { isJudged } from "../crawl/links.ts";
+import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { i18nRules } from "./i18n.ts";
@@ -41,6 +42,25 @@ const brokenExternal: Make = (severity) => ({
             if (!isBroken) continue;
             const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
             findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, message: `${verdict}; linked from ${pageCount(urls.length)}`, value: answer.status, urls });
+        }
+        return findings;
+    },
+});
+
+// Every sitemap image or video answering 4xx or 5xx, or nothing, once per file, with the pages listing it.
+const sitemapMedia: Make = (severity) => ({
+    meta: { id: "sitemap/media", severity, scope: "site", facts: ["sitemap.images", "sitemap.videos", "site.links"], docs: "https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps", fix: "Remove or repoint each sitemap image and video entry that no longer answers 200." },
+    check(pages: Facts[], _group?: string, site?: SiteFacts) {
+        const listing = new Map<string, string[]>();
+        for (const page of pages) for (const href of mediaOf(page)) listing.set(href, [...(listing.get(href) ?? []), page.url.href]);
+        const findings: Finding[] = [];
+        for (const [href, urls] of listing) {
+            const answer = site?.links?.[href];
+            const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
+            log.debug({ rule: "sitemap/media", url: href, status: answer?.status, isBroken }, "sitemap media judged");
+            if (!isBroken) continue;
+            const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
+            findings.push({ rule: "sitemap/media", severity, scope: "site", url: href, message: `sitemap media ${verdict}; listed for ${pageCount(urls.length)}`, value: answer.status, urls });
         }
         return findings;
     },
@@ -230,6 +250,7 @@ export const builtin: Record<string, Make> = {
     "http/early-hints-preload": earlyHintsPreload,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
+    "sitemap/media": sitemapMedia,
     ...robotsRules,
     ...i18nRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status" }),

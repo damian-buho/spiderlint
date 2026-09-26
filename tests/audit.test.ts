@@ -475,6 +475,15 @@ describe("audit options", () => {
         ]);
     });
 
+    it("keeps sitemap alternates and media, and reports a disagreeing hreflang and a dead image", async () => {
+        const seeds = ["sitemap.xml", "en", "es"].map((name) => `${site.origin}/i18n/${name}`);
+        const report = await audit({ seeds, maxPages: 5, fold: false, groups: { default: { rules: ["sitemap"] } } });
+        const es = report.pages.find((page) => page.url.pathname === "/i18n/es");
+        assert.deepEqual(es?.sitemap, { listed: true, alternates: [{ lang: "es", href: "/i18n/es" }], images: [`${site.origin}/favicon.ico`], videos: [`${site.origin}/favicon.ico`] });
+        const found = report.findings.filter((finding) => finding.rule === "sitemap/hreflang" || finding.rule === "sitemap/media").map((finding) => [finding.rule, new URL(finding.url).pathname]);
+        assert.deepEqual(found.toSorted((a, b) => String(a).localeCompare(String(b))), [["sitemap/hreflang", "/i18n/en"], ["sitemap/media", "/i18n/missing.png"]]);
+    });
+
     it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {
         const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
         const hinted = report.pages.find((page) => page.url.pathname === "/hints");

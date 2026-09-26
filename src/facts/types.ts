@@ -24,6 +24,11 @@ export interface SitemapFacts {
     lastmod?: string;
     changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
     priority?: number;
+    // `xhtml:link` hreflang alternates of the entry, as written.
+    alternates?: { lang: string; href: string }[];
+    // `image:loc`, and `video:content_loc` or `video:player_loc`, of the entry.
+    images?: string[];
+    videos?: string[];
 }
 
 // One sitemap file as fetched: its status, how many page and nested sitemap URLs it names, why it failed.

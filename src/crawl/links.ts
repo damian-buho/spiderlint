@@ -4,7 +4,7 @@
 
 import type { Bucket } from "../cache/index.ts";
 import type { Config } from "../config/index.ts";
-import type { Facts, LinkFacts } from "../facts/types.ts";
+import type { LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import { PrivateAddress } from "./guard.ts";
@@ -53,9 +53,9 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
     return answer;
 }
 
-// Probes every distinct http(s) external link once, one request at a time per host, hosts in parallel.
-export async function probeLinks(pages: Facts[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
-    const hrefs = [...new Set(pages.flatMap((page) => page.html?.links.external ?? []))].filter((href) => /^https?:$/.test(new URL(href).protocol));
+// Probes every distinct http(s) link once, one request at a time per host, hosts in parallel.
+export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
+    const hrefs = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.info({ links: hrefs.length }, "external links found");
     const answers: Record<string, LinkFacts> = {};

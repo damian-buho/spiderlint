@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 import { gunzipSync } from "node:zlib";
+import { load } from "cheerio";
 import { parseSitemap, type SitemapUrl } from "crawlee";
 import { fetchCached, type Stored } from "../cache/http.ts";
 import { OfflineMiss, type Bucket } from "../cache/index.ts";
-import type { SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
+import type { Facts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import type { RobotsFor } from "./robots.ts";
@@ -51,11 +52,38 @@ async function* entries(url: string, contentType: string | undefined, content: s
     }
 }
 
+// The image and video files a page’s sitemap entry lists.
+export function mediaOf(page: Facts): string[] {
+    return [...(page.sitemap?.images ?? []), ...(page.sitemap?.videos ?? [])];
+}
+
+type Extension = Pick<SitemapFacts, "alternates" | "images" | "videos">;
+
+// Alternates, images and videos per `<loc>`, parsed only when the file declares one of those namespaces.
+function extensions(content: string): Map<string, Extension> {
+    const found = new Map<string, Extension>();
+    if (!/<(?:xhtml|image|video):/.test(content)) return found;
+    const $ = load(content, { xml: true });
+    const texts = (selection: ReturnType<typeof $>) => selection.map((_, element) => $(element).text().trim()).get().filter((text) => text.length > 0);
+    for (const element of $("url")) {
+        const url = $(element);
+        const alternates = url.children(String.raw`xhtml\:link[rel='alternate'][hreflang][href]`).map((_, link) => ({ lang: String($(link).attr("hreflang")), href: String($(link).attr("href")) })).get();
+        const images = texts(url.find(String.raw`image\:image > image\:loc`));
+        const videos = texts(url.find(String.raw`video\:video > video\:content_loc, video\:video > video\:player_loc`));
+        found.set(url.children("loc").text().trim(), { ...(alternates.length > 0 && { alternates }), ...(images.length > 0 && { images }), ...(videos.length > 0 && { videos }) });
+    }
+    log.debug({ entries: found.size }, "sitemap extensions parsed");
+    return found;
+}
+
 // Parses one fetched body into `file` counts: page entries land in `index`, same-host nested sitemaps in `queue`; `canonical` URLs move onto the file’s origin.
 async function collect(file: SitemapFileFacts, contentType: string | undefined, body: Buffer, index: SitemapIndex, queue: string[], canonical?: string): Promise<void> {
-    const found = entries(file.url, contentType, decode(body));
+    const content = decode(body);
+    const extended = extensions(content);
+    const origin = new URL(file.url).origin;
+    const found = entries(file.url, contentType, content);
     for await (const listed of found) {
-        const entry = { ...listed, loc: onOrigin(listed.loc, canonical, new URL(file.url).origin) };
+        const entry = { ...listed, loc: onOrigin(listed.loc, canonical, origin) };
         if (entry.originSitemapUrl === null) {
             file.sitemaps += 1;
             const isSameHost = new URL(entry.loc).hostname === new URL(file.url).hostname;
@@ -64,11 +92,15 @@ async function collect(file: SitemapFileFacts, contentType: string | undefined, 
             continue;
         }
         file.urls += 1;
+        const { alternates, images, videos } = extended.get(listed.loc) ?? {};
         index.set(entry.loc, {
             listed: true,
             ...(entry.lastmod && { lastmod: entry.lastmod.toISOString() }),
             ...(entry.changefreq && { changefreq: entry.changefreq }),
             ...(entry.priority !== undefined && { priority: entry.priority }),
+            ...(alternates && { alternates }),
+            ...(images && { images: images.map((href) => onOrigin(href, canonical, origin)) }),
+            ...(videos && { videos: videos.map((href) => onOrigin(href, canonical, origin)) }),
         });
     }
 }

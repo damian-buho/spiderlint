@@ -85,7 +85,28 @@ const contentLanguage: Make = (severity) => ({
     },
 });
 
+// `lang href` pairs of a hreflang list, resolved against the page and lower-cased.
+function pairs(alternates: { lang: string; href: string }[], base: string): Set<string> {
+    return new Set(alternates.map((alternate) => `${alternate.lang.toLowerCase()} ${resolve(alternate.href, base)}`));
+}
+
+// A page whose sitemap alternates and hreflang links both exist and disagree.
+const sitemapHreflang: Make = (severity) => ({
+    meta: { id: "sitemap/hreflang", severity, scope: "page", facts: ["sitemap.alternates", "html.hreflang"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap", fix: "Generate the sitemap alternates and the page’s hreflang links from one list." },
+    check(page: Facts) {
+        const [listed, linked] = [page.sitemap?.alternates ?? [], page.html?.hreflang ?? []];
+        if (listed.length === 0 || linked.length === 0) return;
+        const [inSitemap, onPage] = [pairs(listed, page.url.href), pairs(linked, page.url.href)];
+        const differ = [...inSitemap.symmetricDifference(onPage)];
+        log.debug({ rule: "sitemap/hreflang", url: page.url.href, sitemap: inSitemap.size, page: onPage.size, differ: differ.length }, "sitemap alternates compared");
+        if (differ.length === 0) return [];
+        const only = (side: Set<string>) => differ.filter((pair) => side.has(pair)).join(", ") || "none";
+        return [{ rule: "sitemap/hreflang", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `sitemap alternates differ from the page’s hreflang; sitemap only: ${only(inSitemap)}; page only: ${only(onPage)}`, value: differ }];
+    },
+});
+
 export const i18nRules: Record<string, Make> = {
+    "sitemap/hreflang": sitemapHreflang,
     "i18n/hreflang-reciprocal": hreflangReciprocal,
     "i18n/hreflang-status": hreflangStatus,
     "i18n/content-language": contentLanguage,
