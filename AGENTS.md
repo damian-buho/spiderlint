@@ -529,21 +529,18 @@ src/
 ├── cli.ts              # argument parsing, exit codes
 ├── index.ts            # library API: audit(), crawl(), lint(), report()
 ├── config/             # pf-cli reader, plain-file reader, schema, precedence
-├── crawl/              # Crawlee adapters (http, browser, adaptive), robots, scope, proxy
-├── sources/            # seeds, sitemap
-├── facts/              # facts types, extractor runner, worker pool
+├── crawl/              # Crawlee adapters (http, browser), frontier, robots, sitemap, scope, proxy, probes, DNS
+├── facts/              # facts types and extractors
 ├── groups/             # matcher, assignment, sampling
 ├── rules/              # Rule interface, declarative compiler, scopes
 ├── fold/               # saturation folding
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters
-├── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, origin, dns, images, well-known, feeds, structured-data, manifest, link-text, markup and trackers (lighthouse next)
-└── i18n/
+└── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, origin, dns, images, well-known, feeds, structured-data, manifest, link-text, markup and trackers (lighthouse next)
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
-locales/                # es/, uk/
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
-docs/                   # cli.md, rules.md, facts.md, formats.md, features.d/
+docs/                   # features.d/, es/, uk/
 .container/             # image assets, as ignorelint
 action.yaml             # docker action: urls, store, sarif, fail_on, comment
 projectfile.yaml
