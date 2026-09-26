@@ -581,7 +581,7 @@ projectfile.yaml
 
 - `node --test --experimental-strip-types tests/**/*.test.ts`, no other runner.
 - `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a head-only Atom feed and a web manifest, a `/private/` robots disallow, a `/tmp/` path for `--exclude` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
-- Every formatter is tested for its shape; SARIF against `tests/fixtures/sarif-shape.schema.json`, a SARIF 2.1.0 shape written here, since the OASIS schema carries no SPDX licence.
+- Every formatter is tested for its shape; SARIF against the full SARIF 2.1.0 schema, `tests/fixtures/sarif-2.1.0.schema.json`, vendored from `microsoft/sarif-sdk` at a pinned commit under its MIT licence, since the OASIS original carries no SPDX licence; `format` keywords are not checked, which would need `ajv-formats`.
 - No test reaches the network. External-link probes point at the same local server.
 - `tests/browser.test.ts` skips its Chromium suite when a launch fails, which it does in the node tool image `npm-test` runs in; the image self-test is where Chromium is proven.
 

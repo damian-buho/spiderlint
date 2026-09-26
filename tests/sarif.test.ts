@@ -17,8 +17,8 @@ const GROUPS = {
     default: { rules: ["seo", "links"] },
 };
 
-const schema = JSON.parse(readFileSync(new URL("fixtures/sarif-shape.schema.json", import.meta.url), "utf8")) as object;
-const validate = new Ajv2020({ strictTypes: false }).compile(schema);
+const schema = JSON.parse(readFileSync(new URL("fixtures/sarif-2.1.0.schema.json", import.meta.url), "utf8")) as object;
+const validate = new Ajv2020({ strict: false, validateFormats: false }).compile(schema);
 
 describe("formatSarif", () => {
     let site: Fixture;
@@ -33,7 +33,7 @@ describe("formatSarif", () => {
 
     after(() => site.close());
 
-    it("validates against the SARIF 2.1.0 result/location shape", () => {
+    it("validates against the SARIF 2.1.0 schema", () => {
         const valid = validate(sarif);
         assert.ok(valid, JSON.stringify(validate.errors));
     });
