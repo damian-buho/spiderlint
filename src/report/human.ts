@@ -154,14 +154,16 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     ];
 }
 
-// Browsers launched and pages they rendered, plain HTTP fetches, resource requests and extractor runs, one row each.
-function costRows({ browser, http, resources, extractors }: Report["summary"]["cost"]): string[] {
+// Browsers launched and pages they rendered, plain HTTP fetches, resource requests, extractor runs and cache hits, one row each.
+function costRows({ browser, http, resources, extractors, extractorsCached = {} }: Report["summary"]["cost"]): string[] {
     const runs = Object.entries(extractors).map(([id, count]) => `${id} ×${number(count)}`);
+    const hits = Object.entries(extractorsCached).map(([id, count]) => `${id} ×${number(count)}`);
     return [
         browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}${browser.tlsProbes > 0 ? `, ${counted(browser.tlsProbes, "TLS probe")}` : ""}`) : "",
         http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
         browser || http ? "" : row("fetch", "none"),
         resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache)` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`) : "",
         runs.length > 0 ? row("extractors", runs.join(", ")) : "",
+        hits.length > 0 ? row("cached", hits.join(", ")) : "",
     ].filter(Boolean);
 }

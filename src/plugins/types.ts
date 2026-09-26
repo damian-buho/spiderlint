@@ -17,6 +17,10 @@ export interface Extractor {
     mode?: "browser";
     // `expensive` runs on at most the group’s `sample` pages; `cheap`, the default, on every page.
     cost?: "cheap" | "expensive";
+    // Keys the `extractors` bucket; a plugin extractor without one is never cached, a bundled one is spiderlint’s version.
+    version?: string;
+    // `false` runs on every crawl, for an extractor reading more than its page’s body, URL and content type.
+    cached?: false;
     extract(page: Facts, body: string, live?: Page, context?: PageContext): Promise<unknown>;
 }
 
@@ -31,6 +35,9 @@ export interface ResourceExtractor {
     id: string;
     // Content-type prefixes whose bodies it reads (`image/`).
     types: string[];
+    // Keys the `extractors` bucket, as a page extractor’s does.
+    version?: string;
+    cached?: false;
     extract(url: string, contentType: string, body: Uint8Array): Promise<unknown>;
 }
 

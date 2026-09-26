@@ -437,6 +437,7 @@ async function markdownAt(url: string, init: ProbeInit, isAccepted: (type: strin
 const markdown: Extractor = {
     id: "markdown",
     cost: "expensive",
+    cached: false,
     async extract(page, _body, _live, context) {
         const isPage = page.html !== undefined && page.http.status >= 200 && page.http.status <= 299;
         log.debug({ url: page.url.href, isPage, hasNetwork: context !== undefined }, "markdown source decided");

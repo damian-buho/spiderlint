@@ -139,7 +139,7 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<AxeFact
 
 export default definePlugin({
     name: "axe",
-    extractors: [{ id: ID, mode: "browser", cost: "expensive", extract }],
+    extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
     rules: Object.fromEntries(RULES.map((entry) => [`${PREFIX}${entry.ruleId}`, rule(entry.ruleId, entry.helpUrl.replace(/\?.*$/, ""))])),
     presets: {
         axe: preset("Accessibility checked by axe-core in the rendered page: WCAG A and AA, and best practices", () => true),

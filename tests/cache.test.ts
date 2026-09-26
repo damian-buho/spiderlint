@@ -7,6 +7,7 @@ import { mkdtemp, rm, utimes, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
+import { ExtractorCache, type CachedFacts } from "../src/cache/extractors.ts";
 import { fetchCached, type Stored } from "../src/cache/http.ts";
 import { Bucket, OfflineMiss, bucketDirectory, parseDuration } from "../src/cache/index.ts";
 import { purgeCache } from "../src/cache/purge.ts";
@@ -14,6 +15,7 @@ import { cacheStatus } from "../src/cache/status.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const text = async (response: Response) => response.text();
+const work = async () => ({ ok: true });
 
 describe("cache", () => {
     let root: string;
@@ -104,5 +106,27 @@ describe("cache", () => {
         assert.equal(third.status, 200);
         assert.equal(third.value, first.value);
         assert.equal(site.headers.at(-1)?.["if-none-match"], first.headers.etag);
+    });
+});
+
+describe("extractor cache", () => {
+    let root: string;
+
+    before(async () => {
+        root = await mkdtemp(path.join(tmpdir(), "spiderlint-extractors-"));
+    });
+
+    after(() => rm(root, { recursive: true, force: true }));
+
+    it("runs an extractor once per version and body, and never one that opts out or names no version", async () => {
+        const [runs, hits] = [{} as Record<string, number>, {} as Record<string, number>];
+        const cache = new ExtractorCache(new Bucket<CachedFacts>("extractors", root, 0, "use"), runs, hits);
+        const run = (extractor: { id: string; version?: string; cached?: false }, body: string) => cache.run(extractor, "https://a.test/", "text/html", body, work);
+        for (const body of ["a", "a", "b"]) await run({ id: "v1", version: "1" }, body);
+        await run({ id: "v1", version: "2" }, "a");
+        for (const extractor of [{ id: "optout", version: "1", cached: false as const }, { id: "bare" }]) for (let pass = 0; pass < 2; pass += 1) await run(extractor, "a");
+        assert.deepEqual(runs, { v1: 3, optout: 2, bare: 2 });
+        assert.deepEqual(hits, { v1: 1 });
+        assert.deepEqual(await run({ id: "v1", version: "1" }, "b"), { ok: true });
     });
 });

@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { ConfigError, defaults, type Config, type GroupConfig } from "./config/index.ts";
 import type { Stored } from "./cache/http.ts";
+import { ExtractorCache } from "./cache/extractors.ts";
 import { OfflineMiss, openBucket } from "./cache/index.ts";
 import { crawlBrowser } from "./crawl/browser.ts";
 import type { Earlier } from "./crawl/frontier.ts";
@@ -35,12 +36,13 @@ import { rate, type Checks, type Rating } from "./report/rating.ts";
 
 const PAGE_CONTEXT_MS = 60_000;
 
-// What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs.
+// What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs and the ones the cache answered.
 export interface Cost {
     browser?: { name: string; launches: number; pages: number; tlsProbes: number };
     http?: { pages: number; revalidated: number };
     resources?: { requests: number; cached: number; logged: number };
     extractors: Record<string, number>;
+    extractorsCached?: Record<string, number>;
 }
 
 export interface Summary {
@@ -181,8 +183,14 @@ function counted(cost: Cost, ids: string[]): void {
     for (const id of ids) cost.extractors[id] = (cost.extractors[id] ?? 0) + 1;
 }
 
+// The `extractors` bucket for this run, counting into `cost`.
+function extractorCache(config: Config, store: DiskStore | undefined, cost: Cost): ExtractorCache {
+    cost.extractorsCached = {};
+    return new ExtractorCache(openBucket("extractors", config, store?.directory), cost.extractors, cost.extractorsCached);
+}
+
 // Stored pages an extractor never saw get its facts from their stored body, the lowest URLs filling each sample, so a new rule needs no re-crawl.
-async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], cost: Cost, sample: Sampler): Promise<void> {
+async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], cache: ExtractorCache, sample: Sampler): Promise<void> {
     const ordered = pages.toSorted((a, b) => a.url.href.localeCompare(b.url.href));
     for (const page of ordered) {
         for (const extractor of active) if (page[extractor.id] !== undefined) sample.seed(page, extractor.id);
@@ -196,9 +204,7 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
         const body = await store.body(page.url.href);
         log.debug({ url: page.url.href, extractors: runnable.map((extractor) => extractor.id), hasBody: body !== undefined }, "stored page backfilled");
         if (body === undefined) continue;
-        const added = await extract(page, body, runnable);
-        sample.release(page, runnable, added);
-        counted(cost, added);
+        sample.release(page, runnable, await extract(page, body, runnable, cache));
     }
     if (unserved.size > 0) log.warn({ extractors: [...unserved] }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
 }
@@ -280,11 +286,11 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 }
 
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
-async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[], sample: Sampler): Promise<Crawled> {
+async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[], sample: Sampler, config: Config): Promise<Crawled> {
     log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
     const cost: Cost = { extractors: {} };
-    await backfill(pages, store, active, cost, sample);
+    await backfill(pages, store, active, extractorCache(config, store, cost), sample);
     attachResources(pages, await store.resources());
     const site = await store.site();
     warnUnserved(site, siteActive);
@@ -316,7 +322,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const active = extractorsFor(rules);
     const siteActive = proxied(siteExtractorsFor(rules), config);
     const sample = samplerOf(config);
-    if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample);
+    if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample, config);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
     const resourceActive = resourceExtractorsFor(rules);
@@ -327,6 +333,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const robots = config.robots ? cache.robots : undefined;
     log.info({ seeds: config.seeds, fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
+    const extractors = extractorCache(config, store, cost);
     let fetched = 0;
     let revalidated = 0;
     const redirects: Record<string, string> = {};
@@ -340,9 +347,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
             const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
-            const added = await extract(facts, body, chosen, live, context);
-            sample.release(facts, chosen, added);
-            counted(cost, added);
+            sample.release(facts, chosen, await extract(facts, body, chosen, extractors, live, context));
             if (memory.add(facts)) await store?.add(facts, body);
         },
         cache,
@@ -352,8 +357,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
-    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses);
-    for (const result of Object.values(results)) if (!result.cached && !result.revalidated) counted(cost, Object.keys(result.facts ?? {}));
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors);
     await store?.saveResources(results);
     const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
     const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media");
@@ -426,7 +430,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };
         const rules = enabledRules(config);
-        await backfill(pages, store, extractorsFor(rules), cost, samplerOf(config));
+        await backfill(pages, store, extractorsFor(rules), extractorCache(config, store, cost), samplerOf(config));
         attachResources(pages, await store.resources());
         const site = await store.site();
         warnUnserved(site, siteExtractorsFor(rules));

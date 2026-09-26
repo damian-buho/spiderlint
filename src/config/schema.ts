@@ -59,7 +59,7 @@ const site = {
         cache: {
             type: "object",
             additionalProperties: false,
-            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins", "dns"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
+            properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins", "dns", "extractors"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl } }])),
         },
         "fail-on": { enum: ["error", "warning", "info", "never"] },
         format: { type: "string" },

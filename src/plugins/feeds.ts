@@ -136,7 +136,7 @@ const websub = pageRule("feeds/websub", [`${ID}.hubs`, `${ID}.self`], (page) => 
 
 export default definePlugin({
     name: "feeds",
-    extractors: [{ id: ID, extract }],
+    extractors: [{ id: ID, cached: false, extract }],
     rules: { "feeds/well-formed": wellFormed, "feeds/self": self, "feeds/item-id": itemId, "feeds/websub": websub },
     presets: {
         feeds: {

@@ -16,7 +16,7 @@ export interface BucketStatus {
 }
 
 // Buckets kept as one JSON file per key.
-export const FILE_BUCKETS: BucketName[] = ["resources", "sitemaps", "robots", "origins", "dns"];
+export const FILE_BUCKETS: BucketName[] = ["resources", "sitemaps", "robots", "origins", "dns", "extractors"];
 
 // Bucket name, the directories holding it (entries counted in the first), and the extension of one entry; user buckets only without a store.
 function layout(root: string | undefined): [string, string[], string][] {

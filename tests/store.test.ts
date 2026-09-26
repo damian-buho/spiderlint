@@ -122,6 +122,20 @@ describe("store", () => {
         assert.equal(refreshed.pages.filter((page) => page.http.revalidated).length, 0);
     });
 
+    it("answers an unchanged page from the extractors bucket instead of analysing it again", async () => {
+        const again = path.join(directory, "extractors");
+        const options = { seeds: [`${site.origin}/`], exclude: ["/tmp/**"], fetchResources: false, rules: ["html-validate", "htmlhint"] };
+        const first = await audit(options, { store: again });
+        const second = await audit(options, { store: again });
+        assert.ok((first.summary.cost.extractors.htmlvalidate ?? 0) > 10);
+        assert.deepEqual(second.summary.cost.extractors, {});
+        const served = (cost: typeof first.summary.cost, id: string) => (cost.extractors[id] ?? 0) + (cost.extractorsCached?.[id] ?? 0);
+        for (const id of ["htmlvalidate", "htmlhint"]) assert.equal(second.summary.cost.extractorsCached?.[id], served(first.summary.cost, id), id);
+        assert.deepEqual(keys(second.findings), keys(first.findings));
+        const buckets = await cacheStatus(again);
+        assert.ok((buckets.find((bucket) => bucket.bucket === "extractors")?.entries ?? 0) > 20);
+    });
+
     it("audits offline from the store without a single request", async () => {
         const before = site.requested.length;
         const offline = await audit({ seeds: [`${site.origin}/`], exclude: ["/tmp/**"], cacheMode: "offline" }, { store: directory });

@@ -5,6 +5,8 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Page } from "playwright";
+import { VERSION } from "../agent.ts";
+import { ExtractorCache } from "../cache/extractors.ts";
 import { ConfigError, type Config } from "../config/index.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
@@ -33,6 +35,8 @@ const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, origin, dns, ima
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
+const bundled = plugins.flatMap((plugin) => [...(plugin.extractors ?? []), ...(plugin.resources ?? [])]);
+for (const extractor of bundled) extractor.version ??= VERSION;
 
 // A TypeScript rule by ID: the core’s, else a plugin’s.
 export function ruleMaker(id: string): Make | undefined {
@@ -175,8 +179,9 @@ export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
     return active;
 }
 
-// Each extractor’s facts under its ID, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
-export async function extract(page: Facts, body: string, active: Extractor[], live?: Page, context?: PageContext): Promise<string[]> {
+// Each extractor’s facts under its ID, through `cache`, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
+export async function extract(page: Facts, body: string, active: Extractor[], cache: ExtractorCache, live?: Page, context?: PageContext): Promise<string[]> {
+    const kind = `${page.http.contentType}${page.http.size.truncated ? " truncated" : ""}`;
     const added: string[] = [];
     for (const extractor of active) {
         if (!live && extractor.mode === "browser") {
@@ -184,7 +189,7 @@ export async function extract(page: Facts, body: string, active: Extractor[], li
             continue;
         }
         try {
-            const value = await extractor.extract(page, body, live, context);
+            const value = await cache.run(extractor, page.url.href, kind, body, () => extractor.extract(page, body, live, context));
             if (value === undefined) continue;
             page[extractor.id] = value;
             added.push(extractor.id);

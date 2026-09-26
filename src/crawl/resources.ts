@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { availableParallelism } from "node:os";
+import { ExtractorCache } from "../cache/extractors.ts";
 import { OfflineMiss, type Bucket } from "../cache/index.ts";
 import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
@@ -61,14 +62,14 @@ function readers(extractors: ResourceExtractor[], status: number, contentType: s
 }
 
 // Counts the body, and hands it whole to each extractor that reads its type.
-async function consume(url: string, response: Response, max: number, extractors: ResourceExtractor[]): Promise<Consumed> {
+async function consume(url: string, response: Response, max: number, extractors: ResourceExtractor[], cache: ExtractorCache): Promise<Consumed> {
     const contentType = mediaType(response.headers.get("content-type"));
     const { bytes, body } = await drain(response, max, readers(extractors, response.status, contentType).length > 0);
-    return extractBody(url, response.status, contentType, bytes, body, max, extractors);
+    return extractBody(url, response.status, contentType, bytes, body, max, extractors, cache);
 }
 
-// Hands a whole body to each extractor that reads its type; a body cut at `max` is read by none.
-async function extractBody(url: string, status: number, contentType: string, bytes: number, body: Uint8Array | undefined, max: number, extractors: ResourceExtractor[]): Promise<Consumed> {
+// Hands a whole body to each extractor that reads its type, through `cache`; a body cut at `max` is read by none.
+async function extractBody(url: string, status: number, contentType: string, bytes: number, body: Uint8Array | undefined, max: number, extractors: ResourceExtractor[], cache: ExtractorCache): Promise<Consumed> {
     const wanted = readers(extractors, status, contentType);
     const read = wanted.map((extractor) => extractor.id);
     if (!body || bytes >= max) {
@@ -79,7 +80,7 @@ async function extractBody(url: string, status: number, contentType: string, byt
     const facts: Record<string, unknown> = {};
     for (const extractor of wanted) {
         try {
-            const value = await extractor.extract(url, contentType, body);
+            const value = await cache.run(extractor, url, contentType, body, () => extractor.extract(url, contentType, body));
             if (value !== undefined) facts[extractor.id] = value;
         } catch (error) {
             log.warn({ url, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, "resource extractor failed");
@@ -97,9 +98,9 @@ function isServed(stored: Stored<Consumed>, extractors: ResourceExtractor[]): bo
 }
 
 // One cached or retried GET; a final failure is status 0 with its error.
-async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[]): Promise<ResourceResults[string]> {
+async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache): Promise<ResourceResults[string]> {
     try {
-        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors), false, (stored) => isServed(stored, extractors));
+        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors, cache), false, (stored) => isServed(stored, extractors));
         const { bytes, facts } = value;
         log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
         const contentType = mediaType(headers["content-type"]);
@@ -117,9 +118,9 @@ function isUsable(logged: Logged | undefined): logged is Logged {
 }
 
 // A result from the browser’s network log, read by the same extractors a fetch would feed.
-async function fromLog(url: string, logged: Logged, max: number, extractors: ResourceExtractor[]): Promise<ResourceResults[string]> {
+async function fromLog(url: string, logged: Logged, max: number, extractors: ResourceExtractor[], cache: ExtractorCache): Promise<ResourceResults[string]> {
     const contentType = mediaType(logged.headers["content-type"]);
-    const { facts } = await extractBody(url, logged.status, contentType, logged.bytes, logged.body, max, extractors);
+    const { facts } = await extractBody(url, logged.status, contentType, logged.bytes, logged.body, max, extractors, cache);
     const hasFacts = facts !== undefined && Object.keys(facts).length > 0;
     log.debug({ url, status: logged.status, bytes: logged.bytes, hasBody: logged.body !== undefined }, "resource answered from the browser log");
     return { status: logged.status, headers: redactHeaders(logged.headers), ...(contentType && { contentType }), size: { body: logged.bytes }, timing: { ...(logged.ms !== undefined && { total: logged.ms }) }, logged: true, ...(hasFacts && { facts }) };
@@ -135,8 +136,8 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
     }
 }
 
-// GETs every distinct resource URL the pages name that `logged` lacks, once each, with `extractors` reading the bodies of their types.
-export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>()): Promise<ResourceResults> {
+// GETs every distinct resource URL the pages name that `logged` lacks, once each, with `extractors` reading the bodies of their types through `cache`.
+export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined)): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
     log.info({ resources: urls.length, references: entries.length, fetch: config.fetchResources }, "resources found");
@@ -146,7 +147,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors) : await fetchOne(url, config.maxBodySize, bucket, extractors));
+            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchOne(url, config.maxBodySize, bucket, extractors, cache));
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);

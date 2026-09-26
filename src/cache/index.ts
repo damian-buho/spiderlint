@@ -9,14 +9,14 @@ import path from "node:path";
 import type { Config } from "../config/index.ts";
 import { log } from "../logger.ts";
 
-export type BucketName = "pages" | "probes" | "resources" | "robots" | "sitemaps" | "origins" | "dns";
+export type BucketName = "pages" | "probes" | "resources" | "robots" | "sitemaps" | "origins" | "dns" | "extractors";
 export type CacheMode = "use" | "off" | "refresh" | "offline";
 
-// Seconds each bucket stays fresh when the origin says nothing; `pages` 0 lets origin headers alone decide.
-export const TTL_DEFAULTS: Record<BucketName, number> = { pages: 0, probes: 7 * 86_400, resources: 86_400, robots: 86_400, sitemaps: 86_400, origins: 86_400, dns: 60 };
+// Seconds each bucket stays fresh when the origin says nothing; `pages` 0 lets origin headers alone decide, `extractors` 0 keeps an entry until its body changes.
+export const TTL_DEFAULTS: Record<BucketName, number> = { pages: 0, probes: 7 * 86_400, resources: 86_400, robots: 86_400, sitemaps: 86_400, origins: 86_400, dns: 60, extractors: 0 };
 
 // Buckets beside the project; the rest hold third-party observations shared by every site on the machine.
-const PROJECT = new Set<BucketName>(["pages", "resources", "sitemaps", "origins", "dns"]);
+const PROJECT = new Set<BucketName>(["pages", "resources", "sitemaps", "origins", "dns", "extractors"]);
 
 export interface Entry<T> {
     key: string;
