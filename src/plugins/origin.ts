@@ -14,6 +14,9 @@ const TRACE = /Traceback \(most recent call last\)|^\s+at \S.*:\d+:\d+\)?$|Stack
 // Languages `/` is fetched in; spread across scripts and directions so one special-cased locale shows.
 const LANGUAGES = ["en", "uk", "ja", "ar"];
 
+// Codings `/` should be offered in, each asked for alone.
+const CODINGS = ["br", "zstd", "gzip"];
+
 // A response’s media type without parameters.
 export function mediaType(answer: Probe): string {
     return String(answer.headers["content-type"] ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
@@ -71,6 +74,25 @@ const locale: SiteExtractor = {
     },
 };
 
+// The size of `/` uncompressed, and which of the codings it is served in when a request accepts only that one.
+const encodings: SiteExtractor = {
+    id: "encodings",
+    per: "origin",
+    async extract(origin, context) {
+        const url = `${origin}/`;
+        const plain = await context.fetch(url, { headers: { "accept-encoding": "identity" }, redirect: "manual" });
+        if (plain.status < 200 || plain.status > 299) return { url, status: plain.status };
+        const served: string[] = [];
+        for (const coding of CODINGS) {
+            const answer = await context.fetch(url, { headers: { "accept-encoding": coding }, redirect: "manual" });
+            const isServed = String(answer.headers["content-encoding"] ?? "").trim().toLowerCase() === coding;
+            log.debug({ url, coding, status: answer.status, isServed }, "encoding probed");
+            if (isServed) served.push(coding);
+        }
+        return { url, status: plain.status, contentType: mediaType(plain), bytes: Buffer.byteLength(plain.body), served };
+    },
+};
+
 // The answer to `/favicon.ico`.
 const favicon: SiteExtractor = {
     id: "favicon",
@@ -84,10 +106,10 @@ const favicon: SiteExtractor = {
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    sites: [notFound, entry, locale, favicon],
+    sites: [notFound, entry, locale, encodings, favicon],
     presets: {
         origin: {
-            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, favicon",
+            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon",
             rules: {
                 "origin/soft-404": {
                     fact: "site.origins.*.notFound.status",
@@ -115,6 +137,14 @@ export default definePlugin({
                     message: "/ lands on {got} different URLs depending on Accept-Language",
                     severity: "warning",
                     docs: "https://developers.google.com/search/docs/specialty/international/locale-adaptive-pages",
+                },
+                "origin/compression": {
+                    fact: "site.origins.*.encodings.served",
+                    expect: { allOf: [{ contains: { const: "br" } }, { contains: { const: "zstd" } }, { contains: { const: "gzip" } }] },
+                    when: { "site.origins.*.encodings.bytes": { minimum: 1024 }, "site.origins.*.encodings.contentType": { pattern: String.raw`^(text/|application/xhtml\+xml)` } },
+                    message: "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it",
+                    severity: "info",
+                    docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Accept-Encoding",
                 },
                 "origin/favicon": {
                     fact: "site.origins.*.favicon",

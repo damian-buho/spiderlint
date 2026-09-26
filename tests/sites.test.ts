@@ -37,12 +37,13 @@ describe("origin preset", () => {
         assert.deepEqual(rules(report), ["origin/https-entry"]);
         assert.equal(report.findings[0]?.url, site.origin);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
-        assert.deepEqual(report.summary.cost.extractors, { entry: 1, favicon: 1, locale: 1, notFound: 1 });
+        assert.deepEqual(report.summary.cost.extractors, { encodings: 1, entry: 1, favicon: 1, locale: 1, notFound: 1 });
     });
 
-    it("finds a soft 404, a language redirect and a favicon that is a page", async () => {
+    it("finds a soft 404, a language redirect, gzip alone and a favicon that is a page", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["origin/favicon", "origin/https-entry", "origin/locale-redirect", "origin/soft-404"]);
+        assert.deepEqual(rules(report), ["origin/compression", "origin/favicon", "origin/https-entry", "origin/locale-redirect", "origin/soft-404"]);
+        assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /gzip/);
         assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404")?.message ?? "", /answers 200/);
     });
 
