@@ -6,6 +6,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { audit, type Report } from "../src/index.ts";
 import trackers from "../src/plugins/trackers.ts";
+import type { MarkupFacts } from "../src/plugins/markup.ts";
 import type { Facts } from "../src/facts/types.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
 import { serveSpec, type SpecSite } from "./fixtures/spec.ts";
@@ -56,6 +57,11 @@ describe("page plugins", () => {
             "structured-data/references /bad#nobody",
             "structured-data/required /bad",
         ]);
+    });
+
+    it("ignores links to the page itself when collecting switcher links", () => {
+        const good = report.pages.find((page) => page.url.href === `${site.origin}/good`);
+        assert.deepEqual((good?.markup as MarkupFacts | undefined)?.switcher, [{ href: `${site.origin}/es/`, lang: "es", hreflang: "es-ES" }]);
     });
 
     it("reads the self URL, hubs and item identifiers of each feed format", () => {

@@ -20,10 +20,12 @@ export interface MarkupFacts {
 async function extract(page: Facts, body: string): Promise<MarkupFacts | undefined> {
     if (!page.html) return;
     const alternates = new Set(page.html.hreflang.map((alternate) => resolve(alternate.href, page.url.href)));
+    const self = resolve(page.url.href, page.url.href);
     const $ = load(body);
     const switcher = $("a[href]").get().flatMap((element) => {
         const [href, lang, hreflang] = [resolve(String($(element).attr("href")), page.url.href), $(element).attr("lang"), $(element).attr("hreflang")];
-        return alternates.has(href) ? [{ href, ...(lang !== undefined && { lang }), ...(hreflang !== undefined && { hreflang }) }] : [];
+        // A link to the page itself stays in its language, so it never switches.
+        return href !== self && alternates.has(href) ? [{ href, ...(lang !== undefined && { lang }), ...(hreflang !== undefined && { hreflang }) }] : [];
     });
     const videos = $("video").get().map((element) => {
         const video = $(element);

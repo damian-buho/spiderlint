@@ -25,7 +25,7 @@ const FILES: Record<string, [string, string]> = {
 </head><body><h1>Good</h1>
 <div itemscope itemtype="https://schema.org/Person" itemid="ORIGIN/#me"><span itemprop="name">Ana</span></div>
 <div vocab="https://schema.org/" typeof="Event"><span property="name">Talk</span> <time property="startDate" datetime="2026-10-01">1 October</time> <span property="location" typeof="Place"><span property="name">Hall</span></span></div>
-<a href="/es/" lang="es" hreflang="es-ES">Español</a> <a href="/bad">The broken page</a> <a href="/de" aria-label="Read more in German">Read more</a>
+<a href="/es/" lang="es" hreflang="es-ES">Español</a> <a href="/bad">The broken page</a> <a href="/de" aria-label="Read more in German">Read more</a> <a href="#main">Skip to content</a> <a href="/good">Good</a>
 <video src="/talk.mp4" controls><track kind="captions" src="/talk.vtt" srclang="en"></video>
 <video src="/loop.mp4" autoplay muted loop></video>
 <input type="email" autocomplete="email"><input type="text" inputmode="tel" autocomplete="billing tel">
