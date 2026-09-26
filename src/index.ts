@@ -156,7 +156,7 @@ function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
     return report;
 }
 
-// A --disabled-rules or severity override naming no rule of any group matches nothing; say so.
+// An --exclude-rules or severity override naming no rule of any group matches nothing; say so.
 function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void {
     const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
     for (const id of [...config.disabledRules, ...Object.keys(config.overrides)]) {

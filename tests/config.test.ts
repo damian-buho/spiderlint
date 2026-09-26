@@ -77,7 +77,7 @@ describe("validateSubtree", () => {
             "fail-on": "error",
             format: "human",
             plugins: [],
-            "disabled-rules": ["html/canonical-self"],
+            "exclude-rules": ["html/canonical-self"],
             override: { error: ["html/one-h1"], warning: ["http/hsts"], info: ["html/title-length"] },
             groups: { posts: { match: ["/posts/**"], rules: ["seo"] } },
             rulesets: { custom: { extends: ["seo"], rules: { "x/y": "warning" } } },
@@ -129,7 +129,7 @@ describe("environmentSettings", () => {
 
     it("parses disabled rules and merges the three override buckets", () => {
         const settings = environmentSettings({
-            SPIDERLINT_DISABLED_RULES: "html/canonical-self,http/hsts",
+            SPIDERLINT_EXCLUDE_RULES: "html/canonical-self,http/hsts",
             SPIDERLINT_OVERRIDE_ERROR: "html/one-h1",
             SPIDERLINT_OVERRIDE_INFO: "html/one-h1 html/title-length",
         });
@@ -167,11 +167,11 @@ describe("loadSettings", () => {
         assert.deepEqual(settings.groups, { posts: { match: ["/posts/**"] } });
     });
 
-    it("reads disabled-rules and flattens the override buckets via pf-cli", () => {
+    it("reads exclude-rules and flattens the override buckets via pf-cli", () => {
         const file = path.join(directory, "overrides.yaml");
         writeFileSync(
             file,
-            ["org:", "  spiderlint:", "    disabled-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"),
+            ["org:", "  spiderlint:", "    exclude-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"),
         );
         const { settings } = loadSettings(file);
         assert.deepEqual(settings.disabledRules, ["html/canonical-self"]);

@@ -47,8 +47,8 @@ const site = {
         "max-depth": { type: "integer", minimum: 0 },
         "max-body-size": { type: "integer", minimum: 0 },
         keepalive: { type: "boolean" },
-        include: { type: "array", items: { type: "string" } },
-        exclude: { type: "array", items: { type: "string" } },
+        "include-urls": { type: "array", items: { type: "string" } },
+        "exclude-urls": { type: "array", items: { type: "string" } },
         resources: {
             type: "object",
             additionalProperties: false,
@@ -68,7 +68,7 @@ const site = {
         format: { type: "string" },
         plugins: { type: "array", items: { type: "string" } },
         sources: { type: "array", items: { type: "string" } },
-        "disabled-rules": { type: "array", items: { type: "string" } },
+        "exclude-rules": { type: "array", items: { type: "string" } },
         override: {
             type: "object",
             additionalProperties: false,

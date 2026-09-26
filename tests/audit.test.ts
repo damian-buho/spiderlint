@@ -51,7 +51,7 @@ describe("audit", () => {
     it("crawls every linked page in scope, and only those", () => {
         assert.deepEqual(paths(), ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
         assert.ok(!site.requested.includes("/private/secret"), "robots.txt disallow is honoured");
-        assert.ok(!site.requested.includes("/tmp/skipme"), "--exclude is applied before enqueue");
+        assert.ok(!site.requested.includes("/tmp/skipme"), "--exclude-urls is applied before enqueue");
     });
 
     it("crawls a head-only feed as a page and fetches the manifest as a resource", () => {
@@ -582,7 +582,7 @@ describe("audit options", () => {
         assert.equal(site.requested.length, requests);
     });
 
-    it("drops a --disabled-rules rule entirely, across every group", async () => {
+    it("drops an --exclude-rules rule entirely, across every group", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, disabledRules: ["html/one-h1"] });
         assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 0);
     });

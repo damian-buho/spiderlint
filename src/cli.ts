@@ -50,8 +50,8 @@ Crawl:
   --max-pages N         page limit, 0 for none (0)
   --max-depth N         link depth limit, 0 for none (0)
   --max-body-size B     body cap in bytes (10000000)
-  --include GLOB        crawl matching URLs only, repeatable
-  --exclude GLOB        skip matching URLs, repeatable
+  --include-urls GLOB   crawl matching URLs only, repeatable
+  --exclude-urls GLOB   skip matching URLs, repeatable
   --source ID:ARG       add a plugin source’s URLs, list:FILE crawls a URL list only, repeatable
   --no-robots           ignore robots.txt
   --no-sitemap          skip sitemap discovery
@@ -65,7 +65,7 @@ Rules:
   --config PATH         settings file (projectfile.yaml)
   --site NAMES          audit these org.spiderlint.sites only, repeatable (all)
   --rules RULESETS      run these rulesets in every group (recommended)
-  --disabled-rules IDS  skip these rules
+  --exclude-rules IDS   skip these rules
   --error IDS           report these rules as errors
   --warning IDS         report these rules as warnings
   --info IDS            report these rules as info
@@ -174,9 +174,9 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values["max-pages"] !== undefined && { maxPages: parseInteger("--max-pages", values["max-pages"] as string) }),
         ...(values["max-depth"] !== undefined && { maxDepth: parseInteger("--max-depth", values["max-depth"] as string) }),
         ...(values["max-body-size"] !== undefined && { maxBodySize: parseInteger("--max-body-size", values["max-body-size"] as string) }),
-        ...(values.include !== undefined && { include: values.include as string[] }),
+        ...(values["include-urls"] !== undefined && { include: values["include-urls"] as string[] }),
         ...(values.source !== undefined && { sources: values.source as string[] }),
-        ...(values.exclude !== undefined && { exclude: values.exclude as string[] }),
+        ...(values["exclude-urls"] !== undefined && { exclude: values["exclude-urls"] as string[] }),
         ...(values.robots !== undefined && { robots: values.robots as boolean }),
         ...(values.sitemap !== undefined && { sitemap: values.sitemap as boolean }),
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
@@ -184,7 +184,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: pick("--fail-on", values["fail-on"] as string, FAIL_ONS) }),
         ...(values.format !== undefined && { format: values.format as string }),
-        ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
+        ...(values["exclude-rules"] !== undefined && { disabledRules: splitIds(values["exclude-rules"] as string) }),
         ...(values.rules !== undefined && { rules: (values.rules as string[]).flatMap((raw) => splitIds(raw)) }),
         ...(Object.keys(overrides).length > 0 && { overrides }),
         cacheMode: cacheMode(values),
@@ -229,9 +229,9 @@ function parseFlags(argv: string[]) {
                 "max-pages": { type: "string" },
                 "max-depth": { type: "string" },
                 "max-body-size": { type: "string" },
-                include: { type: "string", multiple: true },
+                "include-urls": { type: "string", multiple: true },
                 source: { type: "string", multiple: true },
-                exclude: { type: "string", multiple: true },
+                "exclude-urls": { type: "string", multiple: true },
                 robots: { type: "boolean" },
                 sitemap: { type: "boolean" },
                 keepalive: { type: "boolean" },
@@ -239,7 +239,7 @@ function parseFlags(argv: string[]) {
                 unfold: { type: "boolean" },
                 format: { type: "string" },
                 "fail-on": { type: "string" },
-                "disabled-rules": { type: "string" },
+                "exclude-rules": { type: "string" },
                 rules: { type: "string", multiple: true },
                 error: { type: "string", multiple: true },
                 warning: { type: "string", multiple: true },
