@@ -161,7 +161,7 @@ function costRows({ browser, http, resources, extractors }: Report["summary"]["c
         browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}`) : "",
         http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
         browser || http ? "" : row("fetch", "none"),
-        resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache)` : ""}`) : "",
+        resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache)` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`) : "",
         runs.length > 0 ? row("extractors", runs.join(", ")) : "",
     ].filter(Boolean);
 }

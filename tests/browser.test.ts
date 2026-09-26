@@ -9,6 +9,7 @@ import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
+import { serveGallery } from "./fixtures/images.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 // The node tool image carries no browser; the spiderlint image carries Chromium, and its self-test runs these.
@@ -130,6 +131,20 @@ describe("browser fetch", { skip }, () => {
         assert.match(facts?.http.charset ?? "", /^utf-8$/);
         assert.equal(typeof facts?.http.timing.total, "number");
         assert.equal(typeof facts?.browser?.timing.load, "number");
+    });
+
+    it("answers every resource the page loaded from the network log, fetching none of them again", async () => {
+        const gallery = await serveGallery();
+        try {
+            const config = { seeds: [`${gallery.origin}/`], rules: ["images"], sitemap: false, robots: false, cacheMode: "off" as const };
+            const [http, browser] = [await audit(config), await audit({ ...config, fetch: "browser" })];
+            const requested = gallery.requested.slice(gallery.requested.lastIndexOf("/") + 1);
+            assert.deepEqual(browser.summary.cost.resources, { requests: 0, cached: 0, logged: 4 });
+            assert.deepEqual(requested.toSorted((a, b) => a.localeCompare(b)), ["/heavy.png", "/logo.svg", "/small.webp", "/wide.jpg"], "each image once, by the browser");
+            assert.deepEqual(browser.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)), http.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)));
+        } finally {
+            await gallery.close();
+        }
     });
 
     it("judges a download by its headers", async () => {

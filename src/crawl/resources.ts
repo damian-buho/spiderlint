@@ -6,6 +6,7 @@ import { availableParallelism } from "node:os";
 import { OfflineMiss, type Bucket } from "../cache/index.ts";
 import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
+import type { Logged } from "./frontier.ts";
 import { reason } from "./fetch.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
@@ -59,11 +60,16 @@ function readers(extractors: ResourceExtractor[], status: number, contentType: s
     return status >= 200 && status < 300 ? extractors.filter((extractor) => extractor.types.some((type) => contentType.startsWith(type))) : [];
 }
 
-// Counts the body, and hands it whole to each extractor that reads its type; a body cut at `max` is read by none.
+// Counts the body, and hands it whole to each extractor that reads its type.
 async function consume(url: string, response: Response, max: number, extractors: ResourceExtractor[]): Promise<Consumed> {
     const contentType = mediaType(response.headers.get("content-type"));
-    const wanted = readers(extractors, response.status, contentType);
-    const { bytes, body } = await drain(response, max, wanted.length > 0);
+    const { bytes, body } = await drain(response, max, readers(extractors, response.status, contentType).length > 0);
+    return extractBody(url, response.status, contentType, bytes, body, max, extractors);
+}
+
+// Hands a whole body to each extractor that reads its type; a body cut at `max` is read by none.
+async function extractBody(url: string, status: number, contentType: string, bytes: number, body: Uint8Array | undefined, max: number, extractors: ResourceExtractor[]): Promise<Consumed> {
+    const wanted = readers(extractors, status, contentType);
     const read = wanted.map((extractor) => extractor.id);
     if (!body || bytes >= max) {
         if (wanted.length > 0) log.debug({ url, bytes, max, extractors: read }, "resource body too large to extract");
@@ -105,6 +111,20 @@ async function fetchOne(url: string, max: number, bucket: ResourceBucket, extrac
     }
 }
 
+// A logged answer that stands for a fetch: not a failure, nor a status a fetch would retry.
+function isUsable(logged: Logged | undefined): logged is Logged {
+    return logged !== undefined && logged.status >= 200 && logged.status < 500 && logged.status !== 429;
+}
+
+// A result from the browser’s network log, read by the same extractors a fetch would feed.
+async function fromLog(url: string, logged: Logged, max: number, extractors: ResourceExtractor[]): Promise<ResourceResults[string]> {
+    const contentType = mediaType(logged.headers["content-type"]);
+    const { facts } = await extractBody(url, logged.status, contentType, logged.bytes, logged.body, max, extractors);
+    const hasFacts = facts !== undefined && Object.keys(facts).length > 0;
+    log.debug({ url, status: logged.status, bytes: logged.bytes, hasBody: logged.body !== undefined }, "resource answered from the browser log");
+    return { status: logged.status, headers: redactHeaders(logged.headers), ...(contentType && { contentType }), size: { body: logged.bytes }, timing: { ...(logged.ms !== undefined && { total: logged.ms }) }, logged: true, ...(hasFacts && { facts }) };
+}
+
 // Hangs each fetched result off every page entry that names its URL.
 export function attachResources(pages: Facts[], results: ResourceResults): void {
     const entries = pages.flatMap((page) => page.resources ?? []);
@@ -115,8 +135,8 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
     }
 }
 
-// GETs every distinct resource URL the pages name, once each, with `extractors` reading the bodies of their types.
-export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = []): Promise<ResourceResults> {
+// GETs every distinct resource URL the pages name that `logged` lacks, once each, with `extractors` reading the bodies of their types.
+export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>()): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
     log.info({ resources: urls.length, references: entries.length, fetch: config.fetchResources }, "resources found");
@@ -124,12 +144,15 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const results = new Map<string, ResourceResults[string]>();
     const queue = urls.values();
     const worker = async () => {
-        for (const url of queue) results.set(url, await fetchOne(url, config.maxBodySize, bucket, extractors));
+        for (const url of queue) {
+            const answer = logged.get(url);
+            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors) : await fetchOne(url, config.maxBodySize, bucket, extractors));
+        }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
     await Promise.all(workers);
     const all = results.values().toArray();
-    const [failed, cached, revalidated] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length];
-    log.info({ resources: urls.length, failed, cached, revalidated }, "resources fetched");
+    const [failed, cached, revalidated, fromBrowser] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length, all.filter((result) => result.logged).length];
+    log.info({ resources: urls.length, failed, cached, revalidated, logged: fromBrowser }, "resources fetched");
     return Object.fromEntries(results);
 }

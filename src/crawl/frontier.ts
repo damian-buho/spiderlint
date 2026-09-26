@@ -23,6 +23,17 @@ export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> 
 export interface CrawlResult {
     site: SiteFacts;
     launches: number;
+    // Sub-resource responses the browser received, by the URL the page asked for.
+    responses?: Map<string, Logged>;
+}
+
+// One response from the browser’s network log; `body` only where a resource extractor reads its type.
+export interface Logged {
+    status: number;
+    headers: Record<string, string>;
+    bytes: number;
+    body?: Uint8Array;
+    ms?: number;
 }
 
 // Cached lookups a crawl reads through.

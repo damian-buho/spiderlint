@@ -150,7 +150,7 @@ export interface ResourceFacts {
     integrity?: string;
     crossorigin?: string;
     observed?: true;
-    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true };
+    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; error?: string; cached?: true; revalidated?: true; logged?: true };
     // A resource extractor’s facts, under the extractor’s ID.
     [extractor: string]: unknown;
 }

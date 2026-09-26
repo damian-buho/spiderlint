@@ -39,7 +39,7 @@ const PAGE_CONTEXT_MS = 60_000;
 export interface Cost {
     browser?: { name: string; launches: number; pages: number };
     http?: { pages: number; revalidated: number };
-    resources?: { requests: number; cached: number };
+    resources?: { requests: number; cached: number; logged: number };
     extractors: Record<string, number>;
 }
 
@@ -319,7 +319,9 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample);
     for (const facts of earlier) memory.add(facts);
     const fetch = fetchMode(config);
-    const crawl = fetch === "http" ? crawlHttp : crawlBrowser;
+    const resourceActive = resourceExtractorsFor(rules);
+    const isKeptType = (type: string) => resourceActive.some((extractor) => extractor.types.some((prefix) => type.startsWith(prefix)));
+    const crawl: typeof crawlHttp = fetch === "http" ? crawlHttp : (...crawlArguments) => crawlBrowser(...crawlArguments, isKeptType);
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     const robots = config.robots ? cache.robots : undefined;
@@ -328,7 +330,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     let fetched = 0;
     let revalidated = 0;
     const redirects: Record<string, string> = {};
-    const { site, launches } = await crawl(
+    const { site, launches, responses } = await crawl(
         config,
         async (facts, body, live) => {
             fetched += 1;
@@ -350,7 +352,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
-    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceExtractorsFor(rules));
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses);
     for (const result of Object.values(results)) if (!result.cached && !result.revalidated) counted(cost, Object.keys(result.facts ?? {}));
     await store?.saveResources(results);
     const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
@@ -364,7 +366,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };
     else cost.http = { pages: fetched, revalidated };
     const answered = Object.values(results);
-    if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached).length, cached: answered.filter((result) => result.cached).length };
+    if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached && !result.logged).length, cached: answered.filter((result) => result.cached).length, logged: answered.filter((result) => result.logged).length };
     log.debug({ cost }, "crawl cost");
     return { pages: memory.pages, site, cost };
 }

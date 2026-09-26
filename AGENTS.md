@@ -306,7 +306,9 @@ a long `max-age`), `resources/sri` (cross-origin script or style without
 `resources/compression` (text asset served uncompressed), `resources/tls`
 (a dependency host whose certificate is near expiry). Each is `scope: site`
 and keyed by RESOURCE URL: a CDN script every page loads is one finding with
-`usedBy` and sample pages, never one per page.
+`usedBy` and sample pages, never one per page. In browser mode a resource the page
+loaded is answered from Chromium’s network log, its body kept only for a type a
+resource extractor reads; only the rest is fetched.
 
 `recommended` also carries `http/consistent-origin` (`scope: site`, `info`): for
 each host it reports when `tls.cert.fingerprint256`, `tls.protocol`,
@@ -510,7 +512,7 @@ export default definePlugin({
 - `pino` logs to stderr, `--log-level` (`info` default), JSON with `SPIDERLINT_LOG_FORMAT=json`. Otherwise each entry is one line: message, URL, error; its other fields show only when it has neither, or at `debug`. Crawlee’s own log is bridged into the same stream.
 - When every seed shares one origin, that origin is logged once and every logged URL under it prints as its path; other origins, and runs with mixed-origin seeds, stay absolute. `human` does the same with the origin every page shares, printed once on top; `json`, `sarif` and the store always carry absolute URLs.
 - Every decision logs its variables: group assignment (`url`, `group`, `matched`), rule skip (`rule`, `when`, `actual`), fold (`group`, `rule`, `failed`, `applicable`, `ratio`), sampling (`group`, `extractor`, `taken`, `cap`), robots skip (`url`, `rule`).
-- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `findings` per severity counted before folding (so `--unfold` changes no total), distinct `rules` run, `byRule` (findings per severity for every rule run, `{}` for a clean one), `checks`, `rating`, `crawlHash` (the crawl-shaping options), `previous` (the last stored run’s `byRule` summed over this run’s rules, when it ran every one of them with the same `crawlHash`, which `human` prints as a signed change per severity) and `cost` — browser launches and the pages they rendered, plain HTTP fetches and revalidations, resource requests and cache hits, runs per extractor — printed by `human` as one labelled row per value, embedded in `json` and `sarif` `invocations`.
+- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `findings` per severity counted before folding (so `--unfold` changes no total), distinct `rules` run, `byRule` (findings per severity for every rule run, `{}` for a clean one), `checks`, `rating`, `crawlHash` (the crawl-shaping options), `previous` (the last stored run’s `byRule` summed over this run’s rules, when it ran every one of them with the same `crawlHash`, which `human` prints as a signed change per severity) and `cost` — browser launches and the pages they rendered, plain HTTP fetches and revalidations, resource requests, cache hits and network-log answers, runs per extractor — printed by `human` as one labelled row per value, embedded in `json` and `sarif` `invocations`.
 - `human` numbers keep the locale’s digits and decimal mark but group with a narrow no-break space (SI), never a dot or comma; bytes take the largest unit they reach.
 - `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
 

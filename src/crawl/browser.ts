@@ -16,7 +16,7 @@ import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
 import { width } from "./resources.ts";
-import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage } from "./frontier.ts";
+import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Logged, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
@@ -171,6 +171,37 @@ async function bodyOf(page: Page, response: Response, observation: Observation, 
     return { raw, text: HTML_TYPES.has(type) ? await page.content() : isParsed(type) ? raw.toString("utf8") : "" };
 }
 
+// The first URL of a redirect chain, without its fragment.
+function requestedUrl(request: Request): string {
+    let first = request;
+    for (let previous = first.redirectedFrom(); previous; previous = previous.redirectedFrom()) first = previous;
+    const url = new URL(first.url());
+    url.hash = "";
+    return url.href;
+}
+
+// Logs each finished sub-request’s final response once per URL, keeping a body under `max` only where `isKeptType` takes its type.
+async function logResponses(requests: Request[], responses: Map<string, Logged>, max: number, isKeptType: (contentType: string) => boolean): Promise<void> {
+    const finished = requests.filter((request) => !request.isNavigationRequest() && request.failure() === null && request.redirectedTo() === null && /^https?:/.test(request.url()));
+    await Promise.all(
+        finished.map(async (request) => {
+            const url = requestedUrl(request);
+            if (responses.has(url)) return;
+            try {
+                const response = await request.response();
+                if (!response) return;
+                const [headers, body] = await Promise.all([response.allHeaders(), response.body()]);
+                const isKept = body.length < max && isKeptType(contentTypeOf(headers["content-type"]).type);
+                const { responseEnd } = request.timing();
+                responses.set(url, { status: response.status(), headers, bytes: body.length, ...(isKept && { body }), ...(responseEnd >= 0 && { ms: Math.round(responseEnd) }) });
+            } catch (error) {
+                log.debug({ url, error: String(error) }, "browser response unreadable, fetched again later");
+            }
+        }),
+    );
+    log.debug({ finished: finished.length, logged: responses.size }, "browser responses logged");
+}
+
 // The Playwright launcher for `name`; a browser other than the bundled Chromium must be installed where Playwright looks.
 function launcherOf(name: BrowserName): BrowserType {
     const launcher = Object.hasOwn(LAUNCHERS, name) ? LAUNCHERS[name] : undefined;
@@ -183,11 +214,12 @@ function launcherOf(name: BrowserName): BrowserType {
 }
 
 // Renders every page in the configured browser; facts come from the rendered DOM and the browser’s own network log.
-export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string): Promise<CrawlResult> {
+export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlCache, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false): Promise<CrawlResult> {
     const launcher = launcherOf(config.browser);
     bridgeCrawleeLog();
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
+    const responses = new Map<string, Logged>();
     let launches = 0;
     // Pages rendered at once, all in one browser: `concurrency`, else half of NUMPROCS.
     const openPages = config.concurrency || Math.ceil(width() / 2);
@@ -236,6 +268,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                     facts.html = extractHtml($, text, url, config.scope);
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests) };
+                    await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 await onPage(facts, body, isHtml ? page : undefined);
@@ -248,5 +281,5 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
     await frontier.run(crawler, cache.robots);
-    return { site: frontier.site(), launches };
+    return { site: frontier.site(), launches, responses };
 }
