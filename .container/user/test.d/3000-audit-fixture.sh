@@ -77,3 +77,13 @@ console.log(finding ? finding.message : "");
 ' "${REPORT_FILE}")"
 b19-log info "SPIDERLINT" "$(_p "known console-error finding in chromium: %s" "${CONSOLE_ERROR}")"
 [ -n "${CONSOLE_ERROR}" ]
+
+spiderlint audit "${ORIGIN}/live-skip" --rules keyboard --max-pages 1 --format json --fail-on never > "${REPORT_FILE}"
+
+TAB_WALK="$(node -e '
+const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+const finding = report.findings.find((entry) => entry.rule === "keyboard/tab-walk" && entry.url.endsWith("/live-skip"));
+console.log(finding ? finding.locations.join(", ") : "");
+' "${REPORT_FILE}")"
+b19-log info "SPIDERLINT" "$(_p "known Tab walk finding in chromium: %s" "${TAB_WALK}")"
+[ -n "${TAB_WALK}" ]

@@ -10,6 +10,7 @@ import { ConfigError } from "../src/config/index.ts";
 import { parsePin } from "../src/crawl/resolve.ts";
 import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
+import type { KeyboardFacts } from "../src/plugins/keyboard.ts";
 import { serveGallery } from "./fixtures/images.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -204,7 +205,7 @@ describe("browser fetch", { skip }, () => {
     it("finds a third-party cookie set before any interaction, and passes a page setting only a session cookie", async () => {
         const report = await audit({ seeds: [`${site.origin}/consent-tracked`, `${site.origin}/consent-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["privacy"], sample: "all" } } });
         const tracked = report.pages.find((entry) => entry.url.pathname === "/consent-tracked");
-        assert.deepEqual(tracked?.consent, { cookies: [{ name: "sid", domain: "127.0.0.1", party: "first" }, { name: "uid", domain: "localhost", party: "third", lifetime: (tracked?.consent as { cookies: { lifetime?: number }[] }).cookies[1]?.lifetime }] });
+        assert.deepEqual(tracked?.consent, { cookies: [{ name: "sid", domain: "127.0.0.1", party: "first" }, { name: "uid", domain: "localhost", party: "third", lifetime: (tracked?.consent as { cookies: { lifetime?: number }[] }).cookies[1]?.lifetime }], storage: [] });
         const findings = report.findings.filter((finding) => finding.rule === "cookies/before-consent").map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(findings, ["/consent-tracked"]);
         assert.ok(!JSON.stringify(report.pages.map((entry) => entry.consent)).includes("uid=1"));
@@ -213,6 +214,18 @@ describe("browser fetch", { skip }, () => {
     it("reads the consent jar on sampled pages only", async () => {
         const report = await audit({ seeds: [`${site.origin}/consent-tracked`, `${site.origin}/consent-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["privacy"], sample: 1 } } });
         assert.equal(report.pages.filter((entry) => entry.consent !== undefined).length, 1);
+    });
+
+    it("walks keyboard, motion, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
+        const report = await audit({ seeds: ["/live-bad", "/live-clean", "/live-skip"].map((path) => `${site.origin}${path}`), maxPages: 3, sitemap: false, fetchResources: false, groups: { default: { rules: ["keyboard", "live", "privacy"], sample: "all" } } });
+        const failed = report.findings.filter((finding) => finding.rule !== "groups/heterogeneous").map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`).toSorted((a, b) => a.localeCompare(b));
+        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/input-font-size", "live/reduced-motion"];
+        assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk"]);
+        const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
+        assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
+        assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
+        assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", inMain: false, skipsTo: { target: "#main", main: true } });
+        assert.ok(keyboard("/live-clean")?.complete);
     });
 
     it("renders a name pinned by --resolve through Chromium’s host resolver rules", async () => {

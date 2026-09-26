@@ -38,7 +38,40 @@ const HINTED: Record<string, [string[], string]> = {
     "/hints-ok": [["</style.css>; rel=preload; as=style"], "</style.css>; rel=preload; as=style"],
 };
 
-const PLAIN = "<!DOCTYPE html><html lang=\"en\"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>";
+// Pages the live checks walk: every defect, its clean twin, and a script that skips a button; THIRD is a third-party pixel.
+const LIVE: Record<string, string> = {
+    "/live-bad": `<!doctype html><html lang="en"><head><title>Live bad</title><style>
+header { position: sticky; top: 0; height: 200px; background: #fff; z-index: 1 }
+header a:focus { outline: none }
+.banner { position: fixed; top: 300px; bottom: 0; left: 0; right: 0; background: #eee }
+.spin { animation: spin 1s linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
+input { font-size: 12px }
+</style></head><body>
+<header><a href="/about">About</a></header>
+<main><div class="spin">Loading</div><div id="open">Open</div><input aria-label="Name"><div style="height: 2000px"></div><a href="/posts/1">Post</a>
+<button id="a">A</button><button id="b">B</button></main>
+<div class="banner">We value your privacy</div>
+<img src="THIRD" alt="" width="1" height="1">
+<script>
+document.getElementById("open").addEventListener("click", () => {});
+document.getElementById("b").addEventListener("keydown", (event) => { if (event.key === "Tab") { event.preventDefault(); document.getElementById("a").focus(); } });
+localStorage.setItem("visitor", "1");
+</script></body></html>`,
+    "/live-clean": `<!doctype html><html lang="en"><head><title>Live clean</title><style>
+@media (prefers-reduced-motion: no-preference) { .spin { animation: spin 1s linear infinite } }
+@keyframes spin { to { transform: rotate(360deg) } }
+input { font-size: 16px }
+</style></head><body>
+<a href="#main">Skip to content</a><nav><a href="/about">About</a></nav>
+<main id="main"><div class="spin">Loading</div><button id="open">Open</button><input aria-label="Name"><a href="/posts/1">Post</a></main>
+<script>document.getElementById("open").addEventListener("click", () => {});</script></body></html>`,
+    "/live-skip": `<!doctype html><html lang="en"><head><title>Live skip</title></head><body>
+<a href="#main">Skip to content</a><main id="main"><button id="x">X</button><button id="y">Y</button><button id="z">Z</button></main>
+<script>document.getElementById("x").addEventListener("keydown", (event) => { if (event.key === "Tab" && !event.shiftKey) { event.preventDefault(); document.getElementById("z").focus(); } });</script></body></html>`,
+};
+
+const PLAIN ="<!DOCTYPE html><html lang=\"en\"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>";
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
 async function body(pathname: string, origin: string, local: string): Promise<[string, Buffer] | undefined> {
@@ -150,6 +183,13 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             const third = `http://localhost:${new URL(`http://${request.headers.host}`).port}/third-party.gif`;
             response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["sid=1; Path=/; HttpOnly; SameSite=Lax"] });
             response.end(`<!doctype html><html lang="en"><head><title>Consent</title></head><body>${pathname === "/consent-tracked" ? `<img src="${third}" alt="" width="1" height="1">` : ""}</body></html>`);
+            return;
+        }
+        const live = LIVE[pathname];
+        if (live) {
+            const third = `http://localhost:${new URL(`http://${request.headers.host}`).port}/third-party.gif`;
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(live.replace("THIRD", () => third));
             return;
         }
         if (pathname === "/third-party.gif") {

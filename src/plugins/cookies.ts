@@ -5,17 +5,13 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { getDomain } from "tldts";
 import { USER_AGENT } from "../agent.ts";
-import { reason } from "../crawl/fetch.ts";
 import type { CookieFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resourceRule } from "../rules/builtin.ts";
 import type { Make, RuleSpec, Severity } from "../rules/types.ts";
 import { TRACKING_COOKIES } from "./cookies-registry.ts";
 import { definePlugin, type Extractor } from "./types.ts";
-
-// Milliseconds a fresh page may take to load, then to fall quiet.
-const LOAD_MS = 30_000;
-const QUIET_MS = 5000;
+import { visit } from "./visit.ts";
 
 // Every hand-kept tracking cookie name as one anchored pattern, `*` as any suffix.
 const TRACKING = `^(?:${Object.values(TRACKING_COOKIES).flat().map((name) => name.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`).replaceAll("*", ".*")).join("|")})$`;
@@ -94,7 +90,10 @@ function siteOf(host: string): string {
     return getDomain(name, { allowPrivateDomains: true }) ?? name;
 }
 
-// The jar of the page loaded once in a fresh context, before any interaction: names, domains and lifetimes, never values.
+// A page script listing the keys scripts wrote to localStorage and sessionStorage, never their values.
+const STORAGE = `(() => [["local", localStorage], ["session", sessionStorage]].flatMap(([area, store]) => Object.keys(store).map((name) => ({ area, name }))))()`;
+
+// The jar and storage keys of the page loaded once in a fresh context, before any interaction: never values.
 const consent: Extractor = {
     id: "consent",
     mode: "browser",
@@ -106,18 +105,14 @@ const consent: Extractor = {
         const context = await browser.newContext({ userAgent: USER_AGENT });
         try {
             const fresh = await context.newPage();
-            await fresh.goto(page.url.href, { waitUntil: "load", timeout: LOAD_MS });
-            try {
-                await fresh.waitForLoadState("networkidle", { timeout: QUIET_MS });
-            } catch (error) {
-                log.debug({ url: page.url.href, error: reason(error) }, "fresh page never fell quiet; reading its jar anyway");
-            }
+            await visit(fresh, page.url.href);
             const site = siteOf(page.url.host.replace(/:\d+$/, ""));
             const jar = await context.cookies();
             const now = Date.now() / 1000;
             const cookies = jar.map((cookie) => ({ name: cookie.name, domain: cookie.domain.replace(/^\./, ""), party: siteOf(cookie.domain) === site ? "first" : "third", ...(cookie.expires > 0 && { lifetime: Math.round(cookie.expires - now) }) }));
-            log.debug({ url: page.url.href, site, cookies: cookies.map((cookie) => `${cookie.party}:${cookie.domain}:${cookie.name}`) }, "cookies before consent read");
-            return { cookies };
+            const storage = (await fresh.evaluate(STORAGE)) as { area: string; name: string }[];
+            log.debug({ url: page.url.href, site, cookies: cookies.map((cookie) => `${cookie.party}:${cookie.domain}:${cookie.name}`), storage: storage.map((entry) => `${entry.area}:${entry.name}`) }, "cookies and storage before consent read");
+            return { cookies, storage };
         } finally {
             await context.close();
         }
@@ -133,6 +128,15 @@ const BEFORE_CONSENT: RuleSpec = {
     docs: "https://eur-lex.europa.eu/eli/dir/2002/58/art_5/oj",
 };
 
+const STORAGE_BEFORE_CONSENT: RuleSpec = {
+    fact: "consent.storage",
+    expect: { type: "array", maxItems: 0 },
+    severity: "info",
+    message: "scripts write localStorage or sessionStorage on first load, before any interaction ({got})",
+    fix: "write only what the page strictly needs before the visitor agrees, such as a theme or a cart, and nothing that identifies them",
+    docs: "https://eur-lex.europa.eu/eli/dir/2002/58/art_5/oj",
+};
+
 // One set of cookie expectations over the page’s Set-Cookie, each resource’s, and what scripts write through `document.cookie`.
 export default definePlugin({
     name: "cookies",
@@ -141,6 +145,6 @@ export default definePlugin({
     presets: {
         cookies: { description: "Secure, HttpOnly and SameSite on every cookie a page or resource sets, valid __Host- and __Secure- prefixes, and a lifetime browsers keep", rules: { ...PAGE, ...Object.fromEntries(CHECKS.map((check) => [`cookies/resource-${check.name}`, check.severity])) } },
         "cookies:browser": { description: "The cookie expectations over what scripts write through document.cookie", rules: SCRIPTS },
-        privacy: { description: "Tracking vendors, and third-party or tracking cookies set before any interaction", extends: ["spiderlint:trackers"], when: { "http.status": { minimum: 200, maximum: 299 } }, rules: { "cookies/before-consent": BEFORE_CONSENT } },
+        privacy: { description: "Tracking vendors, and third-party or tracking cookies and web storage set before any interaction", extends: ["spiderlint:trackers"], when: { "http.status": { minimum: 200, maximum: 299 } }, rules: { "cookies/before-consent": BEFORE_CONSENT, "cookies/storage-before-consent": STORAGE_BEFORE_CONSENT } },
     },
 });
