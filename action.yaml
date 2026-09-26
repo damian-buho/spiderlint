@@ -33,9 +33,9 @@ inputs:
     required: false
     default: 'false'
   version:
-    description: 'Image tag to pull (e.g. latest, 1.2.3).'
+    description: 'Image tag to pull (e.g. latest, 1.2.3). Empty follows the action’s own version tag, else latest.'
     required: false
-    default: 'latest'
+    default: ''
   image:
     description: 'Full image reference. Takes precedence over `version`.'
     required: false
@@ -57,7 +57,9 @@ runs:
       id: audit
       shell: bash
       env:
-        IMAGE: ${{ inputs.image || format('ghcr.io/damian-buho/spiderlint:{0}', inputs.version) }}
+        IMAGE: ${{ inputs.image }}
+        VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
         URLS: ${{ inputs.urls }}
         CONFIG_FILE: ${{ inputs.config_file }}
         SITE: ${{ inputs.site }}

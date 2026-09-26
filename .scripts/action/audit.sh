@@ -15,6 +15,12 @@ mkdir --parents "${cache}"
 # The container user differs from the runner's; the store keeps its own owner-only modes inside.
 chmod 0777 "${cache}"
 
+# An action used at a version tag pulls the image of that tag.
+if [ -z "${VERSION}" ] && [[ "${ACTION_REF}" =~ ^v?([0-9]+(\.[0-9]+){0,2})$ ]]; then
+    VERSION="${BASH_REMATCH[1]}"
+fi
+IMAGE="${IMAGE:-ghcr.io/damian-buho/spiderlint:${VERSION:-latest}}"
+
 args=()
 while IFS= read -r url; do
     if [ -n "${url}" ]; then
