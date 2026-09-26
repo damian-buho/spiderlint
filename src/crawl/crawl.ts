@@ -9,6 +9,8 @@ import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type On
 import { httpCrawler } from "./http.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import type { CrawlerMode, Router } from "./route.ts";
+import { singleOrigin } from "./scope.ts";
+import { trackProgress } from "../progress.ts";
 
 // Crawls with every crawler some group needs, side by side over one frontier that routes each URL to its group’s.
 export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCache, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType?: (contentType: string) => boolean, isDebugged?: boolean, isExpensive?: boolean): Promise<CrawlResult> {
@@ -19,7 +21,12 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     const browser = modes.includes("browser") ? browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.info({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
-    await frontier.run(crawlers, cache.robots);
+    const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
+    try {
+        await frontier.run(crawlers, cache.robots);
+    } finally {
+        stop();
+    }
     const [fetched, rendered] = [http?.stats(), browser?.stats()];
     if (fetched?.revalidated) log.info({ revalidated: fetched.revalidated }, "pages revalidated");
     return {

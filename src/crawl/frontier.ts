@@ -75,7 +75,7 @@ function globMatchers(config: Config): Globs {
 export interface Runnable {
     run(requests: string[]): Promise<unknown>;
     addRequests(requests: (string | { url: string; crawlDepth: number })[]): Promise<unknown>;
-    getRequestQueue(): Promise<{ isFinished(): Promise<boolean> }>;
+    getRequestQueue(): Promise<{ isFinished(): Promise<boolean>; getTotalCount(): number }>;
 }
 
 // What every fetch mode shares: seeds, sitemap, globs, robots, the page budget, the visited set, and which crawler each URL goes to.
@@ -134,7 +134,6 @@ export class Frontier {
                 return (include.length === 0 || include.some((match) => match(path))) && exclude.every((match) => !match(path));
             })
             .toArray();
-        log.debug({ listed: this.#sitemap.size, unvisited: extra.length }, "sitemap stragglers");
         return extra;
     }
 
@@ -157,7 +156,7 @@ export class Frontier {
         this.#hasStraggled = true;
         const stragglers = this.#stragglers();
         const isOverBudget = this.#config.maxPages > 0 && this.#handled >= this.#config.maxPages;
-        log.debug({ stragglers: stragglers.length, handled: this.#handled, isOverBudget }, "queue drained");
+        log.debug({ listed: this.#sitemap.size, stragglers: stragglers.length, handled: this.#handled, isOverBudget }, "queue drained");
         if (isOverBudget || stragglers.length === 0) return true;
         await this.#add(stragglers.map((url) => ({ url, crawlDepth: 0 })));
         return false;
@@ -253,6 +252,16 @@ export class Frontier {
         const batches = [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])];
         await this.#add(routed.map((url) => ({ url, crawlDepth: facts.crawl.depth + 1 })));
         return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length + routed.length;
+    }
+
+    // Pages known: every queue’s requests, plus sitemap URLs no link has reached yet, within the page budget.
+    async known(): Promise<number> {
+        let total = this.#hasStraggled ? 0 : this.#stragglers().length;
+        for (const crawler of this.#crawlers.values()) {
+            const queue = await crawler.getRequestQueue();
+            total += queue.getTotalCount();
+        }
+        return this.#config.maxPages > 0 ? Math.min(total, this.#config.maxPages) : total;
     }
 
     // What the crawl learnt about the site: sitemap files, and each seed origin’s robots.txt when one was read.

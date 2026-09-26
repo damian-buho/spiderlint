@@ -20,6 +20,7 @@ import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
+import { enableProgress } from "./progress.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
 
@@ -74,6 +75,7 @@ Output:
   --format FORMAT       human, json, sarif, checkstyle, csv or a plugin’s (human)
   --fail-on LEVEL       error, warning, info or never (error)
   --[no-]color          force or disable color (auto)
+  --[no-]progress       status line on an interactive stderr (auto)
   --log-level LEVEL     trace, debug, info, warn, error or silent (info)
 
 Store and cache:
@@ -206,6 +208,7 @@ function parseFlags(argv: string[]) {
             options: {
                 help: { type: "boolean", short: "h" },
                 color: { type: "boolean" },
+                progress: { type: "boolean" },
                 version: { type: "boolean", short: "V" },
                 config: { type: "string" },
                 store: { type: "string" },
@@ -261,6 +264,9 @@ async function main(argv: string[]): Promise<number> {
     if (values["log-level"] !== undefined && !isLogLevel(values["log-level"])) return usageError(`--log-level: unknown level ${values["log-level"]}`);
     if (values["log-level"] !== undefined) log.level = values["log-level"];
     logColor(values.color);
+    const isProgress = values.progress ?? (process.stderr.isTTY && process.env.SPIDERLINT_LOG_FORMAT !== "json" && log.level !== "silent");
+    enableProgress(isProgress);
+    log.debug({ isProgress, flag: values.progress, isTTY: process.stderr.isTTY }, "status line chosen");
     if (values.help) {
         console.log(usage(painter(process.stdout, values.color)));
         return 0;

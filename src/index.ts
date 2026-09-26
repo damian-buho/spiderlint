@@ -25,6 +25,7 @@ import { fold } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
+import { isProgressOn, progressDone } from "./progress.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, ruleIds } from "./rules/rulesets.ts";
@@ -345,8 +346,12 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
             const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
-            sample.release(facts, chosen, await extract(facts, body, chosen, extractors, live, context));
+            const extracting = performance.now();
+            const added = await extract(facts, body, chosen, extractors, live, context);
+            sample.release(facts, chosen, added);
             if (memory.add(facts)) await store?.add(facts, body);
+            progressDone(memory.pages.length);
+            log[isProgressOn() ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
         },
         cache,
         router,

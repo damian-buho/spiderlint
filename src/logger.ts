@@ -4,8 +4,10 @@
 
 import pino from "pino";
 import pretty from "pino-pretty";
+import { Writable } from "node:stream";
 import { painter, type Style } from "./color.ts";
 import { relative, singleOrigin } from "./crawl/scope.ts";
+import { progressClear, progressDraw } from "./progress.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
 
@@ -48,12 +50,22 @@ export function oneLine(entry: Record<string, unknown>, messageKey: string): str
     ].filter(Boolean).join(" ");
 }
 
+// Stderr under the status line: each entry clears it, prints, and draws it back.
+const stderr = new Writable({
+    write(chunk: Buffer, _encoding, done) {
+        progressClear();
+        process.stderr.write(chunk);
+        progressDraw();
+        done();
+    },
+});
+
 // One readable line per entry to stderr, so stdout stays the report; `SPIDERLINT_LOG_FORMAT=json` for machines.
 export const log = pino(
     { level, formatters },
     process.env.SPIDERLINT_LOG_FORMAT === "json"
         ? pino.destination(2)
-        : pretty({ destination: 2, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } }),
+        : pretty({ destination: stderr, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } }),
 );
 
 // Whether pino knows `name`, as --log-level must name one.

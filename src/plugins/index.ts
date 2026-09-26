@@ -13,6 +13,7 @@ import { CORE_KEYS, describe } from "../config/schema.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { progressStep } from "../progress.ts";
 import { builtin } from "../rules/builtin.ts";
 import report from "../report/index.ts";
 import { presetNames } from "../rules/rulesets.ts";
@@ -231,7 +232,10 @@ export async function extract(page: Facts, body: string, active: Extractor[], ca
             continue;
         }
         try {
+            progressStep(page.url.href, extractor.id);
+            const running = performance.now();
             const value = await cache.run(extractor, page.url.href, kind, body, () => extractor.extract(page, body, live, context));
+            log.debug({ url: page.url.href, extractor: extractor.id, ms: Math.round(performance.now() - running), isEmpty: value === undefined }, "extractor ran");
             if (value === undefined) continue;
             page[extractor.id] = value;
             added.push(extractor.id);
