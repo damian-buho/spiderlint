@@ -410,13 +410,15 @@ const agents: SiteExtractor = {
     },
 };
 
-// A page’s Markdown twin: its advertised `text/markdown` alternate, else llmstxt.org’s `<url>.md`, `index.html.md` for a directory.
-function twinOf(page: Facts): string {
+// A page’s Markdown twins: its advertised `text/markdown` alternate, else `<url>.md`, a stripped sibling first for a directory (`/posts.md`, then `/posts/index.html.md`).
+function twinsOf(page: Facts): string[] {
     const advertised = page.html?.head.links.find((link) => link.rel?.split(/\s+/).includes("alternate") && link.type === "text/markdown")?.href;
-    if (advertised && URL.canParse(advertised, page.url.href)) return new URL(advertised, page.url.href).href;
-    const twin = new URL(page.url.pathname, page.url.href);
-    twin.pathname += twin.pathname.endsWith("/") ? "index.html.md" : ".md";
-    return twin.href;
+    if (advertised && URL.canParse(advertised, page.url.href)) return [new URL(advertised, page.url.href).href];
+    if (!page.url.pathname.endsWith("/")) return [new URL(`${page.url.pathname}.md`, page.url.href).href];
+    const stripped = page.url.pathname.replace(/\/+$/, "");
+    const sibling = new URL(stripped === "" ? "/index.md" : `${stripped}.md`, page.url.href).href;
+    const index = new URL(`${page.url.pathname}index.html.md`, page.url.href).href;
+    return sibling === index ? [sibling] : [sibling, index];
 }
 
 // One Markdown request’s answer, present when `isAccepted` takes its 2xx media type.
@@ -442,7 +444,10 @@ const markdown: Extractor = {
         const isPage = page.html !== undefined && page.http.status >= 200 && page.http.status <= 299;
         log.debug({ url: page.url.href, isPage, hasNetwork: context !== undefined }, "markdown source decided");
         if (!context || !isPage) return;
-        const [twin, negotiated] = await Promise.all([markdownAt(twinOf(page), {}, (type) => type !== "text/html", context), markdownAt(page.url.href, { headers: { accept: "text/markdown" } }, (type) => type === "text/markdown", context)]);
+        const candidates = twinsOf(page);
+        const [twins, negotiated] = await Promise.all([Promise.all(candidates.map((url) => markdownAt(url, {}, (type) => type !== "text/html", context))), markdownAt(page.url.href, { headers: { accept: "text/markdown" } }, (type) => type === "text/markdown", context)]);
+        const twin = twins.find((probe) => probe.present) ?? twins[0];
+        if (!twin) return;
         return { present: Boolean(twin.present || negotiated.present), twin, negotiated };
     },
 };

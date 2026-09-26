@@ -5,6 +5,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { audit, type Report } from "../src/index.ts";
@@ -105,6 +106,33 @@ describe("well-known plugin", () => {
         assert.deepEqual(sources.map((source) => [source.present, new URL(source.twin.url).pathname]), [[true, "/index.md"]]);
         assert.ok(!valid.requested.slice(before).includes("/page.md"));
         assert.deepEqual(rules(report), []);
+    });
+
+    it("finds a directory page’s stripped sibling twin with no advertised alternate", async () => {
+        const { createServer } = await import("node:http");
+        const server = createServer((request, response) => {
+            const pathname = new URL(request.url ?? "/", "http://origin").pathname;
+            if (pathname === "/dir/") {
+                response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+                response.end('<!DOCTYPE html><html lang="en"><head><title>Dir</title></head><body><h1>Dir</h1></body></html>');
+            } else if (pathname === "/dir.md") {
+                response.writeHead(200, { "content-type": "text/markdown" });
+                response.end("# Dir\n");
+            } else {
+                response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
+                response.end("<!DOCTYPE html><title>Not found</title>");
+            }
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        try {
+            const report = await audit({ seeds: [`${origin}/dir/`], rules: ["agents"], cacheMode: "off" });
+            const source = report.pages.flatMap((page) => (page.url.pathname === "/dir/" && page.markdown ? [page.markdown as { present: boolean; twin: { url: string } }] : []));
+            assert.deepEqual(source.map((entry) => [entry.present, new URL(entry.twin.url).pathname]), [[true, "/dir.md"]]);
+            assert.ok(!rules(report).includes("well-known/markdown-source"));
+        } finally {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
     });
 
     it("probes only the files of the enabled preset", async () => {
