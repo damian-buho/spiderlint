@@ -85,6 +85,14 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end();
             return;
         }
+        if (pathname === "/i18n/en" || pathname === "/i18n/es") {
+            const lang = pathname.slice("/i18n/".length);
+            const alternates = lang === "en" ? ["en", "es", "de"] : ["es"];
+            const links = alternates.map((alternate) => `<link rel="alternate" hreflang="${alternate}" href="/i18n/${alternate}">`).join("");
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-language": "en" });
+            response.end(`<!DOCTYPE html><html lang="${lang === "en" ? "en-GB" : lang}"><head><title>${lang}</title>${links}</head><body><h1>${lang}</h1></body></html>`);
+            return;
+        }
         if (pathname === "/moved") {
             response.writeHead(301, { location: "/moving" });
             response.end();

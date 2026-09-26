@@ -15,15 +15,15 @@ Status: v1 in progress. Implemented: http and browser crawl with link
 discovery, scope, depth, glob and body-size limits; `auto` fetch derived per
 run (browser when any group pins it or any enabled rule reads `browser.*`); sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
-`seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`,
+`seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
 `sarif`, `checkstyle`, `csv`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots` and `probes`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules and presets, browser-mode
 extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `origin`, `dns` with the `dns` bucket and `--resolver`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: adaptive fetch and a
-fetch mode per group, plugin formatters and sources, `lighthouse`, localised
-messages and the `i18n` preset.
+fetch mode per group, plugin formatters and sources, `lighthouse` and localised
+messages.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
 recorded so the v1 shape does not block them.
@@ -296,7 +296,7 @@ because facts are always retained even when bodies are not.
 Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `tls`,
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
-reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
+reciprocity, hreflang targets answering `2xx`), `cookies` (Secure, HttpOnly,
 SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`, `__Secure-` and `SameSite=None` with `Secure`, a lifetime of at most 400 days), `robots` (in `recommended`), `redirects` (chain length, a temporary hop to a 2xx page, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is

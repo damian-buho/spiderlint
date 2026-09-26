@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: hreflang alternates that name each other back and answer 2xx, and lang against Content-Language
+rules:
+  i18n/hreflang-reciprocal: warning
+  i18n/hreflang-status: warning
+  i18n/content-language: info

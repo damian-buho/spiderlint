@@ -5,6 +5,7 @@
 import { isJudged } from "../crawl/links.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { i18nRules } from "./i18n.ts";
 import { robotsRules } from "./robots.ts";
 import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
@@ -230,6 +231,7 @@ export const builtin: Record<string, Make> = {
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     ...robotsRules,
+    ...i18nRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status" }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",

@@ -464,6 +464,17 @@ describe("audit options", () => {
         assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.message]), [["redirects/permanent", "reached through a temporary redirect (302)"]]);
     });
 
+    it("reports a one-way hreflang alternate, a missing one, and lang against Content-Language", async () => {
+        const seeds = ["en", "es", "de"].map((lang) => `${site.origin}/i18n/${lang}`);
+        const report = await audit({ seeds, maxPages: 3, sitemap: false, fold: false, groups: { default: { rules: ["i18n"] } } });
+        const found = report.findings.map((finding) => [finding.rule, new URL(finding.url).pathname, finding.urls?.map((url) => new URL(url).pathname)]);
+        assert.deepEqual(found.toSorted((a, b) => String(a).localeCompare(String(b))), [
+            ["i18n/content-language", "/i18n/es", undefined],
+            ["i18n/hreflang-reciprocal", "/i18n/es", ["/i18n/en"]],
+            ["i18n/hreflang-status", "/i18n/de", ["/i18n/en"]],
+        ]);
+    });
+
     it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {
         const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
         const hinted = report.pages.find((page) => page.url.pathname === "/hints");
