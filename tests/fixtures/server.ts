@@ -146,6 +146,17 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end('<!doctype html><html lang="en"><head><title>Cookie sources</title></head><body><img src="/cookie-pixel.gif" alt="" width="1" height="1"><script>document.cookie = "tracker=1; max-age=99999999"; document.cookie = "gone=; max-age=0"</script></body></html>');
             return;
         }
+        if (pathname === "/consent-tracked" || pathname === "/consent-clean") {
+            const third = `http://localhost:${new URL(`http://${request.headers.host}`).port}/third-party.gif`;
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["sid=1; Path=/; HttpOnly; SameSite=Lax"] });
+            response.end(`<!doctype html><html lang="en"><head><title>Consent</title></head><body>${pathname === "/consent-tracked" ? `<img src="${third}" alt="" width="1" height="1">` : ""}</body></html>`);
+            return;
+        }
+        if (pathname === "/third-party.gif") {
+            response.writeHead(200, { "content-type": "image/gif", "set-cookie": ["uid=1; Max-Age=600; SameSite=None; Secure"] });
+            response.end(Buffer.from("R0lGODlhAQABAAAAACw=", "base64"));
+            return;
+        }
         if (pathname === "/cookie-pixel.gif") {
             response.writeHead(200, { "content-type": "image/gif", "set-cookie": ["__Secure-px=1; Path=/; SameSite=Lax; HttpOnly"] });
             response.end(Buffer.from("R0lGODlhAQABAAAAACw=", "base64"));

@@ -187,6 +187,20 @@ describe("browser fetch", { skip }, () => {
         assert.deepEqual(written.findings.map((finding) => finding.rule).filter((rule) => rule.startsWith("cookies/")).toSorted((a, b) => a.localeCompare(b)), ["cookies/script-lifetime", "cookies/script-same-site"]);
     });
 
+    it("finds a third-party cookie set before any interaction, and passes a page setting only a session cookie", async () => {
+        const report = await audit({ seeds: [`${site.origin}/consent-tracked`, `${site.origin}/consent-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["privacy"], sample: "all" } } });
+        const tracked = report.pages.find((entry) => entry.url.pathname === "/consent-tracked");
+        assert.deepEqual(tracked?.consent, { cookies: [{ name: "sid", domain: "127.0.0.1", party: "first" }, { name: "uid", domain: "localhost", party: "third", lifetime: (tracked?.consent as { cookies: { lifetime?: number }[] }).cookies[1]?.lifetime }] });
+        const findings = report.findings.filter((finding) => finding.rule === "cookies/before-consent").map((finding) => new URL(finding.url).pathname);
+        assert.deepEqual(findings, ["/consent-tracked"]);
+        assert.ok(!JSON.stringify(report.pages.map((entry) => entry.consent)).includes("uid=1"));
+    });
+
+    it("reads the consent jar on sampled pages only", async () => {
+        const report = await audit({ seeds: [`${site.origin}/consent-tracked`, `${site.origin}/consent-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["privacy"], sample: 1 } } });
+        assert.equal(report.pages.filter((entry) => entry.consent !== undefined).length, 1);
+    });
+
     it("renders a name pinned by --resolve through Chromium’s host resolver rules", async () => {
         const seed = `http://pinned.fixture:${new URL(site.origin).port}/about`;
         const pinned = await audit({ seeds: [seed], fetch: "browser", resolve: [parsePin("pinned.fixture:127.0.0.1")], maxPages: 1, sitemap: false, robots: false, fetchResources: false });
