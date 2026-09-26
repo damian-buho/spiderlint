@@ -78,6 +78,13 @@ describe("cli", () => {
         }
     });
 
+    it("exits 2 naming a flag with an invalid value, without the whole usage", async () => {
+        const run = await spiderlint(directory, "audit", "https://example.com/", "--format", "nope");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /--format: invalid value nope \(expected: human\|json\|sarif\|checkstyle\|csv\)/);
+        assert.doesNotMatch(run.stderr, /Usage:/);
+    });
+
     it("exits 3 on lint and report of a site never crawled, creating no store", async () => {
         for (const command of ["lint", "report"]) {
             const run = await spiderlint(directory, command, "https://never-crawled.example/");

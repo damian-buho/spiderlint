@@ -11,11 +11,10 @@ import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cac
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
-import { ConfigError, originOf, overlay, defaults, proxyOf, type BrowserName, type Config, type FailOn, type FetchMode } from "./config/index.ts";
-import { environmentSettings } from "./config/environment.ts";
+import { ConfigError, originOf, overlay, defaults, proxyOf, type Config, type FailOn } from "./config/index.ts";
+import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, FORMATS, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
-import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
 import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
@@ -163,15 +162,15 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     return {
         ...(values["canonical-origin"] !== undefined && { canonicalOrigin: originOf("--canonical-origin", values["canonical-origin"] as string) }),
         ...(values.resolver !== undefined && { resolver: parseResolver(values.resolver as string) }),
-        ...(values.fetch !== undefined && { fetch: values.fetch as FetchMode }),
-        ...(values.browser !== undefined && { browser: values.browser as BrowserName }),
-        ...(values.scope !== undefined && { scope: values.scope as Scope }),
-        ...(values.concurrency !== undefined && { concurrency: Number(values.concurrency) }),
-        ...(values.rate !== undefined && { rate: Number(values.rate) }),
+        ...(values.fetch !== undefined && { fetch: pick("--fetch", values.fetch as string, FETCH_MODES) }),
+        ...(values.browser !== undefined && { browser: pick("--browser", values.browser as string, BROWSERS) }),
+        ...(values.scope !== undefined && { scope: pick("--scope", values.scope as string, SCOPES) }),
+        ...(values.concurrency !== undefined && { concurrency: parseInteger("--concurrency", values.concurrency as string) }),
+        ...(values.rate !== undefined && { rate: parseInteger("--rate", values.rate as string) }),
         ...(values.proxy !== undefined && { proxy: proxyOf("--proxy", values.proxy as string) }),
-        ...(values["max-pages"] !== undefined && { maxPages: Number(values["max-pages"]) }),
-        ...(values["max-depth"] !== undefined && { maxDepth: Number(values["max-depth"]) }),
-        ...(values["max-body-size"] !== undefined && { maxBodySize: Number(values["max-body-size"]) }),
+        ...(values["max-pages"] !== undefined && { maxPages: parseInteger("--max-pages", values["max-pages"] as string) }),
+        ...(values["max-depth"] !== undefined && { maxDepth: parseInteger("--max-depth", values["max-depth"] as string) }),
+        ...(values["max-body-size"] !== undefined && { maxBodySize: parseInteger("--max-body-size", values["max-body-size"] as string) }),
         ...(values.include !== undefined && { include: values.include as string[] }),
         ...(values.exclude !== undefined && { exclude: values.exclude as string[] }),
         ...(values.robots !== undefined && { robots: values.robots as boolean }),
@@ -179,8 +178,8 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
-        ...(values["fail-on"] !== undefined && { failOn: values["fail-on"] as FailOn }),
-        ...(values.format !== undefined && { format: values.format as Config["format"] }),
+        ...(values["fail-on"] !== undefined && { failOn: pick("--fail-on", values["fail-on"] as string, FAIL_ONS) }),
+        ...(values.format !== undefined && { format: pick("--format", values.format as string, FORMATS) }),
         ...(values["disabled-rules"] !== undefined && { disabledRules: splitIds(values["disabled-rules"] as string) }),
         ...(values.rules !== undefined && { rules: (values.rules as string[]).flatMap((raw) => splitIds(raw)) }),
         ...(Object.keys(overrides).length > 0 && { overrides }),

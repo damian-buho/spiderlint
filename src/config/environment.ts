@@ -6,11 +6,11 @@ import { parseResolver } from "../crawl/dns.ts";
 import { ConfigError, originOf, proxyOf } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
-const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
-const BROWSERS = ["chromium", "firefox", "webkit"] as const;
-const SCOPES = ["origin", "host", "domain"] as const;
-const FAIL_ONS = ["error", "warning", "info", "never"] as const;
-const FORMATS = ["human", "json", "sarif", "checkstyle", "csv"] as const;
+export const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
+export const BROWSERS = ["chromium", "firefox", "webkit"] as const;
+export const SCOPES = ["origin", "host", "domain"] as const;
+export const FAIL_ONS = ["error", "warning", "info", "never"] as const;
+export const FORMATS = ["human", "json", "sarif", "checkstyle", "csv"] as const;
 const CACHE_MODES = ["use", "off", "refresh", "offline"] as const;
 
 function isTruthy(name: string, raw: string): boolean {
@@ -24,13 +24,13 @@ function list(raw: string): string[] {
     return raw.split(/[\s,]+/).filter((entry) => entry.length > 0);
 }
 
-function parseInteger(name: string, raw: string): number {
+export function parseInteger(name: string, raw: string): number {
     const value = Number(raw);
     if (!Number.isSafeInteger(value) || value < 0) throw new ConfigError(`${name}: invalid value ${raw} (expected a non-negative integer)`);
     return value;
 }
 
-function pick<T extends string>(name: string, raw: string, valid: readonly T[]): T {
+export function pick<T extends string>(name: string, raw: string, valid: readonly T[]): T {
     if (!valid.includes(raw as T)) throw new ConfigError(`${name}: invalid value ${raw} (expected: ${valid.join("|")})`);
     return raw as T;
 }
