@@ -57,8 +57,17 @@ export function earlyHintsHook(url: string, hints: Hints): (options: { getReques
     };
 }
 
+// Seconds a cookie lives: `Max-Age` first, else `Expires` against `now`, undefined for a session cookie (RFC 6265 §5.3).
+function lifetime(flags: Map<string, string | undefined>, now: number): number | undefined {
+    const maxAge = Number(flags.get("max-age") || NaN);
+    if (Number.isSafeInteger(maxAge)) return maxAge;
+    const expires = Date.parse(flags.get("expires") ?? "");
+    return Number.isNaN(expires) ? undefined : Math.round((expires - now) / 1000);
+}
+
 // Name and flags of each Set-Cookie; values never leave this function.
-export function cookieFacts(setCookie: string | string[] | undefined): CookieFacts[] {
+export function cookieFacts(setCookie: string | string[] | undefined, date?: string | string[]): CookieFacts[] {
+    const now = Date.parse(String(date)) || Date.now();
     const lines = setCookie === undefined ? [] : [setCookie].flat();
     return lines.map((line) => {
         const [pair = "", ...attributes] = line.split(";").map((part) => part.trim());
@@ -71,7 +80,8 @@ export function cookieFacts(setCookie: string | string[] | undefined): CookieFac
         const sameSite = flags.get("samesite");
         const path = flags.get("path");
         const domain = flags.get("domain");
-        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }) };
+        const maxAge = lifetime(flags, now);
+        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }), ...(maxAge !== undefined && { maxAge }) };
     });
 }
 

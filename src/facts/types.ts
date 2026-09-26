@@ -90,6 +90,7 @@ export interface CookieFacts {
     sameSite?: string;
     path?: string;
     domain?: string;
+    maxAge?: number;
 }
 
 export interface HttpFacts {

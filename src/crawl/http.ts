@@ -114,7 +114,7 @@ export async function crawlHttp(config: Config, onPage: OnPage, cache: CrawlCach
                         headers: redactHeaders(response.headers),
                         ...(cap?.remote && { remote: cap.remote }),
                         timing: cap ? timingFacts(cap.source) : {},
-                        cookies: cookieFacts(response.headers["set-cookie"]),
+                        cookies: cookieFacts(response.headers["set-cookie"], response.headers.date),
                         ...(hinted.get(request)?.length && { earlyHints: hinted.get(request) }),
                         size: {
                             body: transferred(cap?.source) ?? decoded,

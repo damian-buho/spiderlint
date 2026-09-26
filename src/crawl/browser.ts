@@ -99,7 +99,7 @@ async function transportFacts(observation: Observation, size: Facts["http"]["siz
             headers: redactHeaders(headers),
             ...(remote && { remote }),
             timing,
-            cookies: cookieFacts(headers["set-cookie"]),
+            cookies: cookieFacts(headers["set-cookie"], headers.date),
             size,
             contentType: type,
             ...(charset && { charset }),

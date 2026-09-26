@@ -103,7 +103,12 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             return;
         }
         if (pathname === "/cookies") {
-            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["__Host-bad=1; Secure; Path=/app; Domain=127.0.0.1", "__Host-ok=1; Secure; Path=/"] });
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["__Host-bad=1; Secure; Path=/app; Domain=127.0.0.1", "__Host-ok=1; Secure; Path=/", "__secure-bad=1; Path=/", "cross=1; SameSite=none", "forever=1; Expires=Fri, 01 Jan 2100 00:00:00 GMT"] });
+            response.end(PLAIN);
+            return;
+        }
+        if (pathname === "/cookies-ok") {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", "set-cookie": ["__Secure-ok=1; Secure", "cross=1; Secure; SameSite=None", "short=1; Max-Age=3600; Expires=Fri, 01 Jan 2100 00:00:00 GMT", "session=1"] });
             response.end(PLAIN);
             return;
         }

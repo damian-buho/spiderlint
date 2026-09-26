@@ -448,6 +448,16 @@ describe("audit options", () => {
         assert.equal(report.findings.filter((finding) => finding.rule === "cookies/host-prefix").length, 1);
     });
 
+    it("reports a __Secure- or SameSite=None cookie without Secure and one outliving 400 days, and passes correct ones", async () => {
+        const report = await audit({ seeds: [`${site.origin}/cookies`, `${site.origin}/cookies-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["cookies"] } } });
+        const ok = report.pages.find((page) => page.url.pathname === "/cookies-ok");
+        assert.deepEqual(ok?.http.cookies.map((cookie) => cookie.maxAge), [undefined, undefined, 3600, undefined]);
+        for (const rule of ["cookies/secure-prefix", "cookies/same-site-none", "cookies/lifetime"]) {
+            const paths = report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
+            assert.deepEqual(paths, ["/cookies"], rule);
+        }
+    });
+
     it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {
         const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
         const hinted = report.pages.find((page) => page.url.pathname === "/hints");

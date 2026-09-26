@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Secure, HttpOnly and SameSite on every cookie, and valid __Host- prefixes
+description: Secure, HttpOnly and SameSite on every cookie, valid __Host- and __Secure- prefixes, and a lifetime browsers keep
 rules:
   cookies/secure:
     fact: http.cookies
@@ -33,3 +33,32 @@ rules:
     severity: warning
     message: "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes
+  cookies/secure-prefix:
+    fact: http.cookies
+    expect:
+      type: array
+      items:
+        if: {properties: {name: {pattern: "^(?i:__Secure-)"}}}
+        then: {properties: {secure: {const: true}}}
+    severity: warning
+    message: "a __Secure- cookie lacks Secure, so browsers reject it"
+    fix: "add Secure to every __Secure- cookie"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes
+  cookies/same-site-none:
+    fact: http.cookies
+    expect:
+      type: array
+      items:
+        if: {properties: {sameSite: {pattern: "^(?i:none)$"}}, required: [sameSite]}
+        then: {properties: {secure: {const: true}}}
+    severity: warning
+    message: "a SameSite=None cookie lacks Secure, so browsers reject it"
+    fix: "add Secure to every SameSite=None cookie"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#none
+  cookies/lifetime:
+    fact: http.cookies
+    expect: {type: array, items: {properties: {maxAge: {maximum: 34560000}}}}
+    severity: info
+    message: "a cookie outlives 400 days, which browsers cap"
+    fix: "set Max-Age to 34560000 seconds (400 days) or less"
+    docs: https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute

@@ -297,7 +297,7 @@ Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plu
 `links`, `sitemap`, `browser` (console errors; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, one locale per URL family), `cookies` (Secure, HttpOnly,
-SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`), `robots` (in `recommended`), `redirects` (chain length, http→https→www hops, mixed content).
+SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`, `__Secure-` and `SameSite=None` with `Secure`, a lifetime of at most 400 days), `robots` (in `recommended`), `redirects` (chain length, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
 not `2xx`), `resources/cache-control` (a hashed or `immutable` asset without
