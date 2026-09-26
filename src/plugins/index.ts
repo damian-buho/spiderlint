@@ -5,12 +5,12 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Page } from "playwright";
-import { FORMATS } from "../config/environment.ts";
 import { ConfigError, type Config } from "../config/index.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { builtin } from "../rules/builtin.ts";
+import report from "../report/index.ts";
 import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
 import axe from "./axe.ts";
@@ -29,7 +29,7 @@ import trackers from "./trackers.ts";
 import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
+const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, origin, dns, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
@@ -48,14 +48,14 @@ export function pluginPresetNames(): string[] {
     return plugins.flatMap((plugin) => Object.keys(plugin.presets ?? {}));
 }
 
-// A formatter a plugin adds, by format name.
-export function pluginFormatter(name: string): Formatter | undefined {
+// A formatter by format name, bundled or a plugin’s.
+export function formatter(name: string): Formatter | undefined {
     return plugins.find((plugin) => plugin.formatters?.[name])?.formatters?.[name];
 }
 
-// Every format name: the built-ins, then the plugins’.
+// Every format name, the bundled ones first.
 export function formatNames(): string[] {
-    return [...FORMATS, ...plugins.flatMap((plugin) => Object.keys(plugin.formatters ?? {}))];
+    return [...plugins.flatMap((plugin) => Object.keys(plugin.formatters ?? {}))];
 }
 
 function allSources(): Source[] {

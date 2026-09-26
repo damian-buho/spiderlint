@@ -10,7 +10,6 @@ export const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
 export const BROWSERS = ["chromium", "firefox", "webkit"] as const;
 export const SCOPES = ["origin", "host", "domain"] as const;
 export const FAIL_ONS = ["error", "warning", "info", "never"] as const;
-export const FORMATS = ["human", "json", "sarif", "checkstyle", "csv"] as const;
 const CACHE_MODES = ["use", "off", "refresh", "offline"] as const;
 
 function isTruthy(name: string, raw: string): boolean {

@@ -15,15 +15,9 @@ import { ConfigError, originOf, overlay, defaults, proxyOf, type Config, type Fa
 import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
-import { formatNames, pluginFormatter, withSources } from "./plugins/index.ts";
-import type { Formatter } from "./plugins/types.ts";
-import { formatHuman } from "./report/human.ts";
+import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
-import { formatJson } from "./report/json.ts";
-import { formatSarif } from "./report/sarif.ts";
-import { formatCheckstyle } from "./report/checkstyle.ts";
-import { formatCsv } from "./report/csv.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
@@ -108,7 +102,6 @@ Examples:
 
 const COMMANDS = new Set(["audit", "crawl", "lint", "report", "facts", "groups", "cache", "rules", "presets", "explain"]);
 const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
-const FORMATTERS: Record<string, Formatter> = { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv };
 
 // Title and headings bold, the command or flag column cyan, a trailing default dim, examples green.
 function usage(paint: Paint): string {
@@ -336,7 +329,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
         log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
         const formatName = pick("--format", config.format, formatNames());
-        const format = FORMATTERS[formatName] ?? pluginFormatter(formatName);
+        const format = formatter(formatName);
         const failOn = RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "groups"].includes(command) || (command === "cache" && seeds[0] === "warm");
         if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store)) {
