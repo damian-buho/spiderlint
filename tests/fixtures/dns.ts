@@ -88,6 +88,7 @@ const ZONES: Record<string, Zone> = {
     "www.bad.fixture|MX": { answers: [{ type: "MX", name: "www.bad.fixture", ttl: 300, data: { preference: 10, exchange: "mail.bad.fixture" } }] },
     "www.bad.fixture|TXT": { answers: [{ type: "TXT", name: "www.bad.fixture", ttl: 300, data: ["v=spf1 include:mail.bad.fixture ~all"] }] },
     "_dmarc.bad.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.bad.fixture", ttl: 300, data: ["v=DMARC1; p=reject; sp=none"] }] },
+    "only.fixture|A": { answers: [{ type: "A", name: "only.fixture", ttl: 300, data: "127.0.0.1" }] },
     "bogus.fixture|SOA": { answers: [soa("bogus.fixture", 1)] },
     "bogus.fixture|DS": { answers: [{ type: "DS", name: "bogus.fixture", ttl: 300, data: { keyTag: 3, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
     "bogus.fixture|A": { bogus: true, answers: [{ type: "A", name: "bogus.fixture", ttl: 300, data: "192.0.2.3" }] },

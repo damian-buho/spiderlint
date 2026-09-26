@@ -15,6 +15,7 @@ import { ConfigError, originOf, overlay, defaults, proxyOf, type Config, type Fa
 import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
+import { parsePin } from "./crawl/resolve.ts";
 import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
@@ -56,7 +57,8 @@ Crawl:
   --no-keepalive        one connection per request
   --no-resources        skip scripts, styles, images and fonts
   --canonical-origin U  origin the pages are built for; its URLs count as the crawled one’s
-  --resolver LIST       DNS servers the dns plugin asks, address[:port],… (system)
+  --resolver LIST       DNS servers the crawl and the dns plugin ask, address[:port],… (system)
+  --resolve PIN         connect to host[:port]:address instead of resolving host, repeatable
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
@@ -160,6 +162,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     return {
         ...(values["canonical-origin"] !== undefined && { canonicalOrigin: originOf("--canonical-origin", values["canonical-origin"] as string) }),
         ...(values.resolver !== undefined && { resolver: parseResolver(values.resolver as string) }),
+        ...(values.resolve !== undefined && { resolve: (values.resolve as string[]).map((pin) => parsePin(pin)) }),
         ...(values.fetch !== undefined && { fetch: pick("--fetch", values.fetch as string, FETCH_MODES) }),
         ...(values.browser !== undefined && { browser: pick("--browser", values.browser as string, BROWSERS) }),
         ...(values.scope !== undefined && { scope: pick("--scope", values.scope as string, SCOPES) }),
@@ -213,6 +216,7 @@ function parseFlags(argv: string[]) {
                 "older-than": { type: "string" },
                 "canonical-origin": { type: "string" },
                 resolver: { type: "string" },
+                resolve: { type: "string", multiple: true },
                 fetch: { type: "string" },
                 browser: { type: "string" },
                 scope: { type: "string" },

@@ -7,6 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Server } from "proxy-chain";
 import { ConfigError, type Config } from "../config/index.ts";
 import { log } from "../logger.ts";
+import { openResolution } from "./resolve.ts";
 
 const SOCKS = new Set(["socks:", "socks4:", "socks4a:", "socks5:", "socks5h:"]);
 
@@ -30,12 +31,14 @@ export interface Network {
 }
 
 // Paces, and routes every HTTP client of one run through `config.proxy`, until `close`.
-export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "allowPrivate">): Promise<Network> {
+export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "allowPrivate" | "resolver" | "resolve" | "seeds">): Promise<Network> {
     pacing.spacing = config.rate > 0 ? 60_000 / config.rate : 0;
     pacing.next = 0;
     log.debug({ rate: config.rate, spacing: pacing.spacing, isProxied: config.proxy !== "" }, "network opened");
+    const unresolve = await openResolution(config.resolve, config.resolver, config.seeds, config.proxy !== "");
     const reset = () => {
         pacing.spacing = 0;
+        unresolve();
     };
     if (!config.proxy) return { close: async () => reset() };
     if (!config.allowPrivate) throw new ConfigError("proxy: the address guard cannot check what a proxy connects to");

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { parseResolver } from "../crawl/dns.ts";
+import { parsePin } from "../crawl/resolve.ts";
 import { ConfigError, originOf, proxyOf } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
@@ -46,6 +47,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_TARGETS !== undefined && { seeds: list(environment.SPIDERLINT_TARGETS) }),
         ...(environment.SPIDERLINT_CANONICAL_ORIGIN !== undefined && { canonicalOrigin: originOf("SPIDERLINT_CANONICAL_ORIGIN", environment.SPIDERLINT_CANONICAL_ORIGIN) }),
         ...(environment.SPIDERLINT_RESOLVER !== undefined && { resolver: parseResolver(environment.SPIDERLINT_RESOLVER) }),
+        ...(environment.SPIDERLINT_RESOLVE !== undefined && { resolve: list(environment.SPIDERLINT_RESOLVE).map((pin) => parsePin(pin)) }),
         ...(environment.SPIDERLINT_FETCH !== undefined && { fetch: pick("SPIDERLINT_FETCH", environment.SPIDERLINT_FETCH, FETCH_MODES) }),
         ...(environment.SPIDERLINT_BROWSER !== undefined && { browser: pick("SPIDERLINT_BROWSER", environment.SPIDERLINT_BROWSER, BROWSERS) }),
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),

@@ -19,6 +19,7 @@ import { isParsed } from "./body.ts";
 import { width } from "./resources.ts";
 import type { CrawlStorage, Frontier, Logged, OnPage } from "./frontier.ts";
 import type { Router } from "./route.ts";
+import { chromiumArguments } from "./resolve.ts";
 import { TlsProber } from "./tls-probe.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
@@ -250,7 +251,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             maxConcurrency: openPages,
-            launchContext: { launcher, userAgent: USER_AGENT },
+            launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? chromiumArguments() : [] } },
             browserPoolOptions: {
                 useFingerprints: false,
                 maxOpenPagesPerBrowser: openPages,

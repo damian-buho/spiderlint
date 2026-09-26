@@ -32,7 +32,7 @@ describe("network", () => {
     });
 
     it("spaces requests to the configured rate", async () => {
-        const network = await openNetwork({ rate: 600, proxy: "", allowPrivate: true });
+        const network = await openNetwork({ rate: 600, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [] });
         const started = performance.now();
         for (let request = 0; request < 4; request += 1) await pace();
         await network.close();
@@ -40,7 +40,7 @@ describe("network", () => {
     });
 
     it("stops pacing once the network closes", async () => {
-        const network = await openNetwork({ rate: 1, proxy: "", allowPrivate: true });
+        const network = await openNetwork({ rate: 1, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [] });
         await network.close();
         const started = performance.now();
         await pace();
@@ -49,7 +49,7 @@ describe("network", () => {
     });
 
     it("refuses a proxy where the address guard must hold", async () => {
-        await assert.rejects(openNetwork({ rate: 0, proxy: "http://127.0.0.1:1", allowPrivate: false }), ConfigError);
+        await assert.rejects(openNetwork({ rate: 0, proxy: "http://127.0.0.1:1", allowPrivate: false, resolver: "system", resolve: [], seeds: [] }), ConfigError);
     });
 
     for (const [kind, serve] of [["http", serveHttpProxy], ["socks5h", serveSocksProxy]] as const) {

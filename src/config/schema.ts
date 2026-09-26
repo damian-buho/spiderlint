@@ -36,6 +36,7 @@ const site = {
         targets: { type: "array", items: { type: "string" } },
         "canonical-origin": { type: "string" },
         resolver: { type: "string" },
+        resolve: { type: "array", items: { type: "string" } },
         rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
         browser: { enum: ["chromium", "firefox", "webkit"] },

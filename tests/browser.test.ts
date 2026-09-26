@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { chromium, firefox, type BrowserType, type Request } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
+import { parsePin } from "../src/crawl/resolve.ts";
 import { tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import { serveGallery } from "./fixtures/images.ts";
@@ -178,6 +179,13 @@ describe("browser fetch", { skip }, () => {
         assert.equal(http?.contentType, "application/octet-stream");
         assert.equal(http?.size.declared, 50_000_000);
         assert.equal(http?.size.truncated, true);
+    });
+
+    it("renders a name pinned by --resolve through Chromium’s host resolver rules", async () => {
+        const seed = `http://pinned.fixture:${new URL(site.origin).port}/about`;
+        const pinned = await audit({ seeds: [seed], fetch: "browser", resolve: [parsePin("pinned.fixture:127.0.0.1")], maxPages: 1, sitemap: false, robots: false, fetchResources: false });
+        assert.equal(pinned.pages[0]?.http.status, 200);
+        assert.ok(pinned.pages[0]?.browser, "rendered, not fetched");
     });
 });
 

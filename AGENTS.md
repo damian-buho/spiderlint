@@ -398,7 +398,8 @@ org:
   spiderlint:
     targets: [https://f.dbuho.me/]     # optional; the command-line urls win
     canonical-origin: https://dbuho.me # optional; the origin a staging twin’s pages are built for
-    resolver: system                   # or 9.9.9.9,[2620:fe::fe]:53; the servers the dns plugin asks
+    resolver: system                   # or 9.9.9.9,[2620:fe::fe]:53; the servers the crawl and the dns plugin ask
+    resolve: []                        # host[:port]:address pins, as curl’s --resolve
     rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
     browser: chromium                  # chromium | firefox | webkit
@@ -460,7 +461,7 @@ spiderlint explain <rule>                 severity, scope, facts read, expect, w
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
-Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
+Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include`, `--exclude`, `--source`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--no-keepalive`, `--no-resources`, `--format`, `--fail-on`, `--unfold`, `--disabled-rules`,
 `--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
@@ -515,6 +516,7 @@ export default definePlugin({
 
 - `--proxy socks5h://127.0.0.1:9050` — the `h` is mandatory so `.onion` names resolve inside Tor, never on the host. I2P is `--proxy http://127.0.0.1:4444`.
 - One proxy carries every request of the run: both crawlers through Crawlee’s `proxyConfiguration`, robots, sitemaps, resources and probes through Node’s global proxy agents. `got-scraping` speaks HTTP proxies only, so a `socks*` proxy sits behind a loopback `proxy-chain` bridge, which resolves names inside the proxy. `http.remote` is dropped, since it would name the proxy. The `dns` plugin’s extractors query the resolver directly, so a proxied run skips them with one warning. A proxy and `allowPrivate: false` exclude each other: the address guard cannot see what the proxy connects to.
+- A split-horizon or staging name: `resolver` other than `system` answers every crawl lookup, and `resolve` pins one name to an address, as curl’s `--resolve` does; the port curl’s form carries is ignored, since a lookup never sees it. The run swaps `dns.lookup` while its network is open, so got, `fetch`, probes and TLS handshakes all resolve through it, `localhost` stays the system’s, and a name the resolver has no address for fails as `ENOTFOUND`. Chromium gets `--host-resolver-rules`: every pin, and each seed host as the resolver answers it before launch; any other name it resolves itself, and Firefox and WebKit get neither. A proxy resolves inside itself, so a proxied run ignores both with one warning.
 - No assumption is baked in that a site has TLS, resolvable DNS, a sitemap, or answers in under a second. Every such property is a fact a rule may require, guarded by `when`.
 - `Onion-Location` is captured as a header fact for the `i18n`/`redirects` presets to reason about later.
 

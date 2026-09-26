@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { BucketName, CacheMode } from "../cache/index.ts";
+import type { Pin } from "../crawl/resolve.ts";
 import type { Scope } from "../crawl/scope.ts";
 import type { RulesetConfig, Severity } from "../rules/types.ts";
 
@@ -65,8 +66,10 @@ export interface Config {
     cacheTtl: Partial<Record<BucketName, number>>;
     // Whether site extractor probes may reach loopback, private and link-local addresses, and query name servers directly.
     allowPrivate: boolean;
-    // `system`, or a comma list of `address[:port]` the dns plugin queries.
+    // `system`, or a comma list of `address[:port]` the dns plugin and the crawl query.
     resolver: string;
+    // Names pinned to an address for every crawl connection, as curl’s `--resolve`.
+    resolve: Pin[];
 }
 
 export function defaults(): Config {
@@ -103,6 +106,7 @@ export function defaults(): Config {
         cacheTtl: {},
         allowPrivate: true,
         resolver: "system",
+        resolve: [],
     };
 }
 
