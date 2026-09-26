@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { Configuration, Dataset, KeyValueStore, RequestQueue } from "crawlee";
@@ -46,6 +47,9 @@ async function openStorages(config: Configuration): Promise<Storages> {
 }
 
 
+// `lint` or `report` found no stored crawl; the run exits 3.
+export class NothingStored extends Error {}
+
 // Holds the store at `directory` for this process; a second holder is a ConfigError.
 export async function lockStore(directory: string): Promise<() => Promise<void>> {
     await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -59,8 +63,11 @@ export async function lockStore(directory: string): Promise<() => Promise<void>>
 
 // The `pages` bucket: facts in a Dataset, bodies and results in KeyValueStores, the frontier in a RequestQueue.
 export class DiskStore {
-    // Locks `directory`; a fresh crawl empties it, a resumed crawl or a re-lint keeps it.
-    static async open(directory: string, mode: { fresh: boolean; seeds?: string[]; configHash?: string }): Promise<DiskStore> {
+    // Locks `directory`; a fresh crawl empties it, a resumed crawl or a re-lint keeps it, and `existing` refuses one never written.
+    static async open(directory: string, mode: { fresh: boolean; existing?: boolean; seeds?: string[]; configHash?: string }): Promise<DiskStore> {
+        const isStored = existsSync(path.join(directory, "manifest.json"));
+        log.debug({ directory, existing: mode.existing, isStored }, "store looked up");
+        if (!isStored && mode.existing) throw new NothingStored(`nothing stored in ${directory}; run spiderlint audit or crawl first`);
         const release = await lockStore(directory);
         const config = new Configuration({ storageClientOptions: { localDataDirectory: directory }, persistStorage: true, purgeOnStart: false });
         const previous = await DiskStore.#readManifest(directory);

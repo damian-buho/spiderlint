@@ -17,6 +17,7 @@ import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
 import type { Scope } from "./crawl/scope.ts";
 import { formatHuman } from "./report/human.ts";
+import { NothingStored } from "./store/disk.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { formatJson } from "./report/json.ts";
 import { formatSarif } from "./report/sarif.ts";
@@ -311,7 +312,7 @@ async function main(argv: string[]): Promise<number> {
         return worst;
     } catch (error) {
         const isConfig = error instanceof ConfigError;
-        const isOfflineMiss = error instanceof OfflineMiss;
+        const isOfflineMiss = error instanceof OfflineMiss || error instanceof NothingStored;
         log.error({ error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, "audit aborted");
         return isConfig ? 2 : isOfflineMiss ? 3 : 4;
     }

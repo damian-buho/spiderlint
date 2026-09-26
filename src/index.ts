@@ -420,7 +420,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
     const config: Config = { ...defaults(), ...overrides };
     await loadPlugins(config.plugins);
     const lint = linter(config);
-    return withStore(directory, { fresh: false, configHash: crawlHash(config) }, async (store) => {
+    return withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };
         const rules = enabledRules(config);
@@ -457,7 +457,7 @@ export { definePlugin, type Extractor, type Plugin, type SiteContext, type SiteE
 
 // The last stored report, with the stored facts, for re-formatting.
 export async function reportStore(directory: string): Promise<Report> {
-    return withStore(directory, { fresh: false }, async (store) => {
+    return withStore(directory, { fresh: false, existing: true }, async (store) => {
         const stored = await store.report();
         return { pages: await store.pages(), findings: stored.findings, summary: stored.summary, site: await store.site() };
     });

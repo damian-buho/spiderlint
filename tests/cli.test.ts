@@ -70,10 +70,19 @@ describe("cli", () => {
         assert.match(seed?.error ?? "", /ECONNREFUSED/);
     });
 
+    it("exits 3 on lint and report of a site never crawled, creating no store", async () => {
+        for (const command of ["lint", "report"]) {
+            const run = await spiderlint(directory, command, "https://never-crawled.example/");
+            assert.equal(run.code, 3);
+            assert.match(run.stderr, /nothing stored in .*run spiderlint audit or crawl first/);
+        }
+        await assert.rejects(stat(path.join(directory, "cache", "spiderlint", "never-crawled.example")), { code: "ENOENT" });
+    });
+
     it("exits 4 when the run itself fails", async () => {
         const file = path.join(directory, "not-a-directory");
         await writeFile(file, "");
-        const run = await spiderlint(directory, "lint", "--store", path.join(file, "store"));
+        const run = await spiderlint(directory, "crawl", `${site.origin}/`, "--store", path.join(file, "store"));
         assert.equal(run.code, 4);
         assert.match(run.stderr, /"msg":"audit aborted"/);
     });
