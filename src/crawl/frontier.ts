@@ -25,6 +25,8 @@ export interface CrawlResult {
     launches: number;
     // Sub-resource responses the browser received, by the URL the page asked for.
     responses?: Map<string, Logged>;
+    // Handshakes a browser crawl sent for the TLS facts Chromium does not report.
+    tlsProbes?: number;
 }
 
 // One response from the browser’s network log; `body` only where a resource extractor reads its type.

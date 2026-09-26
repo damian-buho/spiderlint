@@ -62,7 +62,7 @@ describe("fetch mode", () => {
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false });
         await site.close();
         assert.equal(report.pages[0]?.browser, undefined);
-        assert.equal(report.pages[0]?.http.version, "1.1", "only the http crawler reports the protocol version");
+        assert.equal(report.pages[0]?.http.version, "1.1");
     });
 
     it("refuses adaptive until it exists", async () => {
@@ -127,6 +127,8 @@ describe("browser fetch", { skip }, () => {
         assert.deepEqual(facts?.http.redirects.map((hop) => [hop.url, hop.status]), [[`${site.origin}/about`, 301]]);
         assert.deepEqual(facts?.http.remote, { address: "127.0.0.1", family: "IPv4" });
         assert.equal(facts?.http.headers.server, "fixture-a");
+        assert.equal(facts?.http.version, "1.1", "Chromium speaks HTTP/1.1 over plain text");
+        assert.equal(redirected.summary.cost.browser?.tlsProbes, 0);
         assert.equal(facts?.http.contentType, "text/html");
         assert.match(facts?.http.charset ?? "", /^utf-8$/);
         assert.equal(typeof facts?.http.timing.total, "number");

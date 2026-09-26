@@ -20,7 +20,7 @@ const BYTE_UNITS: [number, string][] = [
     [1e3, "kilobyte"],
     [1, "byte"],
 ];
-const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests" };
+const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
 const MINUS = "\u{2212}";
@@ -158,7 +158,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
 function costRows({ browser, http, resources, extractors }: Report["summary"]["cost"]): string[] {
     const runs = Object.entries(extractors).map(([id, count]) => `${id} ×${number(count)}`);
     return [
-        browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}`) : "",
+        browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}${browser.tlsProbes > 0 ? `, ${counted(browser.tlsProbes, "TLS probe")}` : ""}`) : "",
         http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
         browser || http ? "" : row("fetch", "none"),
         resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache)` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`) : "",

@@ -137,9 +137,11 @@ browser blocked (ORB, CSP) or that failed counts as observed.
 
 Early Hints are read from the `information` events of the last hop’s request, through a got `beforeRequest` hook that wraps the request function got-scraping chose. Over HTTP/2 `http2-wrapper` passes a 103’s status but not its headers, so the entry carries no `link`.
 
-Browser mode reads less of the connection than http mode: no `http.version` or `http.earlyHints`,
-and `tls` carries protocol, subject, issuer and validity but no cipher, ALPN,
-fingerprint or SAN. It never sends conditional requests; a stored page is
+Browser mode reads less of the connection than http mode: no `http.earlyHints`.
+Chromium reports the TLS protocol, subject, issuer and validity; one Node handshake per
+host and address it connected to adds cipher, ALPN, fingerprint, SAN and the verdict
+when it meets the same certificate, and `http.version` follows from its ALPN (`3.0`
+over QUIC, `1.1` on plain text). A proxied run sends no handshake. It never sends conditional requests; a stored page is
 re-rendered. A navigation Chromium turns into a download becomes a page judged
 by its headers, as http mode judges any unparsed type.
 
@@ -519,7 +521,7 @@ export default definePlugin({
 - `pino` logs to stderr, `--log-level` (`info` default), JSON with `SPIDERLINT_LOG_FORMAT=json`. Otherwise each entry is one line: message, URL, error; its other fields show only when it has neither, or at `debug`. Crawlee’s own log is bridged into the same stream.
 - When every seed shares one origin, that origin is logged once and every logged URL under it prints as its path; other origins, and runs with mixed-origin seeds, stay absolute. `human` does the same with the origin every page shares, printed once on top; `json`, `sarif` and the store always carry absolute URLs.
 - Every decision logs its variables: group assignment (`url`, `group`, `matched`), rule skip (`rule`, `when`, `actual`), fold (`group`, `rule`, `failed`, `applicable`, `ratio`), sampling (`group`, `extractor`, `taken`, `cap`), robots skip (`url`, `rule`).
-- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `findings` per severity counted before folding (so `--unfold` changes no total), distinct `rules` run, `byRule` (findings per severity for every rule run, `{}` for a clean one), `checks`, `rating`, `crawlHash` (the crawl-shaping options), `previous` (the last stored run’s `byRule` summed over this run’s rules, when it ran every one of them with the same `crawlHash`, which `human` prints as a signed change per severity) and `cost` — browser launches and the pages they rendered, plain HTTP fetches and revalidations, resource requests, cache hits and network-log answers, runs per extractor — printed by `human` as one labelled row per value, embedded in `json` and `sarif` `invocations`.
+- The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `findings` per severity counted before folding (so `--unfold` changes no total), distinct `rules` run, `byRule` (findings per severity for every rule run, `{}` for a clean one), `checks`, `rating`, `crawlHash` (the crawl-shaping options), `previous` (the last stored run’s `byRule` summed over this run’s rules, when it ran every one of them with the same `crawlHash`, which `human` prints as a signed change per severity) and `cost` — browser launches, the pages they rendered and their TLS probes, plain HTTP fetches and revalidations, resource requests, cache hits and network-log answers, runs per extractor — printed by `human` as one labelled row per value, embedded in `json` and `sarif` `invocations`.
 - `human` numbers keep the locale’s digits and decimal mark but group with a narrow no-break space (SI), never a dot or comma; bytes take the largest unit they reach.
 - `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
 

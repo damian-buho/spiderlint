@@ -8,7 +8,7 @@ import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type P
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
 import { USER_AGENT } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
-import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize } from "../facts/browser.ts";
+import { headerFacts, observedResources, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
@@ -18,6 +18,7 @@ import { isParsed } from "./body.ts";
 import { width } from "./resources.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type Logged, type OnPage } from "./frontier.ts";
 import { bridgeCrawleeLog } from "./log.ts";
+import { TlsProber } from "./tls-probe.ts";
 
 const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
@@ -25,7 +26,7 @@ const SETTLE_MS = 5000;
 const RETIRE_AFTER_PAGES = 1000;
 const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
 
-type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"] };
+type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"]; security?: string };
 
 // What one page load showed besides its DOM: the document response, console output, every sub-request.
 interface Observation {
@@ -41,7 +42,7 @@ async function readTransport(response: Response): Promise<Transport> {
     try {
         const [headers, address, security] = await Promise.all([response.headersArray(), response.serverAddr(), response.securityDetails()]);
         const tls = tlsFacts(security);
-        return { headers: headerFacts(headers), remote: remoteFacts(address), ...(tls && { tls }) };
+        return { headers: headerFacts(headers), remote: remoteFacts(address), ...(tls && { tls }), ...(security?.protocol && { security: security.protocol }) };
     } catch (error) {
         log.warn({ url: response.url(), error: String(error) }, "document transport unreadable");
         return { headers: {} };
@@ -87,14 +88,17 @@ function contentTypeOf(header: string | string[] | undefined): { type: string; c
     }
 }
 
-// Http and tls facts of a document response; `size` is what the caller could measure of its body.
-async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"]): Promise<Pick<Facts, "http" | "tls">> {
+// Http and tls facts of a document response, the prober filling what Chromium does not say; `size` is what the caller could measure of its body.
+async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"], prober?: TlsProber): Promise<Pick<Facts, "http" | "tls">> {
     const response = observation.document as Response;
-    const { headers, remote, tls } = await (observation.transport as Promise<Transport>);
+    const { headers, remote, tls: seen, security } = await (observation.transport as Promise<Transport>);
     const { type, charset } = contentTypeOf(headers["content-type"]);
+    const url = new URL(response.url());
+    const { tls, version } = withProbe(url.href, seen, security, await prober?.facts(url, remote?.address));
     return {
         http: {
             status: response.status(),
+            ...(version && { version }),
             redirects: await redirectFacts(response.request()),
             headers: redactHeaders(headers),
             ...(remote && { remote }),
@@ -220,6 +224,8 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     const frontier = await Frontier.open(config, cache);
     const observations = new WeakMap<CrawleeRequest, Observation>();
     const responses = new Map<string, Logged>();
+    const prober = proxy ? undefined : new TlsProber(config.allowPrivate);
+    if (proxy) log.warn({ fetch: "browser" }, "TLS probes would bypass the proxy; browser pages carry no cipher, ALPN, SAN or HTTP version");
     let launches = 0;
     // Pages rendered at once, all in one browser: `concurrency`, else half of NUMPROCS.
     const openPages = config.concurrency || Math.ceil(width() / 2);
@@ -262,7 +268,7 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
                 const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
-                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing)) };
+                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, prober)) };
                 if (isHtml) {
                     const $ = await parseWithCheerio();
                     facts.html = extractHtml($, text, url, config.scope);
@@ -281,5 +287,5 @@ export async function crawlBrowser(config: Config, onPage: OnPage, cache: CrawlC
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
     await frontier.run(crawler, cache.robots);
-    return { site: frontier.site(), launches, responses };
+    return { site: frontier.site(), launches, responses, tlsProbes: prober?.probes ?? 0 };
 }

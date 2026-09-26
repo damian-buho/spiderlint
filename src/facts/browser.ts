@@ -124,3 +124,13 @@ export async function weightFacts(requests: Request[]): Promise<BrowserFacts["we
     }
     return weight;
 }
+
+// Chromium’s TLS completed by the probe when both saw one certificate, and the HTTP version: QUIC is 3, else the probe’s ALPN, plain text 1.1.
+export function withProbe(url: string, seen: TlsFacts | undefined, security: string | undefined, probed: TlsFacts | undefined): { tls?: TlsFacts; version?: string } {
+    if (security === undefined) return { ...(seen && { tls: seen }), version: "1.1" };
+    const isSame = probed !== undefined && (seen === undefined || (seen.cert.subject === probed.cert.subject && seen.cert.notAfter === probed.cert.notAfter));
+    log.debug({ url, security, isProbed: probed !== undefined, isSame, subject: seen?.cert.subject, probedSubject: probed?.cert.subject }, "probed TLS compared");
+    const tls = isSame ? { ...probed, ...(seen?.protocol && { protocol: seen.protocol }) } : seen;
+    const version = security === "QUIC" ? "3.0" : isSame ? (probed.alpn === "h2" ? "2.0" : "1.1") : undefined;
+    return { ...(tls && { tls }), ...(version && { version }) };
+}

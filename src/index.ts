@@ -37,7 +37,7 @@ const PAGE_CONTEXT_MS = 60_000;
 
 // What a run spent: browser launches and renders, plain HTTP fetches, resource requests, extractor runs.
 export interface Cost {
-    browser?: { name: string; launches: number; pages: number };
+    browser?: { name: string; launches: number; pages: number; tlsProbes: number };
     http?: { pages: number; revalidated: number };
     resources?: { requests: number; cached: number; logged: number };
     extractors: Record<string, number>;
@@ -330,7 +330,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     let fetched = 0;
     let revalidated = 0;
     const redirects: Record<string, string> = {};
-    const { site, launches, responses } = await crawl(
+    const { site, launches, responses, tlsProbes = 0 } = await crawl(
         config,
         async (facts, body, live) => {
             fetched += 1;
@@ -365,7 +365,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
-    if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched };
+    if (fetch === "browser") cost.browser = { name: config.browser, launches, pages: fetched, tlsProbes };
     else cost.http = { pages: fetched, revalidated };
     const answered = Object.values(results);
     if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached && !result.logged).length, cached: answered.filter((result) => result.cached).length, logged: answered.filter((result) => result.logged).length };
