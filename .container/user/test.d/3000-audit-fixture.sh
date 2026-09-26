@@ -12,11 +12,13 @@ set -eou pipefail
 
 LOG_FILE="$(mktemp)"
 REPORT_FILE="$(mktemp)"
-CONFIG_FILE="$(mktemp --suffix=.yaml)"
+CONFIG_DIR="$(mktemp --directory)"
+CONFIG_FILE="${CONFIG_DIR}/projectfile.yaml"
+CONFIG_LOG="$(mktemp)"
 # shellcheck disable=SC2329 # cleanup invoked via EXIT trap
 cleanup() {
     kill "${SERVER_PID}" 2>/dev/null || true
-    rm -f "${LOG_FILE}" "${REPORT_FILE}" "${CONFIG_FILE}"
+    rm -rf "${LOG_FILE}" "${REPORT_FILE}" "${CONFIG_DIR}" "${CONFIG_LOG}"
 }
 trap cleanup EXIT
 
@@ -58,7 +60,15 @@ b19-log info "SPIDERLINT" "$(_p "plain-http fixture origin faulted once: %s" "${
 [ -n "${HTTPS_ENTRY}" ]
 
 printf 'org:\n  spiderlint:\n    groups:\n      default:\n        rules: [recommended, browser]\n' > "${CONFIG_FILE}"
-spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}"
+SPIDERLINT_LOG_FORMAT=json spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}" 2> "${CONFIG_LOG}"
+
+CONFIG_READ="$(node -e '
+const lines = require("node:fs").readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
+const entry = lines.map((line) => { try { return JSON.parse(line); } catch { return {}; } }).find((entry) => entry.msg === "config subtree loaded via pf-cli");
+console.log(entry?.document ?? "");
+' "${CONFIG_LOG}")"
+b19-log info "SPIDERLINT" "$(_p "config read through pf-cli from: %s" "${CONFIG_READ}")"
+[ "${CONFIG_READ}" = "${CONFIG_FILE}" ]
 
 CONSOLE_ERROR="$(node -e '
 const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));

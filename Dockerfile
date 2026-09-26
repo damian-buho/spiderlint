@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node-26:latest
+ARG PF_CLI_IMAGE=registry.invalid/projectfile/cli:latest
+
+FROM ${PF_CLI_IMAGE} AS pf-cli
 
 FROM ${B19_NODE_BASE_IMAGE} AS spiderlint
 
@@ -28,6 +31,8 @@ ENV NODE_ENV=production                                  \
     SPIDERLINT_LOG_LEVEL=info
 
 COPY --chown=${B19_UID}:${B19_GID} .container/root/ /
+# Reads the org.spiderlint subtree of a mounted projectfile
+COPY --from=pf-cli /usr/local/bin/pf-cli /usr/local/bin/pf-cli
 
 USER 0
 

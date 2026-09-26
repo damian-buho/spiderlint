@@ -50,6 +50,7 @@ org:
     build:
       args:
         B19_NODE_SERIES: 26
+        PF_CLI_IMAGE: ""
     conventions:
       fragments:
         parents:

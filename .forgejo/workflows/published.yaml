@@ -187,6 +187,7 @@ jobs:
       M6E_BUILD_DEBUG: ${{ inputs.M6E_BUILD_DEBUG || vars.M6E_BUILD_DEBUG }}
       M6E_NEAR_CACHE_HOST: ${{ inputs.M6E_NEAR_CACHE_HOST || vars.M6E_NEAR_CACHE_HOST }}
       M6E_NEAR_CACHE_PORT: ${{ inputs.M6E_NEAR_CACHE_PORT || vars.M6E_NEAR_CACHE_PORT }}
+      PF_CLI_IMAGE: ${{ vars.PF_CLI_IMAGE || format('{0}/projectfile/cli:{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.BASE_IMAGE_DEFAULT_VERSION || 'latest') }}
       SOURCE_DOCKER_REGISTRY: ${{ inputs.SOURCE_DOCKER_REGISTRY || vars.SOURCE_DOCKER_REGISTRY }}
     steps:
       - uses: actions/checkout@v7
@@ -217,6 +218,7 @@ jobs:
             M6E_NEAR_CACHE_HOST=${{ inputs.M6E_NEAR_CACHE_HOST || vars.M6E_NEAR_CACHE_HOST }}
             M6E_NEAR_CACHE_PORT=${{ inputs.M6E_NEAR_CACHE_PORT || vars.M6E_NEAR_CACHE_PORT }}
             M6E_PROJECT=spiderlint
+            PF_CLI_IMAGE=${{ vars.PF_CLI_IMAGE || format('{0}/projectfile/cli:{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', env.M6E_TAG) }}
             SOURCE_DOCKER_REGISTRY=${{ inputs.SOURCE_DOCKER_REGISTRY || vars.SOURCE_DOCKER_REGISTRY }}
           mounts: fetch=/fetch
           pf-cli-image: ${{ vars.PF_CLI_IMAGE || format('{0}/projectfile/cli:{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', env.M6E_TAG) }}
