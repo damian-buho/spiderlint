@@ -67,7 +67,7 @@ rules:
     expect: {type: string, pattern: "(?i:require-trusted-types-for\\s+'script')"}
     when: {http.headers.content-security-policy: {type: string}}
     severity: info
-    message: "Content-Security-Policy should carry require-trusted-types-for ‘script’, found {got}"
+    message: "Content-Security-Policy should carry require-trusted-types-for 'script', found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
   http/reporting-endpoints:
     fact: http.headers.reporting-endpoints
