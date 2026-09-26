@@ -70,6 +70,8 @@ export interface Config {
     resolver: string;
     // Names pinned to an address for every crawl connection, as curl’s `--resolve`.
     resolve: Pin[];
+    // `org.spiderlint.<plugin>` keys, validated against each plugin’s schema once plugins load.
+    pluginSettings: Record<string, unknown>;
 }
 
 export function defaults(): Config {
@@ -107,6 +109,7 @@ export function defaults(): Config {
         allowPrivate: true,
         resolver: "system",
         resolve: [],
+        pluginSettings: {},
     };
 }
 

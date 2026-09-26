@@ -427,6 +427,7 @@ org:
     format: human
     plugins: []                        # explicit; nothing is auto-loaded from node_modules
     sources: []                        # <id>:<argument>, list:urls.txt crawls those URLs only
+    images: { weight: 200000 }         # a plugin’s own key, checked against its schema once plugins load
     groups: { … }
     rulesets: { … }
     sites:                             # optional; one run and one store per site
@@ -438,8 +439,13 @@ org:
         fetch: browser
 ```
 
+A top-level object key the core does not know belongs to the plugin of that name:
+it is validated against the plugin’s `settings` schema, defaults filled in, once
+plugins load, and one no loaded plugin claims is an unknown key. No flag or
+environment variable mirrors it.
+
 A `sites.<name>` entry takes every key above except `sites`, and each key it sets
-replaces the shared one whole. Without a URL, `audit`, `crawl`, `lint`, `report`,
+replaces the shared one whole; a plugin key replaces only that plugin’s. Without a URL, `audit`, `crawl`, `lint`, `report`,
 `groups` and `cache` run once per site, `--site` narrows the set, and the exit code
 is the worst of the runs. Shared `targets` beside `sites` is a config error, and so
 is `json` or `sarif` over more than one site, since each is one document. The action therefore audits one `site` per step, each with its own report paths and SARIF category.
@@ -473,6 +479,7 @@ Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--loc
 ```ts
 export default definePlugin({
   name: 'html-validate',
+  settings:   { type: 'object', properties: { … } },                          // JSON Schema of org.spiderlint.html-validate
   extractors: [{ id: 'htmlvalidate', async extract(page, body, live, context) {…} }], // facts land under page.htmlvalidate
   rules:      { 'html-validate/no-dup-id': (severity) => ({ meta, check }) }, // the built-ins’ shape
   presets:    { 'html-validate': { description, rules } },
@@ -493,6 +500,7 @@ export default definePlugin({
 - `dns` runs four `per: host` extractors, `cached: false` so they skip the `origins` bucket and each answer lives in the `dns` bucket for its record TTL. They query `context.dns`: the `resolver` servers over UDP with TCP on truncation, `DO` and `AD` set, 3 s per try, 2 tries per server. IP literals and special-use or overlay names (`localhost`, `test`, `invalid`, `example`, `local`, `onion`, `i2p`, `alt`, `internal`, `home.arpa`) are never queried; the zone is the nearest name answering `SOA` at or below the registrable domain (`tldts`, private suffixes included). `dns` holds `zone`, `a`, `aaaa`, `cname`, `https` (RFC 9460, parsed by `crawl/svcb.ts`, `hintsMatch` where the target is the owner), `h3` (`record` vs `altSvc` of the host’s pages), `caa` (RFC 8659 climb to the registrable domain, `issuer` from the served certificate’s organisation through a CA map, absent when unknown), `dangling` (the last CNAME target when the chain ends in NXDOMAIN, else `false`; on a linked host `dns` holds only `cname` and `dangling`, and `dns/dangling-cname` is the one `linked` rule), and, facts only, `forSale` (the `_for-sale.<zone>` TXT strings) and `agents` (the `_agents.<zone>` SVCB records). `dnssec` holds `signed`, `ds`, `dnskey`, `ad`, `rrsig` (`expires`, `daysLeft`, `left` share of the validity window) and `nsec3`; `bogus` is present only when the resolver sets `AD` on the root SOA, otherwise one run-level warning. `nameservers` holds `servers` (each asked for the zone SOA directly, recursion off), `serials` and `networks` (distinct /24 and /48). `mail` holds `mx`, `spf` (the host’s `v=spf1` TXT records) and `dmarc` (`at`, `record`, and `policy`: `p` at the host, else `sp` or `p` at the registrable domain). Presets `dns` (17 rules), `dns:mail` (opt-in, for a name that sends and takes no mail: `null-mx`, `spf-none`, `dmarc-reject`) and `dns:core` (`https-record`, `caa`, `caa-issuer`, `dangling-cname`, `dnssec`, `dnssec-bogus`, which skip `nameservers`); `recommended` carries `dns:core`.
 - `resources: [{ id, types, extract(url, contentType, body) }]` reads the body of every fetched `2xx` resource whose content type starts with one of `types`, as bytes, during its one `GET`; a body cut at `max-body-size` is read by none. It runs only when an enabled rule reads `resources.<id>`, facts land under `<id>` on every page’s entry for that URL, and they are stored with the response in the `resources` bucket, so a fresh or `304` answer reuses them; an entry an active extractor never read is fetched again in full. `undefined` adds nothing; a throw warns and leaves the key absent.
 - An extractor with `cost: expensive` runs on at most the group’s `sample` pages; `cheap`, the default, on every page.
+- `settings` is the JSON Schema of `org.spiderlint.<name>`; each rule the plugin makes gets the validated value, its defaults filled in, as `make(severity, settings)`. A plugin named as a core key is a config error.
 - `formatters` maps a format name to `(report, paint, isFull) => string`. The built-in formats are the bundled `report` plugin’s, so `--format` resolves every name the same way, and an unknown name lists every loaded one.
 - `sources` entries are `<id>:<argument>`; each source’s URLs join the seeds before the store is chosen, so they name it as seeds do. A source with `follow: false` makes the seeds the whole frontier: no link or sitemap URL joins them, while sitemaps are still read for their facts. A throw or 60 s without an answer is a config error.
 - `list` is the bundled source: one URL per line of a file (`-` for stdin), empty lines and `#` comments skipped, `follow: false`.

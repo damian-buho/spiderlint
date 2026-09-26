@@ -4,10 +4,12 @@
 
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import type { Page } from "playwright";
 import { VERSION } from "../agent.ts";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { ConfigError, type Config } from "../config/index.ts";
+import { CORE_KEYS, describe } from "../config/schema.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -39,10 +41,33 @@ const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
 const bundled = plugins.flatMap((plugin) => [...(plugin.extractors ?? []), ...(plugin.resources ?? [])]);
 for (const extractor of bundled) extractor.version ??= VERSION;
+const ajv = new Ajv2020({ strictTypes: false, allErrors: true, useDefaults: true });
+// Each plugin’s validated settings, by plugin name.
+const settings = new Map<string, unknown>();
 
-// A TypeScript rule by ID: the core’s, else a plugin’s.
+// `raw` validated against the plugin’s schema, its defaults filled in; a violation names its path.
+function settle(plugin: Plugin, raw: unknown = {}): unknown {
+    if (!plugin.settings) return undefined;
+    const value = structuredClone(raw);
+    const validate = ajv.compile(plugin.settings);
+    if (!validate(value)) throw new ConfigError((validate.errors ?? []).map((error) => describe(error, `org.spiderlint/${plugin.name}`)).join("; "));
+    return value;
+}
+
+// Settles every plugin’s key of `raw`; a key no loaded plugin claims is unknown.
+function configure(raw: Record<string, unknown>): void {
+    const unclaimed = Object.keys(raw).filter((key) => plugins.every((plugin) => plugin.name !== key || !plugin.settings));
+    if (unclaimed.length > 0) throw new ConfigError(unclaimed.map((key) => `org.spiderlint: unknown key "${key}"`).join("; "));
+    settings.clear();
+    for (const plugin of plugins) if (plugin.settings) settings.set(plugin.name, settle(plugin, raw[plugin.name]));
+    log.debug({ plugins: settings.keys().toArray(), set: Object.keys(raw) }, "plugin settings validated");
+}
+
+// A TypeScript rule by ID: the core’s, else a plugin’s, handed its plugin’s settings.
 export function ruleMaker(id: string): Make | undefined {
-    return builtin[id] ?? plugins.find((plugin) => plugin.rules?.[id])?.rules?.[id];
+    const plugin = plugins.find((candidate) => candidate.rules?.[id]);
+    const make = plugin?.rules?.[id];
+    return builtin[id] ?? (plugin && make && ((severity) => make(severity, settings.has(plugin.name) ? settings.get(plugin.name) : settle(plugin))));
 }
 
 // A preset a plugin ships.
@@ -103,14 +128,15 @@ function register(plugin: Plugin): void {
     const resources = (plugin.resources ?? []).filter((resource) => allResourceExtractors().some((other) => other.id === resource.id)).map((resource) => `resources.${resource.id}`);
     const formatters = Object.keys(plugin.formatters ?? {}).filter((name) => formatNames().includes(name)).map((name) => `format ${name}`);
     const sources = (plugin.sources ?? []).filter((source) => allSources().some((other) => other.id === source.id)).map((source) => `source ${source.id}`);
-    const clash = [...rules, ...presets, ...extractors, ...sites, ...resources, ...formatters, ...sources];
+    const keys = plugin.settings && CORE_KEYS.has(plugin.name) ? [`settings key ${plugin.name}`] : [];
+    const clash = [...rules, ...presets, ...extractors, ...sites, ...resources, ...formatters, ...sources, ...keys];
     if (clash.length > 0) throw new ConfigError(`plugin ${plugin.name}: ${clash.join(", ")} already defined`);
     plugins.push(plugin);
     log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0, sites: plugin.sites?.length ?? 0, resources: plugin.resources?.length ?? 0, formatters: Object.keys(plugin.formatters ?? {}), sources: (plugin.sources ?? []).map((source) => source.id) }, "plugin registered");
 }
 
-// Imports each named plugin once: a path from the working directory, else a package installed beside spiderlint.
-export async function loadPlugins(names: string[]): Promise<void> {
+// Imports each named plugin once: a path from the working directory, else a package installed beside spiderlint; then settles every plugin’s settings from `raw`.
+export async function loadPlugins(names: string[], raw: Record<string, unknown> = {}): Promise<void> {
     for (const name of names) {
         if (loaded.has(name)) {
             log.debug({ plugin: name }, "plugin bundled or loaded");
@@ -128,6 +154,7 @@ export async function loadPlugins(names: string[]): Promise<void> {
         loaded.add(name).add(module.default.name);
         log.info({ plugin: module.default.name, specifier }, "plugin loaded");
     }
+    configure(raw);
 }
 
 // Seeds with each `sources` entry’s URLs appended; one source that does not follow makes them the whole frontier.

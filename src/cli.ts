@@ -284,13 +284,13 @@ async function main(argv: string[]): Promise<number> {
         };
         const config = configFor({});
         if (command === "explain") {
-            await loadPlugins(config.plugins);
+            await loadPlugins(config.plugins, config.pluginSettings);
             const explained = explainRule(config, seeds[0] as string);
             console.log(config.format === "json" ? JSON.stringify(explained, undefined, 2) : formatExplanation(explained, painter(process.stdout, values.color)));
             return 0;
         }
         if (command === "rules" || command === "presets") {
-            await loadPlugins(config.plugins);
+            await loadPlugins(config.plugins, config.pluginSettings);
             const paint = painter(process.stdout, values.color);
             const listed = command === "rules" ? listRules(config, seeds) : listPresets(config);
             if (config.format === "json") console.log(JSON.stringify(listed, undefined, 2));
@@ -325,7 +325,7 @@ async function main(argv: string[]): Promise<number> {
 async function run(command: string, seeds: string[], targets: string[], bucket: string | undefined, config: Config, values: Flags): Promise<number> {
     const isStored = ["crawl", "lint", "report"].includes(command);
     {
-        await loadPlugins(config.plugins);
+        await loadPlugins(config.plugins, config.pluginSettings);
         if (targets.length > 0) config.seeds = targets;
         config = await withSources(config);
         const invalid = config.seeds.find((seed) => !URL.canParse(seed) || !["http:", "https:"].includes(new URL(seed).protocol));

@@ -28,10 +28,10 @@ const ruleSpec = {
 };
 
 // The org.spiderlint subtree, as documented in AGENTS.md ## Configuration.
-// additionalProperties: false at every level so a misspelt key fails closed.
+// additionalProperties: false below the top, where an object key is a plugin’s until `configurePlugins` finds none claiming it.
 const site = {
     type: "object",
-    additionalProperties: false,
+    additionalProperties: { type: "object" },
     properties: {
         targets: { type: "array", items: { type: "string" } },
         "canonical-origin": { type: "string" },
@@ -94,18 +94,25 @@ const site = {
     },
 };
 
+// Keys the core reads; any other top-level key belongs to a plugin.
+export const CORE_KEYS = new Set([...Object.keys(site.properties), "sites"]);
+
 // Each `sites.<name>` entry carries the same keys as the subtree, minus `sites`.
 const schema = { ...site, properties: { ...site.properties, sites: { type: "object", additionalProperties: site } } };
 
 const validate = ajv.compile(schema);
 
-// A misspelt or misplaced key names its own path, per AGENTS.md ## Configuration.
-function describe(error: ErrorObject): string {
+// Schema paths where a top-level key that is no object can only be a misspelt core key.
+const TOP_LEVEL = new Set(["#/additionalProperties/type", "#/properties/sites/additionalProperties/additionalProperties/type"]);
+
+// A misspelt or misplaced key names its own path under `prefix`, per AGENTS.md ## Configuration.
+export function describe(error: ErrorObject, prefix = "org.spiderlint"): string {
     if (error.keyword === "additionalProperties") {
         const key = (error.params as { additionalProperty: string }).additionalProperty;
-        return `org.spiderlint${error.instancePath}: unknown key "${key}"`;
+        return `${prefix}${error.instancePath}: unknown key "${key}"`;
     }
-    return `org.spiderlint${error.instancePath}: ${error.message}`;
+    const cut = error.instancePath.lastIndexOf("/");
+    return TOP_LEVEL.has(error.schemaPath) ? `${prefix}${error.instancePath.slice(0, cut)}: unknown key "${error.instancePath.slice(cut + 1)}"` : `${prefix}${error.instancePath}: ${error.message}`;
 }
 
 // Throws ConfigError (exit 2) listing every violation found in the subtree.

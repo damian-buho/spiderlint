@@ -186,6 +186,14 @@ describe("loadSettings", () => {
         assert.deepEqual(sites, { static: { seeds: ["https://beta.dbuho.me/"], canonicalOrigin: "https://dbuho.me" }, preview: { seeds: ["https://f.dbuho.me/"], fetch: "browser" } });
     });
 
+    it("keeps unknown object keys for plugins, a site replacing only the plugin keys it sets", () => {
+        const file = path.join(directory, "plugin-keys.yaml");
+        writeFileSync(file, ["org:", "  spiderlint:", "    images: { weight: 5 }", "    other: { x: 1 }", "    sites:", "      a:", "        targets: [https://a.test/]", "        images: { oversize: 3 }"].join("\n"));
+        const { settings, sites } = loadSettings(file);
+        assert.deepEqual(settings, { pluginSettings: { images: { weight: 5 }, other: { x: 1 } } });
+        assert.deepEqual(sites.a?.pluginSettings, { images: { oversize: 3 }, other: { x: 1 } });
+    });
+
     it("rejects shared targets beside sites", () => {
         const file = path.join(directory, "sites-targets.yaml");
         writeFileSync(file, ["org:", "  spiderlint:", "    targets: [https://a.test/]", "    sites:", "      b:", "        targets: [https://b.test/]"].join("\n"));

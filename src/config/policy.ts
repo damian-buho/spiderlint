@@ -10,12 +10,12 @@ import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
 import { log } from "../logger.ts";
 import { ConfigError, originOf, proxyOf, type Config } from "./index.ts";
-import { validateSubtree } from "./schema.ts";
+import { CORE_KEYS, validateSubtree } from "./schema.ts";
 
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "resolver" | "resolve">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "include" | "exclude" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "disabledRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "resolver" | "resolve" | "pluginSettings">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -85,6 +85,8 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     if (subtree.resolve !== undefined) settings.resolve = (subtree.resolve as string[]).map((pin) => parsePin(pin));
     if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);
     if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
+    const plugins = Object.entries(subtree).filter(([key]) => !CORE_KEYS.has(key));
+    if (plugins.length > 0) settings.pluginSettings = Object.fromEntries(plugins);
     return settings;
 }
 
@@ -93,7 +95,10 @@ function resolve(raw: unknown): { settings: Settings; sites: Record<string, Sett
     const { sites = {}, ...shared } = validateSubtree(raw) as { sites?: Record<string, Record<string, unknown>> } & Record<string, unknown>;
     if (Object.keys(sites).length > 0 && shared.targets !== undefined) throw new ConfigError("org.spiderlint/targets: with sites, every target belongs to a sites.<name>.targets");
     log.debug({ sites: Object.keys(sites) }, "sites declared");
-    return { settings: fromSubtree(shared), sites: Object.fromEntries(Object.entries(sites).map(([name, site]) => [name, fromSubtree(site)])) };
+    const settings = fromSubtree(shared);
+    // A site’s plugin key replaces the shared one of the same plugin, not every plugin’s.
+    const patch = (site: Settings): Settings => (site.pluginSettings ? { ...site, pluginSettings: { ...settings.pluginSettings, ...site.pluginSettings } } : site);
+    return { settings, sites: Object.fromEntries(Object.entries(sites).map(([name, site]) => [name, patch(fromSubtree(site))])) };
 }
 
 // First recognised projectfile encoding present in the working directory.

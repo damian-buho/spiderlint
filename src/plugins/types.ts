@@ -84,6 +84,8 @@ export interface Source {
 // A plugin module’s default export.
 export interface Plugin {
     name: string;
+    // JSON Schema of its `org.spiderlint.<name>` key; its defaults fill what the key leaves out.
+    settings?: Record<string, unknown>;
     extractors?: Extractor[];
     sites?: SiteExtractor[];
     resources?: ResourceExtractor[];

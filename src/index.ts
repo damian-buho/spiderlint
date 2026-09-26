@@ -399,7 +399,7 @@ export interface StoreOptions {
 export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
     const started = new Date();
     const config: Config = { ...defaults(), ...overrides };
-    await loadPlugins(config.plugins);
+    await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
         const report = withPrevious(lint(await crawlPages(config, store), started), store);
@@ -413,7 +413,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
     const config: Config = { ...defaults(), ...overrides };
-    await loadPlugins(config.plugins);
+    await loadPlugins(config.plugins, config.pluginSettings);
     return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
         const { pages } = await crawlPages(config, store);
         return pages;
@@ -424,7 +424,7 @@ export async function crawl(overrides: Partial<Config>, directory: string, isRes
 export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
     const started = new Date();
     const config: Config = { ...defaults(), ...overrides };
-    await loadPlugins(config.plugins);
+    await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     return withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
