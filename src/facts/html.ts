@@ -112,6 +112,7 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
         canonical: $('link[rel="canonical"]').attr("href"),
         meta: firstAttribute($, "meta[name][content]", "name"),
         metas: metas($),
+        "http-equiv": $("head meta[http-equiv][content]").map((_, element) => ({ name: String($(element).attr("http-equiv")).toLowerCase(), content: String($(element).attr("content")) })).get(),
         property: firstAttribute($, "meta[property][content]", "property"),
         head: { links: headLinks($, page) },
         hreflang: $("link[rel~='alternate'][hreflang][href]").map((_, element) => ({ lang: String($(element).attr("hreflang")), href: resolve(String($(element).attr("href")), page) })).get(),

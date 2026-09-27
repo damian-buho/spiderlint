@@ -12,10 +12,10 @@ rules:
     message: "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
   http/csp:
-    fact: http.headers.content-security-policy
-    expect: {type: string, minLength: 1}
+    fact: http.csp.directives
+    expect: {type: object}
     severity: warning
-    message: "no Content-Security-Policy header"
+    message: "no enforced Content-Security-Policy, in a header or a <meta>"
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
   http/content-type-options:
     fact: http.headers.x-content-type-options
@@ -56,19 +56,80 @@ rules:
     message: "no Cross-Origin-Resource-Policy header"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
   http/csp-upgrade-insecure:
-    fact: http.headers.content-security-policy
-    expect: {type: string, pattern: "(?i:upgrade-insecure-requests)"}
-    when: {url.protocol: "https:", http.headers.content-security-policy: {type: string}}
+    fact: http.csp.directives
+    expect: {required: [upgrade-insecure-requests]}
+    when: {url.protocol: "https:", http.csp.directives: {type: object}}
     severity: warning
-    message: "Content-Security-Policy should carry upgrade-insecure-requests, found {got}"
+    message: "Content-Security-Policy lacks upgrade-insecure-requests"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
   http/csp-trusted-types:
-    fact: http.headers.content-security-policy
-    expect: {type: string, pattern: "(?i:require-trusted-types-for\\s+'script')"}
-    when: {http.headers.content-security-policy: {type: string}}
+    fact: http.csp.directives
+    expect: {required: [require-trusted-types-for], properties: {require-trusted-types-for: {contains: {pattern: "^(?i:'script')$"}}}}
+    when: {http.csp.directives: {type: object}}
     severity: info
-    message: "Content-Security-Policy should carry require-trusted-types-for 'script', found {got}"
+    message: "Content-Security-Policy lacks require-trusted-types-for 'script'"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
+  http/csp-script-src:
+    fact: http.csp.directives
+    expect: {anyOf: [{required: [script-src]}, {required: [default-src]}]}
+    when: {http.csp.directives: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
+  http/csp-unsafe-inline:
+    fact: http.csp.directives
+    expect:
+      if: {required: [script-src]}
+      then: {properties: {script-src: {not: {contains: {pattern: "^(?i:'unsafe-inline')$"}}}}}
+      else: {properties: {default-src: {not: {contains: {pattern: "^(?i:'unsafe-inline')$"}}}}}
+    when: {http.csp.directives: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash: {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_inline_script
+  http/csp-unsafe-eval:
+    fact: http.csp.directives
+    expect:
+      if: {required: [script-src]}
+      then: {properties: {script-src: {not: {contains: {pattern: "^(?i:'unsafe-eval')$"}}}}}
+      else: {properties: {default-src: {not: {contains: {pattern: "^(?i:'unsafe-eval')$"}}}}}
+    when: {http.csp.directives: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy allows eval() with 'unsafe-eval': {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_eval_expressions
+  http/csp-script-wildcard:
+    fact: http.csp.directives
+    expect:
+      if: {required: [script-src]}
+      then: {properties: {script-src: {not: {contains: {pattern: "^(?i:\\*|[a-z][a-z0-9+.-]*:)$"}}}}}
+      else: {properties: {default-src: {not: {contains: {pattern: "^(?i:\\*|[a-z][a-z0-9+.-]*:)$"}}}}}
+    when: {http.csp.directives: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy loads scripts from any host through a * or scheme-only source: {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/Sources
+  http/csp-object-src:
+    fact: http.csp.directives
+    expect:
+      if: {required: [object-src]}
+      then: {properties: {object-src: {maxItems: 1, items: {pattern: "^(?i:'none')$"}}}}
+      else: {required: [default-src], properties: {default-src: {maxItems: 1, items: {pattern: "^(?i:'none')$"}}}}
+    when: {http.csp.directives: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy should set object-src 'none', found {got}"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
+  http/csp-base-uri:
+    fact: http.csp.directives
+    expect: {required: [base-uri]}
+    when: {http.csp.directives: {type: object}}
+    severity: info
+    message: "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
+  http/csp-frame-ancestors:
+    fact: http.csp.directives
+    expect: {required: [frame-ancestors]}
+    when: {http.csp.directives: {type: object}}
+    severity: info
+    message: "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
   http/reporting-endpoints:
     fact: http.headers.reporting-endpoints
     expect: {type: string, minLength: 1}

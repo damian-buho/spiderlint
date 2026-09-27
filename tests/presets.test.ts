@@ -4,6 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { cspFacts } from "../src/facts/csp.ts";
 import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop, Role } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
@@ -34,7 +35,7 @@ interface Patch {
 function page(patch: Patch = {}): Facts {
     const pathname = patch.pathname ?? "/posts/hello-world/";
     const href = `https://site.test${pathname}`;
-    const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
+    const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
     const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
     const facts: Facts = {
         url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: patch.search ?? "", ...(patch.twin && { twin: patch.twin }) },
@@ -48,6 +49,8 @@ function page(patch: Patch = {}): Facts {
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {}, cookies: [] },
     };
     facts.robots = robotsFacts(facts);
+    const csp = cspFacts(facts);
+    if (csp) facts.http.csp = csp;
     return facts;
 }
 
@@ -58,8 +61,16 @@ const FAILS: Record<string, Patch[]> = {
     "http/permissions-policy": [{ headers: { "permissions-policy": "" } }],
     "http/coop": [{ headers: { "cross-origin-opener-policy": "unsafe-none" } }],
     "http/corp": [{ headers: { "cross-origin-resource-policy": "" } }],
+    "http/csp": [{ headers: { "content-security-policy": undefined as unknown as string, "content-security-policy-report-only": "default-src 'self'" } }],
     "http/csp-upgrade-insecure": [{ headers: { "content-security-policy": "default-src 'self'" } }],
-    "http/csp-trusted-types": [{ headers: { "content-security-policy": "default-src 'self'" } }],
+    "http/csp-trusted-types": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "require-trusted-types-for 'none'" } }],
+    "http/csp-script-src": [{ headers: { "content-security-policy": "img-src 'self'; object-src 'none'" } }],
+    "http/csp-unsafe-inline": [{ headers: { "content-security-policy": "default-src 'self' 'unsafe-inline'" } }, { headers: { "content-security-policy": "default-src 'self'; script-src 'self' 'UNSAFE-INLINE'" } }],
+    "http/csp-unsafe-eval": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" } }, { headers: { "content-security-policy": "default-src 'unsafe-eval', img-src *" } }],
+    "http/csp-script-wildcard": [{ headers: { "content-security-policy": "script-src *" } }, { headers: { "content-security-policy": "default-src https:" } }],
+    "http/csp-object-src": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none'; object-src 'self'" } }],
+    "http/csp-base-uri": [{ headers: { "content-security-policy": "default-src 'self'" } }],
+    "http/csp-frame-ancestors": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
     "http/reporting-endpoints": [{ headers: { "reporting-endpoints": "" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
     "http/compression": [{ headers: { "content-encoding": "deflate" } }, { contentType: "application/ld+json", headers: { "content-encoding": "identity" } }],
@@ -115,6 +126,11 @@ const FAILS: Record<string, Patch[]> = {
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
 const PASSES: Record<string, Patch[]> = {
+    "http/csp": [{ headers: { "content-security-policy": undefined as unknown as string }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
+    "http/csp-unsafe-inline": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'unsafe-inline'" } }, { headers: { "content-security-policy": "script-src 'self' 'unsafe-inline', script-src 'self'" } }, { headers: { "content-security-policy": "style-src 'unsafe-inline'; script-src 'self'" } }],
+    "http/csp-unsafe-eval": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
+    "http/csp-script-wildcard": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https:" } }, { headers: { "content-security-policy": "default-src *, script-src 'self'" } }],
+    "http/csp-object-src": [{ headers: { "content-security-policy": "default-src 'none'" } }, { headers: { "content-security-policy": "default-src 'self', object-src 'none'" } }],
     "redirects/permanent": [{ redirects: [{ url: "https://site.test/a", status: 301 }, { url: "https://site.test/b", status: 308 }] }, { status: 404, redirects: [{ url: "https://site.test/b", status: 302 }] }],
     "http/referrer-policy": [{ headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "0" } }],
@@ -197,4 +213,13 @@ describe("presets", () => {
             }
         });
     }
+});
+
+describe("content security policy", () => {
+    it("combines two headers and a meta as the browser enforces them", () => {
+        const facts = page({ html: { "http-equiv": [{ name: "content-security-policy", content: "script-src 'self'; frame-ancestors 'none'" }] } });
+        facts.http.headers["content-security-policy"] = ["default-src 'self' 'unsafe-eval' https://cdn.test", "script-src 'self' https://cdn.test 'unsafe-eval'; object-src 'none'"];
+        facts.http.headers["content-security-policy-report-only"] = "default-src 'none'";
+        assert.deepEqual(cspFacts(facts), { policies: 3, directives: { "default-src": ["'self'", "'unsafe-eval'", "https://cdn.test"], "script-src": ["'self'"], "object-src": [] }, "report-only": { policies: 1, directives: { "default-src": ["'none'"] } } });
+    });
 });

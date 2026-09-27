@@ -139,6 +139,15 @@ export interface HttpFacts {
     "content-type": string;
     charset?: string;
     revalidated?: true;
+    // The Content-Security-Policy headers and `<meta>` policies, derived on every lint.
+    csp?: CspFacts;
+}
+
+// Enforced policies combined as the browser enforces them: each directive keeps only the sources every policy governing it allows.
+export interface CspFacts {
+    policies: number;
+    directives?: Record<string, string[]>;
+    "report-only"?: { policies: number; directives: Record<string, string[]> };
 }
 
 export interface TlsFacts {
@@ -159,6 +168,7 @@ export interface HtmlFacts {
     canonical?: string;
     meta: Record<string, string>;
     metas: { name: string; content: string; media?: string }[];
+    "http-equiv"?: { name: string; content: string }[];
     property: Record<string, string>;
     head: { links: Partial<Record<"rel" | "href" | "type" | "hreflang" | "sizes" | "media" | "as" | "crossorigin", string>>[] };
     hreflang: { lang: string; href: string }[];

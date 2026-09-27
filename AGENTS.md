@@ -196,11 +196,12 @@ http:     { status, version, redirects: [{ url, status, headers, by }],
             timing: { dns, tcp, tls, ttfb, download, total },
             size: { body, decoded, declared, truncated }, content-type, charset,
             cookies: [{ name, secure, http-only, same-site, path, domain }],
-            early-hints: [{ link }] }                                   # each 103’s Link, http mode only
+            early-hints: [{ link }],                                    # each 103’s Link, http mode only
+            csp: { policies, directives: { name: [sources] }, report-only: { policies, directives } } }   # derived on every lint
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
             cert: { subject, issuer, not-before, not-after, days-left, san: [], fingerprint256 } }
 html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], canonical,   # offset: byte where the declaring <meta> ends
-            meta: { name: content }, metas: [{ name, content, media }], property: { og:title: … },   # meta: first per name; metas: every one
+            meta: { name: content }, metas: [{ name, content, media }], http-equiv: [{ name, content }], property: { og:title: … },   # meta: first per name; metas: every one
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },
             links: { internal: [], external: [], nofollow: [] },
             images: [{ src, alt, width, height, srcset, loading, noscript }], hreflang: [{ lang, href }],
@@ -308,6 +309,7 @@ because facts are always retained even when bodies are not.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
 - `sitemap/hreflang` (page) fails when the sitemap alternates and the page’s hreflang links both exist and differ; `sitemap/media` (site) probes each image and video entry through the `probes` bucket, keyed by the file.
 - Graph facts are derived on every lint from the stored pages’ internal links, a redirect standing for its target: `graph.depth` (fewest links from a seed, absent when unreached), `in-degree` and `out-degree` (distinct pages), `rank` (PageRank, damping 0.85, scaled so the average page is 1). The `graph` preset reads them as page rules, so they fold per template and a group’s ruleset overrides the bounds: `links/click-depth` (above 3), `links/dead-end` (no internal link out) and `links/weakly-linked` (one page links in; 0 is `sitemap/orphan`’s), all `info`, outside `recommended`. A crawl `max-pages` or `max-depth` cut is `site.graph.capped`, and every graph finding then says the page may sit closer and have more links in.
+- `http.csp` is derived on every lint from every `Content-Security-Policy` header and `<meta http-equiv>` policy, combined as the browser enforces them: each policy drops what the browser ignores (`'unsafe-inline'` beside a nonce or hash, host sources beside `'strict-dynamic'`, `frame-ancestors`, `report-uri` and `sandbox` in a `<meta>`), and a directive named by any policy keeps only the sources every policy governing it, through its `default-src` fallback, allows. `security-headers` judges it: `http/csp`, `csp-script-src`, `csp-unsafe-inline`, `csp-unsafe-eval`, `csp-script-wildcard`, `csp-object-src`, `csp-upgrade-insecure` (warnings), `csp-base-uri`, `csp-frame-ancestors`, `csp-trusted-types` (`info`). `report-only` is a fact no rule reads.
 - `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
 - Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), the `robots` preset over `site.robots` — `robots/disallow-all` (`*` shut out of `/` with no `Allow`), `robots/ai-crawlers` (`info`: the AI crawler tokens a `robots.txt` names, by purpose, with retired ones marked) and `robots/content-signal` (only `search`, `ai-input`, `ai-train`, each `yes` or `no`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.

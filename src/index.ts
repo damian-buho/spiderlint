@@ -17,6 +17,7 @@ import { attachResources, fetchResources, isFailure } from "./crawl/resources.ts
 import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
+import { cspFacts } from "./facts/csp.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { linkGraph } from "./facts/graph.ts";
 import { dnsClient } from "./crawl/dns.ts";
@@ -302,6 +303,8 @@ function linter(config: Config): Lint {
         for (const page of pages) {
             page.group = assignGroup(page, matchers);
             page.robots = robotsFacts(page);
+            const csp = cspFacts(page);
+            if (csp) page.http.csp = csp;
         }
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);

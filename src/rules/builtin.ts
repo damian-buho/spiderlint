@@ -104,9 +104,9 @@ export function header(page: Facts, name: string): string {
 
 // Framing refused by CSP `frame-ancestors` or by `X-Frame-Options` DENY or SAMEORIGIN.
 const frameOptions: Make = (severity) => ({
-    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.headers.content-security-policy", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors" },
+    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.csp.directives", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors" },
     check(page: Facts) {
-        const hasAncestors = /(?:^|[;,])\s*frame-ancestors\s/i.test(header(page, "content-security-policy"));
+        const hasAncestors = page.http.csp?.directives?.["frame-ancestors"] !== undefined;
         const options = header(page, "x-frame-options").trim();
         const isDenied = hasAncestors || /^(?:deny|sameorigin)$/i.test(options);
         log.debug({ rule: "http/frame-options", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
