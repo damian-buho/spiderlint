@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import type { Facts, ResourceFacts } from "../src/facts/types.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { describe as describeValue } from "../src/rules/declarative.ts";
-import type { AggregateRule } from "../src/rules/types.ts";
+import type { AggregateRule, PageRule } from "../src/rules/types.ts";
 
 // The smallest facts document a site rule reads.
 function page(href: string, resources: ResourceFacts[]): Facts {
@@ -58,6 +58,17 @@ describe("resource rules", () => {
             ["https://site.test/a.css", "text/css style is served uncompressed; used by 1 pages"],
             ["https://site.test/f.ttf", "font/ttf style is served identity; used by 1 pages"],
         ]);
+    });
+});
+
+describe("resource hints", () => {
+    it("judges an unused preconnect on a rendered page only", () => {
+        const links = [{ rel: "preconnect", href: "https://cdn.test/" }, { rel: "dns-prefetch", href: "https://gone.test/" }];
+        const statik = { ...page("https://site.test/", [{ url: "https://cdn.test/a.js", kind: "script", origin: "cross" }]), html: { head: { links } } as Facts["html"] };
+        const rendered: Facts = { ...statik, browser: { timing: {}, console: { errors: [], warnings: [] }, weight: {}, cookies: [] } };
+        const rule = builtin["html/preconnect-unused"]?.("info") as PageRule;
+        assert.equal(rule.check(statik), undefined);
+        assert.deepEqual(rule.check(rendered)?.map((finding) => finding.message), ["rel=dns-prefetch warms https://gone.test, which no resource of the page loads"]);
     });
 });
 

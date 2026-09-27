@@ -134,6 +134,76 @@ const earlyHintsPreload: Make = (severity) => ({
     },
 });
 
+type HeadLink = HtmlFacts["head"]["links"][number];
+
+// The origin of an http(s) URL, else undefined.
+function originOf(href: string | undefined): string | undefined {
+    if (!href || !URL.canParse(href)) return undefined;
+    const url = new URL(href);
+    return /^https?:$/.test(url.protocol) ? url.origin : undefined;
+}
+
+// Head links whose `rel` carries one of `relations`.
+function withRelation(page: Facts, relations: string[]): HeadLink[] {
+    return (page.html?.head.links ?? []).filter((link) => (link.rel ?? "").toLowerCase().split(/\s+/).some((token) => relations.includes(token)));
+}
+
+// Origins warmed by `preconnect` or `dns-prefetch`, with the relation that names each.
+function hintedOrigins(page: Facts): Map<string, string> {
+    return new Map(withRelation(page, ["preconnect", "dns-prefetch"]).flatMap((link) => (originOf(link.href) ? [[originOf(link.href) as string, (link.rel ?? "").toLowerCase()]] : [])));
+}
+
+// A hinted origin no resource of the rendered page loads; a static parse misses what CSS and scripts load, so only a browser census is judged.
+const preconnectUnused = pageRule(
+    "html/preconnect-unused",
+    ["html.head.links", "resources"],
+    (page) => {
+        if (!page.browser || !page.html) return;
+        const used = new Set((page.resources ?? []).map((resource) => originOf(resource.url)));
+        const unused = hintedOrigins(page).entries().filter(([origin]) => !used.has(origin)).toArray();
+        log.debug({ rule: "html/preconnect-unused", url: page.url.href, used: used.size, unused: unused.length }, "resource hints matched");
+        return unused.map(([origin, relation]) => ({ message: `rel=${relation} warms ${origin}, which no resource of the page loads`, value: origin }));
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Remove the preconnect or dns-prefetch link to an origin the page no longer loads from." },
+);
+
+// Cross origins serving a head script without `async`, `defer` or `type=module`, or a style sheet for every medium.
+function blockingOrigins(page: Facts): Map<string, string> {
+    const scripts = (page.html?.scripts ?? []).filter((script) => script.head && !script.async && !script.defer && script.type !== "module").map((script) => [originOf(script.src), "script"]);
+    const styles = withRelation(page, ["stylesheet"]).filter((link) => !link.media || /\b(?:all|screen)\b/i.test(link.media)).map((link) => [originOf(link.href), "style sheet"]);
+    return new Map([...scripts, ...styles].filter((entry): entry is [string, string] => entry[0] !== undefined && entry[0] !== page.url.origin));
+}
+
+// A cross origin serving a render-blocking resource with no `preconnect`, `dns-prefetch` or `preload` towards it.
+const preconnectMissing = pageRule(
+    "html/preconnect-missing",
+    ["html.head.links", "html.scripts"],
+    (page) => {
+        if (!page.html) return;
+        const warmed = new Set([...hintedOrigins(page).keys(), ...withRelation(page, ["preload"]).map((link) => originOf(link.href))]);
+        const cold = blockingOrigins(page).entries().filter(([origin]) => !warmed.has(origin)).toArray();
+        log.debug({ rule: "html/preconnect-missing", url: page.url.href, warmed: warmed.size, cold: cold.length }, "render-blocking origins matched");
+        return cold.map(([origin, kind]) => ({ message: `${origin} serves a render-blocking ${kind} and nothing preconnects to it`, value: origin }));
+    },
+    { docs: "https://web.dev/articles/preconnect-and-dns-prefetch", fix: 'Add <link rel="preconnect" href="https://origin.example"> for each cross origin a render-blocking script or style sheet comes from.' },
+);
+
+// A `preconnect` to an origin serving fonts that lacks `crossorigin`, so the font fetch opens a second connection.
+const preconnectCrossorigin = pageRule(
+    "html/preconnect-crossorigin",
+    ["html.head.links", "resources"],
+    (page) => {
+        if (!page.html) return;
+        const fonts = new Set([...(page.resources ?? []).filter((resource) => resource.kind === "font").map((resource) => originOf(resource.url)), ...withRelation(page, ["preload"]).filter((link) => link.as === "font").map((link) => originOf(link.href))]);
+        const preconnects = withRelation(page, ["preconnect"]).filter((link) => originOf(link.href) !== undefined && fonts.has(originOf(link.href)));
+        const anonymous = new Set(preconnects.filter((link) => link.crossorigin !== undefined).map((link) => originOf(link.href)));
+        const bare = [...new Set(preconnects.map((link) => originOf(link.href))).difference(anonymous)];
+        log.debug({ rule: "html/preconnect-crossorigin", url: page.url.href, fonts: fonts.size, preconnects: preconnects.length, bare: bare.length }, "font preconnects matched");
+        return bare.map((origin) => ({ message: `the preconnect to font origin ${String(origin)} lacks crossorigin, so fonts open a second connection`, value: origin }));
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Add the crossorigin attribute to the preconnect link towards the origin fonts load from." },
+);
+
 // Fragment-free absolute form of a URL relative to the page; an unparsable value stays as written.
 export function resolve(raw: string, base: string): string {
     if (!URL.canParse(raw, base)) return raw;
@@ -290,6 +360,9 @@ export const builtin: Record<string, Make> = {
     "links/broken-external": brokenExternal,
     "http/frame-options": frameOptions,
     "http/early-hints-preload": earlyHintsPreload,
+    "html/preconnect-unused": preconnectUnused,
+    "html/preconnect-missing": preconnectMissing,
+    "html/preconnect-crossorigin": preconnectCrossorigin,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     "sitemap/media": sitemapMedia,

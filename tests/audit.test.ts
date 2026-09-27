@@ -515,6 +515,16 @@ describe("audit options", () => {
         assert.deepEqual(findings.map((finding) => [new URL(finding.url).pathname, finding.value]), [["/hints", [`${site.origin}/font.woff2`]]]);
     });
 
+    it("finds a render-blocking origin nothing warms and a font preconnect without crossorigin", async () => {
+        const report = await audit({ seeds: [`${site.origin}/preconnect-missing`, `${site.origin}/preconnect-font`, `${site.origin}/about`], maxPages: 3, sitemap: false, fold: false, groups: { default: { rules: ["html/preconnect-*"] } } });
+        const findings = report.findings.map((finding) => [finding.rule, new URL(finding.url).pathname, finding.value]).toSorted(([a], [b]) => String(a).localeCompare(String(b)));
+        const cdn = site.origin.replace("127.0.0.1", "localhost");
+        assert.deepEqual(findings, [
+            ["html/preconnect-crossorigin", "/preconnect-font", cdn],
+            ["html/preconnect-missing", "/preconnect-missing", cdn],
+        ]);
+    });
+
     it("names itself in the user agent of every page, resource and robots.txt request", async () => {
         const before = site.headers.length;
         await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, cacheMode: "off" });

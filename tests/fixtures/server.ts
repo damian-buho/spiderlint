@@ -200,6 +200,13 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end(`<!doctype html><html lang="en"><head><title>Consent</title></head><body>${pathname === "/consent-tracked" ? `<img src="${third}" alt="" width="1" height="1">` : ""}</body></html>`);
             return;
         }
+        if (pathname === "/preconnect-missing" || pathname === "/preconnect-font") {
+            const cdn = `http://localhost:${new URL(`http://${request.headers.host}`).port}`;
+            const head = pathname === "/preconnect-missing" ? `<script src="${cdn}/cdn/lib.js"></script>` : `<link rel="preconnect" href="${cdn}"><link rel="preload" href="${cdn}/font.woff2" as="font" type="font/woff2" crossorigin>`;
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(`<!doctype html><html lang="en"><head><title>Preconnect</title>${head}</head><body><h1>Preconnect</h1></body></html>`);
+            return;
+        }
         const live = LIVE[pathname];
         if (live) {
             const third = `http://localhost:${new URL(`http://${request.headers.host}`).port}/third-party.gif`;
