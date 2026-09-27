@@ -98,13 +98,14 @@ function first(value: string | string[] | undefined): string | undefined {
     return [value ?? []].flat()[0];
 }
 
-// The seed page, else `/`, fetched, then fetched again with the validator it answered with.
+// The crawled seed page, else `/` fetched once, asked again with the validator it answered with.
 const revalidation: SiteExtractor = {
     id: "revalidation",
     per: "origin",
     async extract(origin, context) {
-        const url = context.pages.find((page) => page.crawl["discovered-via"] === "seed")?.url.href ?? `${origin}/`;
-        const answer = await context.fetch(url, { redirect: "manual" });
+        const seed = context.pages.find((page) => page.crawl["discovered-via"] === "seed");
+        const url = seed?.url.href ?? `${origin}/`;
+        const answer = seed ? { status: seed.http.status, headers: seed.http.headers } : await context.fetch(url, { redirect: "manual" });
         const etag = first(answer.headers.etag);
         const modified = first(answer.headers["last-modified"]);
         const condition: Record<string, string> | undefined = etag ? { "if-none-match": etag } : modified ? { "if-modified-since": modified } : undefined;
