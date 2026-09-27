@@ -74,8 +74,9 @@ export async function redirectFacts(request: Request): Promise<HttpFacts["redire
 // The address Chromium connected to, with the family Node’s sockets report.
 export function remoteFacts(address: { ipAddress: string } | null): HttpFacts["remote"] {
     if (!address) return undefined;
-    const version = isIP(address.ipAddress);
-    return { address: address.ipAddress, ...(version > 0 && { family: `IPv${version}` }) };
+    const ip = address.ipAddress.replaceAll(/^\[|\]$/g, "");
+    const version = isIP(ip);
+    return { address: ip, ...(version > 0 && { family: `IPv${version}` }) };
 }
 
 // Chromium’s `TLS 1.3` spelled as Node’s `TLSv1.3`; QUIC always runs TLS 1.3 (RFC 9001 §4.2).

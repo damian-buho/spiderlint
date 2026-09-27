@@ -8,7 +8,7 @@ import { chromium, firefox, type BrowserType, type Request } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import { parsePin } from "../src/crawl/resolve.ts";
-import { tlsFacts, wireSize } from "../src/facts/browser.ts";
+import { remoteFacts, tlsFacts, wireSize } from "../src/facts/browser.ts";
 import type { AxeFacts } from "../src/plugins/axe.ts";
 import type { KeyboardFacts } from "../src/plugins/keyboard.ts";
 import type { LighthouseFacts } from "../src/plugins/lighthouse.ts";
@@ -35,6 +35,11 @@ describe("browser tls facts", () => {
         assert.equal(tlsFacts({ protocol: "TLS 1.2" })?.protocol, "TLSv1.2");
         assert.equal(tlsFacts({ protocol: "QUIC" })?.protocol, "TLSv1.3");
         assert.equal(tlsFacts({}), undefined, "a plain-http response has no protocol");
+    });
+
+    it("reads an IPv6 peer without the brackets Chromium wraps it in", () => {
+        assert.deepEqual(remoteFacts({ ipAddress: "[2606:4700:10::ac42:93f3]" }), { address: "2606:4700:10::ac42:93f3", family: "IPv6" });
+        assert.deepEqual(remoteFacts({ ipAddress: "34.149.87.45" }), { address: "34.149.87.45", family: "IPv4" });
     });
 });
 

@@ -29,6 +29,8 @@ const SETTLE_MS = 5000;
 const RETIRE_AFTER_PAGES = 1000;
 const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit };
 const PORT_ARGUMENT = "--remote-debugging-port=";
+// Chromium past Crawlee’s loopback proxy, so it reports the server it reached.
+const DIRECT = "--proxy-server=direct://";
 // Each rendered page’s browser DevTools port, when an extractor asked for one.
 const ports = new WeakMap<Page, number>();
 
@@ -109,9 +111,10 @@ function contentTypeOf(header: string | string[] | undefined): { type: string; c
 }
 
 // Http and tls facts of a document response, the prober filling what Chromium does not say; `size` is what the caller could measure of its body.
-async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"], prober?: TlsProber): Promise<Pick<Facts, "http" | "tls">> {
+async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"], isDirect: boolean, prober?: TlsProber): Promise<Pick<Facts, "http" | "tls">> {
     const response = observation.document as Response;
-    const { headers, remote, tls: seen, security } = await (observation.transport as Promise<Transport>);
+    const { headers, remote: seenRemote, tls: seen, security } = await (observation.transport as Promise<Transport>);
+    const remote = isDirect ? seenRemote : undefined;
     const { type, charset } = contentTypeOf(headers["content-type"]);
     const url = new URL(response.url());
     const { tls, version } = withProbe(url.href, seen, security, await prober?.facts(url, remote?.address));
@@ -261,6 +264,8 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
     const responses = new Map<string, Logged>();
     const prober = proxy ? undefined : new TlsProber(config.allowPrivate);
     if (proxy) log.warn({ fetch: "browser" }, "TLS probes would bypass the proxy; browser pages carry no cipher, ALPN, SAN or HTTP version");
+    const isDirect = !proxy && config.browser === "chromium";
+    log.debug({ browser: config.browser, isDirect }, "browser remote address recorded only when direct");
     let launches = 0;
     // Pages rendered at once, all in one browser: `concurrency`, else one beside an expensive extractor, else half of NUMPROCS.
     const openPages = config.concurrency || (isExpensive ? 1 : Math.ceil(width() / 2));
@@ -271,7 +276,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
             headless: true,
             navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             maxConcurrency: openPages,
-            launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? chromiumArguments() : [] } },
+            launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? [...chromiumArguments(), ...(proxy ? [] : [DIRECT])] : [] } },
             browserPoolOptions: {
                 useFingerprints: false,
                 maxOpenPagesPerBrowser: openPages,
@@ -313,7 +318,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
-                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, prober)) };
+                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober)) };
                 if (isHtml) {
                     const $ = await parseWithCheerio();
                     facts.html = extractHtml($, text, url, config.scope);
