@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import type { Config } from "../config/index.ts";
+import { ConfigError, type Config } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { browserCrawler } from "./browser.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage, type Runnable } from "./frontier.ts";
@@ -15,8 +15,9 @@ import { trackProgress } from "../progress.ts";
 // Crawls with every crawler some group needs, side by side over one frontier that routes each URL to its group’s.
 export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCache, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType?: (contentType: string) => boolean, isDebugged?: boolean, isExpensive?: boolean): Promise<CrawlResult> {
     bridgeCrawleeLog();
-    const frontier = await Frontier.open(config, cache, router);
     const modes = router.crawlers;
+    if (modes.includes("browser") && !config.allowPrivate) throw new ConfigError("fetch browser: the address guard cannot check what the browser connects to");
+    const frontier = await Frontier.open(config, cache, router);
     const http = modes.includes("http") ? httpCrawler(config, onPage, frontier, storage, proxy) : undefined;
     const browser = modes.includes("browser") ? browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.info({ crawlers: modes, groups: router.modes }, "crawlers chosen");

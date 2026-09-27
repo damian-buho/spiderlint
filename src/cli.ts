@@ -62,6 +62,7 @@ Crawl:
   --canonical-origin U  origin the pages are built for; its URLs count as the crawled one’s
   --resolver LIST       DNS servers the crawl and the dns plugin ask, address[:port],… (system)
   --resolve PIN         connect to host[:port]:address instead of resolving host, repeatable
+  --no-allow-private    refuse loopback, private and link-local addresses, and the browser
 
 Rules:
   --config PATH         settings file (projectfile.yaml)
@@ -186,6 +187,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.sitemap !== undefined && { sitemap: values.sitemap as boolean }),
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
+        ...(values["allow-private"] !== undefined && { allowPrivate: values["allow-private"] as boolean }),
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: pick("--fail-on", values["fail-on"] as string, FAIL_ONS) }),
         ...(values.format !== undefined && { format: values.format as string }),
@@ -243,6 +245,7 @@ function parseFlags(argv: string[]) {
                 sitemap: { type: "boolean" },
                 keepalive: { type: "boolean" },
                 resources: { type: "boolean" },
+                "allow-private": { type: "boolean" },
                 unfold: { type: "boolean" },
                 format: { type: "string" },
                 "fail-on": { type: "string" },

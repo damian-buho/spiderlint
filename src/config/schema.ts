@@ -49,6 +49,7 @@ const site = {
         "max-depth": { type: "integer", minimum: 0 },
         "max-body-size": { type: "integer", minimum: 0 },
         keepalive: { type: "boolean" },
+        "allow-private": { type: "boolean" },
         "include-urls": { type: "array", items: { type: "string" } },
         "exclude-urls": { type: "array", items: { type: "string" } },
         resources: {

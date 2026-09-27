@@ -414,6 +414,7 @@ org:
     resources: { fetch: true, max-per-page: 200 }
     links: { exclude: [] }             # hosts, with their subdomains, whose links are never probed
     proxy: ""                          # socks5h://127.0.0.1:9050 for Tor
+    allow-private: true                # false refuses loopback, private and link-local addresses, and the browser
     robots: true
     sitemap: true
     fold: { threshold: 0.8, min: 3 }
@@ -473,7 +474,7 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
-`--no-sitemap`, `--no-keepalive`, `--no-resources`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
+`--no-sitemap`, `--no-keepalive`, `--no-resources`, `--no-allow-private`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
 `--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
@@ -546,7 +547,8 @@ export default definePlugin({
 - No credential is sent. Later, a static `--header` / `--cookie` is redacted from logs and the store and never appears in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD`, or `GET` when `HEAD` is refused, through the address guard.
 - DNS queries go to the configured `resolver` only, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.
-- Site and page extractor probes send `GET` or `HEAD` only and never leave their subject’s host; `context.link` alone reaches other hosts, as the off-scope link probe above. With `allowPrivate: false`, which `serve` is to set, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
+- Site and page extractor probes send `GET` or `HEAD` only and never leave their subject’s host; `context.link` alone reaches other hosts, as the off-scope link probe above. With `allowPrivate: false`, which the server sets, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
+- The same flag guards the crawl itself: `dns.lookup` is swapped for the guarded one for the run, a private address literal is refused before got or `fetch` sends a request and on every got redirect hop, and a run that needs the browser is a config error, since Chromium resolves names itself. A `fetch` redirect to an address literal is not seen; the server’s network must not route to anything it cares about.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root. Its DevTools port opens on loopback only while a `debugging` extractor is active.
 - The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.

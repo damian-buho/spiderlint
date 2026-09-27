@@ -7,12 +7,21 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Server } from "proxy-chain";
 import { ConfigError, defaults, type Config } from "../config/index.ts";
 import { log } from "../logger.ts";
+import { refuseLiteral } from "./guard.ts";
 import { openResolution } from "./resolve.ts";
 
 const SOCKS = new Set(["socks:", "socks4:", "socks4a:", "socks5:", "socks5h:"]);
 
 // Milliseconds between two requests, when the next may start, and the run’s `timeout` over its default.
 const pacing = { spacing: 0, next: 0, scale: 1 };
+
+// Whether the open run may reach loopback, private and link-local addresses.
+const guard = { isPrivateAllowed: true };
+
+// Throws for a private address literal while the open run refuses private addresses.
+export function guardUrl(url: string | URL): void {
+    refuseLiteral(url, guard.isPrivateAllowed);
+}
 
 // `ms` stretched by the run’s `timeout`, so a slow network gets as long as a page does.
 export function patient(ms: number): number {
@@ -41,10 +50,12 @@ export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "timeo
     pacing.next = 0;
     pacing.scale = config.timeout / defaults().timeout;
     log.debug({ rate: config.rate, spacing: pacing.spacing, scale: pacing.scale, isProxied: config.proxy !== "" }, "network opened");
-    const unresolve = await openResolution(config.resolve, config.resolver, config.seeds, config.proxy !== "");
+    guard.isPrivateAllowed = config.allowPrivate;
+    const unresolve = await openResolution(config.resolve, config.resolver, config.seeds, config.proxy !== "", config.allowPrivate);
     const reset = () => {
         pacing.spacing = 0;
         pacing.scale = 1;
+        guard.isPrivateAllowed = true;
         unresolve();
     };
     if (!config.proxy) return { close: async () => reset() };

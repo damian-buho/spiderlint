@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import dns, { lookup as dnsLookup, type LookupAddress, type LookupOptions } from "node:dns";
+import dns, { type LookupAddress, type LookupOptions } from "node:dns";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 import { log } from "../logger.ts";
 
@@ -30,15 +30,29 @@ export async function connectable(hostname: string, isPrivateAllowed: boolean): 
     return address;
 }
 
-// A DNS lookup that fails when any answer is private, so the socket connects only to an address it checked.
-export const guardedLookup: LookupFunction = (hostname, options, callback) => {
-    dnsLookup(hostname, { ...(options as LookupOptions), all: true }, (error, addresses: LookupAddress[]) => {
-        if (error) return callback(error, "", 0);
-        const refused = addresses.find((answer) => isPrivate(answer.address));
-        log.debug({ hostname, addresses: addresses.map((answer) => answer.address), refused: refused?.address }, "probe address checked");
-        if (refused) return callback(new PrivateAddress(`${hostname} resolves to private address ${refused.address}`), "", 0);
-        const [first] = addresses;
-        // eslint-disable-next-line unicorn/no-null -- the lookup callback contract types a success as a null error
-        callback(null, (options as LookupOptions).all ? addresses : (first?.address ?? ""), first?.family ?? 0);
-    });
-};
+// `lookup` failing when any answer is private, so the socket connects only to an address it checked.
+export function guarding(lookup: LookupFunction): LookupFunction {
+    return (hostname, options, callback) => {
+        lookup(hostname, { ...(options as LookupOptions), all: true }, (error, found) => {
+            if (error) return callback(error, "", 0);
+            const addresses = found as LookupAddress[];
+            const refused = addresses.find((answer) => isPrivate(answer.address));
+            log.debug({ hostname, addresses: addresses.map((answer) => answer.address), refused: refused?.address }, "address checked");
+            if (refused) return callback(new PrivateAddress(`${hostname} resolves to private address ${refused.address}`), "", 0);
+            const [first] = addresses;
+            // eslint-disable-next-line unicorn/no-null -- the lookup callback contract types a success as a null error
+            callback(null, (options as LookupOptions).all ? addresses : (first?.address ?? ""), first?.family ?? 0);
+        });
+    };
+}
+
+// The system lookup, guarded.
+export const guardedLookup: LookupFunction = guarding((hostname, options, callback) => (dns.lookup as LookupFunction)(hostname, options, callback));
+
+// Throws for a URL whose host is a private address literal, which no lookup ever sees.
+export function refuseLiteral(url: string | URL, isPrivateAllowed: boolean): void {
+    const host = new URL(url).hostname.replaceAll(/^\[|\]$/g, "");
+    if (isPrivateAllowed || isIP(host) === 0 || !isPrivate(host)) return;
+    log.warn({ host, url: String(url) }, "private address literal refused");
+    throw new PrivateAddress(`${host} is a private address`);
+}

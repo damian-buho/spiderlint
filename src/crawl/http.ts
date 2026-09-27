@@ -13,6 +13,7 @@ import { cookieFacts, earlyHintsHook, redactHeaders, redirectHook, timingFacts, 
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { CrawlStorage, Earlier, Frontier, OnPage } from "./frontier.ts";
+import { guardUrl } from "./network.ts";
 import { width } from "./resources.ts";
 
 // The first value of a header that may repeat.
@@ -86,7 +87,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                     hinted.set(request, hints);
                     const hops: Facts["http"]["redirects"] = [];
                     hopped.set(request, hops);
-                    Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), earlyHintsHook(request.url, hints)], beforeRedirect: [...(gotOptions.hooks?.beforeRedirect ?? []), redirectHook(hops)] } });
+                    Object.assign(gotOptions, { hooks: { ...gotOptions.hooks, beforeRequest: [...(gotOptions.hooks?.beforeRequest ?? []), (options: { url?: URL | string }) => guardUrl(options.url ?? request.url), earlyHintsHook(request.url, hints)], beforeRedirect: [...(gotOptions.hooks?.beforeRedirect ?? []), redirectHook(hops)] } });
                     const earlier = config.cacheMode === "use" ? await storage?.earlier?.(request.url) : undefined;
                     const conditional = earlier ? validators(earlier.facts.http.headers) : {};
                     log.debug({ url: request.url, isStored: earlier !== undefined, conditional: Object.keys(conditional) }, "page revalidation decided");

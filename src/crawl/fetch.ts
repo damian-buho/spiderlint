@@ -5,7 +5,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { USER_AGENT } from "../agent.ts";
 import { log } from "../logger.ts";
-import { pace, patient } from "./network.ts";
+import { guardUrl, pace, patient } from "./network.ts";
 
 const ATTEMPTS = 3;
 const TIMEOUT_MS = 30_000;
@@ -35,6 +35,7 @@ export function reason(error: unknown): string {
 
 // One GET with timeout and the spiderlint user agent; network errors, 429 and 503 retry, the last failure throws.
 export async function fetchRetrying<T>(url: string, consume: (response: Response) => Promise<T>, headers: Record<string, string> = {}): Promise<Fetched<T>> {
+    guardUrl(url);
     for (let attempt = 0; ; attempt += 1) {
         const started = performance.now();
         const isLast = attempt === ATTEMPTS - 1;

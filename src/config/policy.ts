@@ -15,7 +15,7 @@ import { CORE_KEYS, validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "resolver" | "resolve" | "pluginSettings">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "allowPrivate" | "resolver" | "resolve" | "pluginSettings">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -45,6 +45,7 @@ const KEYS: [string, keyof Settings][] = [
     ["rulesets", "rulesets"],
     ["plugins", "plugins"],
     ["sources", "sources"],
+    ["allow-private", "allowPrivate"],
 ];
 
 // error, then warning, then info — a rule ID named in a later bucket wins (AGENTS.md ## Rules).

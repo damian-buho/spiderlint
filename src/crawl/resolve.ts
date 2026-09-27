@@ -10,6 +10,7 @@ import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { dnsClient, type DnsClient, type StoredReply } from "./dns.ts";
 import { reason } from "./fetch.ts";
+import { guarding } from "./guard.ts";
 
 // One `--resolve` pin: every connection to `host` goes to `address`.
 export interface Pin {
@@ -107,20 +108,21 @@ export function chromiumArguments(): string[] {
     return browser.hostRules ? [`--host-resolver-rules=${browser.hostRules}`] : [];
 }
 
-// Swaps `dns.lookup` so got, fetch, probes and TLS handshakes resolve through pins and `resolver`; returns the restore.
-export async function openResolution(pins: readonly Pin[], resolver: string, seeds: readonly string[], isProxied: boolean): Promise<() => void> {
+// Swaps `dns.lookup` so got, fetch, probes and TLS handshakes resolve through pins and `resolver`, guarded unless private is allowed; returns the restore.
+export async function openResolution(pins: readonly Pin[], resolver: string, seeds: readonly string[], isProxied: boolean, isPrivateAllowed = true): Promise<() => void> {
     const isSystem = resolver === "system";
-    if (isSystem && pins.length === 0) return () => {};
+    if (isPrivateAllowed && isSystem && pins.length === 0) return () => {};
     if (isProxied) {
         log.warn({ pins: pins.length, resolver }, "names resolve inside the proxy; --resolve and --resolver do not reach the crawl");
         return () => {};
     }
     const client = isSystem ? undefined : dnsClient(resolver, new Bucket<StoredReply>("dns", undefined, 60, "off"), false);
     const system = dns.lookup;
-    dns.lookup = crawlLookup(pins, client, system) as typeof dns.lookup;
+    const lookup = crawlLookup(pins, client, system);
+    dns.lookup = (isPrivateAllowed ? lookup : guarding(lookup)) as typeof dns.lookup;
     syncBuiltinESMExports();
     browser.hostRules = await chromiumRules(pins, seeds, client);
-    log.info({ pins: pins.map((pin) => pin.host), resolver, browserRules: browser.hostRules }, "crawl resolves names through the configured resolution");
+    log.info({ pins: pins.map((pin) => pin.host), resolver, isPrivateAllowed, browserRules: browser.hostRules }, "crawl resolves names through the configured resolution");
     return () => {
         dns.lookup = system;
         syncBuiltinESMExports();
