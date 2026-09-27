@@ -5,7 +5,8 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { USER_AGENT } from "../agent.ts";
 import { log } from "../logger.ts";
-import { guardUrl, pace, patient } from "./network.ts";
+import { PrivateAddress } from "./guard.ts";
+import { guardedFetch, pace, patient } from "./network.ts";
 
 const ATTEMPTS = 3;
 const TIMEOUT_MS = 30_000;
@@ -33,22 +34,21 @@ export function reason(error: unknown): string {
     return error instanceof Error ? (error.cause instanceof Error ? error.cause.message : error.message) : String(error);
 }
 
-// One GET with timeout and the spiderlint user agent; network errors, 429 and 503 retry, the last failure throws.
+// One GET with timeout and the spiderlint user agent; network errors, 429 and 503 retry, the last failure or a refused address throws.
 export async function fetchRetrying<T>(url: string, consume: (response: Response) => Promise<T>, headers: Record<string, string> = {}): Promise<Fetched<T>> {
-    guardUrl(url);
     for (let attempt = 0; ; attempt += 1) {
         const started = performance.now();
         const isLast = attempt === ATTEMPTS - 1;
         try {
             await pace();
-            const response = await fetch(url, { headers: { ...headers, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(patient(TIMEOUT_MS)) });
+            const response = await guardedFetch(url, { headers: { ...headers, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(patient(TIMEOUT_MS)) });
             const value = await consume(response);
             log.debug({ url, status: response.status, attempt }, "fetched");
             if (isLast || !RETRY_STATUS.has(response.status)) return { response, value, ms: Math.round(performance.now() - started) };
             await sleep(delay(attempt, response.headers.get("retry-after") ?? undefined));
         } catch (error) {
             log.debug({ url, attempt, error: reason(error) }, "fetch failed");
-            if (isLast) throw error;
+            if (isLast || error instanceof PrivateAddress) throw error;
             await sleep(delay(attempt));
         }
     }

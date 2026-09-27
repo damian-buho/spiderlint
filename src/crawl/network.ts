@@ -10,6 +10,8 @@ import { log } from "../logger.ts";
 import { refuseLiteral } from "./guard.ts";
 import { openResolution } from "./resolve.ts";
 
+const REDIRECTS = new Set([301, 302, 303, 307, 308]);
+const MAX_REDIRECTS = 20;
 const SOCKS = new Set(["socks:", "socks4:", "socks4a:", "socks5:", "socks5h:"]);
 
 // Milliseconds between two requests, when the next may start, and the run’s `timeout` over its default.
@@ -21,6 +23,24 @@ const guard = { isPrivateAllowed: true };
 // Throws for a private address literal while the open run refuses private addresses.
 export function guardUrl(url: string | URL): void {
     refuseLiteral(url, guard.isPrivateAllowed);
+}
+
+// `fetch`, following redirects itself while the guard is on, so every hop’s address literal is checked as the first one was.
+export async function guardedFetch(url: string, init: RequestInit): Promise<Response> {
+    guardUrl(url);
+    if (guard.isPrivateAllowed) return fetch(url, init);
+    let current = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+        const response = await fetch(current, { ...init, redirect: "manual" });
+        const location = response.headers.get("location");
+        if (location === null || !REDIRECTS.has(response.status)) return response;
+        await response.body?.cancel();
+        const next = new URL(location, current).href;
+        log.debug({ from: current, to: next, status: response.status, hop }, "redirect followed");
+        guardUrl(next);
+        current = next;
+    }
+    throw new TypeError(`${url}: more than ${MAX_REDIRECTS} redirects`);
 }
 
 // `ms` stretched by the run’s `timeout`, so a slow network gets as long as a page does.

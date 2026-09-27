@@ -4,8 +4,9 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { ConfigError } from "../src/config/index.ts";
+import { ConfigError, defaults } from "../src/config/index.ts";
 import { PrivateAddress, refuseLiteral } from "../src/crawl/guard.ts";
+import { guardedFetch, openNetwork } from "../src/crawl/network.ts";
 import { audit } from "../src/index.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -41,6 +42,18 @@ describe("crawl address guard", () => {
     it("still crawls the same seed when private is allowed", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], cacheMode: "off", maxPages: 1, sitemap: false, fetchResources: false });
         assert.equal(report.pages.length, 1);
+    });
+
+    it("checks every redirect hop of a guarded fetch, not only the first", async (t) => {
+        const hops = t.mock.method(globalThis, "fetch", async () => new Response(undefined, { status: 302, headers: { location: "http://10.0.0.1/admin" } }));
+        const network = await openNetwork({ ...defaults(), allowPrivate: false });
+        try {
+            await assert.rejects(guardedFetch("https://example.com/", {}), PrivateAddress);
+        } finally {
+            await network.close();
+        }
+        assert.equal(hops.mock.callCount(), 1);
+        assert.equal((hops.mock.calls[0]?.arguments[1] as RequestInit).redirect, "manual");
     });
 
     it("refuses the browser, which no lookup guards", async () => {
