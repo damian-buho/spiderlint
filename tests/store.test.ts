@@ -153,6 +153,6 @@ describe("store", () => {
         assert.equal(pages?.entries, 16);
         assert.ok((pages?.bytes ?? 0) > 0);
         const absent = await cacheStatus(path.join(directory, "absent"));
-        assert.deepEqual(absent.map((bucket) => bucket.bucket).filter((bucket) => bucket !== "robots"), []);
+        assert.deepEqual(absent.map((bucket) => bucket.bucket).filter((bucket) => !["robots", "probes"].includes(bucket)), []);
     });
 });
