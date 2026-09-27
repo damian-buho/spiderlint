@@ -15,7 +15,7 @@ import { CORE_KEYS, validateSubtree } from "./schema.ts";
 const SUBTREE = "org.spiderlint";
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "resolver" | "resolve" | "pluginSettings">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "resolver" | "resolve" | "pluginSettings">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
@@ -59,14 +59,18 @@ function flattenOverride(bucket: { error?: string[]; warning?: string[]; info?: 
     return overrides;
 }
 
-// `cache.<bucket>.ttl` durations to seconds; a malformed one names its path.
+// A duration to seconds; a malformed one names its path.
+function seconds(field: string, raw: string | number): number {
+    const parsed = parseDuration(raw);
+    if (parsed === undefined) throw new ConfigError(`org.spiderlint/cache/${field}: invalid duration ${String(raw)} (expected seconds or 45s, 30m, 24h, 7d)`);
+    return parsed;
+}
+
+// `cache.<bucket>.ttl` durations to seconds.
 function cacheTtl(cache: Record<string, { ttl?: string | number }>): Settings["cacheTtl"] {
     const out: Partial<Record<BucketName, number>> = {};
     for (const [bucket, { ttl }] of Object.entries(cache)) {
-        if (ttl === undefined) continue;
-        const seconds = parseDuration(ttl);
-        if (seconds === undefined) throw new ConfigError(`org.spiderlint/cache/${bucket}/ttl: invalid duration ${String(ttl)} (expected seconds or 45s, 30m, 24h, 7d)`);
-        out[bucket as BucketName] = seconds;
+        if (ttl !== undefined) out[bucket as BucketName] = seconds(`${bucket}/ttl`, ttl);
     }
     return out;
 }
@@ -86,6 +90,8 @@ function fromSubtree(subtree: Record<string, unknown>): Settings {
     if (subtree.resolver !== undefined) settings.resolver = parseResolver(subtree.resolver as string);
     if (subtree.resolve !== undefined) settings.resolve = (subtree.resolve as string[]).map((pin) => parsePin(pin));
     if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);
+    const failureTtl = (subtree.cache as { resources?: { "failure-ttl"?: string | number } } | undefined)?.resources?.["failure-ttl"];
+    if (failureTtl !== undefined) settings.cacheFailureTtl = seconds("resources/failure-ttl", failureTtl);
     if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
     const plugins = Object.entries(subtree).filter(([key]) => !CORE_KEYS.has(key));
     if (plugins.length > 0) settings.pluginSettings = Object.fromEntries(plugins);

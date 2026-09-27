@@ -4,11 +4,11 @@
 
 import { availableParallelism } from "node:os";
 import { ExtractorCache } from "../cache/extractors.ts";
-import { OfflineMiss, type Bucket } from "../cache/index.ts";
+import { Bucket, OfflineMiss } from "../cache/index.ts";
 import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
 import type { Logged } from "./frontier.ts";
-import { reason } from "./fetch.ts";
+import { attemptsFor, reason } from "./fetch.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import type { ResourceExtractor } from "../plugins/types.ts";
@@ -94,10 +94,63 @@ async function extractBody(url: string, status: number, contentType: string, byt
     return { bytes, read, facts, ms };
 }
 
+// A failed answer kept in the `resources` bucket until `until`, so the next run does not pay its retries again.
+interface Failure {
+    status: number;
+    error?: string;
+    attempts: number;
+    until: string;
+}
+
+type FailureBucket = Bucket<Failure>;
+
+// The failure entry key, beside the URL’s own answer.
+const failureKey = (url: string) => `failed\t${url}`;
+
+// A 5xx or no answer at all.
+export function isFailure(status: number): boolean {
+    return status === 0 || status >= 500;
+}
+
+// Seconds a `Retry-After` in seconds or as an HTTP date asks for, else `fallback`.
+function retryAfter(raw: string | string[] | undefined, fallback: number): number {
+    const value = [raw].flat()[0]?.trim();
+    if (!value) return fallback;
+    const seconds = /^\d+$/.test(value) ? Number(value) : (Date.parse(value) - Date.now()) / 1000;
+    return Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : fallback;
+}
+
+// The stored failure for `url` while it is younger than its `until`, or any under `--offline`.
+async function storedFailure(url: string, failures: FailureBucket): Promise<ResourceResults[string] | undefined> {
+    const entry = await failures.get(failureKey(url));
+    const isFresh = entry !== undefined && (failures.mode === "offline" || Date.now() < Date.parse(entry.value.until));
+    log.debug({ url, status: entry?.value.status, until: entry?.value.until, isFresh }, "resource failure looked up");
+    if (!entry || !isFresh) return undefined;
+    const { status, error } = entry.value;
+    return { status, headers: {}, size: { body: 0 }, timing: {}, ...(error && { error }), cached: true };
+}
+
+// Keeps a failed `result` for its `Retry-After`, else `ttl` seconds.
+async function storeFailure(url: string, result: ResourceResults[string], failures: FailureBucket, ttl: number): Promise<void> {
+    const seconds = retryAfter(result.headers["retry-after"], ttl);
+    const failure: Failure = { status: result.status, ...(result.error && { error: result.error }), attempts: attemptsFor(result.status), until: new Date(Date.now() + seconds * 1000).toISOString() };
+    log.debug({ url, ...failure, seconds }, "resource failure stored");
+    await failures.set(failureKey(url), failure);
+}
+
 // A stored answer every extractor now reading its type has already read.
 function isServed(stored: Stored<Consumed>, extractors: ResourceExtractor[]): boolean {
     const read = new Set(stored.value.read);
     return readers(extractors, stored.status, mediaType(stored.headers["content-type"])).every((extractor) => read.has(extractor.id));
+}
+
+// A GET through the stored failure first; a fresh 5xx or unreachable answer is served, a new one stored.
+async function fetchRemembered(url: string, config: Config, bucket: ResourceBucket, failures: FailureBucket, extractors: ResourceExtractor[], cache: ExtractorCache, sent: Record<string, string>): Promise<ResourceResults[string]> {
+    const stored = await storedFailure(url, failures);
+    if (stored) return stored;
+    const result = await fetchOne(url, config.maxBodySize, bucket, extractors, cache, sent);
+    if (isFailure(result.status)) await storeFailure(url, result, failures, config.cacheFailureTtl);
+    return result;
 }
 
 // One cached or retried GET with `sent` headers; a final failure is status 0 with its error.
@@ -149,17 +202,19 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     log.info({ resources: urls.length, references: entries.length, images: images.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
     const results = new Map<string, ResourceResults[string]>();
+    const failures = new Bucket<Failure>(bucket.name, bucket.directory, bucket.ttlSeconds, bucket.mode);
     const queue = urls.values();
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchOne(url, config.maxBodySize, bucket, extractors, cache, images.has(url) ? IMAGE_ACCEPT : {}));
+            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, images.has(url) ? IMAGE_ACCEPT : {}));
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
     await Promise.all(workers);
     const all = results.values().toArray();
     const [failed, cached, revalidated, fromBrowser] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length, all.filter((result) => result.logged).length];
-    log.info({ resources: urls.length, failed, cached, revalidated, logged: fromBrowser }, "resources fetched");
+    const failedCached = all.filter((result) => result.cached && isFailure(result.status)).length;
+    log.info({ resources: urls.length, failed, cached, failedCached, revalidated, logged: fromBrowser }, "resources fetched");
     return Object.fromEntries(results);
 }

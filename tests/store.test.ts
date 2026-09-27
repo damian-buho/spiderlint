@@ -139,6 +139,23 @@ describe("store", () => {
         }
     });
 
+    it("remembers a failing resource and reports it again from the cache", async () => {
+        const again = path.join(directory, "failed");
+        const options = { seeds: [`${site.origin}/down-page`], sitemap: false, rules: ["resources"], fold: false as const };
+        const asked = () => site.requested.filter((pathname) => pathname === "/down.png").length;
+        const statuses = (report: Awaited<ReturnType<typeof audit>>) => report.findings.filter((finding) => finding.rule === "resources/status").map((finding) => finding.message);
+        const first = await audit(options, { store: again });
+        const before = asked();
+        const second = await audit(options, { store: again });
+        assert.equal(asked(), before, "a fresh failure is not asked again");
+        assert.match(statuses(first)[0] ?? "", /answers 503/);
+        assert.deepEqual(statuses(second), statuses(first));
+        assert.equal(second.pages[0]?.resources?.[0]?.http?.cached, true);
+        assert.equal(second.summary.cost.resources?.failuresCached, 1);
+        await audit({ ...options, cacheMode: "refresh" }, { store: again });
+        assert.ok(asked() > before, "--refresh asks again");
+    });
+
     it("answers an unchanged page from the extractors bucket instead of analysing it again", async () => {
         const again = path.join(directory, "extractors");
         const options = { seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], fetchResources: false, rules: ["html-validate", "htmlhint"] };

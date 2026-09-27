@@ -13,7 +13,7 @@ import { Router, type GroupMode } from "./crawl/route.ts";
 import { onOrigin } from "./crawl/scope.ts";
 import { robotsLoader } from "./crawl/robots.ts";
 import { loadSitemap, mediaOf } from "./crawl/sitemap.ts";
-import { attachResources, fetchResources } from "./crawl/resources.ts";
+import { attachResources, fetchResources, isFailure } from "./crawl/resources.ts";
 import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
@@ -41,7 +41,7 @@ const PAGE_CONTEXT_MS = 60_000;
 export interface Cost {
     browser?: { name: string; launches: number; pages: number; tlsProbes: number };
     http?: { pages: number; revalidated: number };
-    resources?: { requests: number; cached: number; logged: number };
+    resources?: { requests: number; cached: number; logged: number; failuresCached?: number };
     extractors: Record<string, number>;
     extractorsCached?: Record<string, number>;
 }
@@ -403,7 +403,8 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };
     if (pages.http !== undefined) cost.http = { pages: pages.http, revalidated };
     const answered = Object.values(results);
-    if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached && !result.logged).length, cached: answered.filter((result) => result.cached).length, logged: answered.filter((result) => result.logged).length };
+    const failuresCached = answered.filter((result) => result.cached && isFailure(result.status)).length;
+    if (answered.length > 0) cost.resources = { requests: answered.filter((result) => !result.cached && !result.logged).length, cached: answered.filter((result) => result.cached).length, logged: answered.filter((result) => result.logged).length, ...(failuresCached > 0 && { failuresCached }) };
     log.debug({ cost }, "crawl cost");
     return { pages: memory.pages, site, cost, fetch: modes };
 }

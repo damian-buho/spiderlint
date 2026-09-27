@@ -17,6 +17,11 @@ export interface Fetched<T> {
     ms: number;
 }
 
+// Attempts a final answer of `status` cost; 0 is a network failure.
+export function attemptsFor(status: number): number {
+    return status === 0 || RETRY_STATUS.has(status) ? ATTEMPTS : 1;
+}
+
 // Exponential backoff with jitter; a Retry-After in seconds wins, capped at the timeout.
 export function delay(attempt: number, retryAfter?: string): number {
     const seconds = Number(retryAfter ?? NaN);

@@ -85,7 +85,7 @@ describe("validateSubtree", () => {
             robots: true,
             sitemap: true,
             fold: { threshold: 0.8, min: 3 },
-            cache: { pages: { ttl: 0 }, probes: { ttl: "7d" }, robots: { ttl: "24h" } },
+            cache: { pages: { ttl: 0 }, probes: { ttl: "7d" }, robots: { ttl: "24h" }, resources: { "failure-ttl": "10m" } },
             "fail-on": "error",
             format: "human",
             plugins: [],

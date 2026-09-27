@@ -217,6 +217,16 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end(Buffer.from([0, 0, 1, 0]));
             return;
         }
+        if (pathname === "/down-page") {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end('<!DOCTYPE html><html lang="en"><head><title>Down</title></head><body><h1>Down</h1><img src="/down.png" alt="" width="1" height="1"></body></html>');
+            return;
+        }
+        if (pathname === "/down.png") {
+            response.writeHead(503, { "content-type": "text/plain" });
+            response.end("down");
+            return;
+        }
         if (pathname === "/data.json") {
             const etag = '"data"';
             const isUnchanged = request.headers["if-none-match"] === etag;

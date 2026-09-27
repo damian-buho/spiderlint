@@ -69,6 +69,8 @@ export interface Config {
     follow: boolean;
     cacheMode: CacheMode;
     cacheTtl: Partial<Record<BucketName, number>>;
+    // Seconds a failed resource answer is kept when it sends no `Retry-After`.
+    cacheFailureTtl: number;
     // Whether site extractor probes may reach loopback, private and link-local addresses, and query name servers directly.
     allowPrivate: boolean;
     // `system`, or a comma list of `address[:port]` the dns plugin and the crawl query.
@@ -113,6 +115,7 @@ export function defaults(): Config {
         follow: true,
         cacheMode: "use",
         cacheTtl: {},
+        cacheFailureTtl: 600,
         allowPrivate: true,
         resolver: "system",
         resolve: [],
