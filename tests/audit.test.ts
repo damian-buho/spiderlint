@@ -170,6 +170,12 @@ describe("audit", () => {
         assert.deepEqual(rule?.check([page], undefined, { sitemaps: [], links: { [href]: first } } as unknown as SiteFacts), []);
     });
 
+    it("treats a Cloudflare edge block that never asked the origin as a wall", async () => {
+        const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
+        const answer = await answerOf(`${cdn()}/edge-blocked`, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
+        assert.deepEqual(answer, { status: 403, method: "HEAD", walled: true });
+    });
+
     it("re-asks a fresh cached broken answer", async () => {
         const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
         const href = `${cdn()}/walled`;

@@ -13,9 +13,10 @@ import { width } from "./resources.ts";
 
 export type ProbeBucket = Bucket<LinkFacts>;
 
-// A Cloudflare challenge or LinkedIn’s 999: the answer says nothing about the page.
+// A Cloudflare challenge, a Cloudflare edge block that never asked the origin, or LinkedIn’s 999: the answer says nothing about the page.
 function isWalled(answer: Probe): boolean {
-    return answer.headers["cf-mitigated"] === "challenge" || answer.status === 999;
+    const timing = [answer.headers["server-timing"] ?? []].flat().join(",");
+    return answer.headers["cf-mitigated"] === "challenge" || (answer.status === 403 && /(^|,)\s*cfOrigin;dur=0(,|$)/.test(timing)) || answer.status === 999;
 }
 
 // A HEAD, then a GET when the server refuses HEAD; a network failure is status 0 with its error.

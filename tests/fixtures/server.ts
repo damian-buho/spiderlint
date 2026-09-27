@@ -167,6 +167,11 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end("<!DOCTYPE html><html lang=\"en\"><head><title>Just a moment…</title></head><body></body></html>");
             return;
         }
+        if (pathname === "/edge-blocked") {
+            response.writeHead(403, { "content-type": "text/html; charset=utf-8", "server-timing": "cfEdge;dur=14,cfOrigin;dur=0" });
+            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>Forbidden</title></head><body></body></html>");
+            return;
+        }
         const hinted = HINTED[pathname];
         if (hinted) {
             response.writeEarlyHints({ link: hinted[0] });
