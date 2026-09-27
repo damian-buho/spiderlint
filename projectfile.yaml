@@ -20,6 +20,7 @@ identity:
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
+  - .makefile/library/images/valkey.yaml
   - .makefile/library/languages/node.yaml
   - .makefile/library/vulnerabilities/npm/stream-json.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
@@ -51,6 +52,13 @@ org:
       args:
         B19_NODE_SERIES: 26
         PF_CLI_IMAGE: ""
+    ci:
+      env:
+        O9S_VALKEY_IMAGE: ""
+      secrets:
+        o9s.vlky.password:
+          docker:
+            run: m6e-secret-random
     conventions:
       fragments:
         parents:

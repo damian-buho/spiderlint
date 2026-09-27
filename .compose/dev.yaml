@@ -30,6 +30,7 @@ services:
       - B19_VERBOSITY=debug
       - SPIDERLINT_MODE=${SPIDERLINT_MODE:-all}
       - SPIDERLINT_SERVER_CONFIG=/etc/spiderlint/server.yaml
+      - SPIDERLINT_TEST_VALKEY=spiderlint-valkey:6379
     tmpfs:
       - /tmp:size=256m
     volumes:

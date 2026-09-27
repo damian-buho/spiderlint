@@ -493,7 +493,7 @@ Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--loc
 - `web.ts` renders the form, job and badge routes with `report/html.ts`; `STYLE` and the progress script are inline and allowed by hash in `PAGE_CSP`, so a saved `--format html` file stands alone. The badge route undoes `secureHeaders`’ same-origin CORP by a middleware registered before it.
 - The worker points `spiderlint:latest:<host>` at each completed job for `retention`; the badge reads it.
 - Local: `make dc-up-d` starts `.compose/dev.yaml` in `all` mode with its own Valkey and `.compose/server.yaml` (private addresses allowed, no client limit) at `https://spiderlint.docker.localhost/`; `src/`, `locales/` and `presets/` are mounted, so `make dc-restart` picks up a code change without a rebuild.
-- The queue suite runs against a throwaway `kiota.ch/o9s/valkey` with `O9S_VLKY_PASSWORD` set: without one its protected mode drops connections from the published port as `EPIPE`.
+- `npm-test` runs in the `lint` fuse, which never joins the pipeline network, so the Redis half of `tests/server.test.ts` runs only locally, against a throwaway `kiota.ch/o9s/valkey` with `O9S_VLKY_PASSWORD` set (without one its protected mode drops connections from the published port as `EPIPE`). CI proves the server instead in `test.d/1200-check-server.sh`: `container-test` runs it inside the live container beside the `pipeline.yaml` Valkey, named by `SPIDERLINT_TEST_VALKEY`, with the password `ci.secrets` generates.
 
 ## Plugins
 

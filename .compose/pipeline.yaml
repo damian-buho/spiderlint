@@ -7,6 +7,9 @@ services:
   spiderlint:
     container_name: ${M6E_CONTAINER_INSTANCE}
     image: ${M6E_IMAGE_FULLNAME}
+    depends_on:
+      spiderlint-valkey:
+        condition: service_healthy
     # Preset: large (2.0c, 4g) — CI build/test container. Bounded so it can't starve the shared host.
     deploy:
       resources:
@@ -18,6 +21,29 @@ services:
     environment:
       - LANG
       - TZ
+      - SPIDERLINT_TEST_VALKEY=spiderlint-valkey:6379
+    secrets:
+      - o9s.vlky.password
+  spiderlint-valkey:
+    container_name: ${M6E_CONTAINER_INSTANCE}-valkey
+    image: ${O9S_VALKEY_IMAGE}
+    # Preset: tiny (½c, 512m).
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+    networks:
+      - dev-network
+    environment:
+      - LANG
+      - TZ
+      - O9S_VLKY_SAVE=
+    secrets:
+      - o9s.vlky.password
+secrets:
+  o9s.vlky.password:
+    file: ../.secrets/o9s/vlky/password
 networks:
   dev-network:
     name: ${M6E_COMPOSE_PROJECT_NAME}-network
