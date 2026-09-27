@@ -51,7 +51,7 @@ function rrsig(name: string, expiration: number): Answer {
     return { type: "RRSIG", name, ttl: 300, data: { typeCovered: "A", algorithm: 13, labels: 2, originalTTL: 300, expiration, inception: expiration - 86_400 * 30, keyTag: 1, signersName: name.split(".").slice(-2).join("."), signature: Buffer.alloc(64) } } as Answer;
 }
 
-function soa(name: string, serial: number): Answer {
+export function soa(name: string, serial: number): Answer {
     return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire: 86_400, minimum: 300 } } as Answer;
 }
 
@@ -100,9 +100,10 @@ export function setZone(key: string, zone: Zone): void {
 }
 
 // The reply to one query, from the zone table; an unknown name is NOERROR with no answers.
-function answer(query: Packet, isTcp: boolean, isValidating: boolean): Buffer {
+function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides: Record<string, Zone>): Buffer {
     const question = query.questions?.[0];
-    const zone = ZONES[`${question?.name || "."}|${question?.type}`] ?? {};
+    const key = `${question?.name || "."}|${question?.type}`;
+    const zone = overrides[key] ?? ZONES[key] ?? {};
     const isDirect = ((query.flags ?? 0) & dnsPacket.RECURSION_DESIRED) === 0;
     const isChecked = ((query.flags ?? 0) & dnsPacket.CHECKING_DISABLED) === 0;
     const isBogus = zone.bogus === true && isValidating && isChecked;
@@ -112,19 +113,19 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean): Buffer {
 }
 
 // A resolver answering the fixture zones over UDP and TCP on one ephemeral port; `isValidating` sets `AD` where signed.
-export async function serveDns(isValidating = true): Promise<DnsFixture> {
+export async function serveDns(isValidating = true, overrides: Record<string, Zone> = {}): Promise<DnsFixture> {
     const queries: string[] = [];
     const udp = createSocket("udp4");
     udp.on("message", (message, peer) => {
         const query = dnsPacket.decode(message);
         queries.push(`${query.questions?.[0]?.name}|${query.questions?.[0]?.type}`);
-        udp.send(answer(query, false, isValidating), peer.port, peer.address);
+        udp.send(answer(query, false, isValidating, overrides), peer.port, peer.address);
     });
     await new Promise<void>((resolve) => udp.bind(0, "127.0.0.1", resolve));
     const { port } = udp.address();
     const tcp = createServer((socket) => {
         socket.once("data", (chunk: Buffer) => {
-            const reply = answer(dnsPacket.decode(chunk.subarray(2)), true, isValidating);
+            const reply = answer(dnsPacket.decode(chunk.subarray(2)), true, isValidating, overrides);
             const prefix = Buffer.alloc(2);
             prefix.writeUInt16BE(reply.length);
             socket.end(Buffer.concat([prefix, reply]));

@@ -5,7 +5,8 @@
 import { isIP } from "node:net";
 import type { Answer, CaaData, DnskeyData, DsData, MxData, RrsigData, SoaData } from "dns-packet";
 import { getDomain } from "tldts";
-import type { DnsClient, Reply } from "../crawl/dns.ts";
+import { Bucket } from "../cache/index.ts";
+import { dnsClient, parseResolver, type DnsClient, type Reply, type StoredReply } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { parseSvcb, type Svcb } from "../crawl/svcb.ts";
 import type { Facts } from "../facts/types.ts";
@@ -37,6 +38,11 @@ const ISSUERS: [RegExp, string[]][] = [
 ];
 
 type Data<T> = Answer & { data: T; ttl?: number };
+
+// `org.spiderlint.dns`: public resolvers to compare the configured one with; none by default, so no third party is asked.
+export interface DnsSettings {
+    compare: string[];
+}
 
 // The answers of `type`, in wire order.
 function records<T>(reply: Reply, type: string): Data<T>[] {
@@ -228,8 +234,20 @@ function network(address: string): string {
     return groups.slice(0, 3).map((group) => Number.parseInt(group, 16).toString(16)).join(":");
 }
 
-// One name server: its addresses, and its own SOA answer when asked directly, IPv4 first.
-async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; "soa-serial"?: number; authoritative?: boolean }> {
+// The host’s A, AAAA and CNAME answers as sorted `TYPE data` lines, so two servers’ answers compare as sets.
+function answerSet(...replies: Reply[]): string[] {
+    const lines = replies.flatMap((reply) => reply.answers.filter((answer) => ["A", "AAAA", "CNAME"].includes(answer.type)).map((answer) => `${answer.type} ${String((answer as Data<unknown>).data).toLowerCase()}`));
+    return [...new Set(lines)].toSorted((a, b) => a.localeCompare(b));
+}
+
+// The host’s answer set from one server, asked as `options` says.
+async function hostAnswers(host: string, dns: DnsClient, options: Parameters<DnsClient["query"]>[2] = {}): Promise<{ rcode: string; ad: boolean; answers: string[] }> {
+    const [a, aaaa] = await Promise.all([dns.query(host, "A", options), dns.query(host, "AAAA", options)]);
+    return { rcode: a.rcode, ad: a.ad, answers: answerSet(a, aaaa) };
+}
+
+// One name server: its addresses, its own SOA answer and the host’s records when asked directly, IPv4 first.
+async function nameServer(zone: string, host: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; "soa-serial"?: number; authoritative?: boolean; answers?: string[] }> {
     const [a, aaaa] = await Promise.all([dns.query(name, "A"), dns.query(name, "AAAA")]);
     const addresses = [...records<string>(a, "A"), ...records<string>(aaaa, "AAAA")].map(({ data }) => data);
     if (!dns.canQueryDirectly) return { name, addresses };
@@ -237,8 +255,9 @@ async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{
         try {
             const reply = await dns.query(zone, "SOA", { server: address });
             const serial = records<SoaData>(reply, "SOA")[0]?.data.serial;
-            log.debug({ zone, name, address, aa: reply.aa, serial }, "name server asked directly");
-            return { name, addresses, ...(serial !== undefined && { "soa-serial": serial }), authoritative: reply.aa && serial !== undefined };
+            const { answers } = await hostAnswers(host, dns, { server: address });
+            log.debug({ zone, host, name, address, aa: reply.aa, serial, answers }, "name server asked directly");
+            return { name, addresses, ...(serial !== undefined && { "soa-serial": serial }), authoritative: reply.aa && serial !== undefined, answers };
         } catch (error) {
             log.debug({ zone, name, address, error: reason(error) }, "name server unreachable");
         }
@@ -246,7 +265,7 @@ async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{
     return { name, addresses, authoritative: false };
 }
 
-// The zone’s NS set, each asked directly for the SOA serial, and how many networks their addresses span.
+// The zone’s NS set, each asked directly for the SOA serial and the host’s records, and how many networks their addresses span.
 const nameservers: SiteExtractor = {
     id: "nameservers",
     per: "host",
@@ -256,11 +275,46 @@ const nameservers: SiteExtractor = {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
         const names = records<string>(await context.dns.query(zone, "NS"), "NS").map(({ data }) => data);
-        const servers = await Promise.all(names.map((name) => nameServer(zone, name, context.dns)));
+        const servers = await Promise.all(names.map((name) => nameServer(zone, host, name, context.dns)));
         const serials = [...new Set(servers.flatMap((server) => (server["soa-serial"] === undefined ? [] : [server["soa-serial"]])))];
         const networks = new Set(servers.flatMap((server) => server.addresses.map((address) => network(address)))).size;
-        log.debug({ host, zone, servers: names.length, serials, networks }, "name servers read");
-        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }) };
+        const sets = [...new Set(servers.flatMap((server) => (server.answers ? [JSON.stringify(server.answers)] : [])))];
+        const view = context.dns.canQueryDirectly && sets.length > 0 ? await hostAnswers(host, context.dns) : undefined;
+        const resolved = view?.answers;
+        const agreement = resolved && { "answer-sets": sets.length, "resolver-agrees": sets.includes(JSON.stringify(resolved)), resolver: resolved };
+        log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"] }, "name servers read");
+        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement };
+    },
+};
+
+// The host as each compared public resolver answers it, beside the configured one; runs only when `compare` names servers.
+const resolvers: SiteExtractor = {
+    id: "resolvers",
+    per: "host",
+    cached: false,
+    resolves: true,
+    async extract(host, context) {
+        const { compare = [] } = (context.settings ?? {}) as Partial<DnsSettings>;
+        const isAsked = compare.length > 0 && context.dns.canQueryDirectly && isIP(host) === 0 && !isSpecialUse(host);
+        log.debug({ host, compare, canQueryDirectly: context.dns.canQueryDirectly, isAsked }, "resolver comparison decided");
+        if (!isAsked) return;
+        const off = new Bucket<StoredReply>("dns", undefined, 60, "off");
+        const clients: [string, DnsClient][] = [["configured", context.dns], ...compare.map((server): [string, DnsClient] => [server, dnsClient(parseResolver(server), off, false)])];
+        const views = await Promise.all(
+            clients.map(async ([server, client]) => {
+                try {
+                    return { server, ...(await hostAnswers(host, client, { signal: context.signal })) };
+                } catch (error) {
+                    log.debug({ host, server, error: reason(error) }, "compared resolver unreachable");
+                    return { server, rcode: "NO ANSWER", ad: false, answers: [] };
+                }
+            }),
+        );
+        const rcodes = [...new Set(views.map((view) => view.rcode))];
+        const sets = new Set(views.filter((view) => view.rcode === "NOERROR").map((view) => JSON.stringify(view.answers))).size;
+        const validation = [...new Set(views.filter((view) => view.rcode === "NOERROR").map((view) => view.ad))];
+        log.debug({ host, servers: views.length, rcodes, sets, validation }, "resolvers compared");
+        return { servers: views, rcodes, "answer-sets": sets, validated: validation };
     },
 };
 
@@ -439,6 +493,50 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
     },
+    "dns/ns-answers": {
+        fact: "site.hosts.*.nameservers.answer-sets",
+        expect: { maximum: 1 },
+        when: { "site.hosts.*.nameservers.answer-sets": { type: "integer" } },
+        message: "the name servers give {got} different answers for the host, so what a visitor reaches depends on which one their resolver asks",
+        severity: "warning",
+        fix: "sync the zone on every name server and bump its SOA serial",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
+    },
+    "dns/ns-resolver": {
+        fact: "site.hosts.*.nameservers.resolver-agrees",
+        expect: { const: true },
+        when: { "site.hosts.*.nameservers.resolver-agrees": { type: "boolean" } },
+        message: "the configured resolver answers the host differently from its name servers, a cached old answer or a split view",
+        severity: "info",
+        fix: "wait out the old record’s TTL, or check which view the resolver serves",
+        docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
+    },
+    "dns/resolver-rcode": {
+        fact: "site.hosts.*.resolvers.rcodes",
+        expect: { maxItems: 1 },
+        message: "the compared resolvers disagree on whether the host resolves (got {got}); a SERVFAIL on a validating resolver alone points at DNSSEC",
+        severity: "warning",
+        fix: "query each resolver named in the finding and fix what the failing one reports, a broken DNSSEC chain first",
+        docs: "https://www.rfc-editor.org/rfc/rfc4035#section-5.5",
+    },
+    "dns/resolver-answers": {
+        fact: "site.hosts.*.resolvers.answer-sets",
+        expect: { maximum: 1 },
+        when: { "site.hosts.*.resolvers.answer-sets": { type: "integer" } },
+        message: "the compared resolvers give {got} different answers for the host; geo-DNS does this on purpose, a stale or split view does not",
+        severity: "info",
+        fix: "if the answers should match, wait out the old TTL or fix the view that differs",
+        docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
+    },
+    "dns/resolver-validation": {
+        fact: "site.hosts.*.resolvers.validated",
+        expect: { maxItems: 1 },
+        when: { "site.hosts.*.dnssec.signed": true },
+        message: "some compared resolvers validate the signed zone and some do not (got {got})",
+        severity: "info",
+        fix: "check the DS at the parent and the DNSKEY set against each resolver’s trust anchors",
+        docs: "https://www.rfc-editor.org/rfc/rfc4035#section-4.3",
+    },
     "dns/ns-diversity": {
         fact: "site.hosts.*.nameservers.networks",
         expect: { minimum: 2 },
@@ -453,7 +551,8 @@ const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/dangling-cna
 // Records, CAA, DNSSEC and name servers of every crawled host, asked of the configured resolver.
 export default definePlugin({
     name: "dns",
-    sites: [addresses, dnssec, nameservers, mail],
+    settings: { type: "object", additionalProperties: false, properties: { compare: { type: "array", items: { type: "string", minLength: 1 }, default: [] } } },
+    sites: [addresses, dnssec, nameservers, resolvers, mail],
     presets: {
         dns: { description: "DNS of every crawled host: HTTPS records, CAA, DNSSEC, name servers, dangling CNAMEs", rules: RULES },
         "dns:mail": { description: "Null MX, a deny-all SPF and a DMARC reject policy, for names that send and take no mail", rules: MAIL },

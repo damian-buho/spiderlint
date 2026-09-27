@@ -9,19 +9,30 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Bucket, type BucketName } from "../src/cache/index.ts";
 import { ConfigError } from "../src/config/index.ts";
-import { dnsClient, parseResolver, servers, type DnsClient, type StoredReply } from "../src/crawl/dns.ts";
+import type { Answer } from "dns-packet";
+import { dnsClient, parseResolver, servers, type DnsClient, type Reply, type StoredReply } from "../src/crawl/dns.ts";
 import { parseSvcb } from "../src/crawl/svcb.ts";
 import { extractSites } from "../src/facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
 import dns, { isSpecialUse } from "../src/plugins/dns.ts";
 import { compileRulesets } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
-import { serveDns, svcb, type DnsFixture } from "./fixtures/dns.ts";
+import type { SiteContext } from "../src/plugins/types.ts";
+import { serveDns, soa, svcb, type DnsFixture } from "./fixtures/dns.ts";
 
 // A page on `host` served by `issuer`, linking `links` and advertising `altSvc`.
 function page(host: string, issuer: string, links: string[] = [], altSvc?: string): Facts {
     const href = `https://${host}/`;
     return { url: { href, origin: `https://${host}`, protocol: "https:", host, pathname: "/", search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http: { status: 200, redirects: [], headers: altSvc ? { "alt-svc": altSvc } : {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" }, tls: { cert: { issuer, san: [host] } }, html: { links: { internal: [], external: links, nofollow: [] } } } as unknown as Facts;
+}
+
+// A stub reply carrying `answers`, authoritative when `isAuthoritative`.
+function reply(answers: Answer[], isAuthoritative = false): Reply {
+    return { server: "stub", rcode: "NOERROR", aa: isAuthoritative, ad: false, answers, authorities: [] };
+}
+
+function a(name: string, data: string): Answer {
+    return { type: "A", name, ttl: 300, data };
 }
 
 function off(): Bucket<StoredReply> {
@@ -171,6 +182,41 @@ describe("dns plugin", () => {
         const reported = keyed(site, "dns");
         assert.deepEqual(reported.filter(([rule]) => rule === "dns/dangling-cname"), [["dns/dangling-cname", "old.bad.fixture"]]);
         assert.ok(reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/dangling-cname"), "only the linked rule judges the linked host");
+    });
+
+    it("finds name servers answering the host apart from each other and from the resolver", async () => {
+        const direct: Record<string, string> = { "192.0.2.53": "198.51.100.1", "192.0.2.54": "198.51.100.2" };
+        const stub: DnsClient = {
+            canQueryDirectly: true,
+            validating: async () => false,
+            async query(name, type, options = {}) {
+                if (type === "SOA") return reply(name === "split.fixture" ? [soa("split.fixture", 1)] : [], options.server !== undefined);
+                if (type === "NS") return reply([{ type: "NS", name, ttl: 300, data: "ns1.split.fixture" }, { type: "NS", name, ttl: 300, data: "ns2.split.fixture" }]);
+                if (type !== "A") return reply([]);
+                if (options.server) return reply([a(name, direct[options.server] as string)], true);
+                return reply([a(name, name === "ns1.split.fixture" ? "192.0.2.53" : name === "ns2.split.fixture" ? "192.0.2.54" : "203.0.113.9")]);
+            },
+        };
+        const nameservers = dns.sites?.find((site) => site.id === "nameservers");
+        const facts = (await nameservers?.extract("split.fixture", { pages: [], signal: new AbortController().signal, dns: stub } as unknown as SiteContext)) as Record<string, unknown>;
+        assert.deepEqual([facts["answer-sets"], facts["resolver-agrees"], facts.resolver], [2, false, ["A 203.0.113.9"]]);
+        assert.deepEqual(findings({ "split.fixture": { nameservers: facts } }).filter((rule) => /^dns\/ns-(answers|resolver)$/.test(rule)), ["dns/ns-answers", "dns/ns-resolver"]);
+    });
+
+    it("compares public resolvers only when asked, and names their disagreements", async () => {
+        const other = await serveDns(false, { "good.fixture|A": { answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.77" }] } });
+        try {
+            const resolvers = dns.sites?.find((site) => site.id === "resolvers");
+            const context = (compare: string[]) => ({ pages: [], signal: new AbortController().signal, dns: dnsClient(fixture.server, off(), true, fixture.port), settings: { compare } }) as unknown as SiteContext;
+            assert.equal(await resolvers?.extract("good.fixture", context([])), undefined);
+            const good = (await resolvers?.extract("good.fixture", context([other.server]))) as Record<string, unknown>;
+            assert.deepEqual([good.rcodes, good["answer-sets"], good.validated], [["NOERROR"], 2, [true, false]]);
+            const bogus = (await resolvers?.extract("bogus.fixture", context([plain.server]))) as Record<string, unknown>;
+            assert.deepEqual(bogus.rcodes, ["SERVFAIL", "NOERROR"]);
+            assert.deepEqual(findings({ "good.fixture": { resolvers: good, dnssec: { signed: true } }, "bogus.fixture": { resolvers: bogus } }).filter((rule) => rule.startsWith("dns/resolver-")), ["dns/resolver-answers", "dns/resolver-rcode", "dns/resolver-validation"]);
+        } finally {
+            await other.close();
+        }
     });
 
     it("never asks a name server directly when direct queries are off", async () => {
