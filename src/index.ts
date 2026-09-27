@@ -18,6 +18,7 @@ import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { cspFacts } from "./facts/csp.ts";
+import { detectedFacts, loadDetector } from "./facts/language.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { linkGraph } from "./facts/graph.ts";
 import { dnsClient, PROXIED_DNS } from "./crawl/dns.ts";
@@ -215,6 +216,16 @@ function enabledRules(config: Config): Rule[] {
     return rulesOf(config).values().toArray().flat();
 }
 
+// Whether a rule reads the detected language of a page’s metadata, which needs the detector loaded.
+function requiresDetector(rules: Rule[]): boolean {
+    return rules.some((rule) => rule.meta.facts.some((fact) => fact.startsWith("html.detected")));
+}
+
+// Loads the language detector when an enabled rule needs it, before the synchronous lint.
+async function prepareLint(config: Config): Promise<void> {
+    if (requiresDetector(enabledRules(config))) await loadDetector();
+}
+
 // A sampler handing each page only the extractors its own group’s rules read.
 function samplerOf(config: Config): Sampler {
     const wanted = new Map(rulesOf(config).entries().map(([group, rules]) => [group, new Set(extractorsFor(rules).map((extractor) => extractor.id))]));
@@ -314,6 +325,7 @@ function linter(config: Config): Lint {
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     refuseUnknown(config, groups);
+    const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
@@ -323,6 +335,8 @@ function linter(config: Config): Lint {
             page.robots = robotsFacts(page);
             const csp = cspFacts(page);
             if (csp) page.http.csp = csp;
+            const detected = isDetected && page.html && detectedFacts(page.html);
+            if (detected && page.html) page.html.detected = detected;
         }
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
@@ -480,6 +494,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
+    await prepareLint(config);
     const persist = async (store: DiskStore) => {
         const report = withPrevious(lint(await crawlPages(config, store), started), store);
         await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
@@ -505,6 +520,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
     const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
+    await prepareLint(config);
     return withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
         const pages = await store.pages();
         const cost: Cost = { extractors: {} };

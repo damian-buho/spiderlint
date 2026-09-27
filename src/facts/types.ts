@@ -178,6 +178,20 @@ export interface HtmlFacts {
     images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; loading?: string; noscript?: true }[];
     rels: Record<string, string[]>;
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];
+    // The language of the title and description, derived on every lint that reads it.
+    detected?: DetectedFacts;
+}
+
+// One string’s language: an ISO 639-1 code, eld’s top score, and whether eld calls the guess reliable.
+export interface LanguageGuess {
+    language: string;
+    confidence: number;
+    reliable: boolean;
+}
+
+export interface DetectedFacts {
+    title?: LanguageGuess;
+    description?: LanguageGuess;
 }
 
 // Indexing directives merged from `<meta name=robots>` and `X-Robots-Tag`.

@@ -208,6 +208,7 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             rels: { privacy-policy: [href] },                        # rel token → hrefs, over <a>, <area> and <link>
             inputs: [{ type, autocomplete, inputmode }],               # type lowercased, `text` when unset
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
+            detected: { title: { language, confidence, reliable }, description: { … } },   # derived on a lint that reads it
             scripts: [{ src, type, async, defer, head }], word-count, generator }
 resources: [{ url, kind: script|style|image|font|iframe|preload|manifest, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log
@@ -323,7 +324,7 @@ because facts are always retained even when bodies are not.
 Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `suggestions` (optional headers and head links a site may adopt, all `hint`, outside `recommended`), `tls`,
 `links`, `sitemap`, `browser` (console errors and `cookies:browser`; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
-reciprocity, hreflang targets answering `2xx`), `cookies` (Secure, HttpOnly,
+reciprocity, hreflang targets answering `2xx`, `i18n/metadata-language`), `cookies` (Secure, HttpOnly,
 SameSite, `__Host-` with `Secure`, `Path=/` and no `Domain`, `__Secure-` and `SameSite=None` with `Secure`, a lifetime of at most 400 days; one table in `plugins/cookies.ts` judges the page’s `http.cookies` as `cookies/<check>`, each resource’s own `Set-Cookie` as `cookies/resource-<check>` keyed by resource URL, and, as `cookies:browser`, what scripts write through `document.cookie` as `cookies/script-<check>`, HttpOnly aside. An init script wraps the `document.cookie` setter and cuts each value before it leaves the page; Chromium’s jar is not read, since it reports an unset SameSite as `Lax`, caps lifetimes and drops what it rejects), `privacy` (`trackers` and `cookies/before-consent`, `info`: the `consent` extractor, `mode: browser` and `cost: expensive`, loads each sampled page once more in a fresh context and keeps its jar before any interaction as `consent.cookies`, each `name`, `domain`, `party` (`first` or `third` against the page’s registrable domain) and `lifetime`, never a value, and the keys scripts wrote to `localStorage` and `sessionStorage` as `consent.storage`, which `cookies/storage-before-consent` lists; a third-party cookie, or a first-party one `cookies-registry.ts` names, hand-kept as `trackers-registry.ts` is, is a finding that says what was set and by whom and claims no legal verdict; outside `recommended`), `robots` (in `recommended`), `redirects` (chain length, a temporary hop to a 2xx page, http→https→www hops, mixed content).
 
 `resources` (in `recommended`; v1 ships `status`, `mixed-content` and `sri`, fetched once per URL per run, `--no-resources` to skip): `resources/status` (a dependency that is
@@ -602,6 +603,7 @@ export default definePlugin({
 - Server pages and the `html` format are translated through `gettext-parser` (`src/i18n.ts`, catalogs in `locales/<lang>/LC_MESSAGES/messages.po`), as textlint-server does: `en`, `es`, `uk`, from `Accept-Language` or `LC_ALL`/`LC_MESSAGES`/`LANG`. A counted phrase is a label (`Pages: {count}`), never a sentence needing plural forms.
 - Finding messages, `human` output and `--help` are English. Later: the same catalogs, selected by `--locale` and `LANG`.
 - Rule IDs, fact paths and config keys are never translated.
+- `html.detected` holds the language of the title and meta description, each at least 24 characters, from [eld](https://github.com/nitotm/efficient-language-detector-js) 2.1.0 with its extrasmall database (Apache-2.0, 932 kB, offline). On 54 hand-written titles and descriptions in `en`, `es`, `uk`, `ru`, `de`, `fr`, `pt` and `it` (24–54 characters) it named 53 right, the miss a Russian title read as Serbian; `franc-min` named 44, confusing Spanish with Portuguese and French. Loading it costs about 90 ms and 32 MB of heap, so a lint loads it only when an enabled rule reads `html.detected`, and derives the fact then, so no re-crawl is needed; a detection takes about 12 µs. `i18n/metadata-language` (`info`, in `i18n`) reports a guess eld calls reliable that differs from the primary subtag of `html.lang`.
 - Docs are typographic (`’`, `…`); anything copied into generated docs (`description:` fields, help text) follows.
 
 ## Repository layout

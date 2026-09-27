@@ -105,7 +105,24 @@ const sitemapHreflang: Make = (severity) => ({
     },
 });
 
+// A title or description confidently identified as a language other than the primary subtag of `lang`.
+const metadataLanguage: Make = (severity) => ({
+    meta: { id: "i18n/metadata-language", severity, scope: "page", facts: ["html.detected", "html.lang"], docs: "https://www.w3.org/International/questions/qa-html-language-declarations", fix: "Translate the title and meta description into the language lang declares, or correct lang." },
+    check(page: Facts) {
+        const [lang, detected] = [page.html?.lang, page.html?.detected];
+        if (!lang || !detected) return;
+        const declared = primary(lang);
+        const off = (["title", "description"] as const).flatMap((field) => {
+            const guess = detected[field];
+            return guess?.reliable && guess.language !== declared ? [`${field} reads as ${guess.language} (${guess.confidence})`] : [];
+        });
+        log.debug({ rule: "i18n/metadata-language", url: page.url.href, lang, declared, title: detected.title?.language, description: detected.description?.language, off: off.length }, "metadata language compared");
+        return off.length === 0 ? [] : [{ rule: "i18n/metadata-language", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `lang is “${lang}”, but the ${off.join(" and the ")}`, value: detected }];
+    },
+});
+
 export const i18nRules: Record<string, Make> = {
+    "i18n/metadata-language": metadataLanguage,
     "sitemap/hreflang": sitemapHreflang,
     "i18n/hreflang-reciprocal": hreflangReciprocal,
     "i18n/hreflang-status": hreflangStatus,
