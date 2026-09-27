@@ -91,6 +91,14 @@ SPDX-License-Identifier: MIT
 - Binary downloads are judged by their headers and never fetched in full, so a linked archive or video costs no bandwidth.
 - A staging copy is audited as the site it is built for, so its links and sitemap naming the production address are not reported as wrong.
 
+### TLS configuration scanned in-house
+
+- Every protocol and cipher suite a server accepts is listed, SSLv2, SSLv3, RC4 and export suites included, which today’s TLS libraries can no longer see.
+- Broken and weak suites, missing forward secrecy, short Diffie-Hellman primes and record compression are findings, and so are the attacks they open: POODLE, BEAST, SWEET32, FREAK, Logjam, DROWN and CRIME.
+- A certificate chain missing its intermediates is caught on TLS 1.3-only servers too.
+- A house rule such as “no CBC suites” is a few lines of configuration, not code.
+- No outside scanner is asked and nothing is exploited: the server is only asked what it will negotiate, once per origin while the result stays fresh.
+
 ### Transport checked per page, not per host
 
 - Certificate, TLS protocol and remote address are read from the connection that served each page, so two backends behind one name are reported instead of hidden.

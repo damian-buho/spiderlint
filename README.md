@@ -24,10 +24,12 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Image weight measured, not estimated
 - Dead links, on the site and off it
 - Each origin checked once, beyond its pages
+- Feeds, structured data and markup checked on every page
 - Page dependencies fetched once
 - robots.txt read the way crawlers read it
 - Rules as data, with presets
 - Crawl once, lint many times
+- TLS configuration scanned in-house
 - Transport checked per page, not per host
 - The files a site publishes beside its pages
 

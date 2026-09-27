@@ -93,6 +93,14 @@ SPDX-License-Identifier: MIT
 - Las descargas binarias se juzgan por sus cabeceras y nunca se descargan completas, así que un archivo comprimido o un vídeo enlazado no consume ancho de banda.
 - Una copia de staging se audita como el sitio para el que está construida, así que sus enlaces y su sitemap que nombran la dirección de producción no se informan como errores.
 
+### Configuración TLS analizada en casa
+
+- Se listan todos los protocolos y conjuntos de cifrado que acepta un servidor, incluidos SSLv2, SSLv3, RC4 y los de exportación, que las bibliotecas TLS actuales ya no pueden ver.
+- Los conjuntos rotos y débiles, la falta de secreto hacia adelante, los primos Diffie-Hellman cortos y la compresión de registros son hallazgos, y también los ataques que abren: POODLE, BEAST, SWEET32, FREAK, Logjam, DROWN y CRIME.
+- Una cadena de certificados sin sus intermedios se detecta también en servidores que solo hablan TLS 1.3.
+- Una regla propia como «nada de conjuntos CBC» son unas líneas de configuración, no código.
+- No se consulta a ningún escáner externo ni se explota nada: al servidor solo se le pregunta qué negociaría, una vez por origen mientras el resultado siga vigente.
+
 ### Transporte comprobado por página, no por host
 
 - El certificado, el protocolo TLS y la dirección remota se leen de la conexión que sirvió cada página, así que dos backends tras un mismo nombre se informan en lugar de quedar ocultos.

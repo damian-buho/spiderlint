@@ -11,12 +11,13 @@ import { getCACertificates } from "node:tls";
 import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
+import { scan } from "./tls-scan.ts";
 import { definePlugin, type SiteExtractor } from "./types.ts";
 
 const TIMEOUT_MS = 10_000;
 
-// Versions RFC 8996 deprecates, with the `s_client` flag that forces each.
-const LEGACY = [["TLSv1", "-tls1"], ["TLSv1.1", "-tls1_1"]] as const;
+// Milliseconds one origin’s scan may take: up to about 150 handshakes.
+const SCAN_MS = 180_000;
 
 // Whether `openssl` runs, per PATH, so a missing tool warns once.
 const available = new Map<string, Promise<boolean>>();
@@ -24,6 +25,10 @@ const available = new Map<string, Promise<boolean>>();
 interface Run {
     code: number | null;
     output: string;
+}
+
+interface Settings {
+    scan: boolean;
 }
 
 // One `openssl` run with `input` on stdin, killed on `signal` or after the timeout.
@@ -49,7 +54,7 @@ async function isRunnable(): Promise<boolean> {
         const run = await openssl(["version"], "", AbortSignal.timeout(TIMEOUT_MS));
         return run.code === 0;
     } catch (error) {
-        log.warn({ tool: "openssl", error: reason(error) }, "openssl not found; tls-probe skipped");
+        log.warn({ tool: "openssl", error: reason(error) }, "openssl not found; tls-probe early data skipped");
         return false;
     }
 }
@@ -70,16 +75,6 @@ function target(host: string, port: string, address: string): string[] {
     return ["s_client", "-connect", `${address.includes(":") ? `[${address}]` : address}:${port}`, "-servername", host];
 }
 
-// Whether a handshake forced to one version completed.
-function isAccepted(run: Run): boolean {
-    return run.code === 0 && !/Cipher is \(NONE\)/.test(run.output);
-}
-
-// The certificates the server sent, leaf first.
-function sent(output: string): X509Certificate[] {
-    return output.matchAll(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g).map((match) => new X509Certificate(match[0])).toArray();
-}
-
 function isIssuedBy(certificate: X509Certificate, issuer: X509Certificate): boolean {
     return certificate.checkIssued(issuer) && certificate.verify(issuer.publicKey);
 }
@@ -92,6 +87,13 @@ function chainOf(certificates: X509Certificate[]): { sent: number; complete: boo
     const roots = [...getCACertificates("default"), ...getCACertificates("system")].map((pem) => new X509Certificate(pem));
     const isAnchored = isIssuedBy(last, last) || roots.some((root) => isIssuedBy(last, root));
     return { sent: certificates.length, complete: isLinked && isAnchored };
+}
+
+// Whether a DER OCSPResponse says `successful` (RFC 6960 §4.2.1): its first element, an ENUMERATED, is 0.
+function isSuccessful(response: Buffer | undefined): boolean {
+    if (!response || response[0] !== 0x30) return false;
+    const at = 2 + ((response[1] ?? 0) & 0x80 ? (response[1] ?? 0) & 0x7f : 0);
+    return response[at] === 0x0a && response[at + 1] === 1 && response[at + 2] === 0;
 }
 
 // Whether a TLS 1.3 session resumed with early data had it accepted; `false` when no ticket allows it.
@@ -121,32 +123,27 @@ async function isEarlyDataAccepted(host: string, port: string, address: string, 
     }
 }
 
-// Legacy versions accepted, OCSP stapling, chain completeness and TLS 1.3 early data of one https origin, through `openssl s_client`.
+// Protocols, suites, groups and negotiation-level weaknesses of one https origin from hand-built hellos, with its chain, OCSP stapling and, through `openssl s_client`, TLS 1.3 early data.
 const probe: SiteExtractor = {
     id: "tls-probe",
     per: "origin",
     resolves: true,
+    timeout: SCAN_MS,
     async extract(origin, context) {
         const url = new URL(origin);
-        if (url.protocol !== "https:" || !(await opensslFound())) return;
+        if (url.protocol !== "https:") return;
         const host = url.hostname.replaceAll(/^\[|\]$/g, "");
         const port = url.port || "443";
         const address = await context.address(host);
-        const legacy: string[] = [];
-        for (const [version, flag] of LEGACY) {
-            const run = await openssl([...target(host, port, address), flag, "-cipher", "DEFAULT@SECLEVEL=0"], "", context.signal);
-            log.debug({ origin, version, code: run.code }, "legacy version tried");
-            if (isAccepted(run)) legacy.push(version);
-        }
-        const current = await openssl([...target(host, port, address), "-status", "-showcerts"], "", context.signal);
-        if (!isAccepted(current)) throw new Error(`no handshake with ${host}:${port}`);
-        const certificates = sent(current.output);
-        const chain = chainOf(certificates);
-        const responder = certificates[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
-        const isStapled = /OCSP Response Status: successful/.test(current.output);
-        const isEarly = await isEarlyDataAccepted(host, port, address, context.signal);
-        log.debug({ origin, address, legacy, chain, responder, isStapled, isEarly }, "tls probed");
-        return { address, legacy, ...(chain && { chain }), ocsp: { responder, stapled: isStapled }, "early-data": isEarly };
+        const isFull = (context.settings as Settings | undefined)?.scan !== false;
+        const { certificates = [], ocsp, ...scanned } = await scan({ host, address, port: Number(port), signal: context.signal }, isFull);
+        if (scanned.protocols.length === 0) throw new Error(`no handshake with ${host}:${port}`);
+        const sent = certificates.map((der) => new X509Certificate(der));
+        const chain = chainOf(sent);
+        const responder = sent[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
+        const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await isEarlyDataAccepted(host, port, address, context.signal) : undefined;
+        log.debug({ origin, address, isFull, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
+        return { address, ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
     },
 };
 
@@ -154,9 +151,88 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/legacy-protocols": {
         fact: "site.origins.*.tls-probe.legacy",
         expect: { maxItems: 0 },
-        message: "the server still accepts {got}, which RFC 8996 deprecates",
+        message: "the server still accepts {got}, which RFC 6176, RFC 7568 and RFC 8996 retire",
+        severity: "error",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
+    },
+    "tls-probe/insecure-ciphers": {
+        fact: "site.origins.*.tls-probe.insecure-ciphers",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" } },
+        message: "the server accepts suites broken outright: {got}",
+        severity: "error",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.1",
+    },
+    "tls-probe/vulnerabilities": {
+        fact: "site.origins.*.tls-probe.vulnerabilities",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" } },
+        message: "what the server negotiates leaves it open to {got}",
+        severity: "error",
+        docs: "https://www.rfc-editor.org/rfc/rfc7457",
+    },
+    "tls-probe/weak-ciphers": {
+        fact: "site.origins.*.tls-probe.weak-ciphers",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" } },
+        message: "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}",
         severity: "warning",
-        docs: "https://www.rfc-editor.org/rfc/rfc8996",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2",
+    },
+    "tls-probe/forward-secrecy": {
+        fact: "site.origins.*.tls-probe.forward-secrecy",
+        expect: { const: "all" },
+        when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" } },
+        message: "{got} of the accepted suites give forward secrecy, where all should",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-7.3",
+    },
+    "tls-probe/weak-dh": {
+        fact: "site.origins.*.tls-probe.dh-bits",
+        expect: { minimum: 2048 },
+        when: { "site.origins.*.tls-probe.dh-bits": { type: "number" } },
+        message: "the server’s DHE prime has {got} bits, short of 2048",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.5",
+    },
+    "tls-probe/compression": {
+        fact: "site.origins.*.tls-probe.compression",
+        expect: { const: false },
+        when: { "site.origins.*.tls-probe.compression": { type: "boolean" } },
+        message: "the server compresses TLS records, through which CRIME reads secrets",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.3",
+    },
+    "tls-probe/secure-renegotiation": {
+        fact: "site.origins.*.tls-probe.secure-renegotiation",
+        expect: { const: true },
+        when: { "site.origins.*.tls-probe.secure-renegotiation": { type: "boolean" } },
+        message: "the server does not answer renegotiation_info, so a renegotiation can be spliced into a session",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc5746",
+    },
+    "tls-probe/server-cipher-order": {
+        fact: "site.origins.*.tls-probe.server-order",
+        expect: { const: true },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 } },
+        message: "the server lets the client pick a weak suite over a strong one",
+        severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2.1",
+    },
+    "tls-probe/fallback-scsv": {
+        fact: "site.origins.*.tls-probe.fallback-scsv",
+        expect: { const: true },
+        when: { "site.origins.*.tls-probe.fallback-scsv": { type: "boolean" } },
+        message: "the server accepts a needless fallback to an older version instead of refusing it",
+        severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc7507",
+    },
+    "tls-probe/tls13-missing": {
+        fact: "site.origins.*.tls-probe.protocols",
+        expect: { contains: { const: "TLSv1.3" } },
+        message: "the server offers {got} and no TLS 1.3",
+        severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
     },
     "tls-probe/chain-complete": {
         fact: "site.origins.*.tls-probe.chain.complete",
@@ -177,15 +253,17 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/early-data": {
         fact: "site.origins.*.tls-probe.early-data",
         expect: { const: false },
+        when: { "site.origins.*.tls-probe.early-data": { type: "boolean" } },
         message: "the server accepts TLS 1.3 early data, which an attacker can replay; non-idempotent requests must answer 425",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc8470",
     },
 };
 
-// Dedicated handshakes per https origin through `openssl s_client`, for what one connection does not show.
+// Hand-built handshakes per https origin, for what one connection does not show.
 export default definePlugin({
     name: "tls-probe",
+    settings: { type: "object", properties: { scan: { type: "boolean", default: true } }, additionalProperties: false },
     sites: [probe],
-    presets: { "tls-probe": { description: "Legacy TLS versions, chain completeness, OCSP stapling and early data, through openssl", rules: RULES } },
+    presets: { "tls-probe": { description: "Protocols, cipher suites, groups, negotiation weaknesses, chain completeness, OCSP stapling and early data of every https origin", rules: RULES } },
 });
