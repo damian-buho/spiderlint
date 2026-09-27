@@ -75,7 +75,7 @@ describe("store", () => {
 
     it("keeps a body per page and no cookie value anywhere", async () => {
         const bodies = await readdir(path.join(directory, "key_value_stores", "bodies"));
-        assert.ok(bodies.filter((name) => name.endsWith(".html")).length >= 13);
+        assert.ok(bodies.filter((name) => name.endsWith(".txt")).length >= 13);
         const facts = await readdir(path.join(directory, "datasets", "facts"));
         const contents = await Promise.all(facts.map((name) => readFile(path.join(directory, "datasets", "facts", name), "utf8")));
         assert.ok(contents.every((content) => !content.includes("s3cr3t")));
@@ -120,6 +120,23 @@ describe("store", () => {
         for (const page of revalidated) assert.deepEqual(page.html, first.pages.find((earlier) => earlier.url.href === page.url.href)?.html);
         const refreshed = await audit({ ...options, cacheMode: "refresh" }, { store: again });
         assert.equal(refreshed.pages.filter((page) => page.http.revalidated).length, 0);
+    });
+
+    it("replays a revalidated JSON page with the body it stored", async () => {
+        const again = path.join(directory, "json");
+        const options = { seeds: [`${site.origin}/data.json`], sitemap: false, fetchResources: false };
+        const first = await audit(options, { store: again });
+        const second = await audit(options, { store: again });
+        const [page] = second.pages;
+        assert.equal(page?.http.revalidated, true);
+        assert.equal(page.http["content-type"], "application/json");
+        assert.deepEqual(page.http.size, first.pages[0]?.http.size);
+        const store = await DiskStore.open(again, { fresh: false });
+        try {
+            assert.equal(await store.body(page.url.href), '{"name": "fixture"}');
+        } finally {
+            await store.close(false);
+        }
     });
 
     it("answers an unchanged page from the extractors bucket instead of analysing it again", async () => {

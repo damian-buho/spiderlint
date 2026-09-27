@@ -217,6 +217,13 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
             response.end(Buffer.from([0, 0, 1, 0]));
             return;
         }
+        if (pathname === "/data.json") {
+            const etag = '"data"';
+            const isUnchanged = request.headers["if-none-match"] === etag;
+            response.writeHead(isUnchanged ? 304 : 200, { "content-type": "application/json", etag });
+            response.end(isUnchanged ? undefined : '{"name": "fixture"}');
+            return;
+        }
         if (pathname === "/big.bin") {
             response.writeHead(200, { "content-type": "application/octet-stream", "content-length": BIG });
             response.end(Buffer.alloc(BIG));

@@ -35,6 +35,8 @@ export interface StoredReport {
 const RESOURCES = "resources";
 const REPORT = "report";
 const SITE = "site";
+// Crawlee hands a text/plain record back verbatim; a page’s own type would parse JSON into an object.
+const BODY_TYPE = "text/plain; charset=utf-8";
 
 function key(url: string): string {
     return createHash("sha256").update(url).digest("hex");
@@ -133,12 +135,16 @@ export class DiskStore {
 
     async add(facts: Facts, body: string): Promise<void> {
         await this.facts.pushData(facts);
-        await this.bodies.setValue(key(facts.url.href), body, { contentType: facts.http["content-type"] || "application/octet-stream" });
+        await this.bodies.setValue(key(facts.url.href), body, { contentType: BODY_TYPE });
     }
 
-    // A page’s stored body, which a fresh crawl keeps for revalidation.
+    // A page’s stored body, which a fresh crawl keeps for revalidation; one that reads back as neither text nor bytes is a miss.
     async body(href: string): Promise<string | undefined> {
-        return (await this.bodies.getValue<string>(key(href))) ?? undefined;
+        const value = await this.bodies.getValue<unknown>(key(href));
+        if (value === null || value === undefined || typeof value === "string") return value ?? undefined;
+        if (value instanceof Uint8Array) return Buffer.from(value).toString("utf8");
+        log.warn({ url: href, type: typeof value }, "stored body unreadable, page fetched in full");
+        return undefined;
     }
 
     // Deletes the bodies of pages this crawl no longer has.
