@@ -167,6 +167,14 @@ describe("presets", () => {
         assert.deepEqual(severities([], { "a/*": "info", "a/y": "error" }), { "a/x": "info", "a/y": "error", "b/z": "warning" });
     });
 
+    it("reads a name no ruleset carries as a rule ID or glob", () => {
+        assert.deepEqual(Object.keys(resolveRuleset("http/alt-svc-h3", {})), ["http/alt-svc-h3"]);
+        assert.equal(resolveRuleset("http/alt-svc-h3", {})["http/alt-svc-h3"]?.severity, "info");
+        assert.ok(Object.keys(resolveRuleset("tls/*", {})).every((id) => id.startsWith("tls/")));
+        assert.deepEqual(Object.keys(resolveRuleset("mine", { mine: { extends: ["http/alt-svc-h3"] } })), ["http/alt-svc-h3"]);
+        assert.throws(() => resolveRuleset("http/no-such-rule", {}), /no rule ID matches it/);
+    });
+
     it("lists performance, and recommended extends it", () => {
         assert.ok(presetNames().includes("performance"));
         assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));

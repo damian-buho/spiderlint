@@ -33,7 +33,7 @@ Commands:
   report [url…]         re-format the stored report
   facts <url>           one page’s facts as JSON, with the site’s
   groups [url…]         page count per group
-  rules [ruleset…]      every rule, its severity here and its docs
+  rules [ruleset|id…]   every rule, its severity here and its docs
   presets               shipped rulesets and whether groups use them
   explain <rule>        what a rule reads, expects and how to fix it
   cache status [url…]   entries, bytes and age per bucket
@@ -66,7 +66,7 @@ Crawl:
 Rules:
   --config PATH         settings file (projectfile.yaml)
   --site NAMES          audit these org.spiderlint.sites only, repeatable (all)
-  --rules RULESETS      run these rulesets in every group (recommended)
+  --rules RULESETS      run these rulesets or rule IDs in every group (recommended)
   --exclude-rules IDS   skip these rules
   --error IDS           report these rules as errors
   --warning IDS         report these rules as warnings
@@ -91,7 +91,7 @@ Store and cache:
   -h, --help            show this screen
   -V, --version         show the version
 
-IDS and RULESETS are comma-separated, an ID may be a glob (lighthouse/*); see spiderlint rules and presets.
+IDS and RULESETS are comma-separated, an ID may be a glob (lighthouse/*) and stands in for a ruleset; see spiderlint rules and presets.
 With no url, targets come from org.spiderlint in the config, one run per site.
 Exit codes: 0 clean, 1 findings, 2 usage, 3 nothing fetched, 4 failure.
 
@@ -99,6 +99,7 @@ Examples:
   spiderlint audit https://example.com/
   spiderlint audit https://example.com/ --format sarif > report.sarif
   spiderlint audit https://example.com/ --rules all --exclude-rules 'lighthouse/*'
+  spiderlint audit https://example.com/ --rules http/alt-svc-h3
   spiderlint audit --source list:urls.txt
   spiderlint crawl https://example.com/
   spiderlint lint https://example.com/ --fail-on warning

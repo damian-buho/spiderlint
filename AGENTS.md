@@ -251,7 +251,7 @@ groups:
     rules: [recommended]
 ```
 
-- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s.
+- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s. Wherever a ruleset is named — group `rules`, `extends`, `--rules`, `spiderlint rules` — a name no ruleset carries is read as a rule ID or glob over every shipped rule (`http/alt-svc-h3`, `http/*`), at its preset severity; one matching nothing exits 2.
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
 - `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables, and is the implicit `default` group’s, so a config without groups checks every page. A crawl takes the first arrivals; `lint` backfilling a stored crawl fills each sample with the lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
@@ -465,7 +465,7 @@ spiderlint lint   [url…]                  rules over stored facts, no network
 spiderlint report [url…]                  re-format stored findings
 spiderlint facts  <url>                   one page’s facts document as JSON, the site document under `site`
 spiderlint groups [url…]                  page count per group, unmatched pages
-spiderlint rules [ruleset…]               every rule: severity here, scope, ruleset, docs
+spiderlint rules [ruleset|id…]            every rule: severity here, scope, ruleset, docs
 spiderlint presets                        shipped rulesets, rule count, used by a group
 spiderlint explain <rule>                 severity, scope, facts read, expect, when, message, fix, docs
 spiderlint cache status|purge|warm        every bucket: entries, bytes, age

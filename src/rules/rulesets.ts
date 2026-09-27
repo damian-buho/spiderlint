@@ -48,7 +48,7 @@ export function presetNames(): string[] {
 export function resolveRuleset(name: string, rulesets: Record<string, RulesetConfig>, seen: string[] = []): Record<string, RuleSpec> {
     if (seen.includes(name)) throw new ConfigError(`ruleset ${name}: extends itself through ${seen.join(" → ")}`);
     const config = lookup(name, rulesets);
-    if (!config) throw new ConfigError(`ruleset ${name}: not defined`);
+    if (!config) return selectRules(name, rulesets, seen);
     const merged: Record<string, RuleSpec> = {};
     const parents = config.extends ?? [];
     for (const parent of parents) Object.assign(merged, resolveRuleset(parent, rulesets, [...seen, name]));
@@ -62,6 +62,15 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     }
     log.debug({ ruleset: name, rules: Object.keys(merged).length }, "ruleset resolved");
     return merged;
+}
+
+// A name no ruleset carries, read as a rule ID or glob over every shipped rule.
+function selectRules(pattern: string, rulesets: Record<string, RulesetConfig>, seen: string[]): Record<string, RuleSpec> {
+    const shipped = Object.entries(resolveRuleset(`${PREFIX}${ALL}`, rulesets, [...seen, pattern]));
+    const picked = Object.fromEntries(shipped.filter(([id]) => isRuleMatch(id, pattern)));
+    log.debug({ pattern, rules: Object.keys(picked) }, "ruleset name read as rule IDs");
+    if (Object.keys(picked).length === 0) throw new ConfigError(`ruleset ${pattern}: not defined, and no rule ID matches it`);
+    return picked;
 }
 
 // Whether a rule ID is `pattern` or matches it as a glob (`lighthouse/*`).
