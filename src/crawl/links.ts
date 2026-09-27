@@ -38,16 +38,23 @@ export function isJudged(answer: LinkFacts): boolean {
     return !answer.excluded && !answer.refused && !answer.walled && answer.status !== 429;
 }
 
-// One link’s answer, from `bucket` while fresh; an excluded host is never asked, and only a healthy or walled answer is stored.
+// A healthy or walled answer: the only kind worth keeping.
+function isKept(answer: LinkFacts): boolean {
+    return answer.status > 0 && (answer.status < 400 || answer.walled === true);
+}
+
+// One link’s answer, from `bucket` while fresh and still worth keeping; an excluded host is never asked, and only a healthy or walled answer is stored.
 export async function answerOf(href: string, config: Pick<Config, "allowPrivate" | "linkExclude">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
     const host = new URL(href).hostname;
     const isExcluded = config.linkExclude.some((entry) => host === entry || host.endsWith(`.${entry}`));
     log.debug({ url: href, host, isExcluded }, "external link scoped");
     if (isExcluded) return { status: 0, excluded: true };
     const entry = await bucket.get(href);
-    if (entry && bucket.isFresh(entry)) return { ...entry.value, cached: true };
+    const isReused = entry !== undefined && bucket.isFresh(entry) && isKept(entry.value);
+    log.debug({ url: href, isCached: entry !== undefined, isReused }, "external link cache");
+    if (isReused) return { ...entry.value, cached: true };
     const answer = await probeOne(href, config, signal);
-    const isStored = answer.status > 0 && (answer.status < 400 || answer.walled === true);
+    const isStored = isKept(answer);
     log.debug({ url: href, status: answer.status, isStored }, "external link answer");
     if (isStored) await bucket.set(href, answer);
     return answer;

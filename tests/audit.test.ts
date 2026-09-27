@@ -170,6 +170,14 @@ describe("audit", () => {
         assert.deepEqual(rule?.check([page], undefined, { sitemaps: [], links: { [href]: first } } as unknown as SiteFacts), []);
     });
 
+    it("re-asks a fresh cached broken answer", async () => {
+        const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
+        const href = `${cdn()}/walled`;
+        await bucket.set(href, { status: 403, method: "HEAD" });
+        const answer = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
+        assert.deepEqual(answer, { status: 403, method: "HEAD", walled: true });
+    });
+
     it("judges no SEO fact on a page outside 2xx", () => {
         const missing = report.pages.find((page) => page.url.pathname === "/missing");
         assert.equal(missing?.html?.title, "404");
