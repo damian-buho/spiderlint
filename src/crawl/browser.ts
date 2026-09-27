@@ -334,7 +334,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
             },
         },
-        storage?.config ?? new Configuration({ persistStorage: false }),
+        storage?.config ?? new Configuration({ persistStorage: false, purgeOnStart: false }),
         observations,
     );
     if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");

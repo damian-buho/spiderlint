@@ -154,7 +154,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");
             },
         },
-        storage?.config ?? new Configuration({ persistStorage: false }),
+        storage?.config ?? new Configuration({ persistStorage: false, purgeOnStart: false }),
         frontier,
     );
     return { crawler, stats: () => ({ pages, revalidated: revalidatedPages }) };
