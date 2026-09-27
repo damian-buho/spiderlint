@@ -119,3 +119,10 @@ rules:
     message: "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
     fix: "send Use-As-Dictionary: match=\"/assets/app-*.js\""
     docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1
+  html/render-blocking-css:
+    fact: html.head.links
+    expect: {minContains: 0, maxContains: 1, contains: {required: [rel], properties: {rel: {pattern: "^\\s*(?i:stylesheet)\\s*$"}, media: {pattern: "^\\s*(?i:all|screen)?\\s*$"}}}}
+    severity: info
+    message: "more than one stylesheet in <head> blocks rendering: {got}"
+    fix: "inline the critical CSS and load the rest with media=print onload, or merge the stylesheets into one"
+    docs: https://web.dev/articles/defer-non-critical-css

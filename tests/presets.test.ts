@@ -103,6 +103,7 @@ const FAILS: Record<string, Patch[]> = {
     "html/alternate-formats": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/html", hreflang: "es", href: "https://site.test/es/" }] } } }],
     "html/nlweb": [{ pathname: "/" }],
     "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/" }],
+    "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "Stylesheet", media: "screen", href: "https://site.test/b.css" }] } } }],
 };
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
@@ -141,6 +142,7 @@ const PASSES: Record<string, Patch[]> = {
     "html/alternate-formats": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
     "html/nlweb": [{ pathname: "/", html: { rels: { nlweb: ["https://site.test/ask"] } } }],
     "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/", meta: { robots: "noindex" } }],
+    "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "stylesheet", media: "print", href: "https://site.test/p.css" }, { rel: "alternate stylesheet", href: "https://site.test/c.css" }] } } }],
 };
 
 const specs = resolveRuleset("spiderlint:all", {});
