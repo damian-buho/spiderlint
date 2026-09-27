@@ -23,9 +23,18 @@ export const DESCRIBE = `function describe(element) {
     return { target: parts.join(" > "), html: tag.length > 120 ? tag.slice(0, 120) + "…" : tag };
 }`;
 
-// Loads `url` and waits for its network to fall quiet, reading it anyway once QUIET_MS pass.
+// A navigation error from the network rather than the page, which one more attempt may cure.
+const TRANSIENT = /net::ERR_(NETWORK_CHANGED|INTERNET_DISCONNECTED|CONNECTION_(RESET|CLOSED|REFUSED|TIMED_OUT)|TIMED_OUT|NAME_NOT_RESOLVED|ADDRESS_UNREACHABLE|HTTP2_PROTOCOL_ERROR)/;
+
+// Loads `url`, once more after a transient network error, and waits for its network to fall quiet, reading it anyway once QUIET_MS pass.
 export async function visit(page: Page, url: string): Promise<void> {
-    await page.goto(url, { waitUntil: "load", timeout: LOAD_MS });
+    try {
+        await page.goto(url, { waitUntil: "load", timeout: LOAD_MS });
+    } catch (error) {
+        if (!TRANSIENT.test(reason(error))) throw error;
+        log.warn({ url, error: reason(error) }, "navigation failed on the network, retrying once");
+        await page.goto(url, { waitUntil: "load", timeout: LOAD_MS });
+    }
     try {
         await page.waitForLoadState("networkidle", { timeout: QUIET_MS });
     } catch (error) {
