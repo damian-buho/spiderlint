@@ -9,6 +9,7 @@ import type { Facts, LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { isIP } from "node:net";
+import { marked, type TokensList } from "marked";
 import { checkCarbonTxt } from "./carbon-txt.ts";
 import { isSpecialUse, texts } from "./dns.ts";
 import { mediaType } from "./origin.ts";
@@ -44,6 +45,13 @@ interface Spec {
 }
 
 const DAY_MS = 86_400_000;
+
+// Links one file may send out before the rest are only counted.
+const MAX_LINKS = 200;
+
+interface WellKnownSettings {
+    "max-links": number;
+}
 
 // Parses a JSON body; a parse failure is `undefined` with its defect recorded.
 function parse(text: string, errors: string[]): unknown {
@@ -153,14 +161,21 @@ const nodeinfo = json("object", async (data, errors, { url }, context) => {
     return { versions, ...(isObject(linked) && { version: linked.version }) };
 });
 
-// Defects of links that do not answer 2xx, crawled pages judged from the store and any other through the `probes` bucket.
-async function linkErrors(links: string[], context: SiteContext, kind: string): Promise<{ errors: string[]; probed: number }> {
+// Defects of links that do not answer 2xx, crawled pages judged from the store and at most `max-links` others through the `probes` bucket, the rest counted as `unprobed`.
+async function linkErrors(links: string[], context: SiteContext, kind: string): Promise<{ errors: string[]; probed: number; unprobed: number }> {
     const errors: string[] = [];
     const statuses = new Map(context.pages.map((page) => [page.url.href, page.http.status]));
+    const max = (context.settings as WellKnownSettings | undefined)?.["max-links"] ?? MAX_LINKS;
     let probed = 0;
+    let unprobed = 0;
     const distinct = new Set(links);
     for (const link of distinct) {
         const isProbed = !statuses.has(link) && /^https?:$/.test(new URL(link).protocol);
+        if (isProbed && probed >= max) {
+            unprobed += 1;
+            log.debug({ link, kind, max }, "file link left unprobed");
+            continue;
+        }
         const answer: Omit<LinkFacts, "status"> & { status?: number } = isProbed ? await context.link(link) : { status: statuses.get(link) };
         probed += isProbed ? 1 : 0;
         log.debug({ link, kind, status: answer.status, isProbed }, "file link judged");
@@ -168,20 +183,34 @@ async function linkErrors(links: string[], context: SiteContext, kind: string): 
         if (answer.status === 0) errors.push(`${link} is unreachable: ${answer.error ?? "no answer"}`);
         else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
     }
-    return { errors, probed };
+    return { errors, probed, unprobed };
 }
 
-// llmstxt.org: one H1 first, and links that answer 2xx, crawled or probed through the `probes` bucket.
-const llmsTxt: Check = async (text, { url }, context) => {
-    const errors: string[] = [];
-    const lines = text.split(/\r?\n/);
-    const headings = lines.filter((line) => line.startsWith("# "));
-    if (headings.length !== 1) errors.push(`${headings.length} H1 headings, not 1`);
-    if (!lines.find((line) => line.trim() !== "")?.startsWith("# ")) errors.push("does not open with its H1");
-    const links = text.matchAll(/\]\(([^)\s]+)/g).flatMap((match) => (URL.canParse(match[1] as string, url) ? [new URL(match[1] as string, url).href] : [])).toArray();
-    const judged = await linkErrors(links, context, "llms.txt");
-    return { errors: [...errors, ...judged.errors], fields: { title: headings[0]?.slice(2).trim(), links: links.length, probed: judged.probed } };
-};
+// Every distinct link of a Markdown document, inline, reference, autolink and unused definition alike, resolved against `url`.
+function markdownLinks(tokens: TokensList, url: string): string[] {
+    const hrefs = Object.values(tokens.links).map((link) => link.href);
+    marked.walkTokens(tokens, (token) => {
+        if (token.type === "link") hrefs.push(token.href);
+    });
+    return [...new Set(hrefs.flatMap((href) => (URL.canParse(href, url) ? [new URL(href, url).href] : [])))];
+}
+
+// llmstxt.org: not empty, one H1 first, served as one of `types` when given, and links that answer 2xx, crawled or probed through the `probes` bucket.
+function llmsCheck(kind: string, types?: string[]): Check {
+    return async (text, { url, answer }, context) => {
+        const errors: string[] = [];
+        if (types) served(answer, types, errors);
+        if (text.trim() === "") errors.push("empty");
+        const tokens = marked.lexer(text);
+        const headings = tokens.filter((token) => token.type === "heading" && token.depth === 1);
+        if (headings.length !== 1) errors.push(`${headings.length} H1 headings, not 1`);
+        if (headings[0] === undefined || tokens.find((token) => token.type !== "space") !== headings[0]) errors.push("does not open with its H1");
+        const links = markdownLinks(tokens, url);
+        const judged = await linkErrors(links, context, kind);
+        log.debug({ url, kind, headings: headings.length, links: links.length, probed: judged.probed, unprobed: judged.unprobed }, "llms file checked");
+        return { errors: [...errors, ...judged.errors], fields: { title: (headings[0] as { text?: string } | undefined)?.text, links: links.length, probed: judged.probed, unprobed: judged.unprobed } };
+    };
+}
 
 // carbontxt.org syntax, and disclosure URLs that answer 2xx.
 const carbonTxtCheck: Check = async (text, _file, context) => {
@@ -293,8 +322,8 @@ const WELL_KNOWN: Spec[] = [
 
 // Files agents read, all drafts or proposals.
 const AGENTS: Spec[] = [
-    { key: "llms-txt", paths: ["/llms.txt", "/.well-known/llms.txt"], check: llmsTxt },
-    { key: "llms-full-txt", paths: ["/llms-full.txt"] },
+    { key: "llms-txt", paths: ["/llms.txt", "/.well-known/llms.txt"], check: llmsCheck("llms.txt") },
+    { key: "llms-full-txt", paths: ["/llms-full.txt"], check: llmsCheck("llms-full.txt", ["text/markdown", "text/plain"]) },
     {
         key: "agent-card",
         paths: ["/.well-known/agent-card.json"],
@@ -586,6 +615,24 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         docs: "https://llmstxt.org/#format",
     },
+    "well-known/llms-full-txt": {
+        fact: "site.origins.*.agents.llms-full-txt.present",
+        expect: { const: true },
+        when: { "site.origins.*.agents.llms-txt.present": true },
+        message: "/llms.txt has no /llms-full.txt twin carrying the whole content",
+        severity: "hint",
+        docs: "https://llmstxt.org/",
+        fix: "Publish /llms-full.txt beside /llms.txt with the full text of the pages it lists.",
+    },
+    "well-known/llms-full-txt-valid": {
+        fact: "site.origins.*.agents.llms-full-txt.errors",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.agents.llms-full-txt.present": true },
+        message: "/llms-full.txt is malformed: {got}",
+        severity: "info",
+        docs: "https://llmstxt.org/#format",
+        fix: "Open /llms-full.txt with its one H1, serve it as text/markdown, and repair or drop every link that does not answer 200.",
+    },
     ...validity("agents", AGENTS, "hint"),
     "well-known/markdown-source": {
         fact: "markdown.present",
@@ -638,6 +685,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
 // RFC 8615 files, the files agents read and carbon.txt, probed once per origin.
 export default definePlugin({
     name: "well-known",
+    settings: { type: "object", additionalProperties: false, properties: { "max-links": { type: "integer", minimum: 0, default: MAX_LINKS } } },
     extractors: [markdown],
     sites: [wellKnown, agents, carbonTxt],
     presets: {

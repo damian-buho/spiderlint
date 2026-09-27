@@ -68,7 +68,8 @@ function broken(origin: string): Record<string, File> {
         "/.well-known/nodeinfo": [200, JSON_TYPE, JSON.stringify({ links: [{ rel: "http://nodeinfo.diaspora.software/ns/schema/2.1", href: `${origin}/nodeinfo/gone` }] })],
         "/.well-known/traffic-advice": [200, JSON_TYPE, '[{"user_agent": "prefetch-proxy", "fraction": 2}]'],
         "/.well-known/tdmrep.json": [200, JSON_TYPE, '[{"location": "/*", "tdm-reservation": "yes"}]'],
-        "/llms.txt": [200, "text/plain", "Intro first\n# One\n# Two\n- [Missing](/missing)\n- [Gone](/uncrawled)\n"],
+        "/llms.txt": [200, "text/plain", `Intro first\n# One\n# Two\n- [Missing](/missing)\n- [Gone](/uncrawled)\n- [Referenced][gone]\n- <${origin}/gone-auto>\n\n[gone]: /gone-ref\n`],
+        "/llms-full.txt": [200, "application/octet-stream", `Preamble\n\n# Full\n\n[Missing](/missing), [referenced][gone] and <${origin}/gone-auto>.\n\n\`\`\`sh\n# a comment, not a heading\n\`\`\`\n\n[gone]: /gone-ref\n`],
         "/.well-known/agent-card.json": [200, JSON_TYPE, '{"name": "a", "skills": [{"id": "s"}]}'],
         "/.well-known/ai-catalog.json": [200, JSON_TYPE, '{"specVersion": "1.0", "entries": [{"identifier": "urn:a", "displayName": "A"}]}'],
         "/.well-known/mcp/server-card.json": [200, JSON_TYPE, "[]"],
@@ -79,8 +80,16 @@ function broken(origin: string): Record<string, File> {
     };
 }
 
-// An origin serving every well-known and agent file, `valid` or `broken`, `withheld` being `broken` behind a robots.txt disallowing `/.well-known/`; anything else is an HTML 404.
-export async function serveWellKnown(kind: "valid" | "broken" | "withheld"): Promise<Origin> {
+// Only a home page and a valid llms.txt, with no llms-full.txt.
+function lean(): Record<string, File> {
+    return {
+        "/": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Home</title></head><body><h1>Home</h1></body></html>'],
+        "/llms.txt": [200, "text/markdown", "# Home\n\n> A fixture.\n\n- [Home](/)\n"],
+    };
+}
+
+// An origin serving every well-known and agent file, `valid` or `broken`, `lean` serving llms.txt alone, `withheld` being `broken` behind a robots.txt disallowing `/.well-known/`; anything else is an HTML 404.
+export async function serveWellKnown(kind: "valid" | "broken" | "withheld" | "lean"): Promise<Origin> {
     const requested: string[] = [];
     let files: Record<string, File> = {};
     const server: Server = createServer((request, response) => {
@@ -92,7 +101,7 @@ export async function serveWellKnown(kind: "valid" | "broken" | "withheld"): Pro
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    files = kind === "valid" ? valid(origin) : broken(origin);
+    files = kind === "valid" ? valid(origin) : kind === "lean" ? lean() : broken(origin);
     if (kind === "withheld") files["/robots.txt"] = [200, "text/plain", "User-agent: *\nDisallow: /.well-known/\n"];
     return { origin, requested, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }

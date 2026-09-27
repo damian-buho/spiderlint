@@ -44,6 +44,7 @@
     "ioredis": "6.0.0",
     "lighthouse": "13.5.0",
     "log-update": "8.0.0",
+    "marked": "18.0.14",
     "picomatch": "4.0.7",
     "pino": "10.3.1",
     "pino-opentelemetry-transport": "4.0.2",

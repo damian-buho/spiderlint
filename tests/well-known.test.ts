@@ -40,12 +40,33 @@ describe("well-known plugin", () => {
 
     it("faults every malformed file, the missing change-password and an unregistered suffix", async () => {
         const report = await audit({ seeds: [`${broken.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
-        const expected = ["agent-card", "agent-skills", "ai-catalog", "api-catalog", "apple-app-site-association", "assetlinks", "change-password", "gpc", "llms-txt-valid", "markdown-source", "mcp-server-card", "nodeinfo", "oauth-authorization-server", "oauth-protected-resource", "okf", "openid-configuration", "registered", "schemamap", "security-txt-expires", "security-txt-valid", "tdmrep", "traffic-advice", "webauthn"];
+        const expected = ["agent-card", "agent-skills", "ai-catalog", "api-catalog", "apple-app-site-association", "assetlinks", "change-password", "gpc", "llms-full-txt-valid", "llms-txt-valid", "markdown-source", "mcp-server-card", "nodeinfo", "oauth-authorization-server", "oauth-protected-resource", "okf", "openid-configuration", "registered", "schemamap", "security-txt-expires", "security-txt-valid", "tdmrep", "traffic-advice", "webauthn"];
         assert.deepEqual(rules(report), expected.map((id) => `well-known/${id}`));
         const message = (id: string): string => report.findings.find((finding) => finding.rule === `well-known/${id}`)?.message ?? "";
         assert.match(message("security-txt-valid"), /line 2 is not a field.*Contact nope is not a URI/);
         assert.match(message("registered"), /“made-up”/);
-        assert.match(message("llms-txt-valid"), /\/missing answers 404.*\/uncrawled answers 404/);
+        const agents = report.site.origins?.[broken.origin]?.agents as Record<string, { errors: string[] }>;
+        const errors = (key: string): string => agents[key]?.errors.join("\n") ?? "";
+        for (const key of ["llms-txt", "llms-full-txt"]) for (const link of ["/missing", "/gone-ref", "/gone-auto"]) assert.match(errors(key), new RegExp(`${link} answers 404`), `${key} names ${link}`);
+        assert.match(errors("llms-txt"), /\/uncrawled answers 404/);
+        assert.match(errors("llms-full-txt"), /served as application\/octet-stream[^]*does not open with its H1/);
+        assert.doesNotMatch(errors("llms-full-txt"), /H1 headings/, "a # inside a code fence is no heading");
+    });
+
+    it("advises llms-full.txt beside an llms.txt only", async () => {
+        const lean = await serveWellKnown("lean");
+        try {
+            const report = await audit({ seeds: [`${lean.origin}/`], rules: ["agents"], cacheMode: "off" });
+            assert.deepEqual(rules(report), ["well-known/llms-full-txt", "well-known/markdown-source"]);
+        } finally {
+            await lean.close();
+        }
+    });
+
+    it("probes at most max-links uncrawled links per file and counts the rest", async () => {
+        const report = await audit({ seeds: [`${broken.origin}/`], rules: ["agents"], cacheMode: "off", pluginSettings: { "well-known": { "max-links": 1 } } });
+        const full = (report.site.origins?.[broken.origin]?.agents as Record<string, { fields: { links: number; probed: number; unprobed: number } }>)["llms-full-txt"]?.fields;
+        assert.deepEqual([full?.links, full?.probed, full?.unprobed], [3, 1, 1]);
     });
 
     it("reports only the absent security.txt, llms.txt and Markdown sources where every other file is missing", async () => {
