@@ -92,6 +92,18 @@ export interface SiteFacts {
     hosts?: Record<string, Record<string, unknown>>;
     // Hosts in `hosts` the crawl only links or loads, judged by `linked` rules alone.
     linked?: string[];
+    // The internal link graph: pages, distinct edges, and whether a crawl limit cut it short.
+    graph?: { pages: number; edges: number; capped?: true };
+}
+
+// A page’s place in the internal link graph, derived on every lint.
+export interface GraphFacts {
+    // Fewest links from a seed; absent when no link path reaches the page.
+    depth?: number;
+    "in-degree": number;
+    "out-degree": number;
+    // PageRank scaled so the average page is 1.
+    rank: number;
 }
 
 export interface CookieFacts {
@@ -191,6 +203,7 @@ export interface Facts {
     crawl: CrawlFacts;
     sitemap?: SitemapFacts;
     robots?: RobotsFacts;
+    graph?: GraphFacts;
     http: HttpFacts;
     tls?: TlsFacts;
     html?: HtmlFacts;

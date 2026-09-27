@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: Internal linking across the whole crawl, click depth, dead ends and weakly linked pages
+when:
+  http.status: {minimum: 200, maximum: 299}
+  http.content-type: {pattern: "^text/html"}
+rules:
+  links/click-depth:
+    fact: graph.depth
+    expect: {maximum: 3}
+    when: {graph.depth: {type: integer}}
+    severity: info
+    message: "a page is {got} links away from the start page, more than 3"
+    fix: "link the page from a hub, a section index or the navigation"
+    docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
+  links/dead-end:
+    fact: graph.out-degree
+    expect: {minimum: 1}
+    severity: info
+    message: "a page links to no other page of the site"
+    fix: "add navigation or related links back into the site"
+    docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
+  links/weakly-linked:
+    fact: graph.in-degree
+    expect: {minimum: 2}
+    when: {graph.in-degree: {minimum: 1}, crawl.discovered-via: {not: {const: seed}}}
+    severity: info
+    message: "only {got} page of the site links here"
+    fix: "link the page from its section index or related pages"
+    docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable

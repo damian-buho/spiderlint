@@ -187,7 +187,8 @@ schema against it.
 ```yaml
 url:      { href, origin, protocol, host, pathname, search, twin }   # twin: the same URL on canonical-origin
 group:    posts
-crawl:    { depth, discovered-via: seed|sitemap|link, referrers: [], in-degree, requested }
+crawl:    { depth, discovered-via: seed|sitemap|link, referrers: [], requested }
+graph:    { depth, in-degree, out-degree, rank }                     # the internal link graph, derived on every lint
 robots:   { noindex, nofollow }                                    # <meta name=robots> and X-Robots-Tag, derived on every lint
 sitemap:  { listed, lastmod, changefreq, priority, alternates: [{ lang, href }], images, videos }
 http:     { status, version, redirects: [{ url, status, headers, by }],
@@ -226,7 +227,8 @@ site:     { role: production|staging|development,                       # the co
                        content-signals: [{ agents, value, signals: { search: yes|no } }] }],   # per seed origin; agents lower-cased
             origins: { "https://example.org": { <site extractor ID>: … } },   # per: origin
             hosts: { "example.org": { <site extractor ID>: … } },            # per: host
-            linked: [] }                                                     # hosts in `hosts` only linked or loaded, never crawled
+            linked: [],                                                      # hosts in `hosts` only linked or loaded, never crawled
+            graph: { pages, edges, capped } }
 ```
 
 Plugins add their own top-level key (`lighthouse`, `axe`, `htmlvalidate`).
@@ -305,6 +307,7 @@ because facts are always retained even when bodies are not.
 - `unique: <fact>` at `scope: site` groups pages by the fact’s value and reports every value held by two or more DISTINCT URLs, one finding per value with the URL list. A redirect and its target count once. `html/unique-title`, `html/unique-description` and `html/unique-h1` are the SEO trio; `scope: group` narrows the same check to one template when a site legitimately repeats a title across sections.
 - `sitemap/orphan` and `sitemap/unlisted` are declarative page rules over `crawl.*` and `sitemap.*`, computed after the crawl, so they fold like any template defect.
 - `sitemap/hreflang` (page) fails when the sitemap alternates and the page’s hreflang links both exist and differ; `sitemap/media` (site) probes each image and video entry through the `probes` bucket, keyed by the file.
+- Graph facts are derived on every lint from the stored pages’ internal links, a redirect standing for its target: `graph.depth` (fewest links from a seed, absent when unreached), `in-degree` and `out-degree` (distinct pages), `rank` (PageRank, damping 0.85, scaled so the average page is 1). The `graph` preset reads them as page rules, so they fold per template and a group’s ruleset overrides the bounds: `links/click-depth` (above 3), `links/dead-end` (no internal link out) and `links/weakly-linked` (one page links in; 0 is `sitemap/orphan`’s), all `info`, outside `recommended`. A crawl `max-pages` or `max-depth` cut is `site.graph.capped`, and every graph finding then says the page may sit closer and have more links in.
 - `http/early-hints-preload` (`performance`, `info`) is a page built-in: a preload a 103 hinted that the final `Link` header lacks.
 - Other site-scoped built-ins: `sitemap/unreadable` (over `site.sitemaps`), the `robots` preset over `site.robots` — `robots/disallow-all` (`*` shut out of `/` with no `Allow`), `robots/ai-crawlers` (`info`: the AI crawler tokens a `robots.txt` names, by purpose, with retired ones marked) and `robots/content-signal` (only `search`, `ai-input`, `ai-train`, each `yes` or `no`), `links/broken-internal`, `links/redirected-internal` (a link whose target answers 3xx, with every page carrying it), `links/broken-external`, `http/consistent-origin`, every `resources/*` rule, `i18n/hreflang-reciprocal` (a page naming an alternate that does not name it back).
 - A site-scoped finding is already an aggregate, so folding leaves it alone; its key is the shared value (or resource URL), never a page.

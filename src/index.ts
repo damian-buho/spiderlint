@@ -18,6 +18,7 @@ import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { robotsFacts } from "./facts/robots.ts";
+import { linkGraph } from "./facts/graph.ts";
 import { dnsClient } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
@@ -274,6 +275,21 @@ function sampledCells(pages: Facts[], rulesByGroup: Map<string, Rule[]>, groups:
 
 type Lint = (crawled: Crawled, started: Date) => Report;
 
+// Whether a page or depth limit may have left pages uncrawled.
+function isCapped(config: Config, pages: Facts[]): boolean {
+    const isCut = (config.maxPages > 0 && pages.length >= config.maxPages) || (config.maxDepth > 0 && pages.some((page) => page.crawl.depth >= config.maxDepth));
+    log.debug({ maxPages: config.maxPages, maxDepth: config.maxDepth, pages: pages.length, isCut }, "crawl limits checked");
+    return isCut;
+}
+
+// Findings of rules reading the link graph say it is partial.
+function capped(run: RuleRun, rulesByGroup: Map<string, Rule[]>): void {
+    const readers = new Set(rulesByGroup.values().toArray().flat().filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("graph."))).map((rule) => rule.meta.id));
+    const partial = run.findings.filter((finding) => readers.has(finding.rule));
+    for (const finding of partial) finding.message += "; the crawl stopped at a limit, so the page may sit closer and have more links in";
+    log.debug({ rules: [...readers], findings: partial.length }, "graph findings marked partial");
+}
+
 // Compiles groups and rules up front, so a config error fails before the first request.
 function linter(config: Config): Lint {
     const groups = groupsOf(config);
@@ -290,7 +306,9 @@ function linter(config: Config): Lint {
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
         site.role = config.role;
+        site.graph = linkGraph(pages, site.redirects, isCapped(config, pages));
         const run = runRules(pages, rulesByGroup, site);
+        if (site.graph.capped) capped(run, rulesByGroup);
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
