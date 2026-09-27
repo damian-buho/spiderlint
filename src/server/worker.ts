@@ -10,6 +10,7 @@ import { createInterface } from "node:readline";
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { log } from "../logger.ts";
+import { inSpan, recordScan, traceCarrier, withTraceCarrier } from "../telemetry.ts";
 import { latestKey, PREFIX, PROGRESS_FD, QUEUE, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
 
 const RUNNER = new URL("scan.ts", import.meta.url).pathname;
@@ -42,6 +43,19 @@ function reasonOf(code: number | null, tail: string[], isTimedOut: boolean, scan
     if (isTimedOut) return `the scan exceeded ${scanTimeout} s`;
     const logged = tail.map((line) => parsed(line)).findLast((entry) => (entry.level ?? 0) >= 50);
     return [EXITS[code ?? 4] ?? `the scan exited with ${code}`, logged?.error].filter(Boolean).join(": ");
+}
+
+// One scan as a span continuing the submitting request’s trace, timed by outcome.
+async function tracedScan(job: ScanJob): Promise<ScanResult> {
+    const started = performance.now();
+    try {
+        const result = await withTraceCarrier(job.data.trace, async () => inSpan("scan job", { "spiderlint.job": String(job.id), "url.full": job.data.url, "spiderlint.policy": job.data.policy }, async () => runScan(job)));
+        recordScan((performance.now() - started) / 1000, "done", result.summary.pages);
+        return result;
+    } catch (error) {
+        recordScan((performance.now() - started) / 1000, "failed");
+        throw error;
+    }
 }
 
 // One scan in a runner child under a temporary working directory, its progress relayed at most once per second.
@@ -78,7 +92,7 @@ async function runScan(job: ScanJob): Promise<ScanResult> {
         progress.sent = now;
         store(line);
     });
-    child.stdin?.end(JSON.stringify({ url, settings, deny }));
+    child.stdin?.end(JSON.stringify({ url, settings, deny, trace: traceCarrier() }));
     const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolve) => child.once("close", (exitCode, exitSignal) => resolve([exitCode, exitSignal])));
     clearTimeout(timer);
     if (progress.held) store(progress.held);
@@ -92,7 +106,7 @@ async function runScan(job: ScanJob): Promise<ScanResult> {
 
 // Takes `concurrency` scans at a time off the queue until `close`, which kills the runners in flight; a finished scan becomes its host’s latest for `retention` seconds.
 export function startWorker(redis: Redis, concurrency: number, retention: number): { close(): Promise<void> } {
-    const worker = new Worker<ScanData, ScanResult>(QUEUE, runScan, { connection: redis, prefix: PREFIX, concurrency });
+    const worker = new Worker<ScanData, ScanResult>(QUEUE, tracedScan, { connection: redis, prefix: PREFIX, concurrency });
     worker.on("failed", (job, error) => log.warn({ job: job?.id, host: job?.data.host, error: error.message }, "scan failed"));
     worker.on("completed", async (job) => {
         log.info({ job: job.id, host: job.data.host, findings: job.returnvalue.findings.length, grade: job.returnvalue.summary.rating?.grade }, "scan completed");

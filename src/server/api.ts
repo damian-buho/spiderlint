@@ -5,6 +5,7 @@
 import type { Queue } from "bullmq";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { routePath } from "hono/route";
 import { secureHeaders } from "hono/secure-headers";
 import { streamSSE } from "hono/streaming";
 import type { Redis } from "ioredis";
@@ -21,6 +22,7 @@ import { edgeRanges } from "./providers.ts";
 import type { ScanData, ScanJob, ScanResult } from "./queue.ts";
 import type { ServerSettings } from "./settings.ts";
 import { PAGE_CSP, web } from "./web.ts";
+import { countRefusal, countRequest, inSpan, withTraceCarrier } from "../telemetry.ts";
 
 export const BODY_MAX = 64 * 1024;
 const EVENTS_MS = 1000;
@@ -31,6 +33,7 @@ const MEDIA: Record<string, [string, string]> = { json: ["application/json", "js
 
 // The refusal as `{ error: { code, message } }`, with Retry-After when it has one.
 export function refused(c: Context, refusal: Refusal): Response {
+    countRefusal(refusal.code);
     if (refusal.retryAfter !== undefined) c.header("retry-after", String(refusal.retryAfter));
     return c.json({ error: { code: refusal.code, message: refusal.message } }, refusal.status);
 }
@@ -46,7 +49,19 @@ export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: 
     void refresh();
     setInterval(() => void refresh(), EDGES_MS).unref();
     const app = new Hono();
-    // Registered first so it runs last: a badge may be embedded by any site.
+    // One span and one count per request, continuing a trace the caller sends in `traceparent`.
+    app.use(async (c, next) =>
+        withTraceCarrier(c.req.header(), async () =>
+            inSpan(`${c.req.method} ${c.req.path}`, { "http.request.method": c.req.method, "url.path": c.req.path }, async (span) => {
+                await next();
+                const route = routePath(c, -1);
+                span.updateName(`${c.req.method} ${route}`);
+                span.setAttributes({ "http.route": route, "http.response.status_code": c.res.status });
+                countRequest(route, c.req.method, c.res.status);
+            }),
+        ),
+    );
+    // Registered before the rest so it runs last: a badge may be embedded by any site.
     app.use("/badge/*", async (c, next) => {
         await next();
         c.header("cross-origin-resource-policy", "cross-origin");

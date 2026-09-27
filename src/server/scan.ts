@@ -12,14 +12,16 @@ import { audit } from "../index.ts";
 import { log } from "../logger.ts";
 import { onProgress } from "../progress.ts";
 import { formatJson } from "../report/json.ts";
+import { inSpan, startTelemetry, withTraceCarrier } from "../telemetry.ts";
 import { PROGRESS_FD } from "./queue.ts";
 
 // Exit codes: 0 the report is on stdout, 2 the settings are invalid, 3 no page was fetched, 4 the run failed.
 async function main(): Promise<number> {
-    const { url, settings, deny } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[] };
+    const { url, settings, deny, trace } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[]; trace?: Record<string, string> };
     onProgress((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
+    const telemetry = await startTelemetry("spiderlint");
     try {
-        const report = await audit({ ...fromSubtree(validateSubtree(settings, "settings")), seeds: [url], cacheMode: "off", denyRules: deny });
+        const report = await withTraceCarrier(trace, async () => inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), seeds: [url], cacheMode: "off", denyRules: deny })));
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;
         process.stdout.write(formatJson(report));
@@ -27,6 +29,8 @@ async function main(): Promise<number> {
     } catch (error) {
         log.error({ url, error: error instanceof Error ? error.message : String(error) }, "scan aborted");
         return error instanceof ConfigError ? 2 : 4;
+    } finally {
+        await telemetry?.shutdown();
     }
 }
 

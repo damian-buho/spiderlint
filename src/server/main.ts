@@ -11,11 +11,12 @@ import { api } from "./api.ts";
 import { connect, scanQueue } from "./queue.ts";
 import { DEFAULT_PATH, watchSettings } from "./settings.ts";
 import { startWorker } from "./worker.ts";
+import { observeQueue, startTelemetry } from "../telemetry.ts";
 
 const MODES = ["api", "worker", "all"];
 
 // Starts the API, the worker or both, per SPIDERLINT_MODE, until SIGTERM or SIGINT.
-function main(): void {
+async function main(): Promise<void> {
     const mode = process.env.SPIDERLINT_MODE ?? "all";
     if (!MODES.includes(mode)) throw new ConfigError(`SPIDERLINT_MODE: invalid value ${mode} (expected: ${MODES.join("|")})`);
     const path = process.env.SPIDERLINT_SERVER_CONFIG ?? DEFAULT_PATH;
@@ -23,10 +24,12 @@ function main(): void {
     const { redis: url, redisPasswordFile, listen, retention, workers } = settings.current();
     const password = redisPasswordFile ? readFileSync(redisPasswordFile, "utf8").trim() : undefined;
     log.info({ mode, path, listen, workers, redisPasswordFile }, "server starting");
+    const telemetry = await startTelemetry("spiderlint");
     const closers: (() => Promise<unknown>)[] = [];
     if (mode !== "worker") {
         const redis = connect(url, password);
         const queue = scanQueue(redis, retention);
+        observeQueue(async () => queue.getJobCounts("waiting", "active", "delayed", "prioritized"));
         const server = serve({ fetch: api(queue, redis, settings.current).fetch, hostname: listen.host, port: listen.port }, (info) => log.info({ address: info.address, port: info.port }, "api listening"));
         closers.push(async () => new Promise((resolve) => server.close(resolve)), async () => queue.close(), async () => redis.quit());
     }
@@ -35,6 +38,7 @@ function main(): void {
         const worker = startWorker(redis, workers, retention);
         closers.push(async () => worker.close(), async () => redis.quit());
     }
+    if (telemetry) closers.push(async () => telemetry.shutdown());
     const stop = async (signal: string) => {
         log.info({ signal, closers: closers.length }, "server stopping");
         settings.close();
@@ -51,7 +55,7 @@ function main(): void {
 }
 
 try {
-    main();
+    await main();
 } catch (error) {
     log.fatal({ error: error instanceof Error ? error.message : String(error) }, "server not started");
     process.exitCode = error instanceof ConfigError ? 2 : 4;

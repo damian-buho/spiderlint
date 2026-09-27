@@ -224,3 +224,34 @@ services:
 The health check probes `/healthz` in `api` and `all` modes. A stopped worker
 kills its running scans; the queue hands them to another worker once their lock
 expires.
+
+## Telemetry
+
+Traces, metrics and logs go to an OpenTelemetry collector over OTLP/HTTP once
+any of these variables names an endpoint. Unset, the SDK and its exporters are
+never loaded, and stderr output is the same either way.
+
+| Variable                                                                                                        | Effect                                                                                     |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`                                                                                   | Base URL of the collector, `http://collector:4318`; switches telemetry on                  |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | One signal’s full URL; any one also switches telemetry on                                  |
+| `OTEL_SERVICE_NAME`                                                                                             | `service.name` of every signal, `spiderlint` when unset                                    |
+| `OTEL_EXPORTER_OTLP_PROTOCOL`                                                                                   | `http/json` for traces and metrics; the log transport also takes `http/protobuf` or `grpc` |
+| `OTEL_METRIC_EXPORT_INTERVAL`                                                                                   | Milliseconds between metric exports, 15000 by default                                      |
+| `OTEL_SDK_DISABLED`                                                                                             | `true` keeps everything off whatever the endpoints say                                     |
+
+What each signal carries:
+
+- Traces: one span per API request (`GET /v1/jobs/:id`), continuing a
+  `traceparent` the caller sends; `scan job` in the worker, continuing the
+  request that queued it through the job’s data; `scan` in the runner child,
+  continuing the job through its stdin; under it one `page` span per crawled page
+  and one `extract <id>` span per extractor run. The CLI traces a run the same
+  way, as `spiderlint <command>`.
+- Metrics: `spiderlint.http.requests` (route, method, status),
+  `spiderlint.refusals` (by `code`, rate windows and client buckets included),
+  `spiderlint.queue.depth` (by state), `spiderlint.scan.duration` (seconds, by
+  outcome), `spiderlint.scan.pages` and `spiderlint.extractor.duration`
+  (milliseconds, by extractor).
+- Logs: every `pino` record, with the `trace_id` and `span_id` of the span it was
+  written in, through `pino-opentelemetry-transport`.

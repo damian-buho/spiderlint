@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { trace } from "@opentelemetry/api";
 import pino from "pino";
 import pretty from "pino-pretty";
 import { Writable } from "node:stream";
 import { painter, type Style } from "./color.ts";
 import { relative, singleOrigin } from "./crawl/scope.ts";
 import { progressPrint } from "./progress.ts";
+import { isTelemetryConfigured } from "./telemetry-environment.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
 
@@ -18,7 +20,7 @@ const base = { origin: "" };
 const terminal = { paint: painter(process.stderr) };
 
 const LEVELS: Record<string, Style> = { TRACE: "gray", DEBUG: "gray", INFO: "green", WARN: "yellow", ERROR: "red", FATAL: ["bold", "red"] };
-const RESERVED = new Set(["level", "time", "pid", "hostname", "url", "error", "crawlee"]);
+const RESERVED = new Set(["level", "time", "pid", "hostname", "url", "error", "crawlee", "trace_id", "span_id", "trace_flags"]);
 const URL_IN_TEXT = /https?:\/\/\S+/g;
 
 // Strings, and strings inside arrays, lose the base origin.
@@ -58,12 +60,22 @@ const stderr = new Writable({
     },
 });
 
+// The active span’s IDs, which pino-opentelemetry-transport exports with the record; empty outside a span.
+function traceFields(): Record<string, string> {
+    const span = trace.getActiveSpan()?.spanContext();
+    return span && trace.isSpanContextValid(span) ? { trace_id: span.traceId, span_id: span.spanId, trace_flags: `0${span.traceFlags.toString(16)}`.slice(-2) } : {};
+}
+
+// Stderr as a pino destination: JSON for machines, else one readable line per entry.
+const destination = process.env.SPIDERLINT_LOG_FORMAT === "json" ? pino.destination(2) : pretty({ destination: stderr, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } });
+
+// With an OTLP endpoint set, every record also goes to the collector, and stderr stays as it is.
+const isExported = isTelemetryConfigured();
+
 // One readable line per entry to stderr, so stdout stays the report; `SPIDERLINT_LOG_FORMAT=json` for machines.
 export const log = pino(
-    { level, formatters },
-    process.env.SPIDERLINT_LOG_FORMAT === "json"
-        ? pino.destination(2)
-        : pretty({ destination: stderr, sync: true, colorize: false, ignore: "pid,hostname", hideObject: true, messageFormat: oneLine, customPrettifiers: { level: (_value, _key, _entry, { label }) => terminal.paint(LEVELS[label] ?? "reset", label) } }),
+    { level, formatters, ...(isExported && { mixin: traceFields }) },
+    isExported ? pino.multistream([{ stream: destination, level: "trace" }, { stream: pino.transport({ target: "pino-opentelemetry-transport", options: { resourceAttributes: { "service.name": process.env.OTEL_SERVICE_NAME || "spiderlint" } } }), level: "trace" }]) : destination,
 );
 
 // Whether pino knows `name`, as --log-level must name one.

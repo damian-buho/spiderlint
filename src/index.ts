@@ -18,6 +18,7 @@ import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { cspFacts } from "./facts/csp.ts";
+import { inSpan } from "./telemetry.ts";
 import { detectedFacts, loadDetector } from "./facts/language.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { linkGraph } from "./facts/graph.ts";
@@ -418,7 +419,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const redirects: Record<string, string> = {};
     const { site, pages, revalidated, launches, responses, tlsProbes, modes } = await crawlSite(
         config,
-        async (facts, body, live) => {
+        async (facts, body, live) => inSpan("page", { "url.full": facts.url.href, "http.response.status_code": facts.http.status }, async () => {
             if (proxy) delete facts.http.remote;
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
@@ -430,7 +431,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
             if (memory.add(facts)) await store?.add(facts, body);
             progressDone(memory.pages.length);
             log[isProgressOn() ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
-        },
+        }),
         cache,
         router,
         store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href) },

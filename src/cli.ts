@@ -22,6 +22,7 @@ import { writeAgentFiles } from "./report/agent.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 import { enableProgress } from "./progress.ts";
+import { inSpan, nameSpan, startTelemetry } from "./telemetry.ts";
 
 const USAGE = `spiderlint ${VERSION} — ${DESCRIPTION}
 
@@ -296,6 +297,7 @@ async function main(argv: string[]): Promise<number> {
         return 0;
     }
     const [command = "", ...seeds] = positionals;
+    nameSpan(`spiderlint ${command}`);
     if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "explain" && seeds.length !== 1) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
         console.error(usage(painter(process.stderr, values.color)));
         return 2;
@@ -410,4 +412,10 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
 const systemRoots = getCACertificates("system");
 setDefaultCACertificates([...getCACertificates("default"), ...systemRoots]);
 log.debug({ system: systemRoots.length }, "system CA certificates trusted");
-process.exitCode = await main(process.argv.slice(2));
+const telemetry = await startTelemetry("spiderlint");
+process.exitCode = await inSpan("spiderlint", {}, async (span) => {
+    const code = await main(process.argv.slice(2));
+    span.setAttribute("process.exit.code", code);
+    return code;
+});
+await telemetry?.shutdown();

@@ -14,6 +14,7 @@ import { Buckets, clientOf } from "./clients.ts";
 import { admit, Refusal, resolveRules } from "./policy.ts";
 import { charge, repeatKey, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
 import type { ServerSettings } from "./settings.ts";
+import { traceCarrier } from "../telemetry.ts";
 
 // BullMQ states as the API names them; anything else is still waiting its turn.
 const STATUS: Record<string, string> = { active: "running", completed: "done", failed: "failed" };
@@ -90,7 +91,7 @@ export async function submit(jobs: Jobs, body: unknown, c: Context): Promise<{ j
     const wait = rate ? jobs.buckets.take(clientAddress(c, jobs), rate) : 0;
     if (rate && wait > 0) throw new Refusal(429, "client-rate-limited", `a client may queue ${rate.jobs} scans per ${rate.seconds} s`, wait);
     await charge(jobs.redis, admitted);
-    const data: ScanData = { url: admitted.url, host: admitted.host, policy: admitted.policy.name, settings: admitted.settings, scanTimeout: admitted.policy.scanTimeout, deny: admitted.policy.rules.deny };
+    const data: ScanData = { url: admitted.url, host: admitted.host, policy: admitted.policy.name, settings: admitted.settings, scanTimeout: admitted.policy.scanTimeout, deny: admitted.policy.rules.deny, trace: traceCarrier() };
     const job = (await jobs.queue.add("scan", data, { jobId: randomUUID() })) as ScanJob;
     if (admitted.policy.repeat) await jobs.redis.set(key, job.id as string, "EX", admitted.policy.repeat);
     log.info({ job: job.id, host: admitted.host, policy: admitted.policy.name, repeat: admitted.policy.repeat }, "scan queued");

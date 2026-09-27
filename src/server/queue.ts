@@ -25,6 +25,8 @@ export interface ScanData {
     scanTimeout: number;
     // Rule IDs or globs the policy denies, excluded from every group.
     deny: string[];
+    // The submitting request’s trace context as W3C headers, empty when telemetry is off.
+    trace?: Record<string, string>;
 }
 
 // What `--format json` prints: the summary and the findings.
