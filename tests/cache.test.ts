@@ -88,6 +88,12 @@ describe("cache", () => {
         assert.equal(emptied.find((status) => status.bucket === "resources"), undefined);
     });
 
+    it("purges the probes bucket with the rest", async () => {
+        await new Bucket<number>("probes", bucketDirectory("probes", undefined), 60, "use").set("https://example.org/", 1);
+        const purged = await purgeCache(undefined, undefined, 0);
+        assert.equal(purged.probes, 1);
+    });
+
     it("serves a fresh entry without a request and revalidates a stale one to 304", async () => {
         const directory = path.join(root, "http");
         const url = `${site.origin}/feed.xml`;

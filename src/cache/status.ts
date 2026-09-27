@@ -5,7 +5,7 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { log } from "../logger.ts";
-import { bucketDirectory, type BucketName } from "./index.ts";
+import { TTL_DEFAULTS, bucketDirectory, type BucketName } from "./index.ts";
 
 export interface BucketStatus {
     bucket: string;
@@ -15,8 +15,8 @@ export interface BucketStatus {
     newest?: string;
 }
 
-// Buckets kept as one JSON file per key.
-export const FILE_BUCKETS: BucketName[] = ["resources", "sitemaps", "robots", "origins", "dns", "extractors"];
+// Buckets kept as one JSON file per key: every bucket but the store’s `pages`.
+export const FILE_BUCKETS = (Object.keys(TTL_DEFAULTS) as BucketName[]).filter((name) => name !== "pages");
 
 // Bucket name, the directories holding it (entries counted in the first), and the extension of one entry; user buckets only without a store.
 function layout(root: string | undefined): [string, string[], string][] {
