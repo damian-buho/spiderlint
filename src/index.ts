@@ -20,6 +20,7 @@ import { probe } from "./crawl/probe.ts";
 import { cspFacts } from "./facts/csp.ts";
 import { inSpan } from "./telemetry.ts";
 import { detectedFacts, loadDetector } from "./facts/language.ts";
+import { co2Facts, loadEstimator } from "./facts/co2.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { linkGraph } from "./facts/graph.ts";
 import { dnsClient, PROXIED_DNS } from "./crawl/dns.ts";
@@ -222,9 +223,15 @@ function requiresDetector(rules: Rule[]): boolean {
     return rules.some((rule) => rule.meta.facts.some((fact) => fact.startsWith("html.detected")));
 }
 
-// Loads the language detector when an enabled rule needs it, before the synchronous lint.
+// Whether a rule reads the CO2 estimate, which needs CO2.js loaded.
+function requiresEstimator(rules: Rule[]): boolean {
+    return rules.some((rule) => rule.meta.facts.some((fact) => fact === "co2" || fact.startsWith("co2.")));
+}
+
+// Loads the language detector and CO2.js when an enabled rule needs them, before the synchronous lint.
 async function prepareLint(config: Config): Promise<void> {
-    if (requiresDetector(enabledRules(config))) await loadDetector();
+    const rules = enabledRules(config);
+    await Promise.all([requiresDetector(rules) && loadDetector(), requiresEstimator(rules) && loadEstimator()]);
 }
 
 // A sampler handing each page only the extractors its own group’s rules read.
@@ -327,6 +334,7 @@ function linter(config: Config): Lint {
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     refuseUnknown(config, groups);
     const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
+    const isEstimated = requiresEstimator(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
@@ -338,6 +346,8 @@ function linter(config: Config): Lint {
             if (csp) page.http.csp = csp;
             const detected = isDetected && page.html && detectedFacts(page.html);
             if (detected && page.html) page.html.detected = detected;
+            const co2 = isEstimated && page.html ? co2Facts(page) : undefined;
+            if (co2) page.co2 = co2;
         }
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);

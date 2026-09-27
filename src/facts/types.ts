@@ -240,6 +240,19 @@ export interface ParityFacts {
     "text-share"?: number;
 }
 
+// Emissions per view of one page by the Sustainable Web Design model, derived on a lint that reads them.
+export interface Co2Facts {
+    model: "swd";
+    version: 4;
+    library: string;
+    // Transfer bytes of the page and of each distinct resource with a known size.
+    bytes: number;
+    resources: number;
+    grams: number;
+    // The model’s letter, A+ to F.
+    rating: string;
+}
+
 export interface Facts {
     url: UrlFacts;
     group: string;
@@ -253,6 +266,7 @@ export interface Facts {
     resources?: ResourceFacts[];
     browser?: BrowserFacts;
     parity?: ParityFacts;
+    co2?: Co2Facts;
     // A plugin extractor’s facts, under the extractor’s ID.
     [extractor: string]: unknown;
 }
