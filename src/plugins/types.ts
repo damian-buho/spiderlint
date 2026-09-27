@@ -48,6 +48,8 @@ export interface ResourceExtractor {
 // What a site extractor may touch: its subject’s pages, GET or HEAD probes that stay on its host, cached link answers from any host, and DNS queries to the configured resolver.
 export interface SiteContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
+    // A GET or HEAD on the host `url` names, for a file the subject delegates there; the address guard and robots.txt apply.
+    delegated(url: string, init?: ProbeInit): Promise<Probe>;
     // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;

@@ -47,6 +47,15 @@ export interface DnsClient {
     readonly canQueryDirectly: boolean;
 }
 
+// A client refusing every query, for a proxied run whose queries would bypass the proxy.
+export const PROXIED_DNS: DnsClient = {
+    canQueryDirectly: false,
+    query: async (name) => {
+        throw new Error(`DNS query for ${name} would bypass the proxy`);
+    },
+    validating: async () => false,
+};
+
 // The wire form of a cached reply, fresh until `expires`.
 export interface StoredReply {
     expires: string;

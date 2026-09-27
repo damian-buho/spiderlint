@@ -43,6 +43,7 @@ function valid(origin: string): Record<string, File> {
         "/.well-known/mcp/server-card.json": [200, JSON_TYPE, '{"name": "fixture", "version": "1.0.0"}'],
         "/.well-known/agent-skills/index.json": [200, JSON_TYPE, JSON.stringify({ $schema: "https://schemas.agentskills.io/discovery/0.2.0/schema.json", skills: [{ name: "s", type: "skill", description: "d", url: "/s/SKILL.md", digest: "sha256:0" }] })],
         "/okf/index.md": [200, "text/markdown", "---\ntype: index\nokf_version: 0.2\n---\n# Fixture\n"],
+        "/carbon.txt": [200, "text/plain", `version = "0.5"\nlast_updated = ${new Date().toISOString().slice(0, 10)}\n\n[org]\ndisclosures = [{ doc_type = "web-page", url = "${origin}/page" }]\n\n[upstream]\nservices = [{ domain = "hosting.example", service_type = "shared-hosting" }]\n`],
         "/schemamap.xml": [200, "application/xml", '<?xml version="1.0" encoding="UTF-8"?><schemamap xmlns="https://example.com/schemas/schemamap/0.1"><resource><loc>/</loc></resource></schemamap>'],
     };
 }
@@ -74,6 +75,7 @@ function broken(origin: string): Record<string, File> {
         "/.well-known/agent-skills/index.json": [200, JSON_TYPE, '{"skills": [{"name": "s"}]}'],
         "/okf/index.md": [200, "text/markdown", "# No front matter\n"],
         "/schemamap.xml": [200, "text/plain", "<urlset/>"],
+        "/.well-known/carbon.txt": [200, "text/plain", `version = "9.9"\nlast_updated = 2020-01-01\n\n[org]\ndisclosures = [{ doc_type = "blog", url = "${origin}/missing" }, { doc_type = "annual-report", url = "${origin}/", valid_until = 2021-01-01 }]\n`],
     };
 }
 

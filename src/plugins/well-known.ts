@@ -8,6 +8,9 @@ import { isJudged } from "../crawl/links.ts";
 import type { Facts, LinkFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
+import { isIP } from "node:net";
+import { checkCarbonTxt } from "./carbon-txt.ts";
+import { isSpecialUse, texts } from "./dns.ts";
 import { mediaType } from "./origin.ts";
 import { definePlugin, type Extractor, type PageContext, type SiteContext, type SiteExtractor } from "./types.ts";
 import { REGISTERED } from "./well-known-registry.ts";
@@ -17,6 +20,8 @@ interface Verdict {
     errors: string[];
     fields?: Record<string, unknown>;
     "days-left"?: number;
+    expired?: string[];
+    "age-days"?: number;
 }
 
 // The probed file a check reads.
@@ -148,6 +153,24 @@ const nodeinfo = json("object", async (data, errors, { url }, context) => {
     return { versions, ...(isObject(linked) && { version: linked.version }) };
 });
 
+// Defects of links that do not answer 2xx, crawled pages judged from the store and any other through the `probes` bucket.
+async function linkErrors(links: string[], context: SiteContext, kind: string): Promise<{ errors: string[]; probed: number }> {
+    const errors: string[] = [];
+    const statuses = new Map(context.pages.map((page) => [page.url.href, page.http.status]));
+    let probed = 0;
+    const distinct = new Set(links);
+    for (const link of distinct) {
+        const isProbed = !statuses.has(link) && /^https?:$/.test(new URL(link).protocol);
+        const answer: Omit<LinkFacts, "status"> & { status?: number } = isProbed ? await context.link(link) : { status: statuses.get(link) };
+        probed += isProbed ? 1 : 0;
+        log.debug({ link, kind, status: answer.status, isProbed }, "file link judged");
+        if (answer.status === undefined || !isJudged({ ...answer, status: answer.status })) continue;
+        if (answer.status === 0) errors.push(`${link} is unreachable: ${answer.error ?? "no answer"}`);
+        else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
+    }
+    return { errors, probed };
+}
+
 // llmstxt.org: one H1 first, and links that answer 2xx, crawled or probed through the `probes` bucket.
 const llmsTxt: Check = async (text, { url }, context) => {
     const errors: string[] = [];
@@ -156,19 +179,15 @@ const llmsTxt: Check = async (text, { url }, context) => {
     if (headings.length !== 1) errors.push(`${headings.length} H1 headings, not 1`);
     if (!lines.find((line) => line.trim() !== "")?.startsWith("# ")) errors.push("does not open with its H1");
     const links = text.matchAll(/\]\(([^)\s]+)/g).flatMap((match) => (URL.canParse(match[1] as string, url) ? [new URL(match[1] as string, url).href] : [])).toArray();
-    const statuses = new Map(context.pages.map((page) => [page.url.href, page.http.status]));
-    const distinct = new Set(links);
-    let probed = 0;
-    for (const link of distinct) {
-        const isProbed = !statuses.has(link) && /^https?:$/.test(new URL(link).protocol);
-        const answer: Omit<LinkFacts, "status"> & { status?: number } = isProbed ? await context.link(link) : { status: statuses.get(link) };
-        probed += isProbed ? 1 : 0;
-        log.debug({ link, status: answer.status, isProbed }, "llms.txt link judged");
-        if (answer.status === undefined || !isJudged({ ...answer, status: answer.status })) continue;
-        if (answer.status === 0) errors.push(`${link} is unreachable: ${answer.error ?? "no answer"}`);
-        else if (answer.status < 200 || answer.status > 299) errors.push(`${link} answers ${answer.status}`);
-    }
-    return { errors, fields: { title: headings[0]?.slice(2).trim(), links: links.length, probed } };
+    const judged = await linkErrors(links, context, "llms.txt");
+    return { errors: [...errors, ...judged.errors], fields: { title: headings[0]?.slice(2).trim(), links: links.length, probed: judged.probed } };
+};
+
+// carbontxt.org syntax, and disclosure URLs that answer 2xx.
+const carbonTxtCheck: Check = async (text, _file, context) => {
+    const { links, ...verdict } = checkCarbonTxt(text);
+    const judged = await linkErrors(links, context, "carbon.txt");
+    return { ...verdict, errors: [...verdict.errors, ...judged.errors] };
 };
 
 // Files under the RFC 8615 prefix, with the rule judging each when present.
@@ -339,11 +358,11 @@ const AGENTS: Spec[] = [
 ];
 
 // One file’s answer; a 2xx that is not an HTML page, or for an `html` file any 2xx or off-host redirect, is present and checked.
-async function probeFile(origin: string, path: string, spec: Spec, context: SiteContext): Promise<Record<string, unknown>> {
-    const url = `${origin}${path}`;
+async function probeFile(origin: string, path: string, spec: Spec, context: SiteContext, fetch = context.fetch): Promise<Record<string, unknown>> {
+    const url = URL.canParse(path) ? path : `${origin}${path}`;
     let answer: Probe;
     try {
-        answer = await context.fetch(url, { redirect: "follow" });
+        answer = await fetch(url, { redirect: "follow" });
     } catch (error) {
         if (error instanceof RobotsDisallowed) return { url, disallowed: true };
         log.debug({ url, error: reason(error) }, "well-known file unreachable");
@@ -397,6 +416,48 @@ const wellKnown: SiteExtractor = {
         const names = unregistered(origin, context);
         log.debug({ origin, present: Object.keys(files).filter((key) => files[key]?.present), required, unregistered: names }, "well-known files probed");
         return { ...files, "change-password": { ...files["change-password"], required }, unregistered: names };
+    },
+};
+
+const CARBON_TXT: Spec = { key: "carbon-txt", paths: ["/carbon.txt", "/.well-known/carbon.txt"], check: carbonTxtCheck };
+
+// URLs a host delegates its carbon.txt to: `carbon-txt-location=` TXT records, then the seed page’s `CarbonTxt-Location` header.
+async function carbonDelegations(origin: string, context: SiteContext): Promise<["dns" | "header", string][]> {
+    const host = new URL(origin).hostname.replaceAll(/^\[|\]$/g, "");
+    let records: string[] = [];
+    if (isIP(host) === 0 && !isSpecialUse(host)) {
+        try {
+            records = texts(await context.dns.query(host, "TXT")).flatMap((text) => /^carbon-txt-location=(\S+)$/i.exec(text.trim())?.[1] ?? []);
+        } catch (error) {
+            log.debug({ host, error: reason(error) }, "carbon.txt DNS delegation unread");
+        }
+    }
+    const seed = context.pages.find((page) => page.crawl["discovered-via"] === "seed") ?? context.pages[0];
+    const headers = [seed?.http.headers["carbontxt-location"] ?? []].flat();
+    const found = [...records.map((url) => ["dns", url] as const), ...headers.map((url) => ["header", url.trim()] as const)].filter(([, url]) => URL.canParse(url) && /^https?:$/.test(new URL(url).protocol));
+    log.debug({ origin, dns: records.length, header: headers.length, found: found.length }, "carbon.txt delegations read");
+    return found.map(([via, url]) => [via, url]);
+}
+
+// carbon.txt at the root, under /.well-known/, then where DNS or the seed page’s header delegates it, the first present one kept.
+const carbonTxt: SiteExtractor = {
+    id: "carbon-txt",
+    per: "origin",
+    async extract(origin, context) {
+        let first: Record<string, unknown> | undefined;
+        const direct: ["root" | "well-known", string][] = [["root", "/carbon.txt"], ["well-known", "/.well-known/carbon.txt"]];
+        for (const [via, path] of direct) {
+            const answer: Record<string, unknown> = { via, ...(await probeFile(origin, path, CARBON_TXT, context)) };
+            if (answer.present) return answer;
+            first ??= answer;
+        }
+        const delegations = await carbonDelegations(origin, context);
+        for (const [via, url] of delegations) {
+            const answer: Record<string, unknown> = { via, ...(await probeFile(origin, url, CARBON_TXT, context, context.delegated)) };
+            log.debug({ origin, via, url, present: answer.present }, "carbon.txt delegation probed");
+            if (answer.present) return answer;
+        }
+        return first;
     },
 };
 
@@ -536,14 +597,53 @@ const AGENT_RULES: Record<string, RuleSpec> = {
     },
 };
 
-// RFC 8615 files and the files agents read, probed once per origin.
+const CARBON_RULES: Record<string, RuleSpec> = {
+    "well-known/carbon-txt": {
+        fact: "site.origins.*.carbon-txt.present",
+        expect: { const: true },
+        message: "no carbon.txt discloses the site’s sustainability documents and providers",
+        severity: "info",
+        fix: "publish /carbon.txt naming your sustainability disclosures and upstream providers",
+        docs: "https://carbontxt.org/",
+    },
+    "well-known/carbon-txt-valid": {
+        fact: "site.origins.*.carbon-txt.errors",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.carbon-txt.present": true },
+        message: "carbon.txt is malformed: {got}",
+        severity: "info",
+        fix: "correct carbon.txt against syntax 0.5",
+        docs: "https://carbontxt.org/syntax",
+    },
+    "well-known/carbon-txt-expired": {
+        fact: "site.origins.*.carbon-txt.expired",
+        expect: { maxItems: 0 },
+        when: { "site.origins.*.carbon-txt.present": true },
+        message: "carbon.txt names disclosures past their valid_until: {got}",
+        severity: "info",
+        fix: "replace each expired disclosure with its current document and valid_until",
+        docs: "https://carbontxt.org/syntax",
+    },
+    "well-known/carbon-txt-stale": {
+        fact: "site.origins.*.carbon-txt.age-days",
+        expect: { maximum: 365 },
+        when: { "site.origins.*.carbon-txt.age-days": { type: "number" } },
+        message: "carbon.txt was last updated {got} days ago, more than a year",
+        severity: "info",
+        fix: "review carbon.txt and bump last_updated",
+        docs: "https://carbontxt.org/syntax",
+    },
+};
+
+// RFC 8615 files, the files agents read and carbon.txt, probed once per origin.
 export default definePlugin({
     name: "well-known",
     extractors: [markdown],
-    sites: [wellKnown, agents],
+    sites: [wellKnown, agents, carbonTxt],
     presets: {
         "well-known": { description: "Files under /.well-known/: security.txt, change-password, and every other known file that is present", rules: WELL_KNOWN_RULES },
         "well-known:security": { description: "security.txt and the change-password redirect", rules: SECURITY },
+        "carbon-txt": { description: "carbon.txt: present, valid, current, and its disclosures reachable", rules: CARBON_RULES },
         agents: { description: "Files agents read: llms.txt, per-page Markdown sources, A2A agent card, MCP server card, Agent Skills, AI catalog, OKF, schemamap", rules: AGENT_RULES },
     },
 });

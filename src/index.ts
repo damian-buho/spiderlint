@@ -20,7 +20,7 @@ import { probe } from "./crawl/probe.ts";
 import { cspFacts } from "./facts/csp.ts";
 import { robotsFacts } from "./facts/robots.ts";
 import { linkGraph } from "./facts/graph.ts";
-import { dnsClient } from "./crawl/dns.ts";
+import { dnsClient, PROXIED_DNS } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
 import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
@@ -436,7 +436,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
-    const dns = dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
+    const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules)));
     await store?.saveSite(site);
     attachResources(memory.pages, results);

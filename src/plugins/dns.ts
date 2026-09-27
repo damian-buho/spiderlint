@@ -44,7 +44,7 @@ function records<T>(reply: Reply, type: string): Data<T>[] {
 }
 
 // Each TXT record’s character-strings joined, as RFC 7208 §3.3 reads them.
-function texts(reply: Reply): string[] {
+export function texts(reply: Reply): string[] {
     return records<Buffer | Buffer[]>(reply, "TXT").map(({ data }) => (Array.isArray(data) ? data : [data]).map((chunk) => chunk.toString("utf8")).join(""));
 }
 

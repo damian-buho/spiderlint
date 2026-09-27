@@ -62,7 +62,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
     const timeout = ((extractor.timeout ?? TIMEOUT_MS) * config.timeout) / defaults().timeout;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
-    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }), ...(extractor.settings !== undefined && { settings: extractor.settings }) };
+    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }), ...(extractor.settings !== undefined && { settings: extractor.settings }) };
     const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(`timed out after ${timeout} ms`)), { once: true }));
     return Promise.race([extractor.extract(subject, context), expired]);
 }

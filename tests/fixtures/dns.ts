@@ -94,6 +94,11 @@ const ZONES: Record<string, Zone> = {
     "bogus.fixture|A": { bogus: true, answers: [{ type: "A", name: "bogus.fixture", ttl: 300, data: "192.0.2.3" }] },
 };
 
+// Adds or replaces one `name|TYPE` entry, for a record naming a port only known at run time.
+export function setZone(key: string, zone: Zone): void {
+    ZONES[key] = zone;
+}
+
 // The reply to one query, from the zone table; an unknown name is NOERROR with no answers.
 function answer(query: Packet, isTcp: boolean, isValidating: boolean): Buffer {
     const question = query.questions?.[0];

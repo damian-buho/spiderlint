@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: What a site discloses about its footprint, carbon.txt first
+extends: [spiderlint:carbon-txt]
