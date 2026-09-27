@@ -17,11 +17,11 @@ group, both crawlers side by side in one run, and `adaptive` detection per group
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
 `resources`, `browser`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
-`sarif`, `checkstyle`, `csv`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
+`sarif`, `checkstyle`, `csv`, `html`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
-extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site; the scan server with its job queue, per-domain policies and the crawl address guard. Not yet: localised messages, the `html` format and the badge.
+extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site; the scan server with its job queue, per-domain policies, repeat windows, per-client buckets, the crawl address guard, localised pages and the badge. Not yet: localised finding messages and `human` output, PDF.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
 recorded so the v1 shape does not block them.
@@ -32,7 +32,7 @@ recorded so the v1 shape does not block them.
 - Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, both side by side when groups need both
 - Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
-- Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses
+- Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses — and `html`, the renderer the server’s report page shares
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
 - External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
 - License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
@@ -489,6 +489,10 @@ Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--loc
 - Rate windows are per policy and host, a Redis `INCR` with `PEXPIRE NX`, charged after every other check so a refused request costs nothing.
 - Each scan is `src/server/scan.ts` in a child process in a temporary directory: settings on stdin, the `json` report on stdout, JSON logs on stderr, progress lines on fd 3 from `onProgress`. The worker relays progress at most once a second and kills the child at `scan-timeout`.
 - The stored result is the `json` report; every other format renders from it on download, with no pages, so `human` prints absolute URLs.
+- `jobs.ts` owns `submit`, shared by `POST /v1/jobs` and the form, in this order: admit, resolve named rules against the configured plugins (`validateRules`), repeat lookup, queue depth, client bucket, host window. A repeat costs nothing; only the host window is in Redis.
+- `web.ts` renders the form, job and badge routes with `report/html.ts`; `STYLE` and the progress script are inline and allowed by hash in `PAGE_CSP`, so a saved `--format html` file stands alone. The badge route undoes `secureHeaders`’ same-origin CORP by a middleware registered before it.
+- The worker points `spiderlint:latest:<host>` at each completed job for `retention`; the badge reads it.
+- The queue suite runs against a throwaway `kiota.ch/o9s/valkey` with `O9S_VLKY_PASSWORD` set: without one its protected mode drops connections from the published port as `EPIPE`.
 
 ## Plugins
 
@@ -560,7 +564,7 @@ export default definePlugin({
 - Scope restricts what is fetched; off-scope links are probed with `HEAD`, or `GET` when `HEAD` is refused, through the address guard.
 - DNS queries go to the configured `resolver` only, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.
 - Site and page extractor probes send `GET` or `HEAD` only and never leave their subject’s host; `context.link` alone reaches other hosts, as the off-scope link probe above. With `allowPrivate: false`, which the server sets, each socket connects only to an address its guarded lookup checked, refusing loopback, private, link-local, CGNAT and unique-local ranges; the CLI allows them, since it audits its owner’s staging hosts.
-- The same flag guards the crawl itself: `dns.lookup` is swapped for the guarded one for the run, a private address literal is refused before got or `fetch` sends a request and on every got redirect hop, and a run that needs the browser is a config error, since Chromium resolves names itself. A `fetch` redirect to an address literal is not seen; the server’s network must not route to anything it cares about.
+- The same flag guards the crawl itself: `dns.lookup` is swapped for the guarded one for the run, a private address literal is refused before got or `fetch` sends a request and on every redirect hop — `guardedFetch` follows `fetch` redirects itself while the guard is on — and a run that needs the browser is a config error, since Chromium resolves names itself. The server’s network should still route to nothing it cares about.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root. Its DevTools port opens on loopback only while a `debugging` extractor is active.
 - The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.
@@ -576,7 +580,8 @@ export default definePlugin({
 
 ## i18n
 
-- Finding messages, `human` output and `--help` are English. Later: `en`, `es`, `uk` through `gettext-parser`, as textlint-server does, selected by `--locale` and `LANG`.
+- Server pages and the `html` format are translated through `gettext-parser` (`src/i18n.ts`, catalogs in `locales/<lang>/LC_MESSAGES/messages.po`), as textlint-server does: `en`, `es`, `uk`, from `Accept-Language` or `LC_ALL`/`LC_MESSAGES`/`LANG`. A counted phrase is a label (`Pages: {count}`), never a sentence needing plural forms.
+- Finding messages, `human` output and `--help` are English. Later: the same catalogs, selected by `--locale` and `LANG`.
 - Rule IDs, fact paths and config keys are never translated.
 - Docs are typographic (`’`, `…`); anything copied into generated docs (`description:` fields, help text) follows.
 
@@ -595,10 +600,11 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters, bundled as the `report` plugin
-├── server/             # API, worker, scan runner, policy, settings file
+├── server/             # API, pages, badge, worker, scan runner, policy, client buckets, settings file
 └── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, tls-probe, images, well-known, feeds, structured-data, manifest, link-text, markup, trackers and list
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
+locales/                # es/ and uk/ gettext catalogs
 docs/                   # features.d/, es/, uk/, server.md
 .container/             # image assets, as ignorelint
 action.yaml             # composite action: one audit into a runner-side store, SARIF and a step summary from it

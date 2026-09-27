@@ -6,9 +6,10 @@ SPDX-License-Identifier: MIT
 
 # Scan server
 
-The image that runs the CLI also runs an HTTP API over a job queue. A client posts
-a URL and the settings it would pass on the command line, follows the scan’s
-progress, and downloads the report in any format. The instance owner decides,
+The image that runs the CLI also runs an HTTP API over a job queue, and a small
+site over the same API. A client posts a URL and the settings it would pass on
+the command line, follows the scan’s progress, and downloads the report in any
+format; a person types a domain into a form and reads the report as a page. The instance owner decides,
 per domain, what may be scanned, how often and how deeply.
 
 ## Modes
@@ -31,11 +32,12 @@ a stuck crawl dies with its process.
 Runtime settings live in one YAML file, `/etc/spiderlint/server.yaml` by default
 (`SPIDERLINT_SERVER_CONFIG` names another). It is read at start and polled every
 5 s: a valid edit applies to the next request, an invalid one is logged and the
-previous settings stay. `redis`, `listen` and `workers` need a restart. Without the
+previous settings stay. `redis`, `redis-password-file`, `listen` and `workers` need a restart. Without the
 file, one policy admits every host with the defaults below.
 
 ```yaml
-redis: redis://:password@valkey:6379/0
+redis: redis://valkey:6379/0
+redis-password-file: /run/secrets/o9s.vlky.password # the password, kept out of this file
 listen: { host: 0.0.0.0, port: 8080 }
 retention: 7d # jobs and reports are deleted this long after they settle
 workers: 2 # scans one worker process runs at a time
@@ -43,6 +45,9 @@ max-queued: 100 # a new job is refused with 503 while this many wait
 allow-private: false # true lets scans reach loopback and private networks, and allows the browser
 defaults: # org.spiderlint keys every scan starts from, under the request’s
   resources: { max-per-page: 50 }
+clients:
+  rate: { jobs: 10, per: 1h } # scans one client address may queue; false for no limit
+  trusted-proxies: [172.18.0.0/16] # peers whose X-Forwarded-For names the client
 policies: # the first policy whose hosts match the target wins; none matching refuses it
   - name: ru
     hosts: [ru, рф]
@@ -53,6 +58,7 @@ policies: # the first policy whose hosts match the target wins; none matching re
   - name: everyone
     hosts: ["*"]
     rate: { jobs: 10, per: 1h }
+    repeat: 30m
     caps:
       {
         max-pages: 100,
@@ -71,14 +77,15 @@ policies: # the first policy whose hosts match the target wins; none matching re
 
 A policy entry:
 
-| Key     | Meaning                                                                                                                                |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `hosts` | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host. |
-| `ban`   | `true`, or the reason the client is shown. The request is refused with `403`.                                                          |
-| `rate`  | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                            |
-| `caps`  | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `scan-timeout` to 10 minutes.    |
-| `fetch` | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                   |
-| `rules` | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.         |
+| Key      | Meaning                                                                                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hosts`  | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host.                      |
+| `ban`    | `true`, or the reason the client is shown. The request is refused with `403`.                                                                               |
+| `rate`   | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                                                 |
+| `repeat` | A request for the same URL with the same settings inside this window gets the job already queued, running or done, with `200`. Unset: every request queues. |
+| `caps`   | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `scan-timeout` to 10 minutes.                         |
+| `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                        |
+| `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                              |
 
 A request that names no rules runs `recommended`, so an `allow` list without it
 refuses such a request. Settings a request may never set: `plugins`, `sources`,
@@ -86,15 +93,24 @@ refuses such a request. Settings a request may never set: `plugins`, `sources`,
 `fail-on`, `rulesets`, `sites`, `targets`, `allow-private` and plugin keys. The
 owner may still set them under `defaults`.
 
+## Clients
+
+`clients.rate` is a token bucket per client address over job submissions, from
+the API and the form alike: `jobs` at once, refilled evenly over `per`. It
+defaults to 10 an hour. The address is the peer’s, or, while the peer is in
+`trusted-proxies`, the `X-Forwarded-For` entry it added, read right to left.
+Addresses live in the API process’s memory only, never in Redis or a log, so each
+API replica keeps its own buckets.
+
 ## API
 
-| Route                               | Answer                                                                                |
-| ----------------------------------- | ------------------------------------------------------------------------------------- |
-| `POST /v1/jobs`                     | `202` and the job, `Location` naming it                                               |
-| `GET /v1/jobs/<id>`                 | The job                                                                               |
-| `GET /v1/jobs/<id>/events`          | Server-sent events: `progress` on each change, then `done`, `failed` or `expired`     |
-| `GET /v1/jobs/<id>/report/<format>` | The report as `json`, `sarif`, `csv`, `checkstyle` or `human`; `409` until it is done |
-| `GET /healthz`                      | `status` and the queue’s counts                                                       |
+| Route                               | Answer                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| `POST /v1/jobs`                     | `202` and the job, `Location` naming it                                                       |
+| `GET /v1/jobs/<id>`                 | The job                                                                                       |
+| `GET /v1/jobs/<id>/events`          | Server-sent events: `progress` on each change, then `done`, `failed` or `expired`             |
+| `GET /v1/jobs/<id>/report/<format>` | The report as `json`, `sarif`, `csv`, `checkstyle`, `human` or `html`; `409` until it is done |
+| `GET /healthz`                      | `status` and the queue’s counts                                                               |
 
 The request body carries the target and, optionally, `org.spiderlint` keys:
 
@@ -120,7 +136,11 @@ A job:
   "progress": { "done": 12, "total": 40, "eta": [20, 45] },
   "created": "2026-09-27T09:00:00.000Z",
   "started": "2026-09-27T09:00:01.000Z",
-  "links": { "self": "/v1/jobs/0b1e…", "events": "/v1/jobs/0b1e…/events" }
+  "links": {
+    "self": "/v1/jobs/0b1e…",
+    "page": "/jobs/0b1e…",
+    "events": "/v1/jobs/0b1e…/events"
+  }
 }
 ```
 
@@ -132,23 +152,46 @@ The ID is random and unguessable; nothing lists jobs.
 A refusal is `{ "error": { "code": "…", "message": "…" } }`. Clients translate the
 `code`; the message is for logs:
 
-| Status | Code                                                                   |
-| ------ | ---------------------------------------------------------------------- |
-| `400`  | `invalid-body`, `invalid-url`, `invalid-settings`, `forbidden-setting` |
-| `403`  | `banned`, `no-policy`, `forbidden-rule`, `forbidden-fetch`             |
-| `404`  | `not-found`, `unknown-format`                                          |
-| `409`  | `not-ready`                                                            |
-| `429`  | `rate-limited`, with `Retry-After`                                     |
-| `503`  | `queue-full`, with `Retry-After`                                       |
+| Status | Code                                                                                   |
+| ------ | -------------------------------------------------------------------------------------- |
+| `400`  | `invalid-body`, `invalid-url`, `invalid-settings`, `forbidden-setting`, `unknown-rule` |
+| `403`  | `banned`, `no-policy`, `forbidden-rule`, `forbidden-fetch`                             |
+| `404`  | `not-found`, `unknown-format`                                                          |
+| `409`  | `not-ready`                                                                            |
+| `429`  | `rate-limited` (the host’s window), `client-rate-limited`, with `Retry-After`          |
+| `503`  | `queue-full`, with `Retry-After`                                                       |
+
+`unknown-rule` names a ruleset or rule ID that no configured plugin defines; it is
+checked before any window is charged.
+
+## Pages
+
+| Route                   | Page                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `GET /`                 | A form taking a domain (`https://` is assumed) or a URL                                  |
+| `POST /`                | Queues the scan and redirects to its page with `303`, or shows the form with the refusal |
+| `GET /jobs/<id>`        | Progress while queued or running, then the report, its downloads and the badge           |
+| `GET /badge/<host>.svg` | The grade of the host’s latest finished scan, linking to it; `not scanned` otherwise     |
+
+Pages are rendered on the server and work without JavaScript: a waiting page
+refreshes itself every 5 s, and with scripts it follows the job’s events instead.
+The language comes from `Accept-Language` (`en`, `es`, `uk`, English otherwise),
+with `lang` and `dir` set; finding messages and rule IDs stay as the report
+carries them. A form sent from another site (`Sec-Fetch-Site: cross-site`) is
+refused. Every page carries a content security policy allowing only its own
+style sheet and script by hash.
+
+A finished host is the badge’s for `retention`, so its latest report is public to
+anyone who knows the hostname.
 
 ## Address guard
 
 With `allow-private: false` every connection a scan makes resolves through a
 guarded lookup and refuses loopback, private, link-local, CGNAT and unique-local
 addresses, and an address literal in one of those ranges is refused before a
-request is sent. The browser resolves names itself, so it is off. The guard does
-not see a redirect `fetch` follows to an address literal, so the scan network
-should route to nothing it protects, and Redis should require a password.
+request is sent, on every redirect hop too. The browser resolves names itself,
+so it is off. Keep the scan network routed to nothing it protects anyway, and
+Redis behind a password.
 
 ## Deployment
 
@@ -161,10 +204,12 @@ services:
   spiderlint-api:
     image: kiota.ch/damian-buho/spiderlint:latest
     environment: { SPIDERLINT_MODE: api }
+    secrets: [o9s.vlky.password]
     volumes: [./server.yaml:/etc/spiderlint/server.yaml:ro]
   spiderlint-worker:
     image: kiota.ch/damian-buho/spiderlint:latest
     environment: { SPIDERLINT_MODE: worker }
+    secrets: [o9s.vlky.password]
     volumes: [./server.yaml:/etc/spiderlint/server.yaml:ro]
 ```
 
