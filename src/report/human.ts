@@ -78,7 +78,7 @@ function shortMessage(finding: Finding, origin: string): string {
 }
 
 // Page findings sharing severity, rule and message bundle together; folds and aggregates stay alone.
-function bundle(findings: Finding[]): Finding[][] {
+export function bundle(findings: Finding[]): Finding[][] {
     const bundles = new Map<string, Finding[]>();
     for (const [index, finding] of findings.entries()) {
         const isPlain = finding.occurrences === undefined && !finding.urls;

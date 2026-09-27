@@ -1,0 +1,156 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+msgid ""
+msgstr ""
+"Language: uk_UA\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "A requested rule is not available on this instance."
+msgstr "Одне з запитаних правил недоступне на цьому сервері."
+
+msgid "About {range} left"
+msgstr "Залишилося приблизно {range}"
+
+msgid "Badge"
+msgstr "Значок"
+
+msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
+msgstr "Перевіряє кожну сторінку сайту: теги для пошукових систем, заголовки безпеки, TLS, посилання тощо."
+
+msgid "Checks passed"
+msgstr "Пройдені перевірки"
+
+msgid "Downloads"
+msgstr "Завантаження"
+
+msgid "Enter a web address, such as example.com."
+msgstr "Введіть вебадресу, наприклад example.com."
+
+msgid "Error"
+msgstr "Помилка"
+
+msgid "Finding"
+msgstr "Знахідка"
+
+msgid "Info"
+msgstr "Інфо"
+
+msgid "No checks ran"
+msgstr "Жодної перевірки не виконано"
+
+msgid "No findings."
+msgstr "Знахідок немає."
+
+msgid "not scanned"
+msgstr "не перевірено"
+
+msgid "Pages"
+msgstr "Сторінки"
+
+msgid "Pages: {count}"
+msgstr "Сторінок: {count}"
+
+msgid "Pages: {count} ({share})"
+msgstr "Сторінок: {count} ({share})"
+
+msgid "Pages: {done} of {total}"
+msgstr "Сторінок: {done} з {total}"
+
+msgid "Rating"
+msgstr "Оцінка"
+
+msgid "Rating badge"
+msgstr "Значок оцінки"
+
+msgid "Rule"
+msgstr "Правило"
+
+msgid "Rulesets: {names}"
+msgstr "Набори правил: {names}"
+
+msgid "Sampled pages: {count} of {sampled} ({share})"
+msgstr "Сторінок у вибірці: {count} з {sampled} ({share})"
+
+msgid "Scan"
+msgstr "Перевірити"
+
+msgid "Scan not found"
+msgstr "Перевірку не знайдено"
+
+msgid "Scanning…"
+msgstr "Перевіряємо…"
+
+msgid "Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."
+msgstr "Перевірки дотримуються robots.txt і називають себе spiderlint. Готовий звіт публічний: до нього ведуть його посилання та значок сайту."
+
+msgid "Scans of this site are disabled on this instance."
+msgstr "Перевірки цього сайту вимкнено на цьому сервері."
+
+msgid "Severity"
+msgstr "Рівень"
+
+msgid "Site address"
+msgstr "Адреса сайту"
+
+msgid "Size"
+msgstr "Розмір"
+
+msgid "Something went wrong. Try again later."
+msgstr "Щось пішло не так. Спробуйте пізніше."
+
+msgid "spiderlint report"
+msgstr "Звіт spiderlint"
+
+msgid "spiderlint — site linter"
+msgstr "spiderlint — перевірка сайтів"
+
+msgid "Start a new scan"
+msgstr "Почати нову перевірку"
+
+msgid "The form could not be read. Try again."
+msgstr "Не вдалося прочитати форму. Спробуйте ще раз."
+
+msgid "The form was sent from another site. Open this page and try again."
+msgstr "Форму надіслано з іншого сайту. Відкрийте цю сторінку та спробуйте ще раз."
+
+msgid "The requested fetch mode is not available on this instance."
+msgstr "Запитаний режим завантаження недоступний на цьому сервері."
+
+msgid "The scan failed."
+msgstr "Перевірка не вдалася."
+
+msgid "This instance does not scan this site."
+msgstr "Цей сервер не перевіряє цей сайт."
+
+msgid "This scan does not exist or has expired."
+msgstr "Ця перевірка не існує або вже застаріла."
+
+msgid "This site was scanned recently. Try again {when}."
+msgstr "Цей сайт нещодавно перевіряли. Спробуйте ще раз {when}."
+
+msgid "Time"
+msgstr "Час"
+
+msgid "Too many scans are waiting. Try again {when}."
+msgstr "Забагато перевірок у черзі. Спробуйте ще раз {when}."
+
+msgid "Waiting in the queue…"
+msgstr "Очікує в черзі…"
+
+msgid "Warning"
+msgstr "Попередження"
+
+msgid "Whole site"
+msgstr "Весь сайт"
+
+msgid "You have started many scans. Try again {when}."
+msgstr "Ви запустили забагато перевірок. Спробуйте ще раз {when}."
+
+msgid "{count} more"
+msgstr "ще {count}"
+
+msgid "{passed} of {total}"
+msgstr "{passed} з {total}"

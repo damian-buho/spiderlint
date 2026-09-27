@@ -1,0 +1,156 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+
+msgid ""
+msgstr ""
+"Language: es_CL\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "A requested rule is not available on this instance."
+msgstr "Una de las reglas pedidas no está disponible en esta instancia."
+
+msgid "About {range} left"
+msgstr "Quedan unos {range}"
+
+msgid "Badge"
+msgstr "Insignia"
+
+msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
+msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de seguridad, TLS, enlaces y más."
+
+msgid "Checks passed"
+msgstr "Comprobaciones superadas"
+
+msgid "Downloads"
+msgstr "Descargas"
+
+msgid "Enter a web address, such as example.com."
+msgstr "Escribe una dirección web, como example.com."
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Finding"
+msgstr "Hallazgo"
+
+msgid "Info"
+msgstr "Info"
+
+msgid "No checks ran"
+msgstr "No se ejecutó ninguna comprobación"
+
+msgid "No findings."
+msgstr "Sin hallazgos."
+
+msgid "not scanned"
+msgstr "sin analizar"
+
+msgid "Pages"
+msgstr "Páginas"
+
+msgid "Pages: {count}"
+msgstr "Páginas: {count}"
+
+msgid "Pages: {count} ({share})"
+msgstr "Páginas: {count} ({share})"
+
+msgid "Pages: {done} of {total}"
+msgstr "Páginas: {done} de {total}"
+
+msgid "Rating"
+msgstr "Calificación"
+
+msgid "Rating badge"
+msgstr "Insignia de calificación"
+
+msgid "Rule"
+msgstr "Regla"
+
+msgid "Rulesets: {names}"
+msgstr "Conjuntos de reglas: {names}"
+
+msgid "Sampled pages: {count} of {sampled} ({share})"
+msgstr "Páginas de la muestra: {count} de {sampled} ({share})"
+
+msgid "Scan"
+msgstr "Analizar"
+
+msgid "Scan not found"
+msgstr "Análisis no encontrado"
+
+msgid "Scanning…"
+msgstr "Analizando…"
+
+msgid "Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."
+msgstr "Los análisis respetan robots.txt y se identifican como spiderlint. Un informe terminado es público: su enlace y la insignia del sitio llevan a él."
+
+msgid "Scans of this site are disabled on this instance."
+msgstr "Los análisis de este sitio están desactivados en esta instancia."
+
+msgid "Severity"
+msgstr "Gravedad"
+
+msgid "Site address"
+msgstr "Dirección del sitio"
+
+msgid "Size"
+msgstr "Tamaño"
+
+msgid "Something went wrong. Try again later."
+msgstr "Algo salió mal. Inténtalo más tarde."
+
+msgid "spiderlint report"
+msgstr "Informe de spiderlint"
+
+msgid "spiderlint — site linter"
+msgstr "spiderlint — revisión de sitios web"
+
+msgid "Start a new scan"
+msgstr "Iniciar un nuevo análisis"
+
+msgid "The form could not be read. Try again."
+msgstr "No se pudo leer el formulario. Inténtalo de nuevo."
+
+msgid "The form was sent from another site. Open this page and try again."
+msgstr "El formulario se envió desde otro sitio. Abre esta página e inténtalo de nuevo."
+
+msgid "The requested fetch mode is not available on this instance."
+msgstr "El modo de descarga pedido no está disponible en esta instancia."
+
+msgid "The scan failed."
+msgstr "El análisis falló."
+
+msgid "This instance does not scan this site."
+msgstr "Esta instancia no analiza este sitio."
+
+msgid "This scan does not exist or has expired."
+msgstr "Este análisis no existe o ya expiró."
+
+msgid "This site was scanned recently. Try again {when}."
+msgstr "Este sitio se analizó hace poco. Inténtalo de nuevo {when}."
+
+msgid "Time"
+msgstr "Tiempo"
+
+msgid "Too many scans are waiting. Try again {when}."
+msgstr "Hay demasiados análisis en espera. Inténtalo de nuevo {when}."
+
+msgid "Waiting in the queue…"
+msgstr "Esperando en la cola…"
+
+msgid "Warning"
+msgstr "Advertencia"
+
+msgid "Whole site"
+msgstr "Todo el sitio"
+
+msgid "You have started many scans. Try again {when}."
+msgstr "Iniciaste muchos análisis. Inténtalo de nuevo {when}."
+
+msgid "{count} more"
+msgstr "{count} más"
+
+msgid "{passed} of {total}"
+msgstr "{passed} de {total}"

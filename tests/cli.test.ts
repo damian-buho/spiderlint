@@ -87,7 +87,7 @@ describe("cli", () => {
     it("exits 2 naming a flag with an invalid value, without the whole usage", async () => {
         const run = await spiderlint(directory, "audit", "https://example.com/", "--format", "nope");
         assert.equal(run.code, 2);
-        assert.match(run.stderr, /--format: invalid value nope \(expected: human\|json\|sarif\|checkstyle\|csv\)/);
+        assert.match(run.stderr, /--format: invalid value nope \(expected: human\|json\|sarif\|checkstyle\|csv\|html\)/);
         assert.doesNotMatch(run.stderr, /Usage:/);
     });
 

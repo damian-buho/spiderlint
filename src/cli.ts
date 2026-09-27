@@ -75,7 +75,7 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json, sarif, checkstyle, csv or a plugin’s (human)
+  --format FORMAT       human, json, sarif, checkstyle, csv, html or a plugin’s (human)
   --fail-on LEVEL       error, warning, info or never (error)
   --[no-]color          force or disable color (auto)
   --[no-]progress       status line on an interactive stderr (auto)

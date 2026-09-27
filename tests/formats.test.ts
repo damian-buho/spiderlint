@@ -4,10 +4,12 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { HtmlValidate } from "html-validate";
 import { SaxesParser } from "saxes";
 import { audit, type Report } from "../src/index.ts";
 import { formatCheckstyle } from "../src/report/checkstyle.ts";
 import { formatCsv } from "../src/report/csv.ts";
+import { formatHtml } from "../src/report/html.ts";
 import type { Finding } from "../src/rules/types.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
@@ -91,5 +93,39 @@ describe("formatCheckstyle and formatCsv", () => {
     it("csv quotes commas, quotes and line breaks", () => {
         const [, row] = parseCsv(formatCsv({ findings: [TRICKY] } as Report));
         assert.deepEqual(row, ["warning", "seo/title", "page", "", TRICKY.url, TRICKY.message, "", "3:7 title <title>\n9:1 h1 <h1>"]);
+    });
+});
+
+describe("formatHtml", () => {
+    let site: Fixture;
+    let report: Report;
+
+    before(async () => {
+        site = await serveFixture();
+        report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
+    });
+
+    after(() => site.close());
+
+    it("is a valid document naming every rule that found something", async () => {
+        const html = formatHtml(report, undefined, false, "en");
+        const result = await new HtmlValidate({ extends: ["html-validate:recommended"] }).validateString(html);
+        assert.deepEqual(result.results.flatMap((file) => file.messages.map((message) => `${message.ruleId}: ${message.message}`)), []);
+        const rules = new Set(report.findings.map((finding) => finding.rule));
+        for (const rule of rules) assert.ok(html.includes(`<code>${rule}</code>`), rule);
+    });
+
+    it("escapes markup and links only http(s) URLs", () => {
+        const html = formatHtml({ ...report, pages: [], findings: [TRICKY, { ...TRICKY, url: "javascript:alert(1)" }] }, undefined, false, "en");
+        assert.ok(html.includes("says &quot;hi&quot;, twice"));
+        assert.ok(!html.includes("<&>"));
+        assert.ok(!html.includes('href="javascript:'));
+    });
+
+    it("sets lang and dir and translates its own words, never a rule ID", () => {
+        const html = formatHtml(report, undefined, false, "uk");
+        assert.match(html, /<html lang="uk" dir="ltr">/);
+        assert.ok(html.includes("Сторінки"));
+        assert.ok(html.includes(`<code>${report.findings[0]?.rule}</code>`));
     });
 });

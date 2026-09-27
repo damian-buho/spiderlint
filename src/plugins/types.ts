@@ -80,8 +80,8 @@ export interface SiteExtractor {
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 
-// A report as text; `isFull` when folding is off.
-export type Formatter = (report: Report, paint: Paint, isFull: boolean) => string;
+// A report as text; `isFull` when folding is off, `lang` the reader’s language when a formatter translates.
+export type Formatter = (report: Report, paint: Paint, isFull: boolean, lang?: string) => string;
 
 // URLs for the frontier, read from what follows `<id>:` in `sources`.
 export interface Source {
