@@ -56,6 +56,8 @@ export interface SiteContext {
     signal: AbortSignal;
     // Set when the subject is a host the crawl only links or loads, never crawled.
     linked?: true;
+    // The plugin’s validated settings, when it declares any.
+    settings?: unknown;
 }
 
 // Facts about one origin or host, run once per subject after the crawl and stored under `site.origins` or `site.hosts`.
@@ -71,6 +73,8 @@ export interface SiteExtractor {
     cached?: false;
     // Queries DNS or connects directly, which no proxy carries, so a proxied run skips it.
     resolves?: true;
+    // Set by the registry to the plugin’s validated settings, which also key the `origins` bucket.
+    settings?: unknown;
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 

@@ -196,7 +196,7 @@ export function siteExtractorsFor(rules: Rule[]): SiteExtractor[] {
         const subject = subjectPath(fact);
         return subject ? [`${subject.kind}\t${subject.id}`] : [];
     })));
-    const active = allSiteExtractors().filter((extractor) => read.has(`${extractor.per}s\t${extractor.id}`));
+    const active = plugins.flatMap((plugin) => (plugin.sites ?? []).filter((extractor) => read.has(`${extractor.per}s\t${extractor.id}`)).map((extractor) => (settings.has(plugin.name) ? { ...extractor, settings: settings.get(plugin.name) } : extractor)));
     log.debug({ extractors: active.map((extractor) => extractor.id), read: read.size }, "site extractors chosen");
     return active;
 }
