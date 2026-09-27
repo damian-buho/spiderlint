@@ -10,6 +10,7 @@ import { parseDuration } from "../cache/index.ts";
 import { ConfigError } from "../config/index.ts";
 import { describe, validateSubtree } from "../config/schema.ts";
 import { log } from "../logger.ts";
+import { PROVIDERS } from "./providers.ts";
 
 export const DEFAULT_PATH = "/etc/spiderlint/server.yaml";
 const WATCH_MS = 5000;
@@ -45,7 +46,7 @@ export interface ServerSettings {
     defaults: Record<string, unknown>;
     policies: Policy[];
     // One bucket per client address over job submissions, and the proxies whose X-Forwarded-For is believed.
-    clients: { rate?: { jobs: number; seconds: number }; trusted: BlockList };
+    clients: { rate?: { jobs: number; seconds: number }; trusted: BlockList; providers: string[] };
 }
 
 const duration = { oneOf: [{ type: "string", pattern: String.raw`^\d+[smhd]?$` }, { type: "integer", minimum: 1 }] };
@@ -64,7 +65,7 @@ const schema = {
         "max-queued": positive,
         "allow-private": { type: "boolean" },
         defaults: { type: "object" },
-        clients: { type: "object", additionalProperties: false, properties: { rate: { oneOf: [rate, { const: false }] }, "trusted-proxies": { type: "array", items: { type: "string", minLength: 1 } } } },
+        clients: { type: "object", additionalProperties: false, properties: { rate: { oneOf: [rate, { const: false }] }, "trusted-proxies": { type: "array", items: { type: "string", minLength: 1 } }, "trust-providers": { type: "array", uniqueItems: true, items: { enum: Object.keys(PROVIDERS) } } } },
         policies: {
             type: "array",
             items: {
@@ -147,7 +148,7 @@ function trustedOf(entries: string[]): BlockList {
 export function settingsOf(raw: unknown): ServerSettings {
     const document = raw ?? {};
     if (!validate(document)) throw new ConfigError((validate.errors ?? []).map((error) => describe(error, "server")).join("; "));
-    const value = document as Record<string, unknown> & { listen?: { host?: string; port?: number }; policies?: RawPolicy[]; clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[] } };
+    const value = document as Record<string, unknown> & { listen?: { host?: string; port?: number }; policies?: RawPolicy[]; clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[]; "trust-providers"?: string[] } };
     const allowPrivate = (value["allow-private"] as boolean | undefined) ?? false;
     const defaults = validateSubtree(value.defaults ?? {}, "server/defaults");
     const policies = (value.policies ?? [{ name: "default", hosts: ["*"] }]).map((policy) => policyOf(policy, allowPrivate));
@@ -163,7 +164,7 @@ export function settingsOf(raw: unknown): ServerSettings {
         allowPrivate,
         defaults,
         policies,
-        clients: { ...clientRate(value.clients?.rate), trusted: trustedOf(value.clients?.["trusted-proxies"] ?? []) },
+        clients: { ...clientRate(value.clients?.rate), trusted: trustedOf(value.clients?.["trusted-proxies"] ?? []), providers: value.clients?.["trust-providers"] ?? [] },
     };
 }
 

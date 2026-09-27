@@ -48,6 +48,7 @@ defaults: # org.spiderlint keys every scan starts from, under the request’s
 clients:
   rate: { jobs: 10, per: 1h } # scans one client address may queue; false for no limit
   trusted-proxies: [172.18.0.0/16] # peers whose X-Forwarded-For names the client
+  trust-providers: [cloudflare] # CDN edges trusted the same way: cloudflare, akamai, fastly
 policies: # the first policy whose hosts match the target wins; none matching refuses it
   - name: ru
     hosts: [ru, рф]
@@ -99,6 +100,10 @@ owner may still set them under `defaults`.
 the API and the form alike: `jobs` at once, refilled evenly over `per`. It
 defaults to 10 an hour. The address is the peer’s, or, while the peer is in
 `trusted-proxies`, the `X-Forwarded-For` entry it added, read right to left.
+Behind a CDN, `trust-providers` adds its edge ranges to that walk; they are
+fetched from the provider when the API starts and every day, and a provider
+whose fetch fails is skipped with a warning, so its edges count as clients until
+the next fetch.
 Addresses live in the API process’s memory only, never in Redis, so each
 API replica keeps its own buckets.
 

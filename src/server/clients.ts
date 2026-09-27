@@ -12,12 +12,12 @@ function plain(address: string): string {
     return /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)?.[1] ?? address;
 }
 
-function isTrusted(address: string, trusted: BlockList): boolean {
-    return isIP(address) !== 0 && trusted.check(address, isIP(address) === 6 ? "ipv6" : "ipv4");
+function isTrusted(address: string, trusted: BlockList[]): boolean {
+    return isIP(address) !== 0 && trusted.some((list) => list.check(address, isIP(address) === 6 ? "ipv6" : "ipv4"));
 }
 
 // The peer, or while the hop in hand is a trusted proxy, the X-Forwarded-For entry it added, read right to left.
-export function clientOf(peer: string, forwarded: string | undefined, trusted: BlockList): string {
+export function clientOf(peer: string, forwarded: string | undefined, trusted: BlockList[]): string {
     let client = plain(peer);
     const hops = (forwarded ?? "").split(",").map((entry) => plain(entry.trim())).toReversed();
     for (const hop of hops) {

@@ -13,15 +13,18 @@ import { negotiate } from "../i18n.ts";
 import type { Report } from "../index.ts";
 import { log } from "../logger.ts";
 import { formatNames, formatter } from "../plugins/index.ts";
+import { BlockList } from "node:net";
 import { Buckets } from "./clients.ts";
 import { clientAddress, jobOf, submit, view, type Jobs } from "./jobs.ts";
 import { Refusal } from "./policy.ts";
+import { edgeRanges } from "./providers.ts";
 import type { ScanData, ScanJob, ScanResult } from "./queue.ts";
 import type { ServerSettings } from "./settings.ts";
 import { PAGE_CSP, web } from "./web.ts";
 
 export const BODY_MAX = 64 * 1024;
 const EVENTS_MS = 1000;
+const EDGES_MS = 24 * 60 * 60 * 1000;
 
 // Media type and file extension per bundled format; a plugin’s format is plain text.
 const MEDIA: Record<string, [string, string]> = { json: ["application/json", "json"], sarif: ["application/sarif+json", "sarif"], csv: ["text/csv", "csv"], checkstyle: ["application/xml", "xml"], human: ["text/plain", "txt"], html: ["text/html", "html"] };
@@ -34,7 +37,14 @@ export function refused(c: Context, refusal: Refusal): Response {
 
 // The routes over one queue; `settings` is read per request, so a reloaded policy applies at once.
 export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: () => ServerSettings): Hono {
-    const jobs: Jobs = { queue, redis, settings, buckets: new Buckets() };
+    const jobs: Jobs = { queue, redis, settings, buckets: new Buckets(), edges: { list: new BlockList() } };
+    // CDN edge ranges, fetched now and daily, so a new edge is trusted without a restart.
+    const refresh = async () => {
+        const { providers } = settings().clients;
+        if (providers.length > 0) jobs.edges.list = await edgeRanges(providers);
+    };
+    void refresh();
+    setInterval(() => void refresh(), EDGES_MS).unref();
     const app = new Hono();
     // Registered first so it runs last: a badge may be embedded by any site.
     app.use("/badge/*", async (c, next) => {
@@ -45,11 +55,11 @@ export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: 
     app.use(async (c, next) => {
         const started = performance.now();
         await next();
-        log.info({ client: clientAddress(c, settings().clients.trusted), method: c.req.method, path: c.req.path, status: c.res.status, ms: Math.round(performance.now() - started) }, "request served");
+        log.info({ client: clientAddress(c, jobs), method: c.req.method, path: c.req.path, status: c.res.status, ms: Math.round(performance.now() - started) }, "request served");
     });
     app.onError((error, c) => {
         if (error instanceof Refusal) return refused(c, error);
-        log.error({ client: clientAddress(c, settings().clients.trusted), path: c.req.path, error: error.message }, "request failed");
+        log.error({ client: clientAddress(c, jobs), path: c.req.path, error: error.message }, "request failed");
         return c.json({ error: { code: "internal", message: "internal error" } }, 500);
     });
     app.notFound((c) => refused(c, new Refusal(404, "not-found", `${c.req.path}: no such route`)));

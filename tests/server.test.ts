@@ -5,6 +5,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
+import { BlockList } from "node:net";
 import type { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { ConfigError } from "../src/config/index.ts";
@@ -12,6 +13,7 @@ import { negotiate } from "../src/i18n.ts";
 import { api } from "../src/server/api.ts";
 import { Buckets, clientOf } from "../src/server/clients.ts";
 import { admit, policyFor, Refusal, resolveRules } from "../src/server/policy.ts";
+import { addRanges } from "../src/server/providers.ts";
 import { connect, scanQueue } from "../src/server/queue.ts";
 import { hostSuffix, settingsOf } from "../src/server/settings.ts";
 import { startWorker } from "../src/server/worker.ts";
@@ -61,13 +63,21 @@ describe("server settings", () => {
 });
 
 describe("server clients", () => {
-    const trusted = settingsOf({ clients: { "trusted-proxies": ["172.18.0.0/16", "::1"] } }).clients.trusted;
+    const trusted = [settingsOf({ clients: { "trusted-proxies": ["172.18.0.0/16", "::1"] } }).clients.trusted];
 
     it("believes X-Forwarded-For only from a trusted proxy, right to left", () => {
         assert.equal(clientOf("203.0.113.9", "198.51.100.1", trusted), "203.0.113.9");
         assert.equal(clientOf("::ffff:172.18.0.2", "10.9.9.9, 198.51.100.1", trusted), "198.51.100.1");
         assert.equal(clientOf("::1", "198.51.100.1, 172.18.0.5", trusted), "198.51.100.1");
         assert.equal(clientOf("172.18.0.2", "nonsense", trusted), "172.18.0.2");
+    });
+
+    it("walks past a trusted CDN edge to the client behind it", () => {
+        const edges = new BlockList();
+        assert.equal(addRanges(edges, "173.245.48.0/20\n2400:cb00::/32\nnot-a-range\n10.0.0.0/99\n"), 2);
+        assert.equal(clientOf("172.18.0.2", "198.51.100.7, 173.245.48.5", [...trusted, edges]), "198.51.100.7");
+        assert.equal(clientOf("172.18.0.2", "198.51.100.7, 173.245.48.5", trusted), "173.245.48.5");
+        assert.equal(addRanges(new BlockList(), '{"addresses":["23.235.32.0/20"],"ipv6_addresses":["2a04:4e40::/32"]}'), 2);
     });
 
     it("refills a bucket evenly and names the wait when it is empty", () => {
@@ -82,6 +92,8 @@ describe("server clients", () => {
         assert.deepEqual(settingsOf({}).clients.rate, { jobs: 10, seconds: 3600 });
         assert.equal(settingsOf({ clients: { rate: false } }).clients.rate, undefined);
         assert.throws(() => settingsOf({ clients: { "trusted-proxies": ["10.0.0.0/x"] } }), ConfigError);
+        assert.throws(() => settingsOf({ clients: { "trust-providers": ["bogus"] } }), ConfigError);
+        assert.deepEqual(settingsOf({ clients: { "trust-providers": ["cloudflare"] } }).clients.providers, ["cloudflare"]);
     });
 });
 
