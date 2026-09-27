@@ -167,7 +167,9 @@ TLS facts are PER PAGE, read from the connection that served that response:
 the `TLSSocket` behind the `IncomingMessage` in http mode
 (`getPeerCertificate`, `getProtocol`, `getCipher`, `alpnProtocol`,
 `authorizationError`), `response.securityDetails()` and `serverAddr()` in
-browser mode. One name can front two backends — a CDN edge for `/blog/*`, an
+browser mode. Crawlee fronts every browser with a loopback proxy, so `serverAddr()`
+is the real peer only on Chromium launched `--proxy-server=direct://` with no
+`--proxy`; Firefox, WebKit and proxied runs record no remote address. One name can front two backends — a CDN edge for `/blog/*`, an
 origin for `/app/*`, each with its own certificate, protocol and address — and
 a once-per-host probe would hide that, which is why browser mode’s handshake is keyed by host and address and trusted only on Chromium’s certificate. With keep-alive, pages sharing a
 connection share the same observation; `--no-keepalive` forces a fresh
