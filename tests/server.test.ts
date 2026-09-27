@@ -5,9 +5,13 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
+import type { Queue } from "bullmq";
+import type { Redis } from "ioredis";
 import { ConfigError } from "../src/config/index.ts";
+import { negotiate } from "../src/i18n.ts";
 import { api } from "../src/server/api.ts";
-import { admit, policyFor, Refusal } from "../src/server/policy.ts";
+import { Buckets, clientOf } from "../src/server/clients.ts";
+import { admit, policyFor, Refusal, resolveRules } from "../src/server/policy.ts";
 import { connect, scanQueue } from "../src/server/queue.ts";
 import { hostSuffix, settingsOf } from "../src/server/settings.ts";
 import { startWorker } from "../src/server/worker.ts";
@@ -56,6 +60,75 @@ describe("server settings", () => {
     });
 });
 
+describe("server clients", () => {
+    const trusted = settingsOf({ clients: { "trusted-proxies": ["172.18.0.0/16", "::1"] } }).clients.trusted;
+
+    it("believes X-Forwarded-For only from a trusted proxy, right to left", () => {
+        assert.equal(clientOf("203.0.113.9", "198.51.100.1", trusted), "203.0.113.9");
+        assert.equal(clientOf("::ffff:172.18.0.2", "10.9.9.9, 198.51.100.1", trusted), "198.51.100.1");
+        assert.equal(clientOf("::1", "198.51.100.1, 172.18.0.5", trusted), "198.51.100.1");
+        assert.equal(clientOf("172.18.0.2", "nonsense", trusted), "172.18.0.2");
+    });
+
+    it("refills a bucket evenly and names the wait when it is empty", () => {
+        const buckets = new Buckets();
+        const rate = { jobs: 2, seconds: 60 };
+        assert.deepEqual([buckets.take("a", rate, 0), buckets.take("a", rate, 0), buckets.take("a", rate, 0)], [0, 0, 30]);
+        assert.equal(buckets.take("b", rate, 0), 0);
+        assert.equal(buckets.take("a", rate, 30_000), 0);
+    });
+
+    it("defaults to ten jobs an hour, `false` turns it off, a bad network is refused", () => {
+        assert.deepEqual(settingsOf({}).clients.rate, { jobs: 10, seconds: 3600 });
+        assert.equal(settingsOf({ clients: { rate: false } }).clients.rate, undefined);
+        assert.throws(() => settingsOf({ clients: { "trusted-proxies": ["10.0.0.0/x"] } }), ConfigError);
+    });
+});
+
+describe("server language", () => {
+    it("picks the best supported language by q-value, English otherwise", () => {
+        assert.equal(negotiate("uk-UA,uk;q=0.9,en;q=0.8"), "uk");
+        assert.equal(negotiate("fr, es;q=0.5"), "es");
+        assert.equal(negotiate("de"), "en");
+        assert.equal(negotiate("es;q=0, uk;q=0.1"), "uk");
+        assert.equal(negotiate("uk_UA.UTF-8"), "uk");
+        assert.equal(negotiate(undefined), "en");
+    });
+});
+
+describe("server pages without Redis", () => {
+    const app = api({} as Queue, {} as Redis, () => SETTINGS);
+
+    it("serves the form in the reader’s language under a strict policy", async () => {
+        const response = await app.request("/", { headers: { "accept-language": "es-CL,es;q=0.9" } });
+        const html = await response.text();
+        assert.equal(response.status, 200);
+        assert.match(html, /<html lang="es" dir="ltr">/);
+        assert.ok(html.includes("Dirección del sitio"));
+        assert.match(response.headers.get("content-security-policy") ?? "", /default-src 'none'; style-src 'sha256-/);
+    });
+
+    it("shows a refusal on the form, translated, keeping what was typed", async () => {
+        const response = await app.request("/", { method: "POST", headers: { "accept-language": "uk", "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ url: "https://кремль.рф/" }).toString() });
+        const html = await response.text();
+        assert.equal(response.status, 403);
+        assert.ok(html.includes("Перевірки цього сайту вимкнено"));
+        assert.ok(html.includes('value="https://кремль.рф/"'));
+    });
+
+    it("refuses a form sent from another site", async () => {
+        const response = await app.request("/", { method: "POST", headers: { "sec-fetch-site": "cross-site", "content-type": "application/x-www-form-urlencoded" }, body: "url=example.com" });
+        assert.equal(response.status, 403);
+    });
+
+    it("draws an unscanned badge any site may embed", async () => {
+        const response = await api({} as Queue, { get: async () => "" } as unknown as Redis, () => SETTINGS).request("/badge/example.com.svg");
+        assert.equal(response.headers.get("content-type"), "image/svg+xml; charset=utf-8");
+        assert.equal(response.headers.get("cross-origin-resource-policy"), "cross-origin");
+        assert.match(await response.text(), /not scanned/);
+    });
+});
+
 describe("server policy", () => {
     it("matches the first policy whose suffix ends the host", () => {
         assert.equal(policyFor("xn--80ak6aa92e.xn--p1ai", SETTINGS.policies)?.name, "ru");
@@ -81,6 +154,15 @@ describe("server policy", () => {
         assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: { groups: { blog: { match: ["/blog/**"], rules: ["seo"] } } } }, SETTINGS)), "forbidden-rule");
     });
 
+    it("refuses an unknown rule before any window is charged, and resolves a known one", async () => {
+        await assert.rejects(resolveRules(admit({ url: "https://a.ua/", settings: { rules: ["http/nope"] } }, SETTINGS)), (error: Refusal) => error.code === "unknown-rule");
+        await assert.doesNotReject(resolveRules(admit({ url: "https://a.ua/", settings: { rules: ["seo"] } }, SETTINGS)));
+    });
+
+    it("reads a repeat window per policy", () => {
+        assert.equal(settingsOf({ policies: [{ name: "r", hosts: ["*"], repeat: "30m" }] }).policies[0]?.repeat, 1800);
+    });
+
     it("clamps to the caps, where 0 or unset is unlimited, and pins the guard", () => {
         const { settings } = admit({ url: "https://a.ua/", settings: { rules: ["seo"], "max-pages": 0, concurrency: 1 } }, SETTINGS);
         assert.deepEqual([settings["max-pages"], settings.concurrency, settings.fetch, settings.robots, settings["allow-private"]], [20, 1, "http", true, false]);
@@ -92,13 +174,15 @@ describe("server over Redis", { skip: process.env.SPIDERLINT_TEST_REDIS === unde
     let site: Fixture;
     const [redis, workerRedis] = [connect(process.env.SPIDERLINT_TEST_REDIS ?? ""), connect(process.env.SPIDERLINT_TEST_REDIS ?? "")];
     const queue = scanQueue(redis, 60);
-    const worker = startWorker(workerRedis, 1);
-    const settings = settingsOf({ "allow-private": true, policies: [{ name: "fixture", hosts: ["127.0.0.1"], rate: { jobs: 1, per: 60 }, caps: { "max-pages": 3 } }] });
+    const worker = startWorker(workerRedis, 1, 60);
+    let settings = settingsOf({ "allow-private": true, policies: [{ name: "fixture", hosts: ["127.0.0.1"], rate: { jobs: 1, per: 60 }, caps: { "max-pages": 3 } }] });
     const app = api(queue, redis, () => settings);
+    let first = "";
+    const post = async () => app.request("/v1/jobs", { method: "POST", body: JSON.stringify({ url: `${site.origin}/?client=${Date.now()}` }) });
 
     before(async () => {
         site = await serveFixture();
-        await redis.del(`spiderlint:rate:fixture:127.0.0.1`);
+        await redis.del(`spiderlint:rate:fixture:127.0.0.1`, "spiderlint:latest:127.0.0.1");
     });
 
     after(async () => {
@@ -113,6 +197,7 @@ describe("server over Redis", { skip: process.env.SPIDERLINT_TEST_REDIS === unde
         const created = await app.request("/v1/jobs", { method: "POST", body: JSON.stringify({ url: `${site.origin}/`, settings: { rules: ["seo"] } }) });
         assert.equal(created.status, 202);
         const { id } = (await created.json()) as { id: string };
+        first = id;
         let job: { status: string; progress?: { done: number }; summary?: { pages: number } } = { status: "queued" };
         for (let tries = 0; tries < 120 && !["done", "failed"].includes(job.status); tries += 1) {
             await sleep(500);
@@ -134,5 +219,43 @@ describe("server over Redis", { skip: process.env.SPIDERLINT_TEST_REDIS === unde
         const again = await app.request("/v1/jobs", { method: "POST", body: JSON.stringify({ url: `${site.origin}/` }) });
         assert.equal(again.status, 429);
         assert.ok(Number(again.headers.get("retry-after")) > 0);
+    });
+
+    it("renders the finished report page and the host’s badge linking to it", async () => {
+        const page = await app.request(`/jobs/${first}`, { headers: { "accept-language": "uk" } });
+        const html = await page.text();
+        assert.equal(page.status, 200);
+        assert.ok(html.includes("Завантаження"));
+        assert.ok(html.includes(`/v1/jobs/${first}/report/html`));
+        let svg = "";
+        for (let tries = 0; tries < 20 && !svg.includes(first); tries += 1) {
+            const response = await app.request("/badge/127.0.0.1.svg");
+            svg = await response.text();
+            await sleep(100);
+        }
+        assert.ok(svg.includes(`href="/jobs/${first}"`));
+        assert.match(svg, /<text[^>]*>[SA-F]<\/text>/);
+    });
+
+    it("returns the same job for a repeat inside the policy’s window", async () => {
+        settings = settingsOf({ "allow-private": true, policies: [{ name: "repeat", hosts: ["127.0.0.1"], repeat: "1h", caps: { "max-pages": 1 } }] });
+        const body = JSON.stringify({ url: `${site.origin}/?repeat=${Date.now()}`, settings: { rules: ["seo"] } });
+        const one = await app.request("/v1/jobs", { method: "POST", body });
+        const two = await app.request("/v1/jobs", { method: "POST", body });
+        assert.deepEqual([one.status, two.status], [202, 200]);
+        assert.equal(((await one.json()) as { id: string }).id, ((await two.json()) as { id: string }).id);
+    });
+
+    it("queues from the form and sends the reader to the job page", async () => {
+        const response = await app.request("/", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ url: `${site.origin}/?form=${Date.now()}` }).toString() });
+        assert.equal(response.status, 303);
+        assert.match(response.headers.get("location") ?? "", /^\/jobs\/[\da-f-]{36}$/);
+    });
+
+    it("refuses a client over its bucket", async () => {
+        settings = settingsOf({ "allow-private": true, clients: { rate: { jobs: 1, per: "1h" } }, policies: [{ name: "open", hosts: ["127.0.0.1"], caps: { "max-pages": 1 } }] });
+        await post();
+        const refused = await post();
+        assert.equal(refused.status, 429);
     });
 });

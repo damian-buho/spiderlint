@@ -422,6 +422,13 @@ async function withStore<T>(directory: string, mode: Parameters<typeof DiskStore
     }
 }
 
+// Throws ConfigError for a ruleset, rule ID or rule option naming nothing the configured plugins define; nothing is fetched.
+export async function validateRules(overrides: Partial<Config>): Promise<void> {
+    const config = layered([overrides]);
+    await loadPlugins(config.plugins, config.pluginSettings);
+    refuseUnknown(config, groupsOf(config));
+}
+
 export interface StoreOptions {
     store?: string;
     resume?: boolean;

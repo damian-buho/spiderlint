@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
@@ -19,18 +20,19 @@ function main(): void {
     if (!MODES.includes(mode)) throw new ConfigError(`SPIDERLINT_MODE: invalid value ${mode} (expected: ${MODES.join("|")})`);
     const path = process.env.SPIDERLINT_SERVER_CONFIG ?? DEFAULT_PATH;
     const settings = watchSettings(path);
-    const { redis: url, listen, retention, workers } = settings.current();
-    log.info({ mode, path, listen, workers }, "server starting");
+    const { redis: url, redisPasswordFile, listen, retention, workers } = settings.current();
+    const password = redisPasswordFile ? readFileSync(redisPasswordFile, "utf8").trim() : undefined;
+    log.info({ mode, path, listen, workers, redisPasswordFile }, "server starting");
     const closers: (() => Promise<unknown>)[] = [];
     if (mode !== "worker") {
-        const redis = connect(url);
+        const redis = connect(url, password);
         const queue = scanQueue(redis, retention);
         const server = serve({ fetch: api(queue, redis, settings.current).fetch, hostname: listen.host, port: listen.port }, (info) => log.info({ address: info.address, port: info.port }, "api listening"));
         closers.push(async () => new Promise((resolve) => server.close(resolve)), async () => queue.close(), async () => redis.quit());
     }
     if (mode !== "api") {
-        const redis = connect(url);
-        const worker = startWorker(redis, workers);
+        const redis = connect(url, password);
+        const worker = startWorker(redis, workers, retention);
         closers.push(async () => worker.close(), async () => redis.quit());
     }
     const stop = async (signal: string) => {

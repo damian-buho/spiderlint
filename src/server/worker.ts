@@ -10,7 +10,7 @@ import { createInterface } from "node:readline";
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { log } from "../logger.ts";
-import { PREFIX, PROGRESS_FD, QUEUE, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
+import { latestKey, PREFIX, PROGRESS_FD, QUEUE, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
 
 const RUNNER = new URL("scan.ts", import.meta.url).pathname;
 const PROGRESS_MS = 1000;
@@ -90,11 +90,18 @@ async function runScan(job: ScanJob): Promise<ScanResult> {
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as ScanResult;
 }
 
-// Takes `concurrency` scans at a time off the queue until `close`, which kills the runners in flight.
-export function startWorker(redis: Redis, concurrency: number): { close(): Promise<void> } {
+// Takes `concurrency` scans at a time off the queue until `close`, which kills the runners in flight; a finished scan becomes its host’s latest for `retention` seconds.
+export function startWorker(redis: Redis, concurrency: number, retention: number): { close(): Promise<void> } {
     const worker = new Worker<ScanData, ScanResult>(QUEUE, runScan, { connection: redis, prefix: PREFIX, concurrency });
     worker.on("failed", (job, error) => log.warn({ job: job?.id, host: job?.data.host, error: error.message }, "scan failed"));
-    worker.on("completed", (job) => log.info({ job: job.id, host: job.data.host, findings: job.returnvalue.findings.length }, "scan completed"));
+    worker.on("completed", async (job) => {
+        log.info({ job: job.id, host: job.data.host, findings: job.returnvalue.findings.length, grade: job.returnvalue.summary.rating?.grade }, "scan completed");
+        try {
+            await redis.set(latestKey(job.data.host), job.id as string, "EX", retention);
+        } catch (error) {
+            log.warn({ job: job.id, error: String(error) }, "latest scan not recorded");
+        }
+    });
     log.info({ queue: QUEUE, concurrency }, "worker started");
     return {
         async close() {

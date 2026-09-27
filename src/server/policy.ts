@@ -4,7 +4,9 @@
 
 import picomatch from "picomatch";
 import { ConfigError } from "../config/index.ts";
+import { fromSubtree } from "../config/policy.ts";
 import { validateSubtree } from "../config/schema.ts";
+import { validateRules } from "../index.ts";
 import { log } from "../logger.ts";
 import { CAPPED, type Policy, type ServerSettings } from "./settings.ts";
 
@@ -104,4 +106,15 @@ export function admit(body: unknown, server: ServerSettings): Admitted {
     const caps = Object.fromEntries(CAPPED.map((key) => [key, capped(settings[key], policy.caps[key])]).filter(([, value]) => value !== undefined));
     log.debug({ host, policy: policy.name, caps, denied: policy.rules.deny.length }, "request clamped");
     return { url, host, policy, settings: { ...settings, ...caps, robots: true, "allow-private": server.allowPrivate } };
+}
+
+// Refuses a scan naming a ruleset or rule no configured plugin defines, before any window is charged.
+export async function resolveRules(admitted: Admitted): Promise<void> {
+    try {
+        await validateRules({ ...fromSubtree(admitted.settings), seeds: [admitted.url] });
+    } catch (error) {
+        if (error instanceof ConfigError) throw new Refusal(400, "unknown-rule", error.message);
+        throw error;
+    }
+    log.debug({ host: admitted.host }, "requested rules resolved");
 }

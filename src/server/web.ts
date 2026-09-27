@@ -1,0 +1,209 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: MIT
+
+import { createHash } from "node:crypto";
+import { domainToUnicode } from "node:url";
+import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { negotiate, translator, type Translator } from "../i18n.ts";
+import { log } from "../logger.ts";
+import { formatNames } from "../plugins/index.ts";
+import type { Grade } from "../report/rating.ts";
+import { escape, page, reportBody, STYLE } from "../report/html.ts";
+import { jobOf, submit, type Jobs } from "./jobs.ts";
+import { Refusal } from "./policy.ts";
+import { latestKey, type ScanJob } from "./queue.ts";
+
+const BODY_MAX = 64 * 1024;
+const REFRESH_S = 5;
+const BADGE_MAX_AGE_S = 300;
+const GRADE_COLOR: Record<Grade | "none", string> = { S: "#1e7a34", A: "#1e7a34", B: "#8a6d00", C: "#b45d00", D: "#b45d00", E: "#b3261e", F: "#b3261e", none: "#6b6b75" };
+
+// Progress over server-sent events, for a browser that runs scripts; without them the page refreshes itself.
+const SCRIPT = String.raw`
+const status = document.querySelector("[data-events]");
+if (status && "EventSource" in window) {
+    const lang = document.documentElement.lang;
+    const numbers = new Intl.NumberFormat(lang);
+    const seconds = new Intl.NumberFormat(lang, { style: "unit", unit: "second" });
+    const fill = (template, values) => template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
+    const events = new EventSource(status.dataset.events);
+    events.addEventListener("progress", (event) => {
+        const job = JSON.parse(event.data);
+        if (job.status === "running") status.querySelector("[data-state]").textContent = status.dataset.running;
+        if (!job.progress) return;
+        const { done, total, eta } = job.progress;
+        Object.assign(status.querySelector("progress"), { max: total, value: done });
+        status.querySelector("[data-count]").textContent = fill(status.dataset.count, { done: numbers.format(done), total: numbers.format(total) });
+        status.querySelector("[data-eta]").textContent = eta ? fill(status.dataset.eta, { range: seconds.formatRange(eta[0], eta[1]) }) : "";
+    });
+    for (const name of ["done", "failed", "expired"]) events.addEventListener(name, () => { events.close(); location.reload(); });
+}
+`;
+
+const hash = (source: string) => `'sha256-${createHash("sha256").update(source).digest("base64")}'`;
+
+// The policy of every page: its own stylesheet and script, same-origin images, events and forms, nothing else.
+export const PAGE_CSP = `default-src 'none'; style-src ${hash(STYLE)}; script-src ${hash(SCRIPT)}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`;
+
+// A refusal in the reader’s words; `code` picks the sentence, the English message stays for logs.
+function refusalText(t: Translator, refusal: Refusal): string {
+    const when = refusal.retryAfter === undefined ? "" : relative(t, refusal.retryAfter);
+    const texts: Record<string, string> = {
+        "invalid-url": t._("Enter a web address, such as example.com."),
+        "invalid-body": t._("The form could not be read. Try again."),
+        "cross-site": t._("The form was sent from another site. Open this page and try again."),
+        banned: t._("Scans of this site are disabled on this instance."),
+        "no-policy": t._("This instance does not scan this site."),
+        "forbidden-rule": t._("A requested rule is not available on this instance."),
+        "unknown-rule": t._("A requested rule is not available on this instance."),
+        "forbidden-fetch": t._("The requested fetch mode is not available on this instance."),
+        "rate-limited": t._("This site was scanned recently. Try again {when}.", { when }),
+        "client-rate-limited": t._("You have started many scans. Try again {when}.", { when }),
+        "queue-full": t._("Too many scans are waiting. Try again {when}.", { when }),
+        "not-found": t._("This scan does not exist or has expired."),
+    };
+    return texts[refusal.code] ?? t._("Something went wrong. Try again later.");
+}
+
+// `seconds` from now as the reader says it: “in 5 minutes”.
+function relative(t: Translator, seconds: number): string {
+    const format = new Intl.RelativeTimeFormat(t.lang, { numeric: "auto" });
+    if (seconds < 90) return format.format(seconds, "second");
+    return seconds < 90 * 60 ? format.format(Math.round(seconds / 60), "minute") : format.format(Math.round(seconds / 3600), "hour");
+}
+
+// The seed as a reader writes it: an international domain in its own script.
+function shown(url: string): string {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${domainToUnicode(parsed.hostname) || parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}${decodeURI(parsed.pathname)}${parsed.search}`;
+}
+
+// A domain or a URL as typed, as the http(s) URL to scan; a bare domain is https.
+function seedOf(raw: unknown): string {
+    const typed = typeof raw === "string" ? raw.trim() : "";
+    return typed === "" || /^[a-z][\d+.a-z-]*:\/\//i.test(typed) ? typed : `https://${typed}`;
+}
+
+// The page in the reader’s language, never cached, under the page policy.
+function respond(c: Context, t: Translator, title: string, body: string, status: ContentfulStatusCode = 200, head = ""): Response {
+    c.header("content-security-policy", PAGE_CSP);
+    c.header("cache-control", "no-cache");
+    c.header("vary", "accept-language");
+    return c.html(page(t, title, body, head), status);
+}
+
+// The form, with the address typed and the refusal it met, if any.
+function formPage(c: Context, t: Translator, typed = "", refusal?: Refusal): Response {
+    if (refusal?.retryAfter !== undefined) c.header("retry-after", String(refusal.retryAfter));
+    const alert = refusal ? `<p class="alert" role="alert">${escape(refusalText(t, refusal))}${refusal.code === "banned" ? `<br><small>${escape(refusal.message)}</small>` : ""}</p>` : "";
+    const body = `<main><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button></form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p></main>`;
+    return respond(c, t, t._("spiderlint — site linter"), body, refusal?.status ?? 200);
+}
+
+// Where a queued or running scan stands, updated by events or, without scripts, by a refresh.
+function progressBody(t: Translator, job: ScanJob, status: string): string {
+    const { done, total, eta } = (typeof job.progress === "object" ? job.progress : {}) as { done?: number; total?: number; eta?: [number, number] };
+    const count = t._("Pages: {done} of {total}", { done: "{done}", total: "{total}" });
+    const etaText = t._("About {range} left", { range: "{range}" });
+    const seconds = new Intl.NumberFormat(t.lang, { style: "unit", unit: "second" });
+    const state = status === "running" ? t._("Scanning…") : t._("Waiting in the queue…");
+    const values = total === undefined ? "" : ` max="${total}" value="${done ?? 0}"`;
+    return `<div data-events="/v1/jobs/${escape(job.id)}/events" data-running="${escape(t._("Scanning…"))}" data-count="${escape(count)}" data-eta="${escape(etaText)}"><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${eta ? escape(t._("About {range} left", { range: seconds.formatRange(eta[0], eta[1]) })) : ""}</span></p></div>`;
+}
+
+// The report with its downloads and badge.
+function doneBody(t: Translator, job: ScanJob): string {
+    const downloads = formatNames().map((name) => `<a href="/v1/jobs/${escape(job.id)}/report/${escape(name)}">${escape(name)}</a>`).join(" · ");
+    const badge = `/badge/${escape(job.data.host)}.svg`;
+    return `${reportBody(job.returnvalue, t, shown(job.data.url))}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
+}
+
+// Pixels a badge half needs for `text` in 11px Verdana, roughly.
+function width(text: string): number {
+    return 12 + [...text].length * 7;
+}
+
+// The reader’s strings, from the request’s Accept-Language.
+function translate(c: Context): Translator {
+    return translator(negotiate(c.req.header("accept-language")));
+}
+
+// The form fields, or none when the body cannot be read.
+async function formOf(c: Context): Promise<Record<string, unknown>> {
+    try {
+        return await c.req.parseBody();
+    } catch (error) {
+        log.debug({ error: String(error) }, "form not parsed");
+        return {};
+    }
+}
+
+// An SVG badge of `value` beside the tool name, linking to `href` when opened on its own.
+function badge(value: string, color: string, href?: string): string {
+    const label = "spiderlint";
+    const [left, right] = [width(label), width(value)];
+    const text = `<rect width="${left}" height="20" fill="#3c3c44"/><rect x="${left}" width="${right}" height="20" fill="${color}"/><g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="${left / 2}" y="14">${label}</text><text x="${left + right / 2}" y="14">${escape(value)}</text></g>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${left + right}" height="20" role="img" aria-label="${escape(`${label}: ${value}`)}"><title>${escape(`${label}: ${value}`)}</title>${href ? `<a href="${escape(href)}" target="_top">${text}</a>` : text}</svg>`;
+}
+
+// The form, the job pages and the badge, rendered on the server and complete without scripts.
+export function web(jobs: Jobs): Hono {
+    const app = new Hono();
+
+    app.get("/", (c) => formPage(c, translate(c)));
+
+    app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: (c) => formPage(c, translate(c), "", new Refusal(400, "invalid-body", "form too large")) }), async (c) => {
+        const t = translate(c);
+        const form = await formOf(c);
+        const typed = typeof form.url === "string" ? form.url : "";
+        try {
+            if (c.req.header("sec-fetch-site") === "cross-site") throw new Refusal(403, "cross-site", "form sent from another site");
+            const { job, isRepeat } = await submit(jobs, { url: seedOf(typed) }, c);
+            log.debug({ job: job.id, isRepeat }, "form submitted");
+            return c.redirect(`/jobs/${job.id}`, 303);
+        } catch (error) {
+            if (!(error instanceof Refusal)) throw error;
+            log.info({ code: error.code, status: error.status }, "form refused");
+            return formPage(c, t, typed, error);
+        }
+    });
+
+    app.get("/jobs/:id", async (c) => {
+        const t = translate(c);
+        let job: ScanJob;
+        try {
+            job = await jobOf(jobs.queue, c.req.param("id"));
+        } catch (error) {
+            if (!(error instanceof Refusal)) throw error;
+            return respond(c, t, t._("Scan not found"), `<main><h1>${escape(t._("Scan not found"))}</h1><p>${escape(refusalText(t, error))}</p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, 404);
+        }
+        const state = await job.getState();
+        const title = shown(job.data.url);
+        log.debug({ job: job.id, state }, "job page rendered");
+        if (state === "completed") return respond(c, t, title, `<main>${doneBody(t, job)}<p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
+        if (state === "failed") return respond(c, t, title, `<main><h1>${escape(title)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
+        const body = `<main><h1>${escape(title)}</h1>${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
+        return respond(c, t, title, body, 200, `<noscript><meta http-equiv="refresh" content="${REFRESH_S}"></noscript>`);
+    });
+
+    app.get("/badge/:file", async (c) => {
+        const file = c.req.param("file");
+        const raw = file.endsWith(".svg") ? file.slice(0, -".svg".length).toLowerCase().replace(/\.$/, "") : "";
+        const host = raw && URL.canParse(`http://${raw}/`) ? new URL(`http://${raw}/`).hostname : "";
+        const id = host ? await jobs.redis.get(latestKey(host)) : undefined;
+        const job = id ? ((await jobs.queue.getJob(id)) as ScanJob | undefined) : undefined;
+        const grade = job?.returnvalue?.summary.rating?.grade;
+        log.debug({ host, job: id, grade }, "badge served");
+        c.header("content-type", "image/svg+xml; charset=utf-8");
+        c.header("content-security-policy", "default-src 'none'");
+        c.header("cache-control", `max-age=${BADGE_MAX_AGE_S}`);
+        c.header("vary", "accept-language");
+        const value = job ? (grade ?? "–") : translate(c)._("not scanned");
+        return c.body(badge(value, GRADE_COLOR[grade ?? "none"], job ? `/jobs/${job.id}` : undefined));
+    });
+
+    return app;
+}
