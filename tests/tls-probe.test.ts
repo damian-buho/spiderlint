@@ -68,6 +68,11 @@ describe("probed browser TLS", () => {
         // eslint-disable-next-line unicorn/prefer-https -- a plain-text page is the case under test
         assert.deepEqual(withProbe("http://a.test/", undefined, undefined, undefined), { version: "1.1" });
     });
+
+    it("prefers the measured hop, which a reused QUIC connection reports as TLS 1.3", () => {
+        assert.equal(withProbe("https://a.test/", seen, "TLS 1.3", probed, "h3").version, "3.0");
+        assert.equal(withProbe("https://a.test/", seen, "TLS 1.3", probed, "").version, "2.0");
+    });
 });
 
 // The `tls-probe` facts of `origin`, connecting to 127.0.0.1 whatever `localhost` resolves to.

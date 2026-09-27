@@ -140,12 +140,15 @@ export async function weightFacts(requests: Request[]): Promise<BrowserFacts["we
     return weight;
 }
 
-// Chromium’s TLS completed by the probe when both saw one certificate, and the HTTP version: QUIC is 3, else the probe’s ALPN, plain text 1.1.
-export function withProbe(url: string, seen: TlsFacts | undefined, security: string | undefined, probed: TlsFacts | undefined): { tls?: TlsFacts; version?: string } {
-    if (security === undefined) return { ...(seen && { tls: seen }), version: "1.1" };
+// HTTP version per protocol Chromium’s network log names.
+const HOP_VERSIONS: Record<string, string> = { h3: "3.0", h2: "2.0", "http/1.1": "1.1" };
+
+// Chromium’s TLS completed by the probe when both saw one certificate, and the HTTP version: the measured hop, else QUIC is 3, the probe’s ALPN, plain text 1.1.
+export function withProbe(url: string, seen: TlsFacts | undefined, security: string | undefined, probed: TlsFacts | undefined, hop?: string): { tls?: TlsFacts; version?: string } {
+    if (security === undefined) return { ...(seen && { tls: seen }), version: HOP_VERSIONS[hop ?? ""] ?? "1.1" };
     const isSame = probed !== undefined && (seen === undefined || (seen.cert.subject === probed.cert.subject && seen.cert["not-after"] === probed.cert["not-after"]));
-    log.debug({ url, security, isProbed: probed !== undefined, isSame, subject: seen?.cert.subject, probedSubject: probed?.cert.subject }, "probed TLS compared");
+    log.debug({ url, security, hop, isProbed: probed !== undefined, isSame, subject: seen?.cert.subject, probedSubject: probed?.cert.subject }, "probed TLS compared");
     const tls = isSame ? { ...probed, ...(seen?.protocol && { protocol: seen.protocol }) } : seen;
-    const version = security === "QUIC" ? "3.0" : isSame ? (probed.alpn === "h2" ? "2.0" : "1.1") : undefined;
+    const version = HOP_VERSIONS[hop ?? ""] ?? (security === "QUIC" ? "3.0" : isSame ? (probed.alpn === "h2" ? "2.0" : "1.1") : undefined);
     return { ...(tls && { tls }), ...(version && { version }) };
 }

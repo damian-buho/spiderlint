@@ -62,6 +62,7 @@ interface Observation {
     document?: Response;
     transport?: Promise<Transport>;
     isDownload?: true;
+    protocols: Map<string, string>;
     console: BrowserFacts["console"];
     requests: Request[];
 }
@@ -80,7 +81,7 @@ async function readTransport(response: Response): Promise<Transport> {
 
 // Listens to a page before it navigates, so a download that aborts the navigation still leaves its response behind.
 function observe(page: Page): Observation {
-    const seen: Observation = { console: { errors: [], warnings: [] }, requests: [] };
+    const seen: Observation = { protocols: new Map(), console: { errors: [], warnings: [] }, requests: [] };
     const errors = new Set<string>();
     const warnings = new Set<string>();
     page.on("response", (response) => {
@@ -105,6 +106,17 @@ function observe(page: Page): Observation {
     return seen;
 }
 
+// Records per document URL the protocol Chromium’s network log names, `h3`, `h2` or `http/1.1`; other browsers record nothing.
+async function watchProtocols(page: Page, seen: Observation): Promise<void> {
+    try {
+        const cdp = await page.context().newCDPSession(page);
+        cdp.on("Network.responseReceived", ({ type, response }) => type === "Document" && response.protocol && seen.protocols.set(response.url, response.protocol));
+        await cdp.send("Network.enable");
+    } catch (error) {
+        log.debug({ url: page.url(), error: String(error) }, "document protocol unobservable");
+    }
+}
+
 // `type/subtype` and charset of a Content-Type header; an unparsable one is its raw essence.
 function contentTypeOf(header: string | string[] | undefined): { type: string; charset?: string } {
     const raw = [header ?? ""].flat()[0] ?? "";
@@ -118,13 +130,13 @@ function contentTypeOf(header: string | string[] | undefined): { type: string; c
 }
 
 // Http and tls facts of a document response, the prober filling what Chromium does not say; `size` is what the caller could measure of its body.
-async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"], isDirect: boolean, prober?: TlsProber): Promise<Pick<Facts, "http" | "tls">> {
+async function transportFacts(observation: Observation, size: Facts["http"]["size"], timing: Facts["http"]["timing"], isDirect: boolean, prober?: TlsProber, hop?: string): Promise<Pick<Facts, "http" | "tls">> {
     const response = observation.document as Response;
     const { headers, remote: seenRemote, tls: seen, security } = await (observation.transport as Promise<Transport>);
     const remote = isDirect ? seenRemote : undefined;
     const { type, charset } = contentTypeOf(headers["content-type"]);
     const url = new URL(response.url());
-    const { tls, version } = withProbe(url.href, seen, security, await prober?.facts(url, remote?.address));
+    const { tls, version } = withProbe(url.href, seen, security, await prober?.facts(url, remote?.address), hop);
     return {
         http: {
             status: response.status(),
@@ -327,7 +339,9 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
             },
             preNavigationHooks: [
                 async ({ page, request }) => {
-                    observations.set(request, observe(page));
+                    const observation = observe(page);
+                    observations.set(request, observation);
+                    await watchProtocols(page, observation);
                     await page.addInitScript({ content: COOKIE_WRITES });
                 },
             ],
@@ -346,7 +360,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
-                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober)) };
+                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober, observation.protocols.get(response.url()))) };
                 const served = isHtml ? staticHtml(raw, url, config.scope) : undefined;
                 if (isHtml && served) {
                     const $ = await parseWithCheerio();

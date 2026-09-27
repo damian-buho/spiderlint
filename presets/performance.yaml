@@ -59,7 +59,7 @@ rules:
   http/alt-svc-h3:
     fact: http.headers.alt-svc
     expect: {type: string, pattern: "\\bh3="}
-    when: {url.protocol: "https:"}
+    when: {url.protocol: "https:", http.version: {not: {const: "3.0"}}}
     severity: info
     message: "Alt-Svc should advertise h3, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Alt-Svc
