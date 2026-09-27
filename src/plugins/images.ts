@@ -299,7 +299,7 @@ const renderedOversize = layoutRule("images/rendered-oversize", "https://web.dev
 export default definePlugin({
     name: "images",
     settings: SETTINGS,
-    extractors: [{ id: LAYOUT, mode: "browser", cost: "expensive", cached: false, extract: async (_page, _body, live) => live && ((await live.evaluate(LAYOUT_SCRIPT)) as LayoutFacts) }],
+    extractors: [{ id: LAYOUT, mode: "browser", cost: "expensive", inputs: ["resources"], extract: async (_page, _body, live) => live && ((await live.evaluate(LAYOUT_SCRIPT)) as LayoutFacts) }],
     resources: [
         { id: ID, types: ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "image/svg+xml"], extract },
         { id: TEXT, types: ["text/css", ...SCRIPTS], extract: extractText },

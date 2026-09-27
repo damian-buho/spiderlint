@@ -40,6 +40,8 @@ export interface Logged {
     headers: Record<string, string>;
     bytes: number;
     body?: Uint8Array;
+    // sha256 of the whole body, read or not.
+    digest?: string;
     ms?: number;
 }
 

@@ -19,8 +19,10 @@ export interface Extractor {
     cost?: "cheap" | "expensive";
     // Keys the `extractors` bucket; a plugin extractor without one is never cached, a bundled one is spiderlint’s version.
     version?: string;
-    // `false` runs on every crawl, for an extractor reading more than its page’s body, URL and content type.
+    // `false` runs on every crawl, for an extractor reading more than its page’s body, URL, content type and `inputs`.
     cached?: false;
+    // What else keys its entry: the `Link` header, or every body the rendered page loaded; a `browser` extractor adds the browser and its version.
+    inputs?: ("headers.link" | "resources")[];
     // Opens Chromium’s DevTools port on loopback for the run, read back through `debuggingPort(live)`.
     debugging?: true;
     extract(page: Facts, body: string, live?: Page, context?: PageContext): Promise<unknown>;

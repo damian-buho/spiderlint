@@ -214,7 +214,7 @@ const contrastEnhanced = pageRule("live/contrast-enhanced", [`${ID}.contrast.fai
 
 export default definePlugin({
     name: "live",
-    extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
+    extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
     rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize, "live/dark-contrast": darkContrast, "live/forced-icons": forcedIcons, "live/forced-opt-out": forcedOptOut, "live/contrast-more": contrastMore, "live/contrast-enhanced": contrastEnhanced },
     presets: {
         live: {

@@ -217,7 +217,7 @@ const skipLink = pageRule("keyboard/skip-link", [`${ID}.first`], (page) => {
 
 export default definePlugin({
     name: "keyboard",
-    extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
+    extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
     rules: { "keyboard/tab-walk": tabWalk, "keyboard/focus-visible": focusVisible, "keyboard/focus-obscured": focusObscured, "keyboard/forced-focus": forcedFocus, "keyboard/skip-link": skipLink },
     presets: {
         keyboard: {

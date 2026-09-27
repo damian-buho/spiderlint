@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { Page } from "playwright";
+import { loadedDigest } from "../crawl/browser.ts";
 import { VERSION } from "../agent.ts";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { ConfigError, type Config } from "../config/index.ts";
@@ -222,6 +223,15 @@ export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
     return active;
 }
 
+// What keys `extractor` beyond the body: its `inputs` and, rendered, the browser; undefined when one is unknown.
+function inputsOf(extractor: Extractor, page: Facts, live?: Page): string | undefined {
+    const browser = live?.context().browser();
+    const parts = extractor.mode === "browser" ? [browser ? `${browser.browserType().name()} ${browser.version()}` : undefined] : [];
+    const inputs = extractor.inputs ?? [];
+    for (const input of inputs) parts.push(input === "resources" ? live && loadedDigest(live) : [page.http.headers.link ?? ""].flat().join(", "));
+    return parts.includes(undefined) ? undefined : parts.join("\0");
+}
+
 // Each extractor’s facts under its ID, through `cache`, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
 export async function extract(page: Facts, body: string, active: Extractor[], cache: ExtractorCache, live?: Page, context?: PageContext): Promise<string[]> {
     const kind = `${page.http["content-type"]}${page.http.size.truncated ? " truncated" : ""}`;
@@ -234,7 +244,10 @@ export async function extract(page: Facts, body: string, active: Extractor[], ca
         try {
             progressStep(page.url.href, extractor.id);
             const running = performance.now();
-            const value = await cache.run(extractor, page.url.href, kind, body, () => extractor.extract(page, body, live, context));
+            const inputs = inputsOf(extractor, page, live);
+            if (inputs === undefined) log.debug({ url: page.url.href, extractor: extractor.id, inputs: extractor.inputs }, "extractor inputs unknown, run uncached");
+            const keyed = inputs === undefined ? { ...extractor, cached: false as const } : extractor;
+            const value = await cache.run(keyed, page.url.href, inputs ? `${kind}\0${inputs}` : kind, body, () => extractor.extract(page, body, live, context));
             log.debug({ url: page.url.href, extractor: extractor.id, ms: Math.round(performance.now() - running), isEmpty: value === undefined }, "extractor ran");
             if (value === undefined) continue;
             page[extractor.id] = value;

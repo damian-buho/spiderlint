@@ -4,6 +4,11 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { chromium, firefox, type BrowserType, type Request } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 import { ConfigError } from "../src/config/index.ts";
@@ -270,5 +275,40 @@ describe("firefox fetch", { skip: await launchFailure(firefox) }, () => {
         await site.close();
         assert.equal(report.summary.cost.browser?.name, "firefox");
         assert.ok(report.findings.some((finding) => finding.rule === "axe/image-alt"));
+    });
+});
+
+// A page loading `sheet` and nothing else.
+const styled = (sheet: string) => `<!doctype html><html lang="en"><head><title>Styled</title><link rel="icon" href="data:,"><link rel="stylesheet" href="${sheet}"></head><body><main><p>Hi</p><button>Go</button></main></body></html>`;
+
+describe("rendered extractor cache", { skip }, () => {
+    it("serves axe, keyboard and feeds from the cache while their inputs hold, and runs axe and keyboard again where a stylesheet changed", async () => {
+        const styles: Record<string, string> = { "/a.css": "p { color: #111 }", "/b.css": "p { color: #222 }" };
+        const server = createServer((request, response) => {
+            const pathname = request.url ?? "/";
+            const style = styles[pathname];
+            if (style) return response.writeHead(200, { "content-type": "text/css" }).end(style);
+            if (pathname === "/feed.xml") return response.writeHead(200, { "content-type": "application/rss+xml", link: "<https://hub.example/>; rel=hub" }).end('<?xml version="1.0"?><rss version="2.0"><channel><title>F</title><item><guid>1</guid></item></channel></rss>');
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(styled(pathname === "/one" ? "/a.css" : "/b.css"));
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        const store = await mkdtemp(path.join(tmpdir(), "spiderlint-rendered-"));
+        const options = { seeds: ["/one", "/two", "/feed.xml"].map((pathname) => `${origin}${pathname}`), maxPages: 3, sitemap: false, robots: false, fetchResources: false, groups: { default: { rules: ["axe", "keyboard", "feeds"], sample: "all" as const } } };
+        try {
+            await audit(options, { store });
+            const second = await audit(options, { store });
+            const unchanged = second.summary.cost;
+            assert.deepEqual([unchanged.extractors.axe, unchanged.extractors.keyboard, unchanged.extractors.feed], [undefined, undefined, undefined], "nothing runs again");
+            assert.deepEqual([unchanged.extractorsCached?.axe, unchanged.extractorsCached?.keyboard, unchanged.extractorsCached?.feed], [2, 2, 1]);
+            styles["/a.css"] = "p { color: #333 }";
+            const third = await audit(options, { store });
+            const restyled = third.summary.cost;
+            assert.deepEqual([restyled.extractors.axe, restyled.extractors.keyboard], [1, 1], "only the page loading the changed sheet runs again");
+            assert.deepEqual([restyled.extractorsCached?.axe, restyled.extractorsCached?.keyboard], [1, 1]);
+        } finally {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+            await rm(store, { recursive: true, force: true });
+        }
     });
 });

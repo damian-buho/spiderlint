@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { load } from "cheerio";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import { MIMEType } from "node:util";
@@ -32,10 +33,16 @@ const PORT_ARGUMENT = "--remote-debugging-port=";
 const DIRECT = "--proxy-server=direct://";
 // Each rendered page’s browser DevTools port, when an extractor asked for one.
 const ports = new WeakMap<Page, number>();
+const loaded = new WeakMap<Page, string>();
 
 // The DevTools port of the browser rendering `page`; undefined unless an active extractor is `debugging`.
 export function debuggingPort(page: Page): number | undefined {
     return ports.get(page);
+}
+
+// The digest of every sub-resource body `page` loaded; undefined when one failed, was not read, or a frame navigated.
+export function loadedDigest(page: Page): string | undefined {
+    return loaded.get(page);
 }
 
 // A loopback port free right now, for the next browser to listen on.
@@ -225,13 +232,32 @@ async function logResponses(requests: Request[], responses: Map<string, Logged>,
                 const [headers, body] = await Promise.all([response.allHeaders(), response.body()]);
                 const isKept = body.length < max && isKeptType(contentTypeOf(headers["content-type"]).type);
                 const { responseEnd } = request.timing();
-                responses.set(url, { status: response.status(), headers, bytes: body.length, ...(isKept && { body }), ...(responseEnd >= 0 && { ms: Math.round(responseEnd) }) });
+                const digest = createHash("sha256").update(body).digest("hex");
+                responses.set(url, { status: response.status(), headers, bytes: body.length, ...(isKept && { body }), digest, ...(responseEnd >= 0 && { ms: Math.round(responseEnd) }) });
             } catch (error) {
                 log.debug({ url, error: String(error) }, "browser response unreadable, fetched again later");
             }
         }),
     );
     log.debug({ finished: finished.length, logged: responses.size }, "browser responses logged");
+}
+
+// sha256 over each finished sub-request’s origin, path and body digest, sorted and distinct, so a cache-busting query or a repeated beacon keys nothing; undefined when one is unknown.
+function resourcesDigest(requests: Request[], responses: Map<string, Logged>): string | undefined {
+    const pairs = new Set<string>();
+    for (const request of requests) {
+        const isMainDocument = request.isNavigationRequest() && request.frame().parentFrame() === null;
+        if (isMainDocument || request.redirectedTo() !== null || !/^https?:/.test(request.url())) continue;
+        const url = requestedUrl(request);
+        const digest = request.isNavigationRequest() || request.failure() !== null ? undefined : responses.get(url)?.digest;
+        if (digest === undefined) {
+            log.debug({ url, failure: request.failure()?.errorText, isFrame: request.isNavigationRequest() }, "page input unknown, extractors run uncached");
+            return undefined;
+        }
+        const { origin, pathname } = new URL(url);
+        pairs.add(`${origin}${pathname} ${digest}`);
+    }
+    return createHash("sha256").update([...pairs].toSorted((a, b) => a.localeCompare(b)).join("\n")).digest("hex");
 }
 
 // The Playwright launcher for `name`; a browser other than the bundled Chromium must be installed where Playwright looks.
@@ -323,6 +349,8 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests), cookies: await scriptCookies(page) };
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
+                    const digest = resourcesDigest(observation.requests, responses);
+                    if (digest) loaded.set(page, digest);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 if (router.isDetecting(url.href)) router.detected(url.href, isHtml ? staticHtml(raw, url, config.scope) : undefined, facts.html);
