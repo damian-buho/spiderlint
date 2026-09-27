@@ -93,6 +93,29 @@ const encodings: SiteExtractor = {
     },
 };
 
+// A header’s first value, if any.
+function first(value: string | string[] | undefined): string | undefined {
+    return [value ?? []].flat()[0];
+}
+
+// The seed page, else `/`, fetched, then fetched again with the validator it answered with.
+const revalidation: SiteExtractor = {
+    id: "revalidation",
+    per: "origin",
+    async extract(origin, context) {
+        const url = context.pages.find((page) => page.crawl["discovered-via"] === "seed")?.url.href ?? `${origin}/`;
+        const answer = await context.fetch(url, { redirect: "manual" });
+        const etag = first(answer.headers.etag);
+        const modified = first(answer.headers["last-modified"]);
+        const condition: Record<string, string> | undefined = etag ? { "if-none-match": etag } : modified ? { "if-modified-since": modified } : undefined;
+        log.debug({ url, status: answer.status, etag, modified }, "validator read");
+        if (!condition || answer.status < 200 || answer.status > 299) return { url, status: answer.status };
+        const repeat = await context.fetch(url, { headers: condition, redirect: "manual" });
+        log.debug({ url, condition, status: repeat.status }, "conditional request probed");
+        return { url, status: answer.status, validator: etag ? "etag" : "last-modified", repeat: repeat.status };
+    },
+};
+
 // The answer to `/favicon.ico`.
 const favicon: SiteExtractor = {
     id: "favicon",
@@ -106,10 +129,10 @@ const favicon: SiteExtractor = {
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    sites: [notFound, entry, locale, encodings, favicon],
+    sites: [notFound, entry, locale, encodings, favicon, revalidation],
     presets: {
         origin: {
-            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon",
+            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon, revalidation",
             rules: {
                 "origin/soft-404": {
                     fact: "site.origins.*.not-found.status",
@@ -154,6 +177,15 @@ export default definePlugin({
                     message: "/favicon.ico is not an image (got {got})",
                     severity: "info",
                     docs: "https://developers.google.com/search/docs/appearance/favicon-in-search",
+                },
+                "origin/revalidation": {
+                    fact: "site.origins.*.revalidation.repeat",
+                    expect: { const: 304 },
+                    when: { "site.origins.*.revalidation.validator": { type: "string" } },
+                    message: "a conditional request for the seed page answers {got}, not 304 Not Modified",
+                    severity: "info",
+                    docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Conditional_requests",
+                    fix: "Answer a request whose If-None-Match or If-Modified-Since still matches with 304 and no body.",
                 },
             },
         },
