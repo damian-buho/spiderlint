@@ -5,6 +5,7 @@
 import type { BucketName, CacheMode } from "../cache/index.ts";
 import type { Pin } from "../crawl/resolve.ts";
 import type { Scope } from "../crawl/scope.ts";
+import { log } from "../logger.ts";
 import type { RulesetConfig, Severity } from "../rules/types.ts";
 
 export type FetchMode = "auto" | "http" | "browser" | "adaptive";
@@ -34,6 +35,10 @@ export interface Config {
     concurrency: number;
     // Requests per minute; 0 is unlimited.
     rate: number;
+    // Seconds one page may take, its navigation half of it.
+    timeout: number;
+    // A named bundle of settings over the defaults, as `PROFILES` holds; empty is none.
+    profile: string;
     // `http`, `https` or `socks*` proxy URL every request goes through; empty goes direct.
     proxy: string;
     maxPages: number;
@@ -82,6 +87,8 @@ export function defaults(): Config {
         scope: "origin",
         concurrency: 0,
         rate: 0,
+        timeout: 60,
+        profile: "",
         proxy: "",
         maxPages: 0,
         maxDepth: 0,
@@ -113,6 +120,11 @@ export function defaults(): Config {
     };
 }
 
+// Settings a profile lays over the defaults; `adaptive: false` resolves an adaptive group as `auto`.
+export const PROFILES: Record<string, Partial<Pick<Config, "concurrency" | "timeout">> & { adaptive?: false }> = {
+    tor: { concurrency: 4, timeout: 240, adaptive: false },
+};
+
 // Thrown for anything that maps to exit code 2.
 export class ConfigError extends Error {}
 
@@ -139,4 +151,17 @@ export function overlay<T extends object>(base: T, patch: Partial<T>): T {
         if (patch[key] !== undefined) merged[key] = patch[key] as T[keyof T];
     }
     return merged;
+}
+
+// `patches` over the defaults, lowest first, with the profile they name laid in between.
+export function layered(patches: Partial<Config>[]): Config {
+    const merge = (base: Config) => {
+        let merged = base;
+        for (const patch of patches) merged = overlay(merged, patch);
+        return merged;
+    };
+    const { profile } = merge(defaults());
+    const { adaptive, ...bundle } = PROFILES[profile] ?? {};
+    log.debug({ profile, bundle, adaptive }, "profile applied");
+    return merge(overlay(defaults(), bundle));
 }

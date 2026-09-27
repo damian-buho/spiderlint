@@ -11,7 +11,7 @@ import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cac
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
-import { ConfigError, originOf, overlay, defaults, proxyOf, type Config, type FailOn } from "./config/index.ts";
+import { ConfigError, PROFILES, layered, originOf, proxyOf, type Config, type FailOn } from "./config/index.ts";
 import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
@@ -46,6 +46,8 @@ Crawl:
   --scope SCOPE         origin, host or domain (origin)
   --concurrency N       pages in flight, 0 for NUMPROCS, halved in a browser, 1 beside expensive extractors (0)
   --rate N              requests per minute, 0 for no limit (0)
+  --timeout SECONDS     seconds one page may take, its navigation half of it (60)
+  --profile NAME        settings for a kind of network: tor (concurrency 4, timeout 240, no adaptive detection)
   --proxy URL           http, https or socks5h proxy for every request (none)
   --max-pages N         page limit, 0 for none (0)
   --max-depth N         link depth limit, 0 for none (0)
@@ -170,6 +172,8 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
         ...(values.scope !== undefined && { scope: pick("--scope", values.scope as string, SCOPES) }),
         ...(values.concurrency !== undefined && { concurrency: parseInteger("--concurrency", values.concurrency as string) }),
         ...(values.rate !== undefined && { rate: parseInteger("--rate", values.rate as string) }),
+        ...(values.timeout !== undefined && { timeout: parseInteger("--timeout", values.timeout as string) }),
+        ...(values.profile !== undefined && { profile: pick("--profile", values.profile as string, Object.keys(PROFILES)) }),
         ...(values.proxy !== undefined && { proxy: proxyOf("--proxy", values.proxy as string) }),
         ...(values["max-pages"] !== undefined && { maxPages: parseInteger("--max-pages", values["max-pages"] as string) }),
         ...(values["max-depth"] !== undefined && { maxDepth: parseInteger("--max-depth", values["max-depth"] as string) }),
@@ -225,6 +229,8 @@ function parseFlags(argv: string[]) {
                 scope: { type: "string" },
                 concurrency: { type: "string" },
                 rate: { type: "string" },
+                timeout: { type: "string" },
+                profile: { type: "string" },
                 proxy: { type: "string" },
                 "max-pages": { type: "string" },
                 "max-depth": { type: "string" },
@@ -283,11 +289,7 @@ async function main(argv: string[]): Promise<number> {
     try {
         const { settings: fileSettings, sites } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         // Shared settings, then the site’s patch, then environment and flags.
-        const configFor = (site: Settings): Config => {
-            let merged = overlay<Config>(defaults(), fileSettings);
-            for (const patch of [site, environmentSettings(process.env), flagSettings(values, tokens)]) merged = overlay<Config>(merged, patch);
-            return merged;
-        };
+        const configFor = (site: Settings): Config => layered([fileSettings, site, environmentSettings(process.env), flagSettings(values, tokens)]);
         const config = configFor({});
         if (command === "explain") {
             await loadPlugins(config.plugins, config.pluginSettings);

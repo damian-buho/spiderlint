@@ -150,6 +150,12 @@ describe("browser fetch", { skip }, () => {
         assert.deepEqual([posts.length, posts.filter((entry) => entry.browser).length], [5, 3], "three renders settle a group; the rest stay on http");
     });
 
+    it("skips adaptive detection under the tor profile", async () => {
+        const tor = await audit({ seeds: [`${site.origin}/`], fetch: "adaptive", profile: "tor", groups: { app: { match: ["/app/**"] }, default: {} }, rules: ["seo"], excludeUrls: ["/tmp/**"] });
+        assert.deepEqual(tor.summary.fetch, { app: "http", default: "http" });
+        assert.equal(tor.pages.filter((entry) => entry.browser).length, 0);
+    });
+
     it("records the transport of each response", async () => {
         const redirected = await audit({ seeds: [`${site.origin}/old-about`], fetch: "browser", maxPages: 1, sitemap: false });
         const facts = redirected.pages[0];

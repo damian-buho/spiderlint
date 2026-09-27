@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
-import { ConfigError } from "./index.ts";
+import { ConfigError, PROFILES } from "./index.ts";
 
 const ajv = new Ajv2020({ strictTypes: false, allErrors: true });
 
@@ -43,6 +43,8 @@ const site = {
         scope: { enum: ["origin", "host", "domain"] },
         concurrency: { type: "integer", minimum: 0 },
         rate: { type: "integer", minimum: 0 },
+        timeout: { type: "integer", minimum: 1 },
+        profile: { enum: Object.keys(PROFILES) },
         "max-pages": { type: "integer", minimum: 0 },
         "max-depth": { type: "integer", minimum: 0 },
         "max-body-size": { type: "integer", minimum: 0 },

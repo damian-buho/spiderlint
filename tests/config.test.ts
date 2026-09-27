@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ConfigError, defaults, overlay } from "../src/config/index.ts";
+import { ConfigError, defaults, layered, overlay } from "../src/config/index.ts";
 import { environmentSettings } from "../src/config/environment.ts";
 import { loadSettings } from "../src/config/policy.ts";
 import { validateSubtree } from "../src/config/schema.ts";
@@ -54,6 +54,18 @@ describe("overlay", () => {
         assert.equal(withFlags.fetch, "http");
         assert.equal(withFlags.maxPages, 20);
         assert.equal(withFlags.scope, "origin");
+    });
+});
+
+describe("layered", () => {
+    it("lays a profile over the defaults and under every patch", () => {
+        const tor = layered([{ profile: "tor" }]);
+        assert.deepEqual([tor.concurrency, tor.timeout], [4, 240]);
+        const raised = layered([{ concurrency: 8 }, environmentSettings({ SPIDERLINT_PROFILE: "tor" })]);
+        assert.deepEqual([raised.concurrency, raised.timeout], [8, 240]);
+        assert.equal(layered([]).timeout, 60);
+        assert.throws(() => environmentSettings({ SPIDERLINT_PROFILE: "i2p" }), ConfigError);
+        assert.throws(() => validateSubtree({ profile: "i2p" }), ConfigError);
     });
 });
 

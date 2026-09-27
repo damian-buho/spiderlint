@@ -472,7 +472,7 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 ```
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
-`--rate`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
+`--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--no-keepalive`, `--no-resources`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
 `--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
@@ -526,7 +526,8 @@ export default definePlugin({
 - Crawl: Crawlee’s autoscaled pool, `maxConcurrency` = `NUMPROCS` by default, browser mode halves it, and renders one page at a time when an expensive browser extractor runs, trading speed for memory; `concurrency` sets it as given, and sizes the resource, link probe and site extractor pools. `maxRequestsPerMinute` from `rate`, which also spaces every robots, sitemap, resource and probe request after it; `sameDomainDelaySecs` from `Crawl-delay`. Two crawlers side by side split `rate` and each wait twice the delay, so the site sees the pace one crawler would keep.
 - Lint from store runs extractors and rules inline, in the one process.
 - Retries: `maxRequestRetries: 3` with Crawlee’s backoff; `429` and `503` honour `Retry-After`. `retryOnBlocked` stays off — evading bot protection on someone else’s site is not this tool’s job.
-- Timeouts: `requestHandlerTimeoutSecs` 60, navigation 30. Later: `--profile tor` raises both, drops concurrency to 4, and disables adaptive detection.
+- Timeouts: `timeout` (60 s) is Crawlee’s `requestHandlerTimeoutSecs` for both crawlers, navigation half of it.
+- Profiles: `profile` (`--profile`, `SPIDERLINT_PROFILE`) lays a named bundle from `PROFILES` over the defaults and under the file, site, environment and flags, so any of those still wins. `tor` sets concurrency 4, timeout 240 and resolves an `adaptive` group as `auto`, since detection renders every page twice.
 - Keep-alive is on; `--no-keepalive` trades connection reuse for one TLS observation per page.
 
 ## Tor, I2P, unusual hosts
@@ -535,6 +536,7 @@ export default definePlugin({
 - One proxy carries every request of the run: both crawlers through Crawlee’s `proxyConfiguration`, robots, sitemaps, resources and probes through Node’s global proxy agents. `got-scraping` speaks HTTP proxies only, so a `socks*` proxy sits behind a loopback `proxy-chain` bridge, which resolves names inside the proxy. `http.remote` is dropped, since it would name the proxy. The `dns` plugin’s extractors query the resolver directly, so a proxied run skips them with one warning. A proxy and `allowPrivate: false` exclude each other: the address guard cannot see what the proxy connects to.
 - A split-horizon or staging name: `resolver` other than `system` answers every crawl lookup, and `resolve` pins one name to an address, as curl’s `--resolve` does; the port curl’s form carries is ignored, since a lookup never sees it. The run swaps `dns.lookup` while its network is open, so got, `fetch`, probes and TLS handshakes all resolve through it, `localhost` stays the system’s, and a name the resolver has no address for fails as `ENOTFOUND`. Chromium gets `--host-resolver-rules`: every pin, and each seed host as the resolver answers it before launch; any other name it resolves itself, and Firefox and WebKit get neither. A proxy resolves inside itself, so a proxied run ignores both with one warning.
 - No assumption is baked in that a site has TLS, resolvable DNS, a sitemap, or answers in under a second. Every such property is a fact a rule may require, guarded by `when`.
+- Proven against the Tor Project onion through a Tor `socks5h` proxy: pages, resources and site extractors all answer. TLS facts survive the bridge on the http crawler, which tunnels the TLS socket through `CONNECT` (protocol, cipher, ALPN, certificate, `authorized`). Browser pages carry no cipher, ALPN, SAN or HTTP version, since the TLS prober would bypass the proxy. No test crawls an `.onion`: that needs a live Tor daemon and the Tor network.
 - `Onion-Location` is captured as a header fact for the `i18n`/`redirects` presets to reason about later.
 
 ## Security

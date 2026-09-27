@@ -23,7 +23,6 @@ import type { Router } from "./route.ts";
 import { chromiumArguments } from "./resolve.ts";
 import { TlsProber } from "./tls-probe.ts";
 
-const NAVIGATION_TIMEOUT_SECS = 30;
 const SETTLE_MS = 5000;
 // Pages a browser renders before a fresh one replaces it.
 const RETIRE_AFTER_PAGES = 1000;
@@ -274,7 +273,6 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
         {
             ...frontier.options("browser", storage, proxy),
             headless: true,
-            navigationTimeoutSecs: NAVIGATION_TIMEOUT_SECS,
             maxConcurrency: openPages,
             launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? [...chromiumArguments(), ...(proxy ? [] : [DIRECT])] : [] } },
             browserPoolOptions: {

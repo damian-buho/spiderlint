@@ -186,12 +186,14 @@ export class Frontier {
     }
 
     // Crawler options every adapter passes through unchanged; crawlers running side by side split the rate.
-    options(mode: CrawlerMode, storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    options(mode: CrawlerMode, storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; requestHandlerTimeoutSecs: number; navigationTimeoutSecs: number; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
             ...(storage && { requestQueue: storage.queues[mode] }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
             // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
             sessionPoolOptions: { blockedStatusCodes: [] },
+            requestHandlerTimeoutSecs: this.#config.timeout,
+            navigationTimeoutSecs: Math.ceil(this.#config.timeout / 2),
             maxRequestsPerCrawl: this.#config.maxPages || undefined,
             maxRequestsPerMinute: this.#config.rate ? Math.max(1, Math.floor(this.#config.rate / this.#router.crawlers.length)) : undefined,
             ...(proxy && { proxyConfiguration: new ProxyConfiguration({ proxyUrls: [proxy] }) }),

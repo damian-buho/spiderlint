@@ -4,7 +4,7 @@
 
 import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
-import { ConfigError, originOf, proxyOf } from "./index.ts";
+import { ConfigError, PROFILES, originOf, proxyOf } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
 export const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
@@ -53,6 +53,8 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),
         ...(environment.SPIDERLINT_CONCURRENCY !== undefined && { concurrency: parseInteger("SPIDERLINT_CONCURRENCY", environment.SPIDERLINT_CONCURRENCY) }),
         ...(environment.SPIDERLINT_RATE !== undefined && { rate: parseInteger("SPIDERLINT_RATE", environment.SPIDERLINT_RATE) }),
+        ...(environment.SPIDERLINT_TIMEOUT !== undefined && { timeout: parseInteger("SPIDERLINT_TIMEOUT", environment.SPIDERLINT_TIMEOUT) }),
+        ...(environment.SPIDERLINT_PROFILE !== undefined && { profile: pick("SPIDERLINT_PROFILE", environment.SPIDERLINT_PROFILE, Object.keys(PROFILES)) }),
         ...(environment.SPIDERLINT_PROXY !== undefined && { proxy: proxyOf("SPIDERLINT_PROXY", environment.SPIDERLINT_PROXY) }),
         ...(environment.SPIDERLINT_MAX_PAGES !== undefined && { maxPages: parseInteger("SPIDERLINT_MAX_PAGES", environment.SPIDERLINT_MAX_PAGES) }),
         ...(environment.SPIDERLINT_MAX_DEPTH !== undefined && { maxDepth: parseInteger("SPIDERLINT_MAX_DEPTH", environment.SPIDERLINT_MAX_DEPTH) }),

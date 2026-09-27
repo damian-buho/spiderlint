@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { ConfigError, defaults, type Config, type GroupConfig } from "./config/index.ts";
+import { ConfigError, PROFILES, layered, type Config, type GroupConfig } from "./config/index.ts";
 import type { Stored } from "./cache/http.ts";
 import { ExtractorCache } from "./cache/extractors.ts";
 import { OfflineMiss, openBucket } from "./cache/index.ts";
@@ -247,8 +247,9 @@ function groupModes(config: Config): Record<string, GroupMode> {
         const pin = config.fetch === "http" || config.fetch === "browser" ? config.fetch : (group.fetch ?? config.fetch);
         const isPinnedAbove = config.fetch === "http" && (group.fetch === "browser" || group.fetch === "adaptive");
         if (pin === "http") refused.push(...readers, ...(isPinnedAbove ? [`group ${name}`] : []));
-        modes[name] = pin === "browser" || readers.length > 0 ? "browser" : pin === "adaptive" ? "adaptive" : "http";
-        log.debug({ group: name, fetch: config.fetch, pin, readers, mode: modes[name] }, "group fetch mode derived");
+        const isDetected = pin === "adaptive" && PROFILES[config.profile]?.adaptive !== false;
+        modes[name] = pin === "browser" || readers.length > 0 ? "browser" : isDetected ? "adaptive" : "http";
+        log.debug({ group: name, fetch: config.fetch, pin, profile: config.profile, readers, mode: modes[name] }, "group fetch mode derived");
     }
     if (refused.length > 0) throw new ConfigError(`fetch http cannot serve ${refused.join(", ")}; use --fetch browser or turn them off`);
     return modes;
@@ -428,7 +429,7 @@ export interface StoreOptions {
 // crawl → facts → group → rules → fold; `store` keeps everything on disk for `lint` and `report`.
 export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
     const started = new Date();
-    const config: Config = { ...defaults(), ...overrides };
+    const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
@@ -442,7 +443,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
-    const config: Config = { ...defaults(), ...overrides };
+    const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
         const { pages } = await crawlPages(config, store);
@@ -453,7 +454,7 @@ export async function crawl(overrides: Partial<Config>, directory: string, isRes
 // Rules over stored facts with no network; the report is stored for `report`.
 export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
     const started = new Date();
-    const config: Config = { ...defaults(), ...overrides };
+    const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     return withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
@@ -472,7 +473,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
 
 // Reads every seed origin’s robots.txt and sitemaps into their buckets, crawling nothing.
 export async function warmCache(overrides: Partial<Config>, directory: string): Promise<{ origins: number; sitemaps: number; urls: number }> {
-    const config: Config = { ...defaults(), ...overrides };
+    const config = layered([overrides]);
     const release = await lockStore(directory);
     const network = await openNetwork(config);
     try {
