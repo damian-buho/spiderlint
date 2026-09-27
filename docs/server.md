@@ -99,8 +99,11 @@ owner may still set them under `defaults`.
 the API and the form alike: `jobs` at once, refilled evenly over `per`. It
 defaults to 10 an hour. The address is the peer’s, or, while the peer is in
 `trusted-proxies`, the `X-Forwarded-For` entry it added, read right to left.
-Addresses live in the API process’s memory only, never in Redis or a log, so each
+Addresses live in the API process’s memory only, never in Redis, so each
 API replica keeps its own buckets.
+
+Every request is logged with `client`, the same address, so the log shows who
+asked for what; keep the log’s retention to what that needs.
 
 ## API
 

@@ -65,7 +65,7 @@ async function repeated(jobs: Jobs, key: string): Promise<ScanJob | undefined> {
 }
 
 // The address a request came from, through the proxies the settings trust.
-function clientAddress(c: Context, trusted: ServerSettings["clients"]["trusted"]): string {
+export function clientAddress(c: Context, trusted: ServerSettings["clients"]["trusted"]): string {
     const peer = (c.env as { incoming?: IncomingMessage } | undefined)?.incoming?.socket.remoteAddress ?? "";
     return clientOf(peer, c.req.header("x-forwarded-for"), trusted);
 }

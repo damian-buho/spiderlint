@@ -27,7 +27,7 @@ export function clientOf(peer: string, forwarded: string | undefined, trusted: B
     return client;
 }
 
-// Token buckets per client address, in memory only, so an address never reaches Redis or a log.
+// Token buckets per client address, in memory only, so an address never reaches Redis.
 export class Buckets {
     readonly #buckets = new Map<string, { tokens: number; at: number }>();
     #swept = 0;

@@ -14,7 +14,7 @@ import type { Report } from "../index.ts";
 import { log } from "../logger.ts";
 import { formatNames, formatter } from "../plugins/index.ts";
 import { Buckets } from "./clients.ts";
-import { jobOf, submit, view, type Jobs } from "./jobs.ts";
+import { clientAddress, jobOf, submit, view, type Jobs } from "./jobs.ts";
 import { Refusal } from "./policy.ts";
 import type { ScanData, ScanJob, ScanResult } from "./queue.ts";
 import type { ServerSettings } from "./settings.ts";
@@ -45,11 +45,11 @@ export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: 
     app.use(async (c, next) => {
         const started = performance.now();
         await next();
-        log.info({ method: c.req.method, path: c.req.path, status: c.res.status, ms: Math.round(performance.now() - started) }, "request served");
+        log.info({ client: clientAddress(c, settings().clients.trusted), method: c.req.method, path: c.req.path, status: c.res.status, ms: Math.round(performance.now() - started) }, "request served");
     });
     app.onError((error, c) => {
         if (error instanceof Refusal) return refused(c, error);
-        log.error({ path: c.req.path, error: error.message }, "request failed");
+        log.error({ client: clientAddress(c, settings().clients.trusted), path: c.req.path, error: error.message }, "request failed");
         return c.json({ error: { code: "internal", message: "internal error" } }, 500);
     });
     app.notFound((c) => refused(c, new Refusal(404, "not-found", `${c.req.path}: no such route`)));
