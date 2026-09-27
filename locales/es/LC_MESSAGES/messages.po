@@ -35,6 +35,12 @@ msgstr "Error"
 msgid "Finding"
 msgstr "Hallazgo"
 
+msgid "Hint"
+msgstr "Sugerencia"
+
+msgid "Hints: {count}"
+msgstr "Sugerencias: {count}"
+
 msgid "Info"
 msgstr "Info"
 

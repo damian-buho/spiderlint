@@ -11,7 +11,7 @@ import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cac
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
-import { ConfigError, PROFILES, layered, originOf, proxyOf, type Config, type FailOn } from "./config/index.ts";
+import { ConfigError, PROFILES, ROLES, layered, originOf, proxyOf, type Config, type FailOn } from "./config/index.ts";
 import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
@@ -60,6 +60,7 @@ Crawl:
   --no-keepalive        one connection per request
   --no-resources        skip scripts, styles, images and fonts
   --canonical-origin U  origin the pages are built for; its URLs count as the crawled one’s
+  --role ROLE           what the site is for: production, staging or development (production)
   --resolver LIST       DNS servers the crawl and the dns plugin ask, address[:port],… (system)
   --resolve PIN         connect to host[:port]:address instead of resolving host, repeatable
   --no-allow-private    refuse loopback, private and link-local addresses, and the browser
@@ -72,11 +73,13 @@ Rules:
   --error IDS           report these rules as errors
   --warning IDS         report these rules as warnings
   --info IDS            report these rules as info
+  --hint IDS            report these rules as hints, which neither grade nor fail a run
   --unfold              one finding per page and every URL and location listed
 
 Output:
   --format FORMAT       human, json, sarif, checkstyle, csv, html or a plugin’s (human)
   --fail-on LEVEL       error, warning, info or never (error)
+  --show-hints          list hints in human output, not only their count
   --[no-]color          force or disable color (auto)
   --[no-]progress       status line on an interactive stderr (auto)
   --log-level LEVEL     trace, debug, info, warn, error or silent (info)
@@ -132,10 +135,10 @@ function cacheMode(values: Record<string, unknown>): CacheMode | undefined {
     return modes[0];
 }
 
-// 1 once any finding reaches --fail-on; 3 when nothing was fetched.
+// 1 once any finding reaches --fail-on, which no hint does; 3 when nothing was fetched.
 function exitCode(report: Report, failOn: FailOn): number {
     if (report.pages.length === 0) return 3;
-    return report.findings.some((finding) => RANK[finding.severity] <= RANK[failOn]) ? 1 : 0;
+    return report.findings.some((finding) => finding.severity !== "hint" && RANK[finding.severity] <= RANK[failOn]) ? 1 : 0;
 }
 
 function groupsOf(report: Report): string {
@@ -151,10 +154,10 @@ function splitIds(raw: string): string[] {
     return raw.split(/[\s,]+/).filter((entry) => entry.length > 0);
 }
 
-type Severity = "error" | "warning" | "info";
+type Severity = "error" | "warning" | "info" | "hint";
 type Token = { kind: string; name?: string; value?: string };
 
-const SEVERITIES = new Set<string>(["error", "warning", "info"]);
+const SEVERITIES = new Set<string>(["error", "warning", "info", "hint"]);
 
 // `--error`/`--warning`/`--info` in argv order, so the last flag naming a rule wins.
 function overridesInOrder(tokens: Token[]): Record<string, Severity> {
@@ -167,6 +170,7 @@ function flagSettings(values: Record<string, unknown>, tokens: Token[]): Setting
     const overrides = overridesInOrder(tokens);
     return {
         ...(values["canonical-origin"] !== undefined && { canonicalOrigin: originOf("--canonical-origin", values["canonical-origin"] as string) }),
+        ...(values.role !== undefined && { role: pick("--role", values.role as string, ROLES) }),
         ...(values.resolver !== undefined && { resolver: parseResolver(values.resolver as string) }),
         ...(values.resolve !== undefined && { resolve: (values.resolve as string[]).map((pin) => parsePin(pin)) }),
         ...(values.fetch !== undefined && { fetch: pick("--fetch", values.fetch as string, FETCH_MODES) }),
@@ -225,6 +229,7 @@ function parseFlags(argv: string[]) {
                 offline: { type: "boolean" },
                 "older-than": { type: "string" },
                 "canonical-origin": { type: "string" },
+                role: { type: "string" },
                 resolver: { type: "string" },
                 resolve: { type: "string", multiple: true },
                 fetch: { type: "string" },
@@ -254,6 +259,8 @@ function parseFlags(argv: string[]) {
                 error: { type: "string", multiple: true },
                 warning: { type: "string", multiple: true },
                 info: { type: "string", multiple: true },
+                hint: { type: "string", multiple: true },
+                "show-hints": { type: "boolean" },
                 "log-level": { type: "string" },
                 site: { type: "string", multiple: true },
             },
@@ -377,7 +384,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
         }
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
-            console.log(format(stored, painter(process.stdout, values.color), config.fold === false));
+            console.log(format(stored, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true));
             return exitCode(stored, config.failOn);
         }
         const options = command === "audit" ? { store, resume: values.resume === true } : {};
@@ -388,7 +395,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
         }, options);
         if (command === "facts") console.log(JSON.stringify({ ...report.pages[0], site: report.site }, undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
-        else console.log(format(report, painter(process.stdout, values.color), config.fold === false));
+        else console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true));
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     }
 }

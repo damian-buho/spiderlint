@@ -41,6 +41,11 @@ async function findingsOf(directory: string, origin: string, ...flags: string[])
     return JSON.parse(run.stdout).findings as { occurrences?: number }[];
 }
 
+// An audit of `origin` under the suggestions preset, failing on info.
+function suggested(directory: string, origin: string, ...flags: string[]): Promise<Run> {
+    return spiderlint(directory, "audit", `${origin}/`, "--rules", "suggestions", "--fail-on", "info", ...flags);
+}
+
 function ruleIdsOf(run: Run): string[] {
     return (JSON.parse(run.stdout) as { id: string }[]).map((rule) => rule.id);
 }
@@ -281,5 +286,21 @@ describe("cli", () => {
         };
         assert.deepEqual(await severity("--error", "html/title-length", "--info", "html/title-length"), new Set(["info"]));
         assert.deepEqual(await severity("--info", "html/title-length", "--error", "html/title-length"), new Set(["error"]));
+    });
+
+    it("counts hints apart: no grade, no failing exit, listed with --show-hints", async () => {
+        const json = await suggested(directory, site.origin, "--format", "json", "--role", "development");
+        const { findings, summary } = JSON.parse(json.stdout) as { findings: { rule: string; severity: string }[]; summary: { checks: { total: number }; rating?: unknown } };
+        assert.equal(json.code, 0, json.stderr);
+        assert.ok(findings.length > 0 && findings.every((finding) => finding.severity === "hint"));
+        assert.ok(findings.some((finding) => finding.rule === "http/server-timing"));
+        assert.deepEqual([summary.checks.total, summary.rating], [0, undefined]);
+        const production = await suggested(directory, site.origin, "--format", "json");
+        assert.ok((JSON.parse(production.stdout) as { findings: { rule: string }[] }).findings.every((finding) => finding.rule !== "http/server-timing"));
+        const collapsed = await suggested(directory, site.origin);
+        assert.match(collapsed.stdout, /^hints \(\d+ hints\)\n {10}--show-hints lists them$/m);
+        assert.doesNotMatch(collapsed.stdout, /http\/digest/);
+        const listed = await suggested(directory, site.origin, "--show-hints");
+        assert.match(listed.stdout, /hint +http\/digest/);
     });
 });

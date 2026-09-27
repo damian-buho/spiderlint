@@ -18,7 +18,7 @@ function position(finding: Finding): string {
 }
 
 function toError(finding: Finding): string {
-    return `    <error${position(finding)} severity="${finding.severity}" message="${escapeXml(finding.message)}" source="spiderlint.${escapeXml(finding.rule)}"/>`;
+    return `    <error${position(finding)} severity="${finding.severity === "hint" ? "info" : finding.severity}" message="${escapeXml(finding.message)}" source="spiderlint.${escapeXml(finding.rule)}"/>`;
 }
 
 // Checkstyle XML: one `<file>` per URL, in first-seen order, one `<error>` per finding.

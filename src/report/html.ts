@@ -9,7 +9,7 @@ import type { Finding } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { bundle } from "./human.ts";
 
-const ORDER = { error: 0, warning: 1, info: 2 };
+const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 const LIST = 5;
 const BYTE_UNITS: [number, string][] = [
     [1e9, "gigabyte"],
@@ -39,7 +39,8 @@ table { inline-size: 100%; border-collapse: collapse; }
 th, td { text-align: start; vertical-align: top; padding: .5rem; border-block-end: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 td:nth-child(2) code { white-space: nowrap; overflow-wrap: normal; }
-.error { color: var(--error); } .warning { color: var(--warning); } .info { color: var(--info); }
+.error { color: var(--error); } .warning { color: var(--warning); } .info { color: var(--info); } .hint { color: var(--muted); }
+summary { cursor: pointer; } summary h2 { display: inline; }
 ul { margin: .25rem 0 0; padding-inline-start: 1.25rem; }
 form { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1.5rem; }
 input { flex: 1 1 20rem; font: inherit; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: .375rem; color: inherit; background: transparent; }
@@ -60,7 +61,7 @@ export function page(t: Translator, title: string, body: string, head = ""): str
 
 // Translated severity names; the rule ID beside them is never translated.
 function severityName(t: Translator, severity: Finding["severity"]): string {
-    return { error: t._("Error"), warning: t._("Warning"), info: t._("Info") }[severity];
+    return { error: t._("Error"), warning: t._("Warning"), info: t._("Info"), hint: t._("Hint") }[severity];
 }
 
 // Bytes in the largest unit they reach, in the translator’s language.
@@ -111,6 +112,11 @@ function total(label: string, value: string, tone = ""): string {
     return `<div><dt>${escape(label)}</dt><dd${tone ? ` class="${tone}"` : ""}>${escape(value)}</dd></div>`;
 }
 
+// Severity, rule and finding columns, one row per bundle.
+function table(t: Translator, findings: Finding[], origin: string): string {
+    return `<table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin)).join("")}</tbody></table>`;
+}
+
 // The rating, the totals and every finding grouped by group, site-wide ones last; findings keep their English message.
 export function reportBody(report: Pick<Report, "summary" | "findings"> & { pages?: Report["pages"] }, t: Translator, title: string): string {
     const { summary } = report;
@@ -123,18 +129,22 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
         total(t._("Size"), size(t, summary.bytes)),
         total(t._("Time"), t.number(summary.durationMs / 1000, { style: "unit", unit: "second" })),
         total(t._("Checks passed"), t._("{passed} of {total}", { passed: t.number(summary.checks.passed), total: t.number(summary.checks.total) })),
-        ...(Object.keys(ORDER) as Finding["severity"][]).map((severity) => total(severityName(t, severity), t.number(summary.findings[severity]), summary.findings[severity] > 0 ? severity : "")),
+        ...(Object.keys(ORDER) as Finding["severity"][]).map((severity) => total(severityName(t, severity), t.number(summary.findings[severity] ?? 0), (summary.findings[severity] ?? 0) > 0 ? severity : "")),
     ];
     const groups = new Map<string, Finding[]>();
+    const hints = report.findings.filter((finding) => finding.severity === "hint");
     for (const finding of report.findings) {
+        if (finding.severity === "hint") continue;
         const key = finding.scope === "site" ? "" : (finding.group as string);
         groups.set(key, [...(groups.get(key) ?? []), finding]);
     }
     const sections = [...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => {
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
         const heading = group === "" ? escape(t._("Whole site")) : `<code>${escape(group)}</code> <small>${escape(t._("Pages: {count}", { count: t.number(summary.groups[group] ?? 0) }))}</small>`;
-        return `<section><h2>${heading}</h2><table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin)).join("")}</tbody></table></section>`;
+        return `<section><h2>${heading}</h2>${table(t, findings, origin)}</section>`;
     });
+    const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
+    if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${table(t, hints.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url)), origin)}</details></section>`);
     return `${head}<dl class="totals">${totals.join("")}</dl>${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}`;
 }
 

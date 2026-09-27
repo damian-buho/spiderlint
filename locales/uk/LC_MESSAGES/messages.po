@@ -35,6 +35,12 @@ msgstr "Помилка"
 msgid "Finding"
 msgstr "Знахідка"
 
+msgid "Hint"
+msgstr "Порада"
+
+msgid "Hints: {count}"
+msgstr "Порад: {count}"
+
 msgid "Info"
 msgstr "Інфо"
 

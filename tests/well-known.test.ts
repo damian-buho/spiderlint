@@ -35,7 +35,7 @@ describe("well-known plugin", () => {
     it("passes every present file on a valid origin", async () => {
         const report = await audit({ seeds: [`${valid.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
         assert.deepEqual(rules(report), []);
-        assert.ok(report.summary.checks.total >= 20);
+        assert.ok(report.summary.checks.total >= 15, `${report.summary.checks.total} checks`);
     });
 
     it("faults every malformed file, the missing change-password and an unregistered suffix", async () => {

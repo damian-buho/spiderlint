@@ -8,8 +8,8 @@ import type { Finding } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
 import type { Grade, Rating } from "./rating.ts";
 
-const ORDER = { error: 0, warning: 1, info: 2 };
-const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yellow", info: "blue" };
+const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
+const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yellow", info: "blue", hint: "dim" };
 const LIST = 5;
 const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
@@ -20,7 +20,7 @@ const BYTE_UNITS: [number, string][] = [
     [1e3, "kilobyte"],
     [1, "byte"],
 ];
-const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
+const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
 const MINUS = "\u{2212}";
@@ -118,22 +118,29 @@ function change(now: number, before: number | undefined, paint: Paint): string {
     return before === undefined || now === before ? "" : ` ${paint(now < before ? "green" : "red", `${now < before ? MINUS : "+"}${number(Math.abs(now - before))}`)}`;
 }
 
-// The shared origin once on top, the rating under it, findings grouped by group then rule, site-wide ones last, then the totals; `isFull` lists every URL and location.
-export function formatHuman(report: Report, paint: Paint = plain, isFull = false): string {
+// Findings by severity then rule then URL, bundled.
+function listed(findings: Finding[], origin: string, paint: Paint, limit: number): string[] {
+    findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
+    return bundle(findings).flatMap((same) => (same.length > 1 ? bundled(same, origin, paint, limit) : line(same[0] as Finding, origin, paint, limit)));
+}
+
+// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, then the totals; `isFull` lists every URL and location.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false): string {
     const limit = isFull ? Infinity : LIST;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
+    const hints = report.findings.filter((finding) => finding.severity === "hint");
     for (const finding of report.findings) {
+        if (finding.severity === "hint") continue;
         const key = finding.scope === "site" ? "site" : (finding.group as string);
         groups.set(key, [...(groups.get(key) ?? []), finding]);
     }
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
-        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`);
-        findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-        for (const same of bundle(findings)) out.push(...(same.length > 1 ? bundled(same, origin, paint, limit) : line(same[0] as Finding, origin, paint, limit)));
+        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit));
     }
+    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
 }
@@ -141,7 +148,8 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
 // Pages, size, time, rules, checks, findings with their change since the last run, and the rating, one row each; findings are counted before folding.
 function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating, previous }: Report["summary"], paint: Paint): string[] {
     const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
-    const severities = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => `${findings[severity] > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
+    const shown = (Object.keys(ORDER) as Finding["severity"][]).filter((severity) => severity !== "hint" || (findings.hint ?? 0) > 0);
+    const severities = shown.map((severity) => `${(findings[severity] ?? 0) > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
     const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
         row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),

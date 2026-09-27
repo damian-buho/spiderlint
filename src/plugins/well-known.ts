@@ -514,7 +514,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         fact: "site.origins.*.agents.llms-txt.present",
         expect: { const: true },
         message: "no /llms.txt summarises the site for language models",
-        severity: "info",
+        severity: "hint",
         docs: "https://llmstxt.org/",
     },
     "well-known/llms-txt-valid": {
@@ -525,13 +525,13 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         docs: "https://llmstxt.org/#format",
     },
-    ...validity("agents", AGENTS, "info"),
+    ...validity("agents", AGENTS, "hint"),
     "well-known/markdown-source": {
         fact: "markdown.present",
         expect: { const: true },
         when: { "markdown.present": { type: "boolean" } },
         message: "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one",
-        severity: "info",
+        severity: "hint",
         docs: "https://llmstxt.org/#proposal",
     },
 };

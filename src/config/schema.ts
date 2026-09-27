@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
-import { ConfigError, PROFILES } from "./index.ts";
+import { ConfigError, PROFILES, ROLES } from "./index.ts";
 
 const ajv = new Ajv2020({ strictTypes: false, allErrors: true });
 
 const ttl = { oneOf: [{ type: "string" }, { type: "integer", minimum: 0 }] };
 const fetchMode = { enum: ["auto", "http", "browser", "adaptive"] };
-const severity = { enum: ["error", "warning", "info", "off"] };
+const severity = { enum: ["error", "warning", "info", "hint", "off"] };
 const ruleSpec = {
     type: "object",
     additionalProperties: false,
@@ -35,6 +35,7 @@ const site = {
     properties: {
         targets: { type: "array", items: { type: "string" } },
         "canonical-origin": { type: "string" },
+        role: { enum: ROLES },
         resolver: { type: "string" },
         resolve: { type: "array", items: { type: "string" } },
         rules: { type: "array", items: { type: "string" } },
@@ -75,7 +76,7 @@ const site = {
         override: {
             type: "object",
             additionalProperties: false,
-            properties: { error: { type: "array", items: { type: "string" } }, warning: { type: "array", items: { type: "string" } }, info: { type: "array", items: { type: "string" } } },
+            properties: Object.fromEntries(["error", "warning", "info", "hint"].map((level) => [level, { type: "array", items: { type: "string" } }])),
         },
         groups: {
             type: "object",

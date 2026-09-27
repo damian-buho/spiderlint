@@ -19,22 +19,22 @@ export function cell(group: string, rule: string): string {
     return `${group}\t${rule}`;
 }
 
-// One subject a rule judged, none when it had no pages; it fails on any finding above `info`.
-function judged(run: RuleRun, found: Finding[], pages = 1): void {
-    if (pages === 0) return;
+// One subject a rule judged, none when it had no pages or is a hint; it fails on any finding above `info`.
+function judged(run: RuleRun, found: Finding[], rule: Rule, pages = 1): void {
+    if (pages === 0 || rule.meta.severity === "hint") return;
     run.checks.total += 1;
     if (found.some((finding) => finding.severity === "error")) run.checks.errored += 1;
-    if (found.some((finding) => finding.severity !== "info")) run.checks.failed += 1;
+    if (found.some((finding) => finding.severity !== "info" && finding.severity !== "hint")) run.checks.failed += 1;
 }
 
 // One page rule over one group; `undefined` results are `when`-skips and do not count.
-function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleRun): void {
+function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleRun, site: SiteFacts): void {
     let applicable = 0;
     for (const page of members) {
-        const found = rule.check(page);
+        const found = rule.check(page, site);
         if (found === undefined) continue;
         applicable += 1;
-        judged(run, found);
+        judged(run, found, rule);
         run.findings.push(...found);
     }
     run.applicable.set(cell(group, rule.meta.id), applicable);
@@ -48,10 +48,10 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
         const members = pages.filter((page) => page.group === group);
         for (const rule of rules) {
             const before = run.findings.length;
-            if (isPageRule(rule)) runPageRule(rule, members, group, run);
+            if (isPageRule(rule)) runPageRule(rule, members, group, run, facts);
             else if (rule.meta.scope === "group") {
                 const found = rule.check(members, group, facts) ?? [];
-                judged(run, found, members.length);
+                judged(run, found, rule, members.length);
                 run.findings.push(...found);
             }
             else if (!site.has(rule.meta.id)) site.set(rule.meta.id, rule);
@@ -62,7 +62,7 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
         const found = rule.check(pages, undefined, facts);
         log.debug({ rule: rule.meta.id, scope: "site", pages: pages.length, findings: found?.length, isSkipped: found === undefined }, "rule ran");
         if (found === undefined) continue;
-        judged(run, found, pages.length);
+        judged(run, found, rule, pages.length);
         run.findings.push(...found);
     }
     log.debug(run.checks, "checks judged");

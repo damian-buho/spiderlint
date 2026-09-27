@@ -5,12 +5,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { robotsFacts } from "../src/facts/robots.ts";
-import type { Facts, HtmlFacts, RedirectHop } from "../src/facts/types.ts";
+import type { Facts, HtmlFacts, RedirectHop, Role } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import type { PageRule } from "../src/rules/types.ts";
 
 interface Patch {
+    role?: Role;
     status?: number;
     version?: string;
     headers?: Record<string, string>;
@@ -94,7 +95,8 @@ const FAILS: Record<string, Patch[]> = {
     "redirects/by": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }, { url: "https://site.test/b", status: 301 }] }],
     "http/coep": [{ headers: { "cross-origin-embedder-policy": "unsafe-none" } }],
     "http/digest": [{ headers: { "repr-digest": undefined as unknown as string } }],
-    "http/server-timing": [{ headers: { "server-timing": "" } }],
+    "http/server-timing": [{ role: "development", headers: { "server-timing": "" } }, { role: "staging", headers: { "server-timing": "" } }],
+    "html/noindex-staging": [{ role: "staging" }, { role: "development", meta: { robots: "nofollow" } }],
     "http/no-vary-search": [{ search: "?utm_source=x" }],
     "http/link-format": [{ headers: { link: "https://site.test/a.css; rel=preload" } }],
     "http/dictionary-format": [{ headers: { "use-as-dictionary": "id=\"v1\"" } }],
@@ -125,7 +127,9 @@ const PASSES: Record<string, Patch[]> = {
     "html/lang": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
     "html/viewport": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
     "html/theme-color-schemes": [{ meta: { "color-scheme": "light" }, html: { metas: [{ name: "theme-color", content: "#fff" }] } }, { html: { metas: [{ name: "theme-color", content: "#fff" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }] } }],
-    "html/noindex-listed": [{ meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
+    "http/server-timing": [{ headers: { "server-timing": "" } }],
+    "html/noindex-staging": [{ role: "staging", meta: { robots: "noindex" } }, { role: "staging", twin: "https://prod.test/posts/hello-world/" }],
+    "html/noindex-listed": [{ meta: { robots: "noindex" }, role: "staging" }, { meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
     "html/dir-rtl": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
     "html/charset": [{ html: { charset: { declared: "utf8", offset: 1024 } } }],
     "html/favicon": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
@@ -154,7 +158,7 @@ const PASSES: Record<string, Patch[]> = {
 };
 
 const specs = resolveRuleset("spiderlint:all", {});
-const check = (id: string, patch: Patch) => (compileRule(id, specs[id] ?? {}) as PageRule).check(page(patch)) ?? [];
+const check = (id: string, patch: Patch) => (compileRule(id, specs[id] ?? {}) as PageRule).check(page(patch), { sitemaps: [], role: patch.role ?? "production" }) ?? [];
 
 describe("presets", () => {
     it("excludes and overrides rules by ID or glob", () => {

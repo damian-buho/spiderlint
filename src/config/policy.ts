@@ -13,14 +13,17 @@ import { ConfigError, originOf, proxyOf, type Config } from "./index.ts";
 import { CORE_KEYS, validateSubtree } from "./schema.ts";
 
 const SUBTREE = "org.spiderlint";
+const LEVELS = ["error", "warning", "info", "hint"] as const;
+type Level = (typeof LEVELS)[number];
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "allowPrivate" | "resolver" | "resolve" | "pluginSettings">>;
+export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "role" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "allowPrivate" | "resolver" | "resolve" | "pluginSettings">>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.
 const KEYS: [string, keyof Settings][] = [
     ["targets", "seeds"],
+    ["role", "role"],
     ["fetch", "fetch"],
     ["browser", "browser"],
     ["scope", "scope"],
@@ -48,15 +51,13 @@ const KEYS: [string, keyof Settings][] = [
     ["allow-private", "allowPrivate"],
 ];
 
-// error, then warning, then info — a rule ID named in a later bucket wins (AGENTS.md ## Rules).
-function flattenOverride(bucket: { error?: string[]; warning?: string[]; info?: string[] }): Settings["overrides"] {
-    const overrides: Record<string, "error" | "warning" | "info"> = {};
-    const errorIds = bucket.error ?? [];
-    const warningIds = bucket.warning ?? [];
-    const infoIds = bucket.info ?? [];
-    for (const id of errorIds) overrides[id] = "error";
-    for (const id of warningIds) overrides[id] = "warning";
-    for (const id of infoIds) overrides[id] = "info";
+// error, then warning, then info, then hint — a rule ID named in a later bucket wins (AGENTS.md ## Rules).
+function flattenOverride(bucket: Partial<Record<Level, string[]>>): Settings["overrides"] {
+    const overrides: Record<string, Level> = {};
+    for (const level of LEVELS) {
+        const ids = bucket[level] ?? [];
+        for (const id of ids) overrides[id] = level;
+    }
     return overrides;
 }
 
@@ -94,7 +95,7 @@ export function fromSubtree(subtree: Record<string, unknown>): Settings {
     if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);
     const failureTtl = (subtree.cache as { resources?: { "failure-ttl"?: string | number } } | undefined)?.resources?.["failure-ttl"];
     if (failureTtl !== undefined) settings.cacheFailureTtl = seconds("resources/failure-ttl", failureTtl);
-    if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as { error?: string[]; warning?: string[]; info?: string[] });
+    if (subtree.override !== undefined) settings.overrides = flattenOverride(subtree.override as Partial<Record<Level, string[]>>);
     const plugins = Object.entries(subtree).filter(([key]) => !CORE_KEYS.has(key));
     if (plugins.length > 0) settings.pluginSettings = Object.fromEntries(plugins);
     return settings;

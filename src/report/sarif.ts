@@ -7,7 +7,7 @@ import type { Report } from "../index.ts";
 import type { Finding, Severity } from "../rules/types.ts";
 
 const SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json";
-const LEVEL: Record<Exclude<Severity, "off">, string> = { error: "error", warning: "warning", info: "note" };
+const LEVEL: Record<Exclude<Severity, "off">, string> = { error: "error", warning: "warning", info: "note", hint: "none" };
 
 function location(uri: string) {
     return { physicalLocation: { artifactLocation: { uri } } };

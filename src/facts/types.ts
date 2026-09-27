@@ -75,8 +75,12 @@ export interface RobotsFileFacts {
     "content-signals": ContentSignalFacts[];
 }
 
+// What the audited site is for; set from the config on every lint.
+export type Role = "production" | "staging" | "development";
+
 // Facts about the site rather than any one page, read by group and site rules.
 export interface SiteFacts {
+    role?: Role;
     sitemaps: SitemapFileFacts[];
     robots?: RobotsFileFacts[];
     redirects?: Record<string, string>;

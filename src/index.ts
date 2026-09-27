@@ -126,7 +126,7 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         bytes: pages.reduce((sum, page) => sum + page.http.size.body, 0),
         groups: tally(pages.map((page) => page.group)),
         statuses: Object.fromEntries(Object.entries(statuses).toSorted(([a], [b]) => Number(a) - Number(b))),
-        findings: { total: run.findings.length, error: severities.error ?? 0, warning: severities.warning ?? 0, info: severities.info ?? 0 },
+        findings: { total: run.findings.length, error: severities.error ?? 0, warning: severities.warning ?? 0, info: severities.info ?? 0, hint: severities.hint ?? 0 },
         rules: rules.length,
         byRule,
         checks,
@@ -144,7 +144,7 @@ function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
     const isComparable = last !== undefined && missing.length === 0 && last.crawlHash === manifest.configHash;
     log.debug({ last: last?.started, rules: ids.length, missing: missing.length, lastCrawl: last?.crawlHash, crawl: manifest.configHash, isComparable }, "previous run compared");
     if (!last || !isComparable) return report;
-    const findings: Summary["findings"] = { total: 0, error: 0, warning: 0, info: 0 };
+    const findings: Summary["findings"] = { total: 0, error: 0, warning: 0, info: 0, hint: 0 };
     for (const id of ids) {
         const counts = Object.entries(earlier[id] ?? {}) as [Finding["severity"], number][];
         for (const [severity, count] of counts) {
@@ -289,6 +289,7 @@ function linter(config: Config): Lint {
         }
         referrers(pages, site.redirects);
         twins(pages, config.canonicalOrigin);
+        site.role = config.role;
         const run = runRules(pages, rulesByGroup, site);
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);

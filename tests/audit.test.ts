@@ -312,7 +312,7 @@ describe("audit", () => {
         const lines = formatHuman(bundledReport).split("\n");
         assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
         assert.deepEqual(lines.slice(-3), ["findings   3 (0 errors, 3 warnings, 0 info)", "rating     – (no checks ran)", "fetch      none"]);
-        const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1 } };
+        const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
         const progressed = formatHuman({ ...bundledReport, summary: { ...bundledReport.summary, previous } }).split("\n");
         assert.match(progressed.at(-3) ?? "", /^findings {3}3 \u{2212}2 \(0 errors \u{2212}1, 3 warnings, 0 info \u{2212}1\) since .+$/u);
     });

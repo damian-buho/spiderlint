@@ -13,7 +13,7 @@ import { compileRulesets, lookup, presetNames, resolveRuleset } from "./rulesets
 import type { RuleSpec, Scope, Severity } from "./types.ts";
 
 const PREFIX = "spiderlint:";
-const TONE: Record<string, Style> = { error: "red", warning: "yellow", info: "blue", off: "dim" };
+const TONE: Record<string, Style> = { error: "red", warning: "yellow", info: "blue", hint: "dim", off: "dim" };
 
 export interface RuleInfo {
     id: string;

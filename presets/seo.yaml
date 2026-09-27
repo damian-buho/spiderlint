@@ -44,7 +44,7 @@ rules:
   html/noindex-listed:
     fact: robots.noindex
     expect: {const: false}
-    when: {sitemap.listed: true, url.twin: {not: {type: string}}}
+    when: {sitemap.listed: true, url.twin: {not: {type: string}}, site.role: production}
     severity: error
     message: "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
@@ -213,6 +213,14 @@ rules:
     severity: info
     message: "a page served off the canonical origin is indexable; mark the staging twin noindex"
     fix: "send X-Robots-Tag: noindex from every origin other than the canonical one"
+    docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
+  html/noindex-staging:
+    fact: robots.noindex
+    expect: {const: true}
+    when: {site.role: {enum: [development, staging]}, url.twin: {not: {type: string}}}
+    severity: warning
+    message: "a page of a staging or development site is indexable"
+    fix: "send X-Robots-Tag: noindex from every non-production host"
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
   http/tdm-reservation:
     fact: http.headers.tdm-reservation

@@ -5,7 +5,7 @@
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
 import { ConfigError } from "../config/index.ts";
 import { subjectPath } from "../facts/sites.ts";
-import type { Facts } from "../facts/types.ts";
+import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { ruleMaker } from "../plugins/index.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
@@ -55,7 +55,17 @@ function severityOf(id: string, spec: RuleSpec, fallback: Severity): Exclude<Sev
 }
 
 // Whether the document at `subject` fails its `when`; a page is its own URL.
-type Guard = (facts: object, subject: string) => boolean;
+type Guard = (facts: object, subject: string, site?: SiteFacts) => boolean;
+
+// A `when` path read from the site document, as `site.role`, rather than one subject’s facts.
+function isSitePath(path: string): boolean {
+    return path.startsWith("site.") && !/^site\.(origins|hosts)\./.test(path);
+}
+
+// The `when` entries a site-wide guard reads.
+function siteWhen(when: Record<string, unknown> | undefined): Record<string, unknown> {
+    return Object.fromEntries(Object.entries(when ?? {}).filter(([path]) => isSitePath(path)));
+}
 
 // A `when` entry is a constant to equal, or a schema object the fact must satisfy.
 function guard(id: string, when: Record<string, unknown> | undefined): Guard {
@@ -63,9 +73,9 @@ function guard(id: string, when: Record<string, unknown> | undefined): Guard {
         const test = typeof expected === "object" && expected !== null ? ajv.compile(expected) : (actual: unknown) => actual === expected;
         return { path, expected, test };
     });
-    return (facts, subject) => {
+    return (facts, subject, site) => {
         for (const { path, expected, test } of tests) {
-            const actual = get(facts, path);
+            const actual = get(isSitePath(path) ? { site } : facts, path);
             if (test(actual)) continue;
             log.debug({ rule: id, url: subject, when: path, expected, actual }, "rule skipped");
             return true;
@@ -81,8 +91,8 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
     const isSkipped = guard(id, spec.when);
     return {
         meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs, fix: spec.fix },
-        check(page) {
-            if (isSkipped(page, page.url.href)) return;
+        check(page, site) {
+            if (isSkipped(page, page.url.href, site)) return;
             if (get(page, root) === undefined) {
                 log.debug({ rule: id, url: page.url.href, extractor: root }, "rule skipped");
                 return;
@@ -102,10 +112,10 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
     const isSkipped = guard(id, spec.when);
     return {
         meta: { id, severity, scope, facts: [fact], docs: spec.docs, fix: spec.fix },
-        check(pages, group) {
+        check(pages, group, site) {
             const byValue = new Map<string, string[]>();
             for (const page of pages) {
-                if (isSkipped(page, page.url.href)) continue;
+                if (isSkipped(page, page.url.href, site)) continue;
                 const value = get(page, fact);
                 if (typeof value !== "string") continue;
                 byValue.set(value, [...(byValue.get(value) ?? []), page.url.href]);
@@ -134,11 +144,13 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     const severity = severityOf(id, spec, "warning");
     const prefix = `site.${subject.kind}.*.`;
     const when = Object.entries(spec.when ?? {}).filter(([path]) => path.startsWith(prefix));
-    log.debug({ rule: id, kind: subject.kind, when: when.length, ignored: Object.keys(spec.when ?? {}).length - when.length }, "subject rule compiled");
+    log.debug({ rule: id, kind: subject.kind, when: when.length, site: Object.keys(siteWhen(spec.when)), ignored: Object.keys(spec.when ?? {}).length - when.length - Object.keys(siteWhen(spec.when)).length }, "subject rule compiled");
     const isSkipped = guard(id, Object.fromEntries(when.map(([path, expected]) => [path.slice(prefix.length), expected])));
+    const isSiteSkipped = guard(id, siteWhen(spec.when));
     return {
         meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
         check(_pages, _group, site) {
+            if (isSiteSkipped({}, "site", site)) return;
             const unjudged = new Set(spec.linked === true ? [] : (site?.linked ?? []));
             const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !unjudged.has(name) && !isSkipped(facts, name) && !isWithheld(facts, subject.path, id, name));
             log.debug({ rule: id, subjects: judged.length, linked: spec.linked === true }, "subjects judged");
@@ -152,9 +164,15 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     };
 }
 
-// A built-in page rule honours `when` as a declarative one does.
-function guarded(rule: Rule, isSkipped: Guard): Rule {
-    return isPageRule(rule) ? { ...rule, check: (page: Facts) => (isSkipped(page, page.url.href) ? undefined : rule.check(page)) } : rule;
+// A built-in page rule honours `when` as a declarative one does; an aggregate one its `site.` paths.
+function guarded(rule: Rule, when: Record<string, unknown> | undefined): Rule {
+    const id = rule.meta.id;
+    if (isPageRule(rule)) {
+        const isSkipped = guard(id, when);
+        return { ...rule, check: (page: Facts, site?: SiteFacts) => (isSkipped(page, page.url.href, site) ? undefined : rule.check(page, site)) };
+    }
+    const isSkipped = guard(id, siteWhen(when));
+    return { ...rule, check: (pages, group, site) => (isSkipped({}, "site", site) ? undefined : rule.check(pages, group, site)) };
 }
 
 // `fact` + `expect` is a page rule, `unique` an aggregate, a bare ID a built-in; else a config error.
@@ -166,7 +184,7 @@ export function compileRule(id: string, spec: RuleSpec): Rule {
         const rule = make(severityOf(id, spec, "warning"));
         // A ruleset entry’s `docs` and `fix` win over the built-in’s own.
         Object.assign(rule.meta, spec.docs && { docs: spec.docs }, spec.fix && { fix: spec.fix });
-        return guarded(rule, guard(id, spec.when));
+        return guarded(rule, spec.when);
     }
     if (!spec.fact || !spec.expect) throw new ConfigError(`rule ${id}: needs both fact and expect`);
     try {

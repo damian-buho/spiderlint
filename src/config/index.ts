@@ -4,6 +4,7 @@
 
 import type { BucketName, CacheMode } from "../cache/index.ts";
 import type { Pin } from "../crawl/resolve.ts";
+import type { Role } from "../facts/types.ts";
 import type { Scope } from "../crawl/scope.ts";
 import { log } from "../logger.ts";
 import type { RulesetConfig, Severity } from "../rules/types.ts";
@@ -11,6 +12,7 @@ import type { RulesetConfig, Severity } from "../rules/types.ts";
 export type FetchMode = "auto" | "http" | "browser" | "adaptive";
 export type BrowserName = "chromium" | "firefox" | "webkit";
 export type FailOn = "error" | "warning" | "info" | "never";
+export const ROLES = ["production", "staging", "development"] as const;
 
 export interface GroupConfig {
     match?: string[];
@@ -28,6 +30,8 @@ export interface FoldConfig {
 export interface Config {
     seeds: string[];
     canonicalOrigin?: string;
+    // What the site is for, the `site.role` fact rules gate on.
+    role: Role;
     fetch: FetchMode;
     browser: BrowserName;
     scope: Scope;
@@ -86,6 +90,7 @@ export interface Config {
 export function defaults(): Config {
     return {
         seeds: [],
+        role: "production",
         fetch: "auto",
         browser: "chromium",
         scope: "origin",

@@ -4,7 +4,7 @@
 
 import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
-import { ConfigError, PROFILES, originOf, proxyOf } from "./index.ts";
+import { ConfigError, PROFILES, ROLES, originOf, proxyOf } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
 export const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
@@ -36,16 +36,17 @@ export function pick<T extends string>(name: string, raw: string, valid: readonl
 }
 
 // One severity bucket of rule IDs, as `SPIDERLINT_OVERRIDE_ERROR` etc. carry it.
-function overrideBucket(raw: string | undefined, severity: "error" | "warning" | "info"): Record<string, "error" | "warning" | "info"> {
+function overrideBucket(raw: string | undefined, severity: "error" | "warning" | "info" | "hint"): Record<string, "error" | "warning" | "info" | "hint"> {
     return raw === undefined ? {} : Object.fromEntries(list(raw).map((id) => [id, severity]));
 }
 
 // SPIDERLINT_* mirrors each flag (AGENTS.md ## Configuration, ## Rules); only set variables apply.
 export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
-    const overrideVariables = [environment.SPIDERLINT_OVERRIDE_ERROR, environment.SPIDERLINT_OVERRIDE_WARNING, environment.SPIDERLINT_OVERRIDE_INFO];
+    const overrideVariables = [environment.SPIDERLINT_OVERRIDE_ERROR, environment.SPIDERLINT_OVERRIDE_WARNING, environment.SPIDERLINT_OVERRIDE_INFO, environment.SPIDERLINT_OVERRIDE_HINT];
     return {
         ...(environment.SPIDERLINT_TARGETS !== undefined && { seeds: list(environment.SPIDERLINT_TARGETS) }),
         ...(environment.SPIDERLINT_CANONICAL_ORIGIN !== undefined && { canonicalOrigin: originOf("SPIDERLINT_CANONICAL_ORIGIN", environment.SPIDERLINT_CANONICAL_ORIGIN) }),
+        ...(environment.SPIDERLINT_ROLE !== undefined && { role: pick("SPIDERLINT_ROLE", environment.SPIDERLINT_ROLE, ROLES) }),
         ...(environment.SPIDERLINT_RESOLVER !== undefined && { resolver: parseResolver(environment.SPIDERLINT_RESOLVER) }),
         ...(environment.SPIDERLINT_RESOLVE !== undefined && { resolve: list(environment.SPIDERLINT_RESOLVE).map((pin) => parsePin(pin)) }),
         ...(environment.SPIDERLINT_FETCH !== undefined && { fetch: pick("SPIDERLINT_FETCH", environment.SPIDERLINT_FETCH, FETCH_MODES) }),
@@ -74,7 +75,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_CACHE !== undefined && { cacheMode: pick("SPIDERLINT_CACHE", environment.SPIDERLINT_CACHE, CACHE_MODES) }),
         ...(environment.SPIDERLINT_EXCLUDE_RULES !== undefined && { excludeRules: list(environment.SPIDERLINT_EXCLUDE_RULES) }),
         ...(overrideVariables.some((value) => value !== undefined) && {
-            overrides: { ...overrideBucket(environment.SPIDERLINT_OVERRIDE_ERROR, "error"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_WARNING, "warning"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_INFO, "info") },
+            overrides: { ...overrideBucket(environment.SPIDERLINT_OVERRIDE_ERROR, "error"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_WARNING, "warning"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_INFO, "info"), ...overrideBucket(environment.SPIDERLINT_OVERRIDE_HINT, "hint") },
         }),
     };
 }

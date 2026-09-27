@@ -4,7 +4,7 @@
 
 import type { Facts, SiteFacts } from "../facts/types.ts";
 
-export type Severity = "error" | "warning" | "info" | "off";
+export type Severity = "error" | "warning" | "info" | "hint" | "off";
 export type Scope = "page" | "group" | "site";
 
 export interface Finding {
@@ -38,10 +38,10 @@ export interface RuleMeta {
     linked?: true;
 }
 
-// `undefined` from a page rule means the `when` guard skipped it.
+// `undefined` from a page rule means the `when` guard skipped it; `site` answers `when` paths under `site.`.
 export interface PageRule {
     meta: RuleMeta & { scope: "page" };
-    check(page: Facts): Finding[] | undefined;
+    check(page: Facts, site?: SiteFacts): Finding[] | undefined;
 }
 
 // `undefined` from an aggregate rule means it had no subject to judge.
