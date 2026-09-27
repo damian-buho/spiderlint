@@ -299,7 +299,10 @@ function linter(config: Config): Lint {
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     refuseUnknown(config, groups);
+    const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
+        const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
+        if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, "parity rules skipped on pages crawled over http");
         for (const page of pages) {
             page.group = assignGroup(page, matchers);
             page.robots = robotsFacts(page);

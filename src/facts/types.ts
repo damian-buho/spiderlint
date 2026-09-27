@@ -207,6 +207,25 @@ export interface BrowserFacts {
     cookies: CookieFacts[];
 }
 
+// What a crawler reading one render of a page sees: text is characters in `<main>`, else `<body>`; links counts internal ones.
+export interface ParitySide {
+    title?: string;
+    description?: string;
+    canonical?: string;
+    h1: string[];
+    text: number;
+    links: number;
+}
+
+// The raw HTML and the rendered DOM of one page, browser mode only; `missing` holds what only the render carries.
+export interface ParityFacts {
+    raw: ParitySide;
+    rendered: ParitySide;
+    missing: { title?: string; description?: string; canonical?: string; h1?: string[]; links?: string[] };
+    // Raw text length over rendered text length, when the render has text.
+    "text-share"?: number;
+}
+
 export interface Facts {
     url: UrlFacts;
     group: string;
@@ -219,6 +238,7 @@ export interface Facts {
     html?: HtmlFacts;
     resources?: ResourceFacts[];
     browser?: BrowserFacts;
+    parity?: ParityFacts;
     // A plugin extractor’s facts, under the extractor’s ID.
     [extractor: string]: unknown;
 }

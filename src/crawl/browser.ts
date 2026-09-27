@@ -13,6 +13,7 @@ import { USER_AGENT } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
 import { COOKIE_WRITES, headerFacts, observedResources, scriptCookies, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
+import { parityFacts } from "../facts/parity.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { BrowserFacts, Facts } from "../facts/types.ts";
@@ -204,10 +205,13 @@ async function bodyOf(page: Page, response: Response, observation: Observation, 
     return { raw, text: HTML_TYPES.has(type) ? await page.content() : isParsed(type) ? raw.toString("utf8") : "" };
 }
 
-// The html facts of the document as served, before any script ran.
-function staticHtml(raw: Buffer, url: URL, scope: Config["scope"]): Facts["html"] {
+type Cheerio = Parameters<typeof extractHtml>[0];
+
+// The document as served, before any script ran, and its html facts.
+function staticHtml(raw: Buffer, url: URL, scope: Config["scope"]): { $: Cheerio; html: NonNullable<Facts["html"]> } {
     const source = raw.toString("utf8");
-    return extractHtml(load(source) as unknown as Parameters<typeof extractHtml>[0], source, url, scope);
+    const $ = load(source) as unknown as Cheerio;
+    return { $, html: extractHtml($, source, url, scope) };
 }
 
 // The first URL of a redirect chain, without its fragment.
@@ -343,9 +347,11 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
                 const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober)) };
-                if (isHtml) {
+                const served = isHtml ? staticHtml(raw, url, config.scope) : undefined;
+                if (isHtml && served) {
                     const $ = await parseWithCheerio();
                     facts.html = extractHtml($, text, url, config.scope);
+                    facts.parity = parityFacts(url.href, served.$, served.html, $, facts.html);
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests), cookies: await scriptCookies(page) };
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
@@ -353,7 +359,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                     if (digest) loaded.set(page, digest);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
-                if (router.isDetecting(url.href)) router.detected(url.href, isHtml ? staticHtml(raw, url, config.scope) : undefined, facts.html);
+                if (router.isDetecting(url.href)) router.detected(url.href, served?.html, facts.html);
                 pages += 1;
                 const port = browserController.launchContext.launchOptions?.args?.findLast((argument) => argument.startsWith(PORT_ARGUMENT))?.slice(PORT_ARGUMENT.length);
                 if (port) ports.set(page, Number(port));
