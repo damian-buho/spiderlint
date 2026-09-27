@@ -76,7 +76,8 @@ function cacheTtl(cache: Record<string, { ttl?: string | number }>): Settings["c
     return out;
 }
 
-function fromSubtree(subtree: Record<string, unknown>): Settings {
+// One subtree’s keys as the camelCase Settings shape.
+export function fromSubtree(subtree: Record<string, unknown>): Settings {
     const settings: Settings = {};
     for (const [key, field] of KEYS) {
         if (subtree[key] !== undefined) (settings as Record<string, unknown>)[field] = subtree[key];

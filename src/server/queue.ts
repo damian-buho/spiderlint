@@ -1,0 +1,61 @@
+// SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+//
+// SPDX-License-Identifier: MIT
+
+import { Queue, type Job } from "bullmq";
+import { Redis } from "ioredis";
+import type { Summary } from "../index.ts";
+import { log } from "../logger.ts";
+import type { Progress } from "../progress.ts";
+import type { Finding } from "../rules/types.ts";
+import { Refusal, type Admitted } from "./policy.ts";
+
+export const QUEUE = "spiderlint-scans";
+export const PREFIX = "spiderlint";
+
+// The descriptor a scan runner writes progress to, one JSON line per change.
+export const PROGRESS_FD = 3;
+
+export interface ScanData {
+    url: string;
+    host: string;
+    policy: string;
+    settings: Record<string, unknown>;
+    scanTimeout: number;
+    // Rule IDs or globs the policy denies, excluded from every group.
+    deny: string[];
+}
+
+// What `--format json` prints: the summary and the findings.
+export interface ScanResult {
+    summary: Summary;
+    findings: Finding[];
+}
+
+export type ScanJob = Job<ScanData, ScanResult>;
+export type ScanProgress = Progress;
+
+// One connection per role; BullMQ needs `maxRetriesPerRequest: null` for blocking commands, and retries with backoff itself.
+export function connect(url: string): Redis {
+    // eslint-disable-next-line unicorn/no-null -- BullMQ requires null, not undefined
+    const redis = new Redis(url, { maxRetriesPerRequest: null, retryStrategy: (attempt) => Math.min(250 * 2 ** attempt, 10_000) + Math.random() * 250 });
+    redis.on("error", (error: Error) => log.warn({ error: error.message }, "redis connection error"));
+    return redis;
+}
+
+// The scan queue, jobs kept `retention` seconds after they settle and never retried.
+export function scanQueue(redis: Redis, retention: number): Queue<ScanData, ScanResult> {
+    return new Queue<ScanData, ScanResult>(QUEUE, { connection: redis, prefix: PREFIX, defaultJobOptions: { attempts: 1, removeOnComplete: { age: retention }, removeOnFail: { age: retention } } });
+}
+
+// Counts one job against the policy’s window for the host; a full window refuses with the seconds until it opens.
+export async function charge(redis: Redis, admitted: Admitted): Promise<void> {
+    const { rate } = admitted.policy;
+    if (!rate) return;
+    const key = `${PREFIX}:rate:${admitted.policy.name}:${admitted.host}`;
+    const reply = await redis.multi().incr(key).pexpire(key, rate.seconds * 1000, "NX").pttl(key).exec();
+    const used = Number(reply?.[0]?.[1] ?? 0);
+    const left = Math.ceil(Number(reply?.[2]?.[1] ?? 0) / 1000);
+    log.info({ host: admitted.host, policy: admitted.policy.name, used, jobs: rate.jobs, left }, "rate window charged");
+    if (used > rate.jobs) throw new Refusal(429, "rate-limited", `${admitted.host}: ${rate.jobs} scans per ${rate.seconds} s under policy ${admitted.policy.name}`, Math.max(1, left));
+}

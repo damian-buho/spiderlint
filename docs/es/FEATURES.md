@@ -85,6 +85,14 @@ SPDX-License-Identifier: MIT
 - El marcado de cada página se puede validar contra el estándar HTML y en busca de defectos de accesibilidad; un defecto que comparte toda una plantilla es un solo hallazgo, no uno por página.
 - Los complementos añaden sus propios hechos, reglas, preajustes, formatos de informe y fuentes de URL junto a los incluidos, y una simple lista de URL se puede auditar por sí sola.
 
+### Servidor de análisis
+
+- La misma imagen funciona como API HTTP con cola de trabajos, de modo que un equipo o el público puede pedir auditorías sin instalar nada.
+- Cada análisis informa de su progreso mientras se ejecuta, y su informe se descarga en todos los formatos que produce la línea de órdenes.
+- Quien administra la instancia define políticas por dominio: vetar un dominio de nivel superior, limitar la frecuencia con que se analiza un host, acotar páginas y tiempo, y elegir qué reglas pueden ejecutarse.
+- Las políticas se recargan desde un archivo montado sin reiniciar.
+- Un análisis no puede dirigirse a direcciones de bucle local, privadas ni de metadatos de la nube.
+
 ### Rastrear una vez, analizar muchas
 
 - Un rastreo se puede guardar en disco y analizar de nuevo con reglas o grupos cambiados, sin acceso a la red.
@@ -219,7 +227,7 @@ Consulte [use-healthcheck.d](../how-to/use-healthcheck.d.md) para la lista de co
 
 - El contenedor se ejecuta como usuario sin privilegios de root (`ubuntu`, UID/GID 1000) con todos los archivos de runtime en propiedad de ese usuario.
 - Una compilación en dos etapas separa la instalación del sistema a nivel root de la configuración del runtime a nivel de usuario.
-- La identidad del usuario es configurable en tiempo de compilación.
+- La identidad del usuario es configurable en tiempo de compilación, y un arranque opcional como root la reasigna al usuario del host para que los montajes bind conserven su propietario.
 
 ### Soporte de compilación y runtime aislados de internet (air-gapped/offline)
 

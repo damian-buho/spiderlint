@@ -28,7 +28,8 @@ ARG TARGETARCH
 ENV NODE_ENV=production                                  \
     NODE_OPTIONS="--enable-source-maps"                  \
     PLAYWRIGHT_BROWSERS_PATH=${B19_HOME}/.cache/ms-playwright \
-    SPIDERLINT_LOG_LEVEL=info
+    SPIDERLINT_LOG_LEVEL=info                            \
+    SPIDERLINT_MODE=cli
 
 COPY --chown=${B19_UID}:${B19_GID} .container/root/ /
 # Reads the org.spiderlint subtree of a mounted projectfile
@@ -59,6 +60,9 @@ RUN --mount=type=bind,from=fetch,source=.,target=/fetch                         
     --mount=type=cache,target=${B19_NODE_NPM_CACHE},sharing=locked,uid=${B19_UID},gid=${B19_GID}      \
     --mount=type=tmpfs,target=${B19_TEMP_PATH}                                                        \
     build-stage user
+
+# The API port under SPIDERLINT_MODE=api or all, as the server settings’ default names it
+EXPOSE 8080
 
 # ENTRYPOINT ["entrypoint.d"] is inherited
 # HEALTHCHECK CMD ["healthcheck.d"] is inherited

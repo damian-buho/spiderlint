@@ -83,6 +83,14 @@ SPDX-License-Identifier: MIT
 - Every page’s markup can be validated against the HTML standard and for accessibility defects; a defect a whole template shares is one finding, not one per page.
 - Plugins add their own facts, rules, presets, report formats and URL sources beside the bundled ones, and a plain list of URLs can be audited on its own.
 
+### Scan server
+
+- The same image runs as an HTTP API with a job queue, so a team or the public can request audits without installing anything.
+- Each scan reports its progress while it runs, and its report downloads in every format the command line writes.
+- The instance owner sets policies per domain: ban a top-level domain, limit how often a host may be scanned, cap pages and time, and choose which rules may run.
+- Policies reload from a mounted file without a restart.
+- A scan cannot be aimed at loopback, private or cloud metadata addresses.
+
 ### Crawl once, lint many times
 
 - A crawl can be kept on disk and linted again with changed rules or groups, with no network access.
@@ -216,7 +224,7 @@ See [use-healthcheck.d](../how-to/use-healthcheck.d.md) for the check list, slot
 
 - The container runs as a non-root user (`ubuntu`, UID/GID 1000) with all runtime files owned by that user.
 - A two-stage build separates root-level system installation from user-level runtime setup.
-- User identity is configurable at build time.
+- User identity is configurable at build time, and an opt-in root start remaps it to the host user so bind mounts keep their ownership.
 
 ### Air-gapped / offline build and runtime support
 

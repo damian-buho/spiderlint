@@ -21,7 +21,7 @@ TLS and resource facts; groups; declarative and built-in rules, presets
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
-extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site. Not yet: localised messages.
+extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `link-text`, `markup` and `trackers`; the fixture site; the scan server with its job queue, per-domain policies and the crawl address guard. Not yet: localised messages, the `html` format and the badge.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
 recorded so the v1 shape does not block them.
@@ -478,6 +478,18 @@ Flags mirror the config keys (`--rules`, `--canonical-origin`, `--resolver`, `--
 `--error`, `--warning`, `--info`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
+## Server
+
+`SPIDERLINT_MODE=api|worker|all` starts `src/server/main.ts` instead of the idle CLI container; [docs/server.md](docs/server.md) is the reference.
+
+- Hono on `@hono/node-server`, BullMQ over Redis or Valkey. API and worker share nothing but Redis.
+- Runtime policy is a mounted YAML file (`/etc/spiderlint/server.yaml`, `SPIDERLINT_SERVER_CONFIG`), never the projectfile: it is the instance owner’s data, polled every 5 s, an invalid edit logged and ignored.
+- A request carries `org.spiderlint` keys, checked by the same schema as the projectfile after an allow-list of keys; the matched policy then clamps caps, checks named rules and fetch modes, and pins `robots` and `allow-private`.
+- A policy’s `deny` reaches the run as `denyRules`, which excludes like `excludeRules` but raises no unknown-rule error, since a denied plugin rule is usually not loaded.
+- Rate windows are per policy and host, a Redis `INCR` with `PEXPIRE NX`, charged after every other check so a refused request costs nothing.
+- Each scan is `src/server/scan.ts` in a child process in a temporary directory: settings on stdin, the `json` report on stdout, JSON logs on stderr, progress lines on fd 3 from `onProgress`. The worker relays progress at most once a second and kills the child at `scan-timeout`.
+- The stored result is the `json` report; every other format renders from it on download, with no pages, so `human` prints absolute URLs.
+
 ## Plugins
 
 ```ts
@@ -583,10 +595,11 @@ src/
 ├── cache/              # buckets, TTL, RFC 9111 freshness, atomic writes, locks
 ├── store/              # the pages bucket: Crawlee storage wrapper, manifest, redaction
 ├── report/             # formatters, bundled as the `report` plugin
+├── server/             # API, worker, scan runner, policy, settings file
 └── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, tls-probe, images, well-known, feeds, structured-data, manifest, link-text, markup, trackers and list
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
-docs/                   # features.d/, es/, uk/
+docs/                   # features.d/, es/, uk/, server.md
 .container/             # image assets, as ignorelint
 action.yaml             # composite action: one audit into a runner-side store, SARIF and a step summary from it
 .scripts/action/        # the action’s steps
@@ -610,6 +623,7 @@ projectfile.yaml
 - Every formatter is tested for its shape; SARIF against the full SARIF 2.1.0 schema, `tests/fixtures/sarif-2.1.0.schema.json`, vendored from `microsoft/sarif-sdk` at a pinned commit under its MIT licence, since the OASIS original carries no SPDX licence; `format` keywords are not checked, which would need `ajv-formats`.
 - No test reaches the network. External-link probes point at the same local server.
 - `tests/fixtures/tls-scripted.ts` answers each ClientHello with chosen bytes, for SSLv2, SSLv3, RC4 and export suites Node cannot serve; `tests/fixtures/rfc8448.ts` holds RFC 8448’s TLS 1.3 trace under its BSD-2-Clause licence. testssl.sh is a manual cross-check, never part of the suite.
+- `tests/server.test.ts` runs its queue suite only with `SPIDERLINT_TEST_REDIS` set to a Redis URL; policy and settings tests need nothing.
 - `tests/browser.test.ts` skips its Chromium suite when a launch fails, which it does in the node tool image `npm-test` runs in; the image self-test is where Chromium is proven.
 
 ## Later

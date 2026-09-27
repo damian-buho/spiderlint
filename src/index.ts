@@ -189,7 +189,7 @@ function refuseUnknown(config: Config, groups: Record<string, GroupConfig>): voi
 
 // Each group’s rules, flags applied.
 function rulesOf(config: Config): Map<string, Rule[]> {
-    const excludeRules = new Set(config.excludeRules);
+    const excludeRules = new Set([...config.excludeRules, ...config.denyRules]);
     return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, excludeRules, config.overrides)]));
 }
 
@@ -237,7 +237,7 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
 
 // Each group’s mode: a run pin wins, else the group’s own, else the run’s; a `browser` pin or a rule reading a rendered-only fact renders, an `http` pin refuses both.
 function groupModes(config: Config): Record<string, GroupMode> {
-    const excludeRules = new Set(config.excludeRules);
+    const excludeRules = new Set([...config.excludeRules, ...config.denyRules]);
     const refused: string[] = [];
     const modes: Record<string, GroupMode> = {};
     const groups = Object.entries(groupsOf(config));

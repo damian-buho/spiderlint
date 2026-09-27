@@ -120,9 +120,9 @@ export function describe(error: ErrorObject, prefix = "org.spiderlint"): string 
 
 // Throws ConfigError (exit 2) listing every violation found in the subtree.
 // `value` must already be an object (an absent subtree is the caller's `{}`, not `undefined`).
-export function validateSubtree(value: unknown): Record<string, unknown> {
+export function validateSubtree(value: unknown, prefix = "org.spiderlint"): Record<string, unknown> {
     if (!validate(value)) {
-        throw new ConfigError((validate.errors ?? []).map((error) => describe(error)).join("; "));
+        throw new ConfigError((validate.errors ?? []).map((error) => describe(error, prefix)).join("; "));
     }
     return value as Record<string, unknown>;
 }

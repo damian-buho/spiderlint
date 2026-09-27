@@ -58,6 +58,8 @@ export interface Config {
     // A built-in format or one a loaded plugin adds.
     format: string;
     excludeRules: string[];
+    // Rule IDs or globs a server policy denies: excluded like `excludeRules`, but naming no rule is no error.
+    denyRules: string[];
     overrides: Record<string, Exclude<Severity, "off">>;
     rules?: string[];
     groups: Record<string, GroupConfig>;
@@ -107,6 +109,7 @@ export function defaults(): Config {
         failOn: "error",
         format: "human",
         excludeRules: [],
+        denyRules: [],
         overrides: {},
         groups: {},
         rulesets: {},
