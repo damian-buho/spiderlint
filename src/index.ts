@@ -156,12 +156,35 @@ function withPrevious(report: Report, { last, manifest }: DiskStore): Report {
     return report;
 }
 
-// An --exclude-rules or severity override naming no rule of any group matches nothing; say so.
-function warnUnknown(config: Config, groups: Record<string, GroupConfig>): void {
-    const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
-    for (const pattern of [...config.excludeRules, ...Object.keys(config.overrides)]) {
-        if ([...known].every((id) => !isRuleMatch(id, pattern))) log.warn({ rule: pattern, known: known.size }, "rule option names no known rule");
+// Edit distance between `a` and `b`.
+function distance(a: string, b: string): number {
+    let above = Array.from({ length: b.length + 1 }, (_, column) => column);
+    for (const [line, char] of [...a].entries()) {
+        const row = [line + 1];
+        for (let column = 1; column <= b.length; column++) row.push(Math.min((above[column] as number) + 1, (row[column - 1] as number) + 1, (above[column - 1] as number) + (char === b[column - 1] ? 0 : 1)));
+        above = row;
     }
+    return above.at(-1) as number;
+}
+
+// The known ID or `namespace/*` glob closest to `pattern`, when close enough to be a typo.
+function closest(pattern: string, known: Set<string>): string | undefined {
+    const candidates = [...known, ...new Set([...known].map((id) => `${id.split("/", 1)[0]}/*`))];
+    const [best] = candidates.map((candidate) => ({ candidate, cost: distance(pattern, candidate) })).toSorted((a, b) => a.cost - b.cost);
+    return best !== undefined && best.cost <= Math.max(2, Math.floor(pattern.length / 4)) ? best.candidate : undefined;
+}
+
+// An --exclude-rules or severity override naming no rule of any group is a typo; refuse to start.
+function refuseUnknown(config: Config, groups: Record<string, GroupConfig>): void {
+    const known = new Set(Object.values(groups).flatMap((group) => [...ruleIds(group.rules ?? [], config.rulesets)]));
+    const unknown = [...config.excludeRules, ...Object.keys(config.overrides)].filter((pattern) => [...known].every((id) => !isRuleMatch(id, pattern)));
+    log.debug({ known: known.size, unknown }, "rule options matched");
+    if (unknown.length === 0) return;
+    const named = unknown.map((pattern) => {
+        const guess = closest(pattern, known);
+        return guess === undefined ? pattern : `${pattern} (did you mean ${guess}?)`;
+    });
+    throw new ConfigError(`rule option names no known rule: ${named.join(", ")}; see spiderlint rules`);
 }
 
 // Each group’s rules, flags applied.
@@ -257,7 +280,7 @@ function linter(config: Config): Lint {
     const rulesByGroup = rulesOf(config);
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
-    warnUnknown(config, groups);
+    refuseUnknown(config, groups);
     return ({ pages, site, cost, fetch }, started) => {
         for (const page of pages) {
             page.group = assignGroup(page, matchers);

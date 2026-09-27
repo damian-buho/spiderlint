@@ -145,12 +145,18 @@ describe("cli", () => {
         assert.equal(unnamed.code, 2);
     });
 
-    it("warns about a severity override naming no known rule", async () => {
+    it("refuses a severity override naming no known rule before any request", async () => {
+        const before = site.requested.length;
         const run = await spiderlint(directory, "audit", `${site.origin}/`, "--max-pages", "1", "--error", "nope/nothing", "--fail-on", "never");
-        assert.equal(run.code, 0);
-        const warning = run.stderr.split("\n").find((line) => line.includes("rule option names no known rule"));
-        assert.ok(warning, run.stderr);
-        assert.equal(JSON.parse(warning).rule, "nope/nothing");
+        assert.equal(run.code, 2);
+        assert.equal(site.requested.length, before);
+        assert.match(run.stderr, /names no known rule: nope\/nothing;/);
+    });
+
+    it("suggests the rule glob an --exclude-rules typo meant", async () => {
+        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--rules", "all", "--exclude-rules", "lighthuse/*");
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /lighthuse\/\* \(did you mean lighthouse\/\*\?\)/);
     });
 
     it("shows usage for audit with no url, ignoring projectfile links", async () => {
