@@ -26,6 +26,7 @@ interface Patch {
     warnings?: string[];
     html?: Partial<HtmlFacts>;
     redirects?: RedirectHop[];
+    daysLeft?: number;
 }
 
 // A 2xx https: HTML page that every rule below passes, with the patch applied and robots derived as the linter does.
@@ -42,6 +43,7 @@ function page(patch: Patch = {}): Facts {
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: patch.redirects ?? [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, "content-type": patch.contentType ?? "text/html; charset=utf-8" },
         html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }, { type: "speculationrules", async: false, defer: false, head: false }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
+        tls: { authorized: true, cert: { san: [], "days-left": patch.daysLeft ?? 60 } },
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {}, cookies: [] },
     };
     facts.robots = robotsFacts(facts);
@@ -103,6 +105,9 @@ const FAILS: Record<string, Patch[]> = {
     "html/alternate-formats": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/html", hreflang: "es", href: "https://site.test/es/" }] } } }],
     "html/nlweb": [{ pathname: "/" }],
     "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/" }],
+    "tls/cert-expiry": [{ daysLeft: 13 }, { daysLeft: 2 }],
+    "tls/cert-expiring": [{ daysLeft: 1 }, { daysLeft: 0 }],
+    "tls/cert-expired": [{ daysLeft: -1 }],
     "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "Stylesheet", media: "screen", href: "https://site.test/b.css" }] } } }],
 };
 
@@ -142,6 +147,9 @@ const PASSES: Record<string, Patch[]> = {
     "html/alternate-formats": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
     "html/nlweb": [{ pathname: "/", html: { rels: { nlweb: ["https://site.test/ask"] } } }],
     "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/", meta: { robots: "noindex" } }],
+    "tls/cert-expiry": [{ daysLeft: 14 }, { daysLeft: 1 }, { daysLeft: -3 }],
+    "tls/cert-expiring": [{ daysLeft: 2 }, { daysLeft: -1 }],
+    "tls/cert-expired": [{ daysLeft: 0 }, { daysLeft: 13 }],
     "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "stylesheet", media: "print", href: "https://site.test/p.css" }, { rel: "alternate stylesheet", href: "https://site.test/c.css" }] } } }],
 };
 
