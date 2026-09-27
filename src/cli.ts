@@ -47,7 +47,7 @@ Crawl:
   --concurrency N       pages in flight, 0 for NUMPROCS, halved in a browser, 1 beside expensive extractors (0)
   --rate N              requests per minute, 0 for no limit (0)
   --timeout SECONDS     seconds one page may take, its navigation half of it (60)
-  --profile NAME        settings for a kind of network: tor (concurrency 4, timeout 240, no adaptive detection)
+  --profile NAME        settings for a kind of network: tor or i2p (its local proxy, concurrency 4, timeout 240, no adaptive detection)
   --proxy URL           http, https or socks5h proxy for every request (none)
   --max-pages N         page limit, 0 for none (0)
   --max-depth N         link depth limit, 0 for none (0)

@@ -121,8 +121,9 @@ export function defaults(): Config {
 }
 
 // Settings a profile lays over the defaults; `adaptive: false` resolves an adaptive group as `auto`.
-export const PROFILES: Record<string, Partial<Pick<Config, "concurrency" | "timeout">> & { adaptive?: false }> = {
-    tor: { concurrency: 4, timeout: 240, adaptive: false },
+export const PROFILES: Record<string, Partial<Pick<Config, "concurrency" | "timeout" | "proxy">> & { adaptive?: false }> = {
+    tor: { concurrency: 4, timeout: 240, adaptive: false, proxy: "socks5h://127.0.0.1:9050" },
+    i2p: { concurrency: 4, timeout: 240, adaptive: false, proxy: "http://127.0.0.1:4444" },
 };
 
 // Thrown for anything that maps to exit code 2.

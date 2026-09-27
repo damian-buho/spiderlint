@@ -36,13 +36,13 @@ const notFound: SiteExtractor = {
     },
 };
 
-// The first answer of plain http on the origin’s host, and whether it redirects to `https://<host>/`; an onion service is skipped.
+// The first answer of plain http on the origin’s host, and whether it redirects to `https://<host>/`; an onion or I2P service is skipped.
 const entry: SiteExtractor = {
     id: "entry",
     per: "origin",
     async extract(origin, context) {
         const { protocol, hostname, host } = new URL(origin);
-        if (hostname.endsWith(".onion")) return;
+        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p")) return;
         const url = `http://${protocol === "http:" ? host : hostname}/`;
         try {
             const answer = await context.fetch(url, { redirect: "manual" });

@@ -4,7 +4,7 @@
 
 import { getDomain } from "tldts";
 import type { Bucket } from "../cache/index.ts";
-import type { Config } from "../config/index.ts";
+import { defaults, type Config } from "../config/index.ts";
 import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { answerOf, type ProbeBucket } from "../crawl/links.ts";
@@ -16,10 +16,10 @@ import { log } from "../logger.ts";
 import type { SiteContext, SiteExtractor } from "../plugins/types.ts";
 import type { Facts, SiteFacts } from "./types.ts";
 
-const TIMEOUT_MS = 60_000;
-
 // Linked hosts judged per run, at most.
 const MAX_LINKED = 32;
+
+const TIMEOUT_MS = 60_000;
 
 const KIND = { origin: "origins", host: "hosts" } as const;
 
@@ -57,9 +57,9 @@ function linkedHosts(pages: Facts[]): Map<string, Facts[]> {
     return linked;
 }
 
-// One subject’s facts, abandoned with its probes once the extractor’s timeout passes.
-async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], isLinked: boolean, config: Pick<Config, "allowPrivate" | "linkExclude">, dns: DnsClient, probes: ProbeBucket, robots: RobotsFor | undefined): Promise<unknown> {
-    const timeout = extractor.timeout ?? TIMEOUT_MS;
+// One subject’s facts, abandoned with its probes once the extractor’s timeout, stretched by the run’s, passes.
+async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], isLinked: boolean, config: Pick<Config, "allowPrivate" | "linkExclude" | "timeout">, dns: DnsClient, probes: ProbeBucket, robots: RobotsFor | undefined): Promise<unknown> {
+    const timeout = ((extractor.timeout ?? TIMEOUT_MS) * config.timeout) / defaults().timeout;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
     const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }), ...(extractor.settings !== undefined && { settings: extractor.settings }) };
@@ -68,7 +68,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
 }
 
 // Runs each active extractor once per subject, and on linked hosts too for the IDs in `linked`, from `bucket` while fresh; returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket, robots?: RobotsFor, linked: ReadonlySet<string> = new Set()): Promise<string[]> {
+export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "timeout">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket, robots?: RobotsFor, linked: ReadonlySet<string> = new Set()): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
         ...[...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members, isLinked: false })),

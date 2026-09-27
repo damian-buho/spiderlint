@@ -164,7 +164,7 @@ describe("dns plugin", () => {
         const site: SiteFacts = { sitemaps: [] };
         const client = dnsClient(fixture.server, off(), false);
         const active = (dns.sites ?? []).filter((extractor) => extractor.id === "dns");
-        await extractSites([home], site, active, { allowPrivate: true, concurrency: 1, linkExclude: [] }, new Bucket("origins", undefined, 60, "off"), client, new Bucket<LinkFacts>("probes", undefined, 60, "off"), undefined, new Set(["dns"]));
+        await extractSites([home], site, active, { allowPrivate: true, concurrency: 1, linkExclude: [], timeout: 60 }, new Bucket("origins", undefined, 60, "off"), client, new Bucket<LinkFacts>("probes", undefined, 60, "off"), undefined, new Set(["dns"]));
         assert.deepEqual(site.linked, ["old.bad.fixture"]);
         assert.deepEqual(site.hosts?.["old.bad.fixture"]?.dns, { cname: [{ name: "old.bad.fixture", target: "gone.elsewhere.fixture", ttl: 300 }], dangling: "gone.elsewhere.fixture" });
         assert.equal((site.hosts?.["www.bad.fixture"]?.dns as { dangling: unknown }).dangling, false);

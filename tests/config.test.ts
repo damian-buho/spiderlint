@@ -64,8 +64,8 @@ describe("layered", () => {
         const raised = layered([{ concurrency: 8 }, environmentSettings({ SPIDERLINT_PROFILE: "tor" })]);
         assert.deepEqual([raised.concurrency, raised.timeout], [8, 240]);
         assert.equal(layered([]).timeout, 60);
-        assert.throws(() => environmentSettings({ SPIDERLINT_PROFILE: "i2p" }), ConfigError);
-        assert.throws(() => validateSubtree({ profile: "i2p" }), ConfigError);
+        assert.throws(() => environmentSettings({ SPIDERLINT_PROFILE: "no-such-profile" }), ConfigError);
+        assert.throws(() => validateSubtree({ profile: "no-such-profile" }), ConfigError);
     });
 });
 

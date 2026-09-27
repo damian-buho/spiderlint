@@ -5,14 +5,19 @@
 import { setGlobalProxyFromEnv } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Server } from "proxy-chain";
-import { ConfigError, type Config } from "../config/index.ts";
+import { ConfigError, defaults, type Config } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { openResolution } from "./resolve.ts";
 
 const SOCKS = new Set(["socks:", "socks4:", "socks4a:", "socks5:", "socks5h:"]);
 
-// Milliseconds between two requests, and when the next may start.
-const pacing = { spacing: 0, next: 0 };
+// Milliseconds between two requests, when the next may start, and the run’s `timeout` over its default.
+const pacing = { spacing: 0, next: 0, scale: 1 };
+
+// `ms` stretched by the run’s `timeout`, so a slow network gets as long as a page does.
+export function patient(ms: number): number {
+    return ms * pacing.scale;
+}
 
 // Waits for the next slot under `rate`; unlimited returns at once.
 export async function pace(): Promise<void> {
@@ -31,13 +36,15 @@ export interface Network {
 }
 
 // Paces, and routes every HTTP client of one run through `config.proxy`, until `close`.
-export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "allowPrivate" | "resolver" | "resolve" | "seeds">): Promise<Network> {
+export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "timeout" | "allowPrivate" | "resolver" | "resolve" | "seeds">): Promise<Network> {
     pacing.spacing = config.rate > 0 ? 60_000 / config.rate : 0;
     pacing.next = 0;
-    log.debug({ rate: config.rate, spacing: pacing.spacing, isProxied: config.proxy !== "" }, "network opened");
+    pacing.scale = config.timeout / defaults().timeout;
+    log.debug({ rate: config.rate, spacing: pacing.spacing, scale: pacing.scale, isProxied: config.proxy !== "" }, "network opened");
     const unresolve = await openResolution(config.resolve, config.resolver, config.seeds, config.proxy !== "");
     const reset = () => {
         pacing.spacing = 0;
+        pacing.scale = 1;
         unresolve();
     };
     if (!config.proxy) return { close: async () => reset() };

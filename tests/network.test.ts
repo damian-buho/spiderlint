@@ -4,9 +4,9 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { ConfigError, proxyOf } from "../src/config/index.ts";
+import { ConfigError, layered, proxyOf } from "../src/config/index.ts";
 import { validateSubtree } from "../src/config/schema.ts";
-import { openNetwork, pace } from "../src/crawl/network.ts";
+import { openNetwork, pace, patient } from "../src/crawl/network.ts";
 import { audit } from "../src/index.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 import { serveHttpProxy, serveSocksProxy } from "./fixtures/proxies.ts";
@@ -32,7 +32,7 @@ describe("network", () => {
     });
 
     it("spaces requests to the configured rate", async () => {
-        const network = await openNetwork({ rate: 600, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [] });
+        const network = await openNetwork({ rate: 600, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [], timeout: 60 });
         const started = performance.now();
         for (let request = 0; request < 4; request += 1) await pace();
         await network.close();
@@ -40,7 +40,7 @@ describe("network", () => {
     });
 
     it("stops pacing once the network closes", async () => {
-        const network = await openNetwork({ rate: 1, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [] });
+        const network = await openNetwork({ rate: 1, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [], timeout: 60 });
         await network.close();
         const started = performance.now();
         await pace();
@@ -48,8 +48,21 @@ describe("network", () => {
         assert.ok(performance.now() - started < 50);
     });
 
+    it("stretches network waits by the run timeout until the network closes", async () => {
+        const network = await openNetwork({ rate: 0, proxy: "", allowPrivate: true, resolver: "system", resolve: [], seeds: [], timeout: 240 });
+        assert.equal(patient(10_000), 40_000);
+        await network.close();
+        assert.equal(patient(10_000), 10_000);
+    });
+
+    it("gives each overlay profile its local proxy, which --proxy still replaces", () => {
+        assert.equal(layered([{ profile: "tor" }]).proxy, "socks5h://127.0.0.1:9050");
+        assert.equal(layered([{ profile: "i2p" }]).proxy, "http://127.0.0.1:4444");
+        assert.equal(layered([{ profile: "i2p", proxy: "http://10.0.0.2:4444" }]).proxy, "http://10.0.0.2:4444");
+    });
+
     it("refuses a proxy where the address guard must hold", async () => {
-        await assert.rejects(openNetwork({ rate: 0, proxy: "http://127.0.0.1:1", allowPrivate: false, resolver: "system", resolve: [], seeds: [] }), ConfigError);
+        await assert.rejects(openNetwork({ rate: 0, proxy: "http://127.0.0.1:1", allowPrivate: false, resolver: "system", resolve: [], seeds: [], timeout: 60 }), ConfigError);
     });
 
     for (const [kind, serve] of [["http", serveHttpProxy], ["socks5h", serveSocksProxy]] as const) {
