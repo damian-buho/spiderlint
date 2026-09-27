@@ -15,7 +15,7 @@ const VITALS = { lcp: "largest-contentful-paint", cls: "cumulative-layout-shift"
 
 export interface LighthouseFacts {
     version: string;
-    formFactor: string;
+    "form-factor": string;
     // Category scores from 0 to 1, by category ID.
     scores: Record<string, number>;
     // Milliseconds, CLS unitless.
@@ -62,7 +62,7 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Lightho
         }),
     );
     log.debug({ url: page.url.href, port, scores, vitals, warnings: lhr.runWarnings }, "Lighthouse audited");
-    return { version: lhr.lighthouseVersion, formFactor: lhr.configSettings.formFactor, scores, vitals };
+    return { version: lhr.lighthouseVersion, "form-factor": lhr.configSettings.formFactor, scores, vitals };
 }
 
 // A category score of at least 0.9, Lighthouse’s own green.

@@ -57,7 +57,7 @@ export interface ImageFacts {
 export interface TextFacts {
     bytes: number;
     minified: number;
-    fontFaces?: { family: string; display?: string }[];
+    "font-faces"?: { family: string; display?: string }[];
 }
 
 // The rendered `<img>` boxes of a page, in CSS pixels from the top of the document.
@@ -143,7 +143,7 @@ async function extract(url: string, contentType: string, body: Uint8Array): Prom
 }
 
 // Each `@font-face` family and its `font-display`, read from esbuild’s minified CSS.
-function fontFaces(css: string): NonNullable<TextFacts["fontFaces"]> {
+function fontFaces(css: string): NonNullable<TextFacts["font-faces"]> {
     return css.matchAll(/@font-face\{([^}]*)\}/g).map(([, block = ""]) => {
         const family = /font-family:\s*("[^"]*"|'[^']*'|[^;]*)/.exec(block)?.[1]?.replaceAll(/^["']|["']$/g, "") ?? "";
         const display = /font-display:\s*([^;]*)/.exec(block)?.[1]?.trim();
@@ -157,7 +157,7 @@ async function extractText(url: string, contentType: string, body: Uint8Array): 
     const { code } = await transform(Buffer.from(body).toString("utf8"), { loader, minify: true, logLevel: "silent" });
     const faces = loader === "css" ? fontFaces(code) : [];
     log.debug({ url, loader, bytes: body.byteLength, minified: Buffer.byteLength(code), fontFaces: faces.length }, "text asset minified");
-    return { bytes: body.byteLength, minified: Buffer.byteLength(code), ...(faces.length > 0 && { fontFaces: faces }) };
+    return { bytes: body.byteLength, minified: Buffer.byteLength(code), ...(faces.length > 0 && { "font-faces": faces }) };
 }
 
 // A font’s format by its leading bytes, whatever its content type claims; EOT carries `LP` at byte 34.
@@ -231,10 +231,10 @@ const fontFormat = resourceRule("images/font-format", (_page, resource) => fontO
 }, [`resources.${FONTS}`], fontOf, { docs: "https://web.dev/articles/reduce-webfont-size" });
 
 // A stylesheet whose `@font-face` rules hide text while their font loads.
-const fontDisplay = resourceRule("images/font-display", (_page, resource) => textOf(resource)?.fontFaces !== undefined, (resource, pages) => {
-    const invisible = (textOf(resource)?.fontFaces ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
+const fontDisplay = resourceRule("images/font-display", (_page, resource) => textOf(resource)?.["font-faces"] !== undefined, (resource, pages) => {
+    const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
     return invisible.length === 0 ? undefined : `${invisible.length} @font-face without font-display: swap, fallback or optional (${[...new Set(invisible)].join(", ")}); used by ${pages} pages`;
-}, [`resources.${TEXT}`], (resource) => textOf(resource)?.fontFaces, { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display" });
+}, [`resources.${TEXT}`], (resource) => textOf(resource)?.["font-faces"], { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display" });
 
 type Img = HtmlFacts["images"][number];
 

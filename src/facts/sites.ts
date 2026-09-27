@@ -80,7 +80,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
     const queue = jobs.values();
     const worker = async () => {
         for (const { extractor, subject, members, isLinked } of queue) {
-            const key = `${extractor.id}\t${subject}${isLinked ? "\tlinked" : ""}`;
+            const key = `${extractor.id}\t${extractor.version ?? ""}\t${subject}${isLinked ? "\tlinked" : ""}`;
             const entry = extractor.cached === false ? undefined : await bucket.get(key);
             let value = entry && bucket.isFresh(entry) ? entry.value : undefined;
             log.debug({ extractor: extractor.id, subject, isLinked, cached: value !== undefined }, "site extractor subject");

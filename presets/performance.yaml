@@ -9,7 +9,7 @@ rules:
     expect: {type: string, pattern: "^\\s*(br|gzip|zstd)\\s*$"}
     when:
       http.status: {minimum: 200, maximum: 299}
-      http.contentType: {pattern: "^(text/|application/([\\w.-]+\\+)?(json|xml|javascript)\\b|image/svg\\+xml)"}
+      http.content-type: {pattern: "^(text/|application/([\\w.-]+\\+)?(json|xml|javascript)\\b|image/svg\\+xml)"}
       http.size.decoded: {minimum: 1024}
     severity: warning
     message: "a text response over 1 KB should be sent br, zstd or gzip, found {got}"
@@ -38,14 +38,14 @@ rules:
   http/html-cache-control:
     fact: http.headers.cache-control
     expect: {type: string, minLength: 1}
-    when: {http.status: {minimum: 200, maximum: 299}, http.contentType: {pattern: "^text/html"}}
+    when: {http.status: {minimum: 200, maximum: 299}, http.content-type: {pattern: "^text/html"}}
     severity: info
     message: "no Cache-Control header on an HTML page"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control
   http/no-store-bfcache:
     fact: http.headers.cache-control
     expect: {type: string, not: {pattern: "(?i:no-store)"}}
-    when: {http.contentType: {pattern: "^text/html"}, http.headers.cache-control: {type: string}}
+    when: {http.content-type: {pattern: "^text/html"}, http.headers.cache-control: {type: string}}
     severity: info
     message: "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
     docs: https://web.dev/articles/bfcache#minimize-use-of-cache-control-no-store

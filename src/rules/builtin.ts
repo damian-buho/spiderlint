@@ -123,9 +123,9 @@ export function linkTargets(raw: string, relation: string, base: string): string
 
 // A preload a 103 hinted that the final response’s `Link` no longer carries.
 const earlyHintsPreload: Make = (severity) => ({
-    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.earlyHints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103" },
+    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103" },
     check(page: Facts) {
-        const hints = page.http.earlyHints;
+        const hints = page.http["early-hints"];
         if (!hints) return;
         const final = new Set(linkTargets(header(page, "link"), "preload", page.url.href));
         const dropped = [...new Set(hints.flatMap((hint) => linkTargets(hint.link ?? "", "preload", page.url.href))).difference(final)];

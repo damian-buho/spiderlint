@@ -25,7 +25,7 @@ export const COOKIE_WRITES = `(() => { const cookie = Object.getOwnPropertyDescr
 // Cookies the page’s scripts wrote through `document.cookie`, read as Set-Cookie lines, deletions aside; values never leave the page.
 export async function scriptCookies(page: Page): Promise<CookieFacts[]> {
     const writes = (await page.evaluate(`globalThis.${WRITES} ?? []`)) as string[];
-    const cookies = cookieFacts([...new Set(writes)]).filter((cookie) => (cookie.maxAge ?? 1) > 0);
+    const cookies = cookieFacts([...new Set(writes)]).filter((cookie) => (cookie["max-age"] ?? 1) > 0);
     log.debug({ url: page.url(), writes: writes.length, cookies: cookies.length }, "script cookie writes read");
     return cookies;
 }
@@ -95,8 +95,8 @@ export function tlsFacts(details: Security | null, now = Date.now()): TlsFacts |
         cert: {
             ...(details.subjectName && { subject: details.subjectName }),
             ...(details.issuer && { issuer: details.issuer }),
-            ...(notBefore && { notBefore }),
-            ...(notAfter && { notAfter, daysLeft: Math.floor((Date.parse(notAfter) - now) / DAY) }),
+            ...(notBefore && { "not-before": notBefore }),
+            ...(notAfter && { "not-after": notAfter, "days-left": Math.floor((Date.parse(notAfter) - now) / DAY) }),
             san: [],
         },
     };
@@ -143,7 +143,7 @@ export async function weightFacts(requests: Request[]): Promise<BrowserFacts["we
 // Chromium’s TLS completed by the probe when both saw one certificate, and the HTTP version: QUIC is 3, else the probe’s ALPN, plain text 1.1.
 export function withProbe(url: string, seen: TlsFacts | undefined, security: string | undefined, probed: TlsFacts | undefined): { tls?: TlsFacts; version?: string } {
     if (security === undefined) return { ...(seen && { tls: seen }), version: "1.1" };
-    const isSame = probed !== undefined && (seen === undefined || (seen.cert.subject === probed.cert.subject && seen.cert.notAfter === probed.cert.notAfter));
+    const isSame = probed !== undefined && (seen === undefined || (seen.cert.subject === probed.cert.subject && seen.cert["not-after"] === probed.cert["not-after"]));
     log.debug({ url, security, isProbed: probed !== undefined, isSame, subject: seen?.cert.subject, probedSubject: probed?.cert.subject }, "probed TLS compared");
     const tls = isSame ? { ...probed, ...(seen?.protocol && { protocol: seen.protocol }) } : seen;
     const version = security === "QUIC" ? "3.0" : isSame ? (probed.alpn === "h2" ? "2.0" : "1.1") : undefined;

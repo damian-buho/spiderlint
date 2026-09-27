@@ -46,7 +46,7 @@ describe("TLS probe", { skip: !fixture && "openssl is not on PATH" }, () => {
 });
 
 describe("probed browser TLS", () => {
-    const cert = { subject: "a.test", notAfter: "2027-01-01T00:00:00.000Z", san: [] };
+    const cert = { subject: "a.test", "not-after": "2027-01-01T00:00:00.000Z", san: [] };
     const seen: TlsFacts = { protocol: "TLSv1.3", authorized: true, cert };
     const probed: TlsFacts = { protocol: "TLSv1.2", cipher: "TLS_AES_128_GCM_SHA256", alpn: "h2", authorized: true, cert: { ...cert, san: ["a.test"], fingerprint256: "AB" } };
 
@@ -75,7 +75,7 @@ async function probed(origin: string): Promise<unknown> {
 
 // `[rule, severity]` of each `tls-probe` finding over one origin’s facts.
 function judged(origin: string, facts: unknown): [string, string][] {
-    const site: SiteFacts = { sitemaps: [], origins: { [origin]: { tlsProbe: facts } } };
+    const site: SiteFacts = { sitemaps: [], origins: { [origin]: { "tls-probe": facts } } };
     return runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), site).findings.map((finding): [string, string] => [finding.rule, finding.severity]);
 }
 
@@ -95,7 +95,7 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
         const modern = await serveTls(["http/1.1"], { minVersion: "TLSv1.3" });
         try {
             const facts = await probed(modern?.origin ?? "");
-            assert.deepEqual(facts, { address: "127.0.0.1", legacy: [], chain: { sent: 1, complete: true }, ocsp: { responder: false, stapled: false }, earlyData: false });
+            assert.deepEqual(facts, { address: "127.0.0.1", legacy: [], chain: { sent: 1, complete: true }, ocsp: { responder: false, stapled: false }, "early-data": false });
             assert.deepEqual(judged(modern?.origin ?? "", facts), []);
         } finally {
             await modern?.close();

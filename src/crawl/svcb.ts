@@ -8,7 +8,7 @@ export interface Svcb {
     target: string;
     mandatory?: string[];
     alpn?: string[];
-    noDefaultAlpn?: true;
+    "no-default-alpn"?: true;
     port?: number;
     ipv4hint?: string[];
     ech?: true;
@@ -52,7 +52,7 @@ function ipv6(bytes: Buffer): string {
 const DECODERS: Record<number, (value: Buffer) => Partial<Svcb>> = {
     0: (value) => ({ mandatory: Array.from({ length: value.length / 2 }, (_, index) => KEYS[value.readUInt16BE(index * 2)] ?? `key${value.readUInt16BE(index * 2)}`) }),
     1: (value) => ({ alpn: strings(value) }),
-    2: () => ({ noDefaultAlpn: true }),
+    2: () => ({ "no-default-alpn": true }),
     3: (value) => ({ port: value.readUInt16BE(0) }),
     4: (value) => ({ ipv4hint: chunks(value, 4, (bytes) => [...bytes].join(".")) }),
     5: () => ({ ech: true }),

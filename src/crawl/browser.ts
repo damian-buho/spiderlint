@@ -128,7 +128,7 @@ async function transportFacts(observation: Observation, size: Facts["http"]["siz
             timing,
             cookies: cookieFacts(headers["set-cookie"], headers.date),
             size,
-            contentType: type,
+            "content-type": type,
             ...(charset && { charset }),
         },
         ...(tls && { tls }),
@@ -151,7 +151,7 @@ async function milestones(page: Page): Promise<BrowserFacts["timing"]> {
     const entry = await page.evaluate(() => performance.getEntriesByType("navigation")[0]?.toJSON() as { domContentLoadedEventEnd?: number; loadEventEnd?: number } | undefined);
     const domContentLoaded = reached(entry?.domContentLoadedEventEnd);
     const load = reached(entry?.loadEventEnd);
-    return { ...(domContentLoaded !== undefined && { domContentLoaded }), ...(load !== undefined && { load }) };
+    return { ...(domContentLoaded !== undefined && { "dom-content-loaded": domContentLoaded }), ...(load !== undefined && { load }) };
 }
 
 // Waits for the network to go quiet so client-rendered tags land; a page that never settles is read as it stands.

@@ -123,7 +123,7 @@ async function isEarlyDataAccepted(host: string, port: string, address: string, 
 
 // Legacy versions accepted, OCSP stapling, chain completeness and TLS 1.3 early data of one https origin, through `openssl s_client`.
 const probe: SiteExtractor = {
-    id: "tlsProbe",
+    id: "tls-probe",
     per: "origin",
     resolves: true,
     async extract(origin, context) {
@@ -146,36 +146,36 @@ const probe: SiteExtractor = {
         const isStapled = /OCSP Response Status: successful/.test(current.output);
         const isEarly = await isEarlyDataAccepted(host, port, address, context.signal);
         log.debug({ origin, address, legacy, chain, responder, isStapled, isEarly }, "tls probed");
-        return { address, legacy, ...(chain && { chain }), ocsp: { responder, stapled: isStapled }, earlyData: isEarly };
+        return { address, legacy, ...(chain && { chain }), ocsp: { responder, stapled: isStapled }, "early-data": isEarly };
     },
 };
 
 const RULES: Record<string, RuleSpec> = {
     "tls-probe/legacy-protocols": {
-        fact: "site.origins.*.tlsProbe.legacy",
+        fact: "site.origins.*.tls-probe.legacy",
         expect: { maxItems: 0 },
         message: "the server still accepts {got}, which RFC 8996 deprecates",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc8996",
     },
     "tls-probe/chain-complete": {
-        fact: "site.origins.*.tlsProbe.chain.complete",
+        fact: "site.origins.*.tls-probe.chain.complete",
         expect: { const: true },
-        when: { "site.origins.*.tlsProbe.chain": { type: "object" } },
+        when: { "site.origins.*.tls-probe.chain": { type: "object" } },
         message: "the server does not send the intermediate certificates its chain needs, so clients that have not cached them fail",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc8446#section-4.4.2",
     },
     "tls-probe/ocsp-stapling": {
-        fact: "site.origins.*.tlsProbe.ocsp.stapled",
+        fact: "site.origins.*.tls-probe.ocsp.stapled",
         expect: { const: true },
-        when: { "site.origins.*.tlsProbe.ocsp.responder": true },
+        when: { "site.origins.*.tls-probe.ocsp.responder": true },
         message: "the certificate names an OCSP responder but the server staples no response, so each client asks the CA",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc6066#section-8",
     },
     "tls-probe/early-data": {
-        fact: "site.origins.*.tlsProbe.earlyData",
+        fact: "site.origins.*.tls-probe.early-data",
         expect: { const: false },
         message: "the server accepts TLS 1.3 early data, which an attacker can replay; non-idempotent requests must answer 425",
         severity: "info",

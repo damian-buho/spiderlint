@@ -35,7 +35,7 @@ export function timingFacts(transport: Transport): HttpFacts["timing"] {
 }
 
 type RequestFunction = (url: URL, options: unknown, callback?: unknown) => unknown;
-type Hints = NonNullable<HttpFacts["earlyHints"]>;
+type Hints = NonNullable<HttpFacts["early-hints"]>;
 
 // A got `beforeRequest` hook wrapping the request function got-scraping chose, so each 103 of the last hop lands in `hints`.
 export function earlyHintsHook(url: string, hints: Hints): (options: { getRequestFunction(): RequestFunction; request?: RequestFunction }) => void {
@@ -81,7 +81,7 @@ export function cookieFacts(setCookie: string | string[] | undefined, date?: str
         const path = flags.get("path");
         const domain = flags.get("domain");
         const maxAge = lifetime(flags, now);
-        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), httpOnly: flags.has("httponly"), ...(sameSite && { sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }), ...(maxAge !== undefined && { maxAge }) };
+        return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), "http-only": flags.has("httponly"), ...(sameSite && { "same-site": sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }), ...(maxAge !== undefined && { "max-age": maxAge }) };
     });
 }
 
@@ -137,8 +137,8 @@ export function tlsFacts(socket: TLSSocket | undefined, now = Date.now()): TlsFa
         cert: {
             ...(cert.subject?.CN && { subject: String(cert.subject.CN) }),
             ...((cert.issuer?.O ?? cert.issuer?.CN) && { issuer: String(cert.issuer.O ?? cert.issuer.CN) }),
-            ...(isoDate(cert.valid_from) && { notBefore: isoDate(cert.valid_from) }),
-            ...(notAfter && { notAfter, daysLeft: Math.floor((Date.parse(notAfter) - now) / DAY) }),
+            ...(isoDate(cert.valid_from) && { "not-before": isoDate(cert.valid_from) }),
+            ...(notAfter && { "not-after": notAfter, "days-left": Math.floor((Date.parse(notAfter) - now) / DAY) }),
             san: subjectAltNames(cert.subjectaltname),
             ...(cert.fingerprint256 && { fingerprint256: cert.fingerprint256 }),
         },

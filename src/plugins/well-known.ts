@@ -16,7 +16,7 @@ import { REGISTERED } from "./well-known-registry.ts";
 interface Verdict {
     errors: string[];
     fields?: Record<string, unknown>;
-    daysLeft?: number;
+    "days-left"?: number;
 }
 
 // The probed file a check reads.
@@ -128,7 +128,7 @@ const securityTxt: Check = (text, { url, answer }) => {
     if (fields.canonical && !fields.canonical.includes(url)) errors.push(`Canonical does not name ${url}`);
     const expires = Date.parse(fields.expires?.[0] ?? "");
     if (fields.expires && Number.isNaN(expires)) errors.push(`Expires ${fields.expires[0] as string} is not a date`);
-    return { errors, fields, ...(!Number.isNaN(expires) && { daysLeft: Math.floor((expires - Date.now()) / DAY_MS) }) };
+    return { errors, fields, ...(!Number.isNaN(expires) && { "days-left": Math.floor((expires - Date.now()) / DAY_MS) }) };
 };
 
 // The first nodeinfo document on the host, and the schema versions its links name.
@@ -173,8 +173,8 @@ const llmsTxt: Check = async (text, { url }, context) => {
 
 // Files under the RFC 8615 prefix, with the rule judging each when present.
 const WELL_KNOWN: Spec[] = [
-    { key: "securityTxt", paths: ["/.well-known/security.txt"], check: securityTxt },
-    { key: "changePassword", paths: ["/.well-known/change-password"], html: true },
+    { key: "security-txt", paths: ["/.well-known/security.txt"], check: securityTxt },
+    { key: "change-password", paths: ["/.well-known/change-password"], html: true },
     {
         key: "gpc",
         paths: ["/.well-known/gpc.json"],
@@ -186,7 +186,7 @@ const WELL_KNOWN: Spec[] = [
         }),
     },
     {
-        key: "apiCatalog",
+        key: "api-catalog",
         paths: ["/.well-known/api-catalog"],
         rule: { id: "api-catalog", docs: "https://www.rfc-editor.org/rfc/rfc9727#section-4" },
         check: json("object", (data, errors, { answer }) => {
@@ -195,7 +195,7 @@ const WELL_KNOWN: Spec[] = [
         }),
     },
     {
-        key: "openidConfiguration",
+        key: "openid-configuration",
         paths: ["/.well-known/openid-configuration"],
         rule: { id: "openid-configuration", docs: "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata" },
         check: json("object", (data, errors, { origin }) => {
@@ -204,7 +204,7 @@ const WELL_KNOWN: Spec[] = [
         }),
     },
     {
-        key: "oauthAuthorizationServer",
+        key: "oauth-authorization-server",
         paths: ["/.well-known/oauth-authorization-server"],
         rule: { id: "oauth-authorization-server", docs: "https://www.rfc-editor.org/rfc/rfc8414#section-2" },
         check: json("object", (data, errors, { origin }) => {
@@ -213,7 +213,7 @@ const WELL_KNOWN: Spec[] = [
         }),
     },
     {
-        key: "oauthProtectedResource",
+        key: "oauth-protected-resource",
         paths: ["/.well-known/oauth-protected-resource"],
         rule: { id: "oauth-protected-resource", docs: "https://www.rfc-editor.org/rfc/rfc9728#section-3.3" },
         check: json("object", (data, errors, { origin }) => {
@@ -232,7 +232,7 @@ const WELL_KNOWN: Spec[] = [
         }),
     },
     {
-        key: "appleAppSiteAssociation",
+        key: "apple-app-site-association",
         paths: ["/.well-known/apple-app-site-association"],
         rule: { id: "apple-app-site-association", docs: "https://developer.apple.com/documentation/xcode/supporting-associated-domains" },
         check: json("object", (_data, errors, { answer }) => {
@@ -250,7 +250,7 @@ const WELL_KNOWN: Spec[] = [
     },
     { key: "nodeinfo", paths: ["/.well-known/nodeinfo"], rule: { id: "nodeinfo", docs: "https://github.com/jhass/nodeinfo/blob/main/PROTOCOL.md" }, check: nodeinfo },
     {
-        key: "trafficAdvice",
+        key: "traffic-advice",
         paths: ["/.well-known/traffic-advice"],
         rule: { id: "traffic-advice", docs: "https://github.com/buettner/private-prefetch-proxy/blob/main/traffic-advice.md" },
         check: json("array", (data, errors, { answer }) => {
@@ -274,10 +274,10 @@ const WELL_KNOWN: Spec[] = [
 
 // Files agents read, all drafts or proposals.
 const AGENTS: Spec[] = [
-    { key: "llmsTxt", paths: ["/llms.txt", "/.well-known/llms.txt"], check: llmsTxt },
-    { key: "llmsFullTxt", paths: ["/llms-full.txt"] },
+    { key: "llms-txt", paths: ["/llms.txt", "/.well-known/llms.txt"], check: llmsTxt },
+    { key: "llms-full-txt", paths: ["/llms-full.txt"] },
     {
-        key: "agentCard",
+        key: "agent-card",
         paths: ["/.well-known/agent-card.json"],
         rule: { id: "agent-card", docs: "https://specification.website/spec/agent-readiness/a2a-agent-cards/" },
         check: json("object", (data, errors, { answer }) => {
@@ -289,7 +289,7 @@ const AGENTS: Spec[] = [
         }),
     },
     {
-        key: "aiCatalog",
+        key: "ai-catalog",
         paths: ["/.well-known/ai-catalog.json"],
         rule: { id: "ai-catalog", docs: "https://specification.website/spec/agent-readiness/agentic-resource-discovery/" },
         check: json("object", (data, errors) => {
@@ -302,13 +302,13 @@ const AGENTS: Spec[] = [
         }),
     },
     {
-        key: "mcpServerCard",
+        key: "mcp-server-card",
         paths: ["/.well-known/mcp/server-card.json"],
         rule: { id: "mcp-server-card", docs: "https://specification.website/spec/agent-readiness/mcp-and-tool-discovery/" },
         check: json("object", (data) => ({ name: data.name, version: data.version })),
     },
     {
-        key: "agentSkills",
+        key: "agent-skills",
         paths: ["/.well-known/agent-skills/index.json"],
         rule: { id: "agent-skills", docs: "https://specification.website/spec/agent-readiness/agent-skills-discovery/" },
         check: json("object", (data, errors) => {
@@ -353,7 +353,7 @@ async function probeFile(origin: string, path: string, spec: Spec, context: Site
     const isSuccess = answer.status >= 200 && answer.status <= 299;
     const isRedirect = answer.status >= 300 && answer.status <= 399 && typeof answer.headers.location === "string";
     const isPresent = spec.html ? isSuccess || isRedirect : isSuccess && contentType !== "text/html";
-    const base = { url, status: answer.status, contentType, ...(answer.redirects.length > 0 && { redirects: answer.redirects }), present: isPresent };
+    const base = { url, status: answer.status, "content-type": contentType, ...(answer.redirects.length > 0 && { redirects: answer.redirects }), present: isPresent };
     log.debug({ url, status: answer.status, contentType, isPresent }, "well-known file probed");
     if (!isPresent || !spec.check) return isPresent ? { ...base, bytes: Buffer.byteLength(answer.body) } : base;
     const verdict = await spec.check(answer.body, { url: answer.url, origin, answer }, context);
@@ -389,14 +389,14 @@ function unregistered(origin: string, context: SiteContext): string[] {
 }
 
 const wellKnown: SiteExtractor = {
-    id: "wellKnown",
+    id: "well-known",
     per: "origin",
     async extract(origin, context) {
         const files = await probeAll(origin, WELL_KNOWN, context);
         const required = context.pages.some((page) => page.html?.inputs?.some((input) => input.type === "password"));
         const names = unregistered(origin, context);
         log.debug({ origin, present: Object.keys(files).filter((key) => files[key]?.present), required, unregistered: names }, "well-known files probed");
-        return { ...files, changePassword: { ...files.changePassword, required }, unregistered: names };
+        return { ...files, "change-password": { ...files["change-password"], required }, unregistered: names };
     },
 };
 
@@ -428,7 +428,7 @@ async function markdownAt(url: string, init: ProbeInit, isAccepted: (type: strin
         const contentType = mediaType(answer);
         const isPresent = answer.status >= 200 && answer.status <= 299 && isAccepted(contentType);
         log.debug({ url, accept: init.headers?.accept, status: answer.status, contentType, isPresent }, "markdown source probed");
-        return { url, status: answer.status, contentType, present: isPresent };
+        return { url, status: answer.status, "content-type": contentType, present: isPresent };
     } catch (error) {
         log.debug({ url, error: reason(error) }, "markdown source unreachable");
         return { url, present: false, error: reason(error) };
@@ -465,32 +465,32 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
 
 const SECURITY: Record<string, RuleSpec> = {
     "well-known/security-txt": {
-        fact: "site.origins.*.wellKnown.securityTxt.present",
+        fact: "site.origins.*.well-known.security-txt.present",
         expect: { const: true },
         message: "no /.well-known/security.txt tells researchers how to report a vulnerability",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-3",
     },
     "well-known/security-txt-valid": {
-        fact: "site.origins.*.wellKnown.securityTxt.errors",
+        fact: "site.origins.*.well-known.security-txt.errors",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.wellKnown.securityTxt.present": true },
+        when: { "site.origins.*.well-known.security-txt.present": true },
         message: "/.well-known/security.txt breaks RFC 9116: {got}",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5",
     },
     "well-known/security-txt-expires": {
-        fact: "site.origins.*.wellKnown.securityTxt.daysLeft",
+        fact: "site.origins.*.well-known.security-txt.days-left",
         expect: { minimum: 0, maximum: 366 },
-        when: { "site.origins.*.wellKnown.securityTxt.daysLeft": { type: "number" } },
+        when: { "site.origins.*.well-known.security-txt.days-left": { type: "number" } },
         message: "/.well-known/security.txt expires in {got} days, not within the next year",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
     },
     "well-known/change-password": {
-        fact: "site.origins.*.wellKnown.changePassword.present",
+        fact: "site.origins.*.well-known.change-password.present",
         expect: { const: true },
-        when: { "site.origins.*.wellKnown.changePassword.required": true },
+        when: { "site.origins.*.well-known.change-password.required": true },
         message: "a crawled page asks for a password, but /.well-known/change-password leads nowhere",
         severity: "warning",
         docs: "https://w3c.github.io/webappsec-change-password-url/",
@@ -499,9 +499,9 @@ const SECURITY: Record<string, RuleSpec> = {
 
 const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
     ...SECURITY,
-    ...validity("wellKnown", WELL_KNOWN, "warning"),
+    ...validity("well-known", WELL_KNOWN, "warning"),
     "well-known/registered": {
-        fact: "site.origins.*.wellKnown.unregistered",
+        fact: "site.origins.*.well-known.unregistered",
         expect: { maxItems: 0 },
         message: "the crawl links /.well-known/ suffixes IANA has not registered: {got}",
         severity: "info",
@@ -511,16 +511,16 @@ const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
 
 const AGENT_RULES: Record<string, RuleSpec> = {
     "well-known/llms-txt": {
-        fact: "site.origins.*.agents.llmsTxt.present",
+        fact: "site.origins.*.agents.llms-txt.present",
         expect: { const: true },
         message: "no /llms.txt summarises the site for language models",
         severity: "info",
         docs: "https://llmstxt.org/",
     },
     "well-known/llms-txt-valid": {
-        fact: "site.origins.*.agents.llmsTxt.errors",
+        fact: "site.origins.*.agents.llms-txt.errors",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.agents.llmsTxt.present": true },
+        when: { "site.origins.*.agents.llms-txt.present": true },
         message: "/llms.txt is malformed: {got}",
         severity: "info",
         docs: "https://llmstxt.org/#format",

@@ -36,7 +36,7 @@ function revalidated(earlier: Facts, fresh: Facts): Facts["http"] {
 
 // The stored `Content-Type` header, else one rebuilt from the stored type and charset.
 function storedContentType(facts: Facts): string {
-    return first(facts.http.headers["content-type"]) ?? `${facts.http.contentType}${facts.http.charset ? `; charset=${facts.http.charset}` : ""}`;
+    return first(facts.http.headers["content-type"]) ?? `${facts.http["content-type"]}${facts.http.charset ? `; charset=${facts.http.charset}` : ""}`;
 }
 
 // Wire bytes received so far, from got's progress on the original response stream.
@@ -70,7 +70,7 @@ class Crawler extends CheerioCrawler {
 export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, storage?: CrawlStorage, proxy?: string): { crawler: CheerioCrawler; stats(): { pages: number; revalidated: number } } {
     let pages = 0;
     const revalidating = new WeakMap<object, Earlier>();
-    const hinted = new WeakMap<object, NonNullable<Facts["http"]["earlyHints"]>>();
+    const hinted = new WeakMap<object, NonNullable<Facts["http"]["early-hints"]>>();
     const hopped = new WeakMap<object, Facts["http"]["redirects"]>();
     let revalidatedPages = 0;
     const bodies = new WeakMap<object, Capped & { source: Transport; tls?: ReturnType<typeof tlsFacts>; remote?: { address: string; family?: string } }>();
@@ -82,7 +82,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
                     Object.assign(gotOptions, { decompress: false, headers: { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-encoding": ACCEPT_ENCODING } });
-                    const hints: NonNullable<Facts["http"]["earlyHints"]> = [];
+                    const hints: NonNullable<Facts["http"]["early-hints"]> = [];
                     hinted.set(request, hints);
                     const hops: Facts["http"]["redirects"] = [];
                     hopped.set(request, hops);
@@ -132,14 +132,14 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                         ...(cap?.remote && { remote: cap.remote }),
                         timing: cap ? timingFacts(cap.source) : {},
                         cookies: cookieFacts(response.headers["set-cookie"], response.headers.date),
-                        ...(hinted.get(request)?.length && { earlyHints: hinted.get(request) }),
+                        ...(hinted.get(request)?.length && { "early-hints": hinted.get(request) }),
                         size: {
                             body: transferred(cap?.source) ?? decoded,
                             decoded,
                             ...(Number.isSafeInteger(declared) && { declared }),
                             ...(cap?.isTruncated() && { truncated: true as const }),
                         },
-                        contentType: contentType.type,
+                        "content-type": contentType.type,
                         ...(contentType.encoding && { charset: contentType.encoding }),
                     },
                     ...(cap?.tls && { tls: cap.tls }),
@@ -148,7 +148,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 if (earlier) facts.http = revalidated(earlier.facts, facts);
                 revalidatedPages += earlier ? 1 : 0;
                 pages += 1;
-                log.debug({ url: url.href, status: facts.http.status, type: facts.http.contentType, bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
+                log.debug({ url: url.href, status: facts.http.status, type: facts.http["content-type"], bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
                 await onPage(facts, body.toString());
                 if (!isHtml) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");

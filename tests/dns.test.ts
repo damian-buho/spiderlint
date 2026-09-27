@@ -21,7 +21,7 @@ import { serveDns, svcb, type DnsFixture } from "./fixtures/dns.ts";
 // A page on `host` served by `issuer`, linking `links` and advertising `altSvc`.
 function page(host: string, issuer: string, links: string[] = [], altSvc?: string): Facts {
     const href = `https://${host}/`;
-    return { url: { href, origin: `https://${host}`, protocol: "https:", host, pathname: "/", search: "" }, group: "default", crawl: { depth: 0, discoveredVia: "seed", referrers: [] }, http: { status: 200, redirects: [], headers: altSvc ? { "alt-svc": altSvc } : {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, contentType: "text/html" }, tls: { cert: { issuer, san: [host] } }, html: { links: { internal: [], external: links, nofollow: [] } } } as unknown as Facts;
+    return { url: { href, origin: `https://${host}`, protocol: "https:", host, pathname: "/", search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http: { status: 200, redirects: [], headers: altSvc ? { "alt-svc": altSvc } : {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" }, tls: { cert: { issuer, san: [host] } }, html: { links: { internal: [], external: links, nofollow: [] } } } as unknown as Facts;
 }
 
 function off(): Bucket<StoredReply> {
@@ -70,7 +70,7 @@ describe("svcb parser", () => {
 
     it("reads every key it knows and names the rest", () => {
         const data = svcb(1, "svc.example", [[0, Buffer.from([0, 1])], [1, Buffer.from([2, 0x68, 0x32, 2, 0x68, 0x33])], [2, Buffer.alloc(0)], [4, Buffer.from([192, 0, 2, 1, 192, 0, 2, 2])], [5, Buffer.from([0, 1, 2])], [667, Buffer.from("hi")]]);
-        assert.deepEqual(parseSvcb(data), { priority: 1, target: "svc.example", mandatory: ["alpn"], alpn: ["h2", "h3"], noDefaultAlpn: true, ipv4hint: ["192.0.2.1", "192.0.2.2"], ech: true, unknown: [667] });
+        assert.deepEqual(parseSvcb(data), { priority: 1, target: "svc.example", mandatory: ["alpn"], alpn: ["h2", "h3"], "no-default-alpn": true, ipv4hint: ["192.0.2.1", "192.0.2.2"], ech: true, unknown: [667] });
     });
 });
 
@@ -115,7 +115,7 @@ describe("dns plugin", () => {
         const facts = await extract("good.fixture", [page("good.fixture", "Let's Encrypt", [], 'h3=":443"; ma=86400')], dnsClient(fixture.server, off(), true, fixture.port));
         assert.deepEqual(findings({ "good.fixture": facts }), []);
         assert.deepEqual((facts.nameservers as { serials: number[] }).serials, [7]);
-        assert.deepEqual((facts.dnssec as { nsec3: object }).nsec3, { iterations: 0, saltLength: 0 });
+        assert.deepEqual((facts.dnssec as { nsec3: object }).nsec3, { iterations: 0, "salt-length": 0 });
     });
 
     it("finds each fault of a bad zone", async () => {
@@ -152,10 +152,10 @@ describe("dns plugin", () => {
 
     it("records _for-sale and _agents as facts only", async () => {
         const facts = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
-        assert.deepEqual((facts.dns as { forSale: string[] }).forSale, ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"]);
+        assert.deepEqual((facts.dns as { "for-sale": string[] })["for-sale"], ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"]);
         assert.deepEqual((facts.dns as { agents: object[] }).agents, [{ priority: 1, target: "agents.quiet.fixture", alpn: ["h2"] }]);
         const plainZone = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
-        assert.equal("forSale" in (plainZone.dns as object), false);
+        assert.equal("for-sale" in (plainZone.dns as object), false);
     });
 
     it("judges a resource host under the crawled domain as its own subject, for linked rules only", async () => {

@@ -63,6 +63,8 @@ export interface SiteExtractor {
     id: string;
     // `origin`: scheme, host and port; `host`: a DNS name.
     per: "origin" | "host";
+    // Keys the `origins` bucket, as a page extractor’s keys the `extractors` bucket.
+    version?: string;
     // Milliseconds before the run gives up on one subject; 60 s when unset.
     timeout?: number;
     // `false` skips the `origins` bucket and runs on every crawl, for an extractor whose queries cache themselves.

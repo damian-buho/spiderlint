@@ -27,13 +27,13 @@ export interface LiveFacts {
     // `<div>` and `<span>` taking clicks with no role; absent without CDP.
     clickables?: Element[];
     inputs: (Element & { size: number })[];
-    serviceWorkers: { scope: string; script?: string }[];
+    "service-workers": { scope: string; script?: string }[];
     // Present when the page defines `navigator.modelContext`.
     webmcp?: { tools: string[] };
     // Text axe finds too faint in the dark scheme; present only when the page claims dark support.
     dark?: (Element & { contrast?: string })[];
     // Under forced colours: controls left with nothing drawn, and opted-out elements holding text in author colours.
-    forced: { icons: Element[]; optOut: (Element & { colors: string })[] };
+    forced: { icons: Element[]; "opt-out": (Element & { colors: string })[] };
     // Whether a sheet answers `prefers-contrast: more`, and the text axe finds below 7:1 once it does.
     contrast: { claimed: boolean; faint?: (Element & { contrast?: string })[] };
 }
@@ -60,7 +60,7 @@ const READ = `(async () => {
     const isDark = [document.querySelector('meta[name="color-scheme"]')?.content ?? "", getComputedStyle(document.documentElement).colorScheme].some((value) => value.includes("dark")) || conditions.some((text) => text.includes("prefers-color-scheme:dark"));
     const isContrast = conditions.some((text) => /prefers-contrast(?::more|[)])/.test(text));
     const tools = "modelContext" in navigator ? ((await navigator.modelContextTesting?.listTools?.()) ?? []).map((tool) => tool.name) : undefined;
-    return { motion, videos, inputs, serviceWorkers, ...(tools && { webmcp: { tools } }), isDark, isContrast };
+    return { motion, videos, inputs, "service-workers": serviceWorkers, ...(tools && { webmcp: { tools } }), isDark, isContrast };
 })()`;
 
 // Under forced colours: shown controls with no visible text, media or surviving paint, and opt-out roots holding visible text.
@@ -86,7 +86,7 @@ const FORCED = `(() => {
     const drawn = (control) => hasText(control) || [...control.querySelectorAll("img, svg, picture, canvas, video, object")].some(shown) || [control, ...control.querySelectorAll("*")].slice(0, 20).some((node) => paints(node, null) || paints(node, "::before") || paints(node, "::after"));
     const icons = [...document.querySelectorAll('a[href], button, [role="button"]')].filter((control) => shown(control) && !drawn(control)).slice(0, ${MAX_FORCED}).map((control) => describe(control));
     const optOut = [...document.querySelectorAll("body *")].filter((node) => getComputedStyle(node).forcedColorAdjust === "none" && getComputedStyle(node.parentElement).forcedColorAdjust !== "none" && shown(node) && hasText(node)).slice(0, ${MAX_FORCED}).map((node) => { const style = getComputedStyle(node); return { ...describe(node), colors: style.color + " on " + style.backgroundColor }; });
-    return { icons, optOut };
+    return { icons, "opt-out": optOut };
 })()`;
 
 // Describes an element CDP found taking clicks, when it is a `<div>` or `<span>` with no role outside a native control.
@@ -152,7 +152,7 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<LiveFac
         const found = await clickables(fresh, page.url.href);
         await fresh.emulateMedia({ forcedColors: "active" });
         const forced = (await fresh.evaluate(FORCED)) as LiveFacts["forced"];
-        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts.serviceWorkers.length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length, icons: forced.icons.length, optOut: forced.optOut.length, isContrast }, "live page read");
+        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts["service-workers"].length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length, icons: forced.icons.length, optOut: forced["opt-out"].length, isContrast }, "live page read");
         return { ...facts, ...(found && { clickables: found }), ...(dark && { dark }), forced, isContrast };
     });
     const { isContrast, ...facts } = read;
@@ -194,8 +194,8 @@ const forcedIcons = pageRule("live/forced-icons", [`${ID}.forced.icons`], (page)
     return blank.length === 0 ? [] : [{ message: `${plural(blank.length, "control shows", "controls show")} nothing under forced colours: no visible text, and ${blank.length === 1 ? "its icon is" : "their icons are"} a gradient or a mask the system colours paint over`, value: blank.map((element) => element.target), locations: blank.map((element) => located(element)) }];
 }, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`." });
 
-const forcedOptOut = pageRule("live/forced-opt-out", [`${ID}.forced.optOut`], (page) => {
-    const kept = liveOf(page)?.forced?.optOut;
+const forcedOptOut = pageRule("live/forced-opt-out", [`${ID}.forced.opt-out`], (page) => {
+    const kept = liveOf(page)?.forced?.["opt-out"];
     if (!kept) return;
     return kept.length === 0 ? [] : [{ message: `${plural(kept.length, "element keeps", "elements keep")} ${kept.length === 1 ? "its" : "their"} own text colours under forced colours`, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
 }, { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." });

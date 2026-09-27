@@ -13,7 +13,7 @@ import type { AggregateRule } from "../src/rules/types.ts";
 // The smallest facts document a site rule reads.
 function page(href: string, resources: ResourceFacts[]): Facts {
     const url = new URL(href);
-    return { url: { href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: "" }, group: "default", crawl: { depth: 0, discoveredVia: "seed", referrers: [] }, http: { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, contentType: "text/html" }, resources };
+    return { url: { href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http: { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" }, resources };
 }
 
 describe("resource rules", () => {

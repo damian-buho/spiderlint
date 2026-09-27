@@ -21,10 +21,10 @@ const EXCLUDE = ["/tmp/**"];
 
 // A minimal HTML page’s facts, rendered in Chromium when `isBrowser`.
 function stubPage(isBrowser: boolean, isTruncated = false): Facts {
-    const http = { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 1, decoded: 1, ...(isTruncated && { truncated: true as const }) }, contentType: "text/html" };
+    const http = { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 1, decoded: 1, ...(isTruncated && { truncated: true as const }) }, "content-type": "text/html" };
     const html = { h1: [], meta: {}, metas: [], property: {}, head: { links: [] }, hreflang: [], jsonld: [], scripts: [], links: { internal: [], external: [], nofollow: [] }, images: [], rels: {}, inputs: [] };
     const browser = { timing: {}, console: { errors: [], warnings: [] }, weight: {}, cookies: [] };
-    return { url: { href: "https://example.test/", origin: "https://example.test", protocol: "https:", host: "example.test", pathname: "/", search: "" }, group: "default", crawl: { depth: 0, discoveredVia: "seed", referrers: [] }, http, html, ...(isBrowser && { browser }) };
+    return { url: { href: "https://example.test/", origin: "https://example.test", protocol: "https:", host: "example.test", pathname: "/", search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http, html, ...(isBrowser && { browser }) };
 }
 
 const BODY = '<!DOCTYPE html><html lang="en"><head><title>t</title></head><body><main><input type="checkbox" id="c" disabled=""><label for="c">c</label></main></body></html>';

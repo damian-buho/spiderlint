@@ -10,8 +10,8 @@ import { cookieFacts, redactHeaders, timingFacts, tlsFacts } from "../src/facts/
 describe("transport facts", () => {
     it("reads every cookie's flags", () => {
         assert.deepEqual(cookieFacts(["a=1; Secure; HttpOnly; SameSite=Strict", "b=2"]), [
-            { name: "a", secure: true, httpOnly: true, sameSite: "Strict" },
-            { name: "b", secure: false, httpOnly: false },
+            { name: "a", secure: true, "http-only": true, "same-site": "Strict" },
+            { name: "b", secure: false, "http-only": false },
         ]);
     });
 
@@ -38,7 +38,7 @@ describe("transport facts", () => {
         } as unknown as TLSSocket;
         const facts = tlsFacts(socket, Date.parse("2026-01-01T00:00:00Z"));
         assert.equal(facts?.error, "CERT_HAS_EXPIRED");
-        assert.equal(facts?.cert.daysLeft, 10);
+        assert.equal(facts?.cert["days-left"], 10);
         assert.deepEqual(facts?.cert.san, ["a.test", "b.test"]);
         assert.equal(facts?.cert.issuer, "CA");
         assert.equal(tlsFacts(undefined), undefined);

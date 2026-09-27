@@ -26,7 +26,7 @@ export interface Stop extends Element {
     // Whether the element, its pseudo-elements, parent or children look different focused.
     visible: boolean;
     // The fixed or sticky element on top of the focused one’s centre.
-    obscuredBy?: string;
+    "obscured-by"?: string;
     // Whether focus still shows under forced colours; read only where `visible`.
     forced?: boolean;
 }
@@ -38,7 +38,7 @@ export interface KeyboardFacts {
     unreached: Element[];
     // Where focus stopped moving, or the stop it cycled back to.
     trap?: string;
-    first?: { target: string; inMain: boolean; skipsTo?: { target: string; main: boolean } };
+    first?: { target: string; "in-main": boolean; "skips-to"?: { target: string; main: boolean } };
 }
 
 interface Seen extends Stop {
@@ -91,7 +91,7 @@ const INSPECT = `(() => {
         const target = document.getElementById(id) ?? document.getElementsByName(id)[0];
         if (target) skipsTo = { target: describe(target).target, main: Boolean(main && (target === main || target.contains(main) || main.contains(target))) };
     }
-    return { index: (${CANDIDATES} ?? []).indexOf(element), ...describe(element), visible, ...(obscuredBy && { obscuredBy }), inMain: Boolean(main?.contains(element)), ...(skipsTo && { skipsTo }) };
+    return { index: (${CANDIDATES} ?? []).indexOf(element), ...describe(element), visible, ...(obscuredBy && { "obscured-by": obscuredBy }), inMain: Boolean(main?.contains(element)), ...(skipsTo && { skipsTo }) };
 })()`;
 
 // Candidates Tab never reached and still shown; a radio group counts as reached through any of its radios.
@@ -162,11 +162,11 @@ async function walk(page: Page, url: string): Promise<KeyboardFacts> {
     log.debug({ url, candidates: count, limit, stops: stops.length, complete, trap, unreached: unreached.length, forcedRead: shown.length, forcedLost: lost.size }, "keyboard walked");
     const [head] = stops;
     return {
-        stops: stops.map(({ target, html, visible, obscuredBy, index }) => ({ target, html, visible, ...(obscuredBy && { obscuredBy }), ...(visible && index >= 0 && { forced: !lost.has(index) }) })),
+        stops: stops.map(({ target, html, visible, "obscured-by": obscuredBy, index }) => ({ target, html, visible, ...(obscuredBy && { "obscured-by": obscuredBy }), ...(visible && index >= 0 && { forced: !lost.has(index) }) })),
         complete,
         unreached,
         ...(trap && { trap }),
-        ...(head && { first: { target: head.target, inMain: head.inMain, ...(head.skipsTo && { skipsTo: head.skipsTo }) } }),
+        ...(head && { first: { target: head.target, "in-main": head.inMain, ...(head.skipsTo && { "skips-to": head.skipsTo }) } }),
     };
 }
 
@@ -198,9 +198,9 @@ const focusVisible = pageRule("keyboard/focus-visible", [`${ID}.stops`], (page) 
 }, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html", fix: "Give `:focus-visible` an outline or box-shadow; never remove the outline without a replacement." });
 
 const focusObscured = pageRule("keyboard/focus-obscured", [`${ID}.stops`], (page) => {
-    const covered = keyboardOf(page)?.stops.filter((stop) => stop.obscuredBy);
+    const covered = keyboardOf(page)?.stops.filter((stop) => stop["obscured-by"]);
     if (!covered) return;
-    return covered.length === 0 ? [] : [{ message: `${covered.length} focused element${covered.length === 1 ? " is" : "s are"} hidden under fixed or sticky content`, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop.obscuredBy}`) }];
+    return covered.length === 0 ? [] : [{ message: `${covered.length} focused element${covered.length === 1 ? " is" : "s are"} hidden under fixed or sticky content`, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop["obscured-by"]}`) }];
 }, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html", fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content." });
 
 const forcedFocus = pageRule("keyboard/forced-focus", [`${ID}.stops`], (page) => {
@@ -212,7 +212,7 @@ const forcedFocus = pageRule("keyboard/forced-focus", [`${ID}.stops`], (page) =>
 const skipLink = pageRule("keyboard/skip-link", [`${ID}.first`], (page) => {
     const first = keyboardOf(page)?.first;
     if (!first) return;
-    return first.inMain || first.skipsTo?.main ? [] : [{ message: `the first Tab stop is not a link to the main content`, value: first, locations: [first.target] }];
+    return first["in-main"] || first["skips-to"]?.main ? [] : [{ message: `the first Tab stop is not a link to the main content`, value: first, locations: [first.target] }];
 }, { docs: "https://www.w3.org/WAI/WCAG22/Techniques/general/G1", fix: "Make the first focusable element `<a href=\"#main\">Skip to content</a>`, pointing at `<main id=\"main\">`." });
 
 export default definePlugin({

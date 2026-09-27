@@ -37,7 +37,7 @@ describe("origin preset", () => {
         assert.deepEqual(rules(report), ["origin/https-entry"]);
         assert.equal(report.findings[0]?.url, site.origin);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
-        assert.deepEqual(report.summary.cost.extractors, { encodings: 1, entry: 1, favicon: 1, locale: 1, notFound: 1 });
+        assert.deepEqual(report.summary.cost.extractors, { encodings: 1, entry: 1, favicon: 1, locale: 1, "not-found": 1 });
     });
 
     it("finds a soft 404, a language redirect, gzip alone and a favicon that is a page", async () => {

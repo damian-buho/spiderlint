@@ -70,7 +70,7 @@ const aiCrawlers = robotsRule("robots/ai-crawlers", "https://www.rfc-editor.org/
 
 // Every `Content-Signal` line naming an unknown signal, a value other than yes or no, or nothing.
 const contentSignal = robotsRule("robots/content-signal", "https://contentsignals.org/", (file) => {
-    const malformed = file.contentSignals.filter(({ signals }) => {
+    const malformed = file["content-signals"].filter(({ signals }) => {
         const entries = Object.entries(signals);
         return entries.length === 0 || entries.some(([key, value]) => !SIGNALS.has(key) || !VERDICTS.has(value));
     });

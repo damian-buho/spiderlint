@@ -150,9 +150,9 @@ const addresses: SiteExtractor = {
         const [a, aaaa, https, sale, agents] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64")]);
         const v4 = records<string>(a, "A").map(({ data, ttl }) => ({ address: data, ttl }));
         const v6 = records<string>(aaaa, "AAAA").map(({ data, ttl }) => ({ address: data, ttl }));
-        const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { hintsMatch?: boolean } => {
+        const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { "hints-match"?: boolean } => {
             const isHinted = record.ipv4hint !== undefined || record.ipv6hint !== undefined;
-            return isHinted && (record.target === "." || isSameName(record.target, host)) ? { ...record, hintsMatch: isSameSet(record.ipv4hint ?? [], v4.map((entry) => entry.address)) && isSameSet(record.ipv6hint ?? [], v6.map((entry) => entry.address)) } : record;
+            return isHinted && (record.target === "." || isSameName(record.target, host)) ? { ...record, "hints-match": isSameSet(record.ipv4hint ?? [], v4.map((entry) => entry.address)) && isSameSet(record.ipv6hint ?? [], v6.map((entry) => entry.address)) } : record;
         });
         const forSale = texts(sale);
         const agentServices = services(host, agents, "UNKNOWN_64");
@@ -166,19 +166,19 @@ const addresses: SiteExtractor = {
             aaaa: v6,
             cname: records<string>(a, "CNAME").map(({ name, data, ttl }) => ({ name, target: data, ttl })),
             https: hinted,
-            ...(hinted.some((record) => record.priority > 0) && { h3: { record: hinted.some((record) => record.alpn?.includes("h3")), altSvc: hasAltSvcH3(context.pages) } }),
+            ...(hinted.some((record) => record.priority > 0) && { h3: { record: hinted.some((record) => record.alpn?.includes("h3")), "alt-svc": hasAltSvcH3(context.pages) } }),
             ...(authorised && { caa: { ...authorised, ...(allowed && { issuer: allowed }) } }),
             dangling: broken,
-            ...(forSale.length > 0 && { forSale }),
+            ...(forSale.length > 0 && { "for-sale": forSale }),
             ...(agentServices.length > 0 && { agents: agentServices }),
         };
     },
 };
 
 // NSEC3PARAM RDATA: algorithm, flags, iterations, salt length.
-function nsec3(reply: Reply): { iterations: number; saltLength: number } | undefined {
+function nsec3(reply: Reply): { iterations: number; "salt-length": number } | undefined {
     const data = records<Buffer>(reply, "NSEC3PARAM")[0]?.data;
-    return data && data.length >= 5 ? { iterations: data.readUInt16BE(2), saltLength: data.readUInt8(4) } : undefined;
+    return data && data.length >= 5 ? { iterations: data.readUInt16BE(2), "salt-length": data.readUInt8(4) } : undefined;
 }
 
 // Whether a signed host fails validation: the resolver answers SERVFAIL and a checking-disabled retry answers.
@@ -200,7 +200,7 @@ const dnssec: SiteExtractor = {
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
         const [ds, dnskey, a, parameters] = await Promise.all([context.dns.query(zone, "DS"), context.dns.query(zone, "DNSKEY"), context.dns.query(host, "A"), context.dns.query(zone, "NSEC3PARAM")]);
-        const delegation = records<DsData>(ds, "DS").map(({ data }) => ({ keyTag: data.keyTag, algorithm: data.algorithm, digestType: data.digestType }));
+        const delegation = records<DsData>(ds, "DS").map(({ data }) => ({ "key-tag": data.keyTag, algorithm: data.algorithm, "digest-type": data.digestType }));
         const keys = records<DnskeyData>(dnskey, "DNSKEY").map(({ data }) => ({ algorithm: data.algorithm, flags: data.flags }));
         const soonest = records<RrsigData>(a, "RRSIG").toSorted((x, y) => x.data.expiration - y.data.expiration)[0]?.data;
         const isSigned = delegation.length > 0;
@@ -213,7 +213,7 @@ const dnssec: SiteExtractor = {
             dnskey: keys,
             ad: a.ad,
             ...(failed !== undefined && { bogus: failed }),
-            ...(soonest && { rrsig: { expires: new Date(soonest.expiration * 1000).toISOString(), daysLeft: Math.floor((soonest.expiration * 1000 - Date.now()) / 86_400_000), left: Math.round(((soonest.expiration * 1000 - Date.now()) / ((soonest.expiration - soonest.inception) * 1000)) * 100) / 100 } }),
+            ...(soonest && { rrsig: { expires: new Date(soonest.expiration * 1000).toISOString(), "days-left": Math.floor((soonest.expiration * 1000 - Date.now()) / 86_400_000), left: Math.round(((soonest.expiration * 1000 - Date.now()) / ((soonest.expiration - soonest.inception) * 1000)) * 100) / 100 } }),
             ...(nsec3(parameters) && { nsec3: nsec3(parameters) }),
         };
     },
@@ -229,7 +229,7 @@ function network(address: string): string {
 }
 
 // One name server: its addresses, and its own SOA answer when asked directly, IPv4 first.
-async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; soaSerial?: number; authoritative?: boolean }> {
+async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; "soa-serial"?: number; authoritative?: boolean }> {
     const [a, aaaa] = await Promise.all([dns.query(name, "A"), dns.query(name, "AAAA")]);
     const addresses = [...records<string>(a, "A"), ...records<string>(aaaa, "AAAA")].map(({ data }) => data);
     if (!dns.canQueryDirectly) return { name, addresses };
@@ -238,7 +238,7 @@ async function nameServer(zone: string, name: string, dns: DnsClient): Promise<{
             const reply = await dns.query(zone, "SOA", { server: address });
             const serial = records<SoaData>(reply, "SOA")[0]?.data.serial;
             log.debug({ zone, name, address, aa: reply.aa, serial }, "name server asked directly");
-            return { name, addresses, ...(serial !== undefined && { soaSerial: serial }), authoritative: reply.aa && serial !== undefined };
+            return { name, addresses, ...(serial !== undefined && { "soa-serial": serial }), authoritative: reply.aa && serial !== undefined };
         } catch (error) {
             log.debug({ zone, name, address, error: reason(error) }, "name server unreachable");
         }
@@ -257,7 +257,7 @@ const nameservers: SiteExtractor = {
         if (!zone) return;
         const names = records<string>(await context.dns.query(zone, "NS"), "NS").map(({ data }) => data);
         const servers = await Promise.all(names.map((name) => nameServer(zone, name, context.dns)));
-        const serials = [...new Set(servers.flatMap((server) => (server.soaSerial === undefined ? [] : [server.soaSerial])))];
+        const serials = [...new Set(servers.flatMap((server) => (server["soa-serial"] === undefined ? [] : [server["soa-serial"]])))];
         const networks = new Set(servers.flatMap((server) => server.addresses.map((address) => network(address)))).size;
         log.debug({ host, zone, servers: names.length, serials, networks }, "name servers read");
         return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }) };
@@ -328,14 +328,14 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/https-alpn": {
         fact: "site.hosts.*.dns.h3",
-        expect: { anyOf: [{ properties: { record: { const: true }, altSvc: { const: true } } }, { properties: { record: { const: false }, altSvc: { const: false } } }] },
+        expect: { anyOf: [{ properties: { record: { const: true }, "alt-svc": { const: true } } }, { properties: { record: { const: false }, "alt-svc": { const: false } } }] },
         message: "the HTTPS record and Alt-Svc disagree about h3 (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.1",
     },
     "dns/https-hints": {
         fact: "site.hosts.*.dns.https",
-        expect: { items: { properties: { hintsMatch: { const: true } } } },
+        expect: { items: { properties: { "hints-match": { const: true } } } },
         message: "ipv4hint or ipv6hint does not match the A and AAAA records",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.3",
@@ -402,7 +402,7 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/dnssec-algorithm": {
         fact: "site.hosts.*.dnssec",
-        expect: { properties: { ds: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } }, digestType: { not: { enum: WEAK_DIGESTS } } } } }, dnskey: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } } } } } } },
+        expect: { properties: { ds: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } }, "digest-type": { not: { enum: WEAK_DIGESTS } } } } }, dnskey: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } } } } } } },
         when: { "site.hosts.*.dnssec.signed": true },
         message: "the zone signs or digests with an algorithm RFC 8624 forbids",
         severity: "warning",
@@ -418,7 +418,7 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/nsec3-iterations": {
         fact: "site.hosts.*.dnssec.nsec3",
-        expect: { properties: { iterations: { const: 0 }, saltLength: { const: 0 } } },
+        expect: { properties: { iterations: { const: 0 }, "salt-length": { const: 0 } } },
         when: { "site.hosts.*.dnssec.nsec3": { type: "object" } },
         message: "NSEC3 uses extra iterations or a salt (got {got})",
         severity: "warning",

@@ -43,7 +43,7 @@ const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, live, 
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
-const bundled = plugins.flatMap((plugin) => [...(plugin.extractors ?? []), ...(plugin.resources ?? [])]);
+const bundled = plugins.flatMap((plugin) => [...(plugin.extractors ?? []), ...(plugin.resources ?? []), ...(plugin.sites ?? [])]);
 for (const extractor of bundled) extractor.version ??= VERSION;
 const ajv = new Ajv2020({ strictTypes: false, allErrors: true, useDefaults: true });
 // Each plugin’s validated settings, by plugin name.
@@ -224,7 +224,7 @@ export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
 
 // Each extractor’s facts under its ID, through `cache`, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
 export async function extract(page: Facts, body: string, active: Extractor[], cache: ExtractorCache, live?: Page, context?: PageContext): Promise<string[]> {
-    const kind = `${page.http.contentType}${page.http.size.truncated ? " truncated" : ""}`;
+    const kind = `${page.http["content-type"]}${page.http.size.truncated ? " truncated" : ""}`;
     const added: string[] = [];
     for (const extractor of active) {
         if (!live && extractor.mode === "browser") {

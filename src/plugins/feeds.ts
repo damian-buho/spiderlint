@@ -74,7 +74,7 @@ function readJson(body: string, base: string): Body | undefined {
 
 // The feed format a page’s type or root element announces.
 function formatOf(page: Facts, body: string): FeedFacts["format"] | undefined {
-    const type = page.http.contentType;
+    const type = page.http["content-type"];
     if (type === "application/feed+json" || (type === "application/json" && body.includes("jsonfeed.org/version/"))) return "json";
     if (!FEED_TYPES.has(type) && !(/[/+]xml$/.test(type) && XML_ROOT.test(body))) return undefined;
     return type === "application/atom+xml" || /<feed[\s>]/.test(body.slice(0, 2048)) ? "atom" : "rss";
@@ -84,7 +84,7 @@ function formatOf(page: Facts, body: string): FeedFacts["format"] | undefined {
 async function extract(page: Facts, body: string): Promise<FeedFacts | undefined> {
     const format = formatOf(page, body);
     if (!format || page.http.size.truncated) {
-        log.debug({ url: page.url.href, contentType: page.http.contentType, format, truncated: page.http.size.truncated === true }, "feed skipped");
+        log.debug({ url: page.url.href, contentType: page.http["content-type"], format, truncated: page.http.size.truncated === true }, "feed skipped");
         return;
     }
     let read: Body | undefined;

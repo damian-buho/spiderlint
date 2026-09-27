@@ -222,7 +222,7 @@ export class Frontier {
         return {
             url: { href: url.href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: url.search },
             group: "default",
-            crawl: { depth: request.crawlDepth, discoveredVia: request.crawlDepth > 0 ? "link" : this.#seeds.has(request.url) ? "seed" : "sitemap", referrers: [], ...(request.url !== url.href && { requested: request.url }) },
+            crawl: { depth: request.crawlDepth, "discovered-via": request.crawlDepth > 0 ? "link" : this.#seeds.has(request.url) ? "seed" : "sitemap", referrers: [], ...(request.url !== url.href && { requested: request.url }) },
             ...(this.#sitemap.size > 0 && { sitemap: listing ?? { listed: false } }),
         };
     }

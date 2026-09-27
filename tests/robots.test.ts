@@ -23,7 +23,7 @@ describe("robots.txt", () => {
         const facts = parseRobots(URL_, 200, "Disallow: /early\nUser-agent: A\nuser-agent: b # comment\nAllow: /x\nDisallow:\nUser-agent: c\nCrawl-delay: 2\nSitemap: https://a.test/s.xml\n");
         assert.deepEqual(facts.groups, [
             { agents: ["a", "b"], allow: ["/x"], disallow: [] },
-            { agents: ["c"], allow: [], disallow: [], crawlDelay: 2 },
+            { agents: ["c"], allow: [], disallow: [], "crawl-delay": 2 },
         ]);
         assert.deepEqual(facts.sitemaps, ["https://a.test/s.xml"]);
     });

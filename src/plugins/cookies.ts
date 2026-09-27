@@ -34,8 +34,8 @@ interface Check {
 
 const CHECKS: Check[] = [
     { name: "secure", item: { properties: { secure: { const: true } } }, isHttpsOnly: true, severity: "warning", message: "a cookie is set without the Secure flag", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
-    { name: "http-only", item: { properties: { httpOnly: { const: true } } }, isHeaderOnly: true, severity: "info", message: "a cookie is set without the HttpOnly flag", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
-    { name: "same-site", item: { required: ["sameSite"] }, severity: "info", message: "a cookie is set without a SameSite attribute", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
+    { name: "http-only", item: { properties: { "http-only": { const: true } } }, isHeaderOnly: true, severity: "info", message: "a cookie is set without the HttpOnly flag", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
+    { name: "same-site", item: { required: ["same-site"] }, severity: "info", message: "a cookie is set without a SameSite attribute", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
     {
         name: "host-prefix",
         // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
@@ -49,13 +49,13 @@ const CHECKS: Check[] = [
     {
         name: "same-site-none",
         // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
-        item: { if: { properties: { sameSite: { pattern: "^(?i:none)$" } }, required: ["sameSite"] }, then: { properties: { secure: { const: true } } } },
+        item: { if: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] }, then: { properties: { secure: { const: true } } } },
         severity: "warning",
         message: "a SameSite=None cookie lacks Secure, so browsers reject it",
         fix: "add Secure to every SameSite=None cookie",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#none",
     },
-    { name: "lifetime", item: { properties: { maxAge: { maximum: 34_560_000 } } }, severity: "info", message: "a cookie outlives 400 days, which browsers cap", fix: "set Max-Age to 34560000 seconds (400 days) or less", docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute" },
+    { name: "lifetime", item: { properties: { "max-age": { maximum: 34_560_000 } } }, severity: "info", message: "a cookie outlives 400 days, which browsers cap", fix: "set Max-Age to 34560000 seconds (400 days) or less", docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute" },
 ];
 
 // The check over every cookie of `fact`, a page rule that folds by group.

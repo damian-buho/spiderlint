@@ -57,21 +57,21 @@ describe("audit", () => {
     it("crawls a head-only feed as a page and fetches the manifest as a resource", () => {
         const home = report.pages.find((page) => page.url.pathname === "/");
         const atom = report.pages.find((page) => page.url.pathname === "/atom.xml");
-        assert.equal(atom?.crawl.discoveredVia, "link");
+        assert.equal(atom?.crawl["discovered-via"], "link");
         assert.equal(atom?.html, undefined);
         const manifest = home?.resources?.find((resource) => resource.kind === "manifest");
         assert.equal(manifest?.url, `${site.origin}/site.webmanifest`);
         assert.equal(manifest?.http?.status, 200);
-        assert.equal(manifest?.http?.contentType, "application/manifest+json");
+        assert.equal(manifest?.http?.["content-type"], "application/manifest+json");
     });
 
     it("fetches a sitemap-only page and facts every page against the sitemap", () => {
         const orphan = report.pages.find((page) => page.url.pathname === "/orphan");
         assert.equal(orphan?.crawl.depth, 0);
-        assert.equal(orphan?.crawl.discoveredVia, "sitemap");
+        assert.equal(orphan?.crawl["discovered-via"], "sitemap");
         assert.deepEqual(orphan?.sitemap, { listed: true, lastmod: "2026-09-01T00:00:00.000Z", changefreq: "monthly", priority: 0.3 });
         const home = report.pages.find((page) => page.url.pathname === "/");
-        assert.equal(home?.crawl.discoveredVia, "seed");
+        assert.equal(home?.crawl["discovered-via"], "seed");
         assert.deepEqual(home?.sitemap, { listed: true });
         const about = report.pages.find((page) => page.url.pathname === "/about");
         assert.deepEqual(about?.sitemap, { listed: true, lastmod: "2026-08-15T00:00:00.000Z" }, "listed only in the gzipped sitemap");
@@ -83,10 +83,10 @@ describe("audit", () => {
         const home = report.pages.find((page) => page.url.pathname === "/");
         assert.deepEqual(home?.html?.links.external, [`${cdn()}/`]);
         assert.ok(home?.html?.links.internal.includes(`${site.origin}/posts/1`));
-        assert.deepEqual(home?.crawl, { depth: 0, discoveredVia: "seed", referrers: report.pages.filter((page) => page.http.status === 200 && page.html).map((page) => page.url.href) });
+        assert.deepEqual(home?.crawl, { depth: 0, "discovered-via": "seed", referrers: report.pages.filter((page) => page.http.status === 200 && page.html).map((page) => page.url.href) });
         const post = report.pages.find((page) => page.url.pathname === "/posts/1");
         assert.equal(post?.crawl.depth, 1);
-        assert.equal(post?.crawl.discoveredVia, "link");
+        assert.equal(post?.crawl["discovered-via"], "link");
     });
 
     it("reads robots.txt Crawl-delay for the spiderlint agent", async () => {
@@ -100,11 +100,11 @@ describe("audit", () => {
                 url: `${site.origin}/robots.txt`,
                 status: 200,
                 groups: [
-                    { agents: ["*"], allow: [], disallow: ["/private/"], crawlDelay: 0.01 },
+                    { agents: ["*"], allow: [], disallow: ["/private/"], "crawl-delay": 0.01 },
                     { agents: ["gptbot", "anthropic-ai"], allow: [], disallow: ["/"] },
                 ],
                 sitemaps: ["sitemap-broken.xml", "sitemap.xml", "sitemap-extra.xml.gz", "sitemap-gone.xml", "about.html"].map((file) => `${site.origin}/${file}`),
-                contentSignals: [{ agents: ["*"], value: "search=yes, ai-train=no", signals: { search: "yes", "ai-train": "no" } }],
+                "content-signals": [{ agents: ["*"], value: "search=yes, ai-train=no", signals: { search: "yes", "ai-train": "no" } }],
             },
         ]);
     });
@@ -178,7 +178,7 @@ describe("audit", () => {
 
     it("keeps html rules off a non-HTML document", () => {
         const feed = report.pages.find((page) => page.url.pathname === "/feed.xml");
-        assert.equal(feed?.http.contentType, "application/xml");
+        assert.equal(feed?.http["content-type"], "application/xml");
         assert.equal(feed?.html, undefined);
         assert.deepEqual(report.findings.filter((finding) => finding.url === feed?.url.href || finding.samples?.includes(feed?.url.href ?? "")), []);
     });
@@ -435,8 +435,8 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/orphan`], maxPages: 1, sitemap: false });
         const http = report.pages[0]?.http;
         assert.deepEqual(http?.cookies, [
-            { name: "session", secure: false, httpOnly: true, sameSite: "Lax", path: "/" },
-            { name: "__Host-id", secure: true, httpOnly: true, sameSite: "Strict", path: "/" },
+            { name: "session", secure: false, "http-only": true, "same-site": "Lax", path: "/" },
+            { name: "__Host-id", secure: true, "http-only": true, "same-site": "Strict", path: "/" },
         ]);
         assert.deepEqual(http?.headers["set-cookie"], ["session=[redacted]; Path=/; HttpOnly; SameSite=Lax", "__Host-id=[redacted]; Secure; Path=/; HttpOnly; SameSite=Strict"]);
         assert.ok(!JSON.stringify(report).includes("s3cr3t"));
@@ -445,7 +445,7 @@ describe("audit options", () => {
     it("judges a resource’s own Set-Cookie, keyed by the resource, and stores no value", async () => {
         const report = await audit({ seeds: [`${site.origin}/cookie-sources`], maxPages: 1, sitemap: false, groups: { default: { rules: ["cookies"] } } });
         const pixel = report.pages[0]?.resources?.find((resource) => resource.url.endsWith("/cookie-pixel.gif"));
-        assert.deepEqual(pixel?.http?.cookies, [{ name: "__Secure-px", secure: false, httpOnly: true, sameSite: "Lax", path: "/" }]);
+        assert.deepEqual(pixel?.http?.cookies, [{ name: "__Secure-px", secure: false, "http-only": true, "same-site": "Lax", path: "/" }]);
         const findings = report.findings.filter((finding) => finding.rule.startsWith("cookies/resource-")).map((finding) => [finding.rule, new URL(finding.url).pathname, finding.value]);
         assert.deepEqual(findings, [["cookies/resource-secure-prefix", "/cookie-pixel.gif", ["__Secure-px"]]]);
         assert.ok(!JSON.stringify(report).includes("px=1"));
@@ -453,14 +453,14 @@ describe("audit options", () => {
 
     it("reports a __Host- cookie with a Domain or a narrower Path, and passes a correct one", async () => {
         const report = await audit({ seeds: [`${site.origin}/cookies`], maxPages: 1, sitemap: false, fold: false, groups: { default: { rules: ["cookies"] } } });
-        assert.deepEqual(report.pages[0]?.http.cookies[0], { name: "__Host-bad", secure: true, httpOnly: false, path: "/app", domain: "127.0.0.1" });
+        assert.deepEqual(report.pages[0]?.http.cookies[0], { name: "__Host-bad", secure: true, "http-only": false, path: "/app", domain: "127.0.0.1" });
         assert.equal(report.findings.filter((finding) => finding.rule === "cookies/host-prefix").length, 1);
     });
 
     it("reports a __Secure- or SameSite=None cookie without Secure and one outliving 400 days, and passes correct ones", async () => {
         const report = await audit({ seeds: [`${site.origin}/cookies`, `${site.origin}/cookies-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["cookies"] } } });
         const ok = report.pages.find((page) => page.url.pathname === "/cookies-ok");
-        assert.deepEqual(ok?.http.cookies.map((cookie) => cookie.maxAge), [undefined, undefined, 3600, undefined]);
+        assert.deepEqual(ok?.http.cookies.map((cookie) => cookie["max-age"]), [undefined, undefined, 3600, undefined]);
         for (const rule of ["cookies/secure-prefix", "cookies/same-site-none", "cookies/lifetime"]) {
             const paths = report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
             assert.deepEqual(paths, ["/cookies"], rule);
@@ -496,7 +496,7 @@ describe("audit options", () => {
     it("records each 103 Early Hints Link, and reports a hinted preload the final response drops", async () => {
         const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
         const hinted = report.pages.find((page) => page.url.pathname === "/hints");
-        assert.deepEqual(hinted?.http.earlyHints, [{ link: "</style.css>; rel=preload; as=style, </font.woff2>; rel=preload; as=font" }]);
+        assert.deepEqual(hinted?.http["early-hints"], [{ link: "</style.css>; rel=preload; as=style, </font.woff2>; rel=preload; as=font" }]);
         const findings = report.findings.filter((finding) => finding.rule === "http/early-hints-preload");
         assert.deepEqual(findings.map((finding) => [new URL(finding.url).pathname, finding.value]), [["/hints", [`${site.origin}/font.woff2`]]]);
     });

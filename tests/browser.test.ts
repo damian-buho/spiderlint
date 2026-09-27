@@ -160,7 +160,7 @@ describe("browser fetch", { skip }, () => {
         assert.equal(facts?.http.headers.server, "fixture-a");
         assert.equal(facts?.http.version, "1.1", "Chromium speaks HTTP/1.1 over plain text");
         assert.equal(redirected.summary.cost.browser?.tlsProbes, 0);
-        assert.equal(facts?.http.contentType, "text/html");
+        assert.equal(facts?.http["content-type"], "text/html");
         assert.match(facts?.http.charset ?? "", /^utf-8$/);
         assert.equal(typeof facts?.http.timing.total, "number");
         assert.equal(typeof facts?.browser?.timing.load, "number");
@@ -198,14 +198,14 @@ describe("browser fetch", { skip }, () => {
         const download = await audit({ seeds: [`${site.origin}/big.bin`], fetch: "browser", maxPages: 1, sitemap: false });
         const http = download.pages[0]?.http;
         assert.equal(http?.status, 200);
-        assert.equal(http?.contentType, "application/octet-stream");
+        assert.equal(http?.["content-type"], "application/octet-stream");
         assert.equal(http?.size.declared, 50_000_000);
         assert.equal(http?.size.truncated, true);
     });
 
     it("judges cookies scripts write through document.cookie, without their values", async () => {
         const written = await audit({ seeds: [`${site.origin}/cookie-sources`], maxPages: 1, sitemap: false, fetchResources: false, groups: { default: { rules: ["browser"] } } });
-        assert.deepEqual(written.pages[0]?.browser?.cookies, [{ name: "tracker", secure: false, httpOnly: false, maxAge: 99_999_999 }]);
+        assert.deepEqual(written.pages[0]?.browser?.cookies, [{ name: "tracker", secure: false, "http-only": false, "max-age": 99_999_999 }]);
         assert.deepEqual(written.findings.map((finding) => finding.rule).filter((rule) => rule.startsWith("cookies/")).toSorted((a, b) => a.localeCompare(b)), ["cookies/script-lifetime", "cookies/script-same-site"]);
     });
 
@@ -231,12 +231,12 @@ describe("browser fetch", { skip }, () => {
         const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
         assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
         assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
-        assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", inMain: false, skipsTo: { target: "#main", main: true } });
+        assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", "in-main": false, "skips-to": { target: "#main", main: true } });
         assert.ok(keyboard("/live-clean")?.complete);
         assert.deepEqual(keyboard("/live-bad")?.stops.filter((stop) => stop.forced === false).map((stop) => stop.target), ["#ring"], "a box-shadow ring vanishes under forced colours");
         const live = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.live as LiveFacts | undefined;
         assert.deepEqual(live("/live-bad")?.forced.icons.map((element) => element.target), ["body > main > button:nth-of-type(2)", "body > main > button:nth-of-type(3)"], "gradient and masked icons vanish, text and inline SVG stay");
-        assert.deepEqual(live("/live-bad")?.forced.optOut.map((element) => element.target), ["body > main > p:nth-of-type(2)"]);
+        assert.deepEqual(live("/live-bad")?.forced["opt-out"].map((element) => element.target), ["body > main > p:nth-of-type(2)"]);
         assert.equal((report.pages.find((entry) => entry.url.pathname === "/live-skip")?.live as { dark?: unknown } | undefined)?.dark, undefined, "a page claiming no dark scheme is not judged in one");
     });
 
@@ -244,7 +244,7 @@ describe("browser fetch", { skip }, () => {
         const report = await audit({ seeds: [`${site.origin}/about`, `${site.origin}/live-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["lighthouse"], sample: 1 } } });
         const audited = report.pages.map((entry) => entry.lighthouse as LighthouseFacts | undefined).filter((facts) => facts !== undefined);
         assert.equal(audited.length, 1);
-        assert.equal(audited[0]?.formFactor, "mobile");
+        assert.equal(audited[0]?.["form-factor"], "mobile");
         assert.equal(typeof audited[0]?.scores.performance, "number");
         assert.equal(typeof audited[0]?.vitals.lcp, "number");
     });

@@ -47,10 +47,10 @@ export function parseRobots(url: string, status: number, body: string): RobotsFi
         else if (key === "content-signal") contentSignals.push({ agents: group?.agents ?? [], value, signals: signalsOf(value) });
         else if (!group) log.debug({ url, key }, "robots.txt rule outside a group dropped");
         else if (value && (key === "allow" || key === "disallow")) group[key].push(value);
-        else if (key === "crawl-delay" && Number.isFinite(Number(value))) group.crawlDelay = Number(value);
+        else if (key === "crawl-delay" && Number.isFinite(Number(value))) group["crawl-delay"] = Number(value);
     }
     log.debug({ url, status, groups: groups.length, sitemaps: sitemaps.length, contentSignals: contentSignals.length }, "robots.txt parsed");
-    return { url, status, groups, sitemaps, contentSignals };
+    return { url, status, groups, sitemaps, "content-signals": contentSignals };
 }
 
 // The groups naming `agent`, else those naming `*`, as RFC 9309 §2.2.1 picks them.
@@ -62,7 +62,7 @@ export function groupsFor(facts: RobotsFileFacts, agent: string): RobotsGroupFac
 // The `Crawl-delay` the spiderlint group, else the `*` group, asks for; 0 when none.
 export function crawlDelayOf(file: RobotsTxtFile): number {
     const facts = parsed.get(file);
-    return (facts && groupsFor(facts, "spiderlint").find((group) => group.crawlDelay !== undefined)?.crawlDelay) ?? 0;
+    return (facts && groupsFor(facts, "spiderlint").find((group) => group["crawl-delay"] !== undefined)?.["crawl-delay"]) ?? 0;
 }
 
 // The file’s facts; a file this module did not load has none.

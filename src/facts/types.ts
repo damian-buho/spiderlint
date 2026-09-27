@@ -14,7 +14,7 @@ export interface UrlFacts {
 
 export interface CrawlFacts {
     depth: number;
-    discoveredVia: "seed" | "sitemap" | "link";
+    "discovered-via": "seed" | "sitemap" | "link";
     referrers: string[];
     requested?: string;
 }
@@ -55,7 +55,7 @@ export interface RobotsGroupFacts {
     agents: string[];
     allow: string[];
     disallow: string[];
-    crawlDelay?: number;
+    "crawl-delay"?: number;
 }
 
 // One `Content-Signal` line, its agents empty outside a group, its signals as written.
@@ -72,7 +72,7 @@ export interface RobotsFileFacts {
     error?: string;
     groups: RobotsGroupFacts[];
     sitemaps: string[];
-    contentSignals: ContentSignalFacts[];
+    "content-signals": ContentSignalFacts[];
 }
 
 // Facts about the site rather than any one page, read by group and site rules.
@@ -93,11 +93,11 @@ export interface SiteFacts {
 export interface CookieFacts {
     name: string;
     secure: boolean;
-    httpOnly: boolean;
-    sameSite?: string;
+    "http-only": boolean;
+    "same-site"?: string;
     path?: string;
     domain?: string;
-    maxAge?: number;
+    "max-age"?: number;
 }
 
 export interface RedirectHop {
@@ -118,9 +118,9 @@ export interface HttpFacts {
     timing: Partial<Record<"wait" | "dns" | "tcp" | "tls" | "request" | "ttfb" | "download" | "total", number>>;
     cookies: CookieFacts[];
     // The `Link` header of each 103 Early Hints response before the final one.
-    earlyHints?: { link?: string }[];
+    "early-hints"?: { link?: string }[];
     size: { body: number; decoded: number; declared?: number; truncated?: true };
-    contentType: string;
+    "content-type": string;
     charset?: string;
     revalidated?: true;
 }
@@ -131,7 +131,7 @@ export interface TlsFacts {
     alpn?: string;
     authorized: boolean;
     error?: string;
-    cert: { subject?: string; issuer?: string; notBefore?: string; notAfter?: string; daysLeft?: number; san: string[]; fingerprint256?: string };
+    cert: { subject?: string; issuer?: string; "not-before"?: string; "not-after"?: string; "days-left"?: number; san: string[]; fingerprint256?: string };
 }
 
 export interface HtmlFacts {
@@ -167,14 +167,14 @@ export interface ResourceFacts {
     integrity?: string;
     crossorigin?: string;
     observed?: true;
-    http?: { status: number; headers: Record<string, string | string[]>; contentType?: string; size: { body: number }; timing: { total?: number }; cookies?: CookieFacts[]; error?: string; cached?: true; revalidated?: true; logged?: true };
+    http?: { status: number; headers: Record<string, string | string[]>; "content-type"?: string; size: { body: number }; timing: { total?: number }; cookies?: CookieFacts[]; error?: string; cached?: true; revalidated?: true; logged?: true };
     // A resource extractor’s facts, under the extractor’s ID.
     [extractor: string]: unknown;
 }
 
 // What only a rendering browser sees: load milestones, console output, bytes per resource kind.
 export interface BrowserFacts {
-    timing: { domContentLoaded?: number; load?: number };
+    timing: { "dom-content-loaded"?: number; load?: number };
     console: { errors: string[]; warnings: string[] };
     weight: Partial<Record<"script" | "style" | "image" | "font", number>>;
     // Cookies the page’s scripts wrote through `document.cookie`, without values.

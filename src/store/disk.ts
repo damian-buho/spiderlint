@@ -133,7 +133,7 @@ export class DiskStore {
 
     async add(facts: Facts, body: string): Promise<void> {
         await this.facts.pushData(facts);
-        await this.bodies.setValue(key(facts.url.href), body, { contentType: facts.http.contentType || "application/octet-stream" });
+        await this.bodies.setValue(key(facts.url.href), body, { contentType: facts.http["content-type"] || "application/octet-stream" });
     }
 
     // A page’s stored body, which a fresh crawl keeps for revalidation.
