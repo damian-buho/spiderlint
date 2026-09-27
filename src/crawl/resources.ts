@@ -20,6 +20,9 @@ type ResourceHttp = NonNullable<ResourceFacts["http"]>;
 // The Accept header Chromium sends for an image, so an origin negotiating AVIF or WebP answers as it would a browser.
 const IMAGE_ACCEPT = { accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8" };
 
+// The codings Chromium accepts, so an origin compressing in br or zstd alone answers as it would a browser.
+const ACCEPT_ENCODING = { "accept-encoding": "gzip, deflate, br, zstd" };
+
 // Pool width: `concurrency` when set, else NUMPROCS when the environment sets it, else the host's parallelism.
 export function width(concurrency = 0): number {
     if (concurrency > 0) return concurrency;
@@ -207,7 +210,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, images.has(url) ? IMAGE_ACCEPT : {}));
+            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }));
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);

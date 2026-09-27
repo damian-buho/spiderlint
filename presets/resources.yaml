@@ -2,11 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Scripts, styles, images and fonts — status, mixed content, integrity, overlays
+description: Scripts, styles, images and fonts — status, mixed content, integrity, caching, compression, overlays
 rules:
   resources/status: error
   resources/mixed-content: error
   resources/sri: warning
+  resources/cache-control: warning
+  resources/compression: warning
   resources/a11y-overlay:
     fact: resources
     expect: {not: {contains: {properties: {url: {pattern: "^https?://([^/]+\\.)?(acsbapp\\.com|acsbap\\.com|accessibe\\.com|userway\\.org|audioeye\\.com|equalweb\\.com|nagich\\.co\\.il|maxaccess\\.io|allyable\\.com|accessiblyapp\\.com|user1st\\.info|purplelens\\.eu)(:|/|$)"}}}}}

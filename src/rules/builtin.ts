@@ -241,6 +241,48 @@ const resourceStatus: Verdict = (resource, pages) => {
     return http.status === 0 ? `${resource.kind} could not be fetched (${http.error}); used by ${pages} pages` : `${resource.kind} answers ${http.status}; used by ${pages} pages`;
 };
 
+// A resource header's value, repeated fields joined; absent is empty.
+function resourceHeader(resource: ResourceFacts, name: string): string {
+    return [resource.http?.headers[name] ?? []].flat().join(", ");
+}
+
+// A resource that answered 2xx.
+function isServed(resource: ResourceFacts): boolean {
+    const status = resource.http?.status ?? 0;
+    return status >= 200 && status < 300;
+}
+
+// One year, the `max-age` a fingerprinted asset can carry.
+const YEAR = 31_536_000;
+
+// A file name carrying a content hash: a `.` or `-` segment of 8+ word characters with a digit, before the extension.
+const HASHED = /[.-](?=[\w-]*\d)[\w-]{8,}\.\w+$/;
+
+// A fingerprinted or `immutable` asset whose `Cache-Control` keeps it for less than a year.
+const resourceCacheControl: Verdict = (resource, pages) => {
+    const policy = resourceHeader(resource, "cache-control");
+    const isImmutable = /\bimmutable\b/i.test(policy);
+    const isHashed = HASHED.test(new URL(resource.url).pathname);
+    if (!isServed(resource) || (!isImmutable && !isHashed)) return;
+    const maxAge = Number(/\bmax-age=(\d+)/i.exec(policy)?.[1] ?? 0);
+    const isLong = maxAge >= YEAR && !/\bno-(?:cache|store)\b/i.test(policy);
+    log.debug({ rule: "resources/cache-control", resource: resource.url, isImmutable, isHashed, maxAge, isLong }, "resource cache policy judged");
+    return isLong ? undefined : `${isHashed ? "fingerprinted" : "immutable"} ${resource.kind} is cached for ${maxAge} s (Cache-Control: ${policy || "absent"}); used by ${pages} pages`;
+};
+
+// Text formats worth compressing, fonts other than WOFF and WOFF2 included.
+const TEXT = /^(?:text\/|image\/svg\+xml|application\/(?:(?:[\w.-]+\+)?(?:json|xml)|javascript|ecmascript|wasm|vnd\.ms-fontobject|x-font-(?:ttf|otf)|font-sfnt)|font\/(?:ttf|otf|sfnt|collection))/;
+
+// A text asset over 1 KB answered without br, gzip or zstd.
+const resourceCompression: Verdict = (resource, pages) => {
+    const type = resource.http?.["content-type"] ?? "";
+    const coding = resourceHeader(resource, "content-encoding");
+    const isText = TEXT.test(type) && (resource.http?.size.body ?? 0) >= 1024;
+    const isCompressed = /\b(?:br|gzip|zstd)\b/i.test(coding);
+    log.debug({ rule: "resources/compression", resource: resource.url, type, coding, isText, isCompressed }, "resource compression judged");
+    return isText && !isCompressed && isServed(resource) ? `${type} ${resource.kind} is served ${coding || "uncompressed"}; used by ${pages} pages` : undefined;
+};
+
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
@@ -270,6 +312,14 @@ export const builtin: Record<string, Make> = {
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity" },
     ),
+    "resources/cache-control": resourceRule("resources/cache-control", isAnyUse, resourceCacheControl, undefined, (resource) => resource.http?.headers["cache-control"], {
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Caching#cache_busting",
+        fix: "Send Cache-Control: public, max-age=31536000, immutable with every fingerprinted asset.",
+    }),
+    "resources/compression": resourceRule("resources/compression", isAnyUse, resourceCompression, undefined, (resource) => resource.http?.headers["content-encoding"], {
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Compression",
+        fix: "Serve text assets br, zstd or gzip to every client whose Accept-Encoding offers one.",
+    }),
     "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls" }),
     "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata" }),
 };

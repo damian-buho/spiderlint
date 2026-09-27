@@ -16,6 +16,11 @@ function page(href: string, resources: ResourceFacts[]): Facts {
     return { url: { href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http: { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" }, resources };
 }
 
+// A same-origin resource that answered 200.
+function served(url: string, kind: ResourceFacts["kind"], type: string, headers: Record<string, string>, body = 4096): ResourceFacts {
+    return { url, kind, origin: "same", http: { status: 200, headers, "content-type": type, size: { body }, timing: {} } };
+}
+
 describe("resource rules", () => {
     it("reports an http: resource on https: pages only", () => {
         const script: ResourceFacts = { url: "http://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" };
@@ -29,6 +34,30 @@ describe("resource rules", () => {
     it("accepts a cross-origin script that carries integrity", () => {
         const rule = builtin["resources/sri"]?.("warning") as AggregateRule;
         assert.deepEqual(rule.check([page("https://site.test/", [{ url: "https://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" }])]), []);
+    });
+
+    it("wants a year of max-age on a fingerprinted or immutable asset only", () => {
+        const resources = [
+            served("https://site.test/_astro/index.Bx1kQ2_9.js", "script", "text/javascript", { "cache-control": "max-age=3600" }),
+            served("https://site.test/app-3f2a9c1b.js", "script", "text/javascript", {}),
+            served("https://site.test/lib.js", "script", "text/javascript", { "cache-control": "max-age=60, immutable" }),
+            served("https://site.test/main.4e5f6a7b.js", "script", "text/javascript", { "cache-control": "public, max-age=31536000, immutable" }),
+            served("https://site.test/analytics-tracking.js", "script", "text/javascript", { "cache-control": "no-cache" }),
+        ];
+        const rule = builtin["resources/cache-control"]?.("warning") as AggregateRule;
+        const findings = rule.check([page("https://site.test/", resources)]) ?? [];
+        assert.deepEqual(findings.map((finding) => finding.url), resources.slice(0, 3).map((resource) => resource.url));
+        assert.match(findings[1]?.message ?? "", /^fingerprinted script is cached for 0 s \(Cache-Control: absent\)/);
+    });
+
+    it("wants a text asset over 1 KB compressed, and leaves WOFF2 and small files alone", () => {
+        const resources = [served("https://site.test/a.css", "style", "text/css", {}), served("https://site.test/f.ttf", "style", "font/ttf", { "content-encoding": "identity" }), served("https://site.test/b.css", "style", "text/css", { "content-encoding": "br" }), served("https://site.test/f.woff2", "style", "font/woff2", {}), served("https://site.test/c.css", "style", "text/css", {}, 512)];
+        const rule = builtin["resources/compression"]?.("warning") as AggregateRule;
+        const findings = rule.check([page("https://site.test/", resources)]) ?? [];
+        assert.deepEqual(findings.map((finding) => [finding.url, finding.message]), [
+            ["https://site.test/a.css", "text/css style is served uncompressed; used by 1 pages"],
+            ["https://site.test/f.ttf", "font/ttf style is served identity; used by 1 pages"],
+        ]);
     });
 });
 
