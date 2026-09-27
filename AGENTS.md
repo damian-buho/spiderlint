@@ -17,7 +17,7 @@ group, both crawlers side by side in one run, and `adaptive` detection per group
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
 `resources`, `browser`, `parity`, `recommended`, `all`; site-wide `unique`; folding; `human`, `json`,
-`sarif`, `checkstyle`, `csv`, `html`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
+`sarif`, `checkstyle`, `csv`, `html`, `agent` with `--output`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
 `--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
@@ -32,7 +32,7 @@ recorded so the v1 shape does not block them.
 - Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, both side by side when groups need both
 - Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
-- Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses — and `html`, the renderer the server’s report page shares
+- Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses — `html`, the renderer the server’s report page shares, and `agent`, findings as fix prompts for a coding agent
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
 - External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
 - License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
@@ -490,8 +490,8 @@ spiderlint cache status|purge|warm        every bucket: entries, bytes, age
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--role`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
 `--no-sitemap`, `--no-keepalive`, `--no-resources`, `--no-allow-private`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
-`--error`, `--warning`, `--info`, `--hint`, `--show-hints`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
-Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
+`--error`, `--warning`, `--info`, `--hint`, `--show-hints`, `--output`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
+Later: `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
 ## Server
 
@@ -594,6 +594,7 @@ export default definePlugin({
 - The run summary is a fact document too: pages, bytes, duration, per-group counts, per-status counts, `findings` per severity counted before folding (so `--unfold` changes no total), distinct `rules` run, `byRule` (findings per severity for every rule run, `{}` for a clean one), `checks`, `rating`, `crawlHash` (the crawl-shaping options), `previous` (the last stored run’s `byRule` summed over this run’s rules, when it ran every one of them with the same `crawlHash`, which `human` prints as a signed change per severity) and `cost` — browser launches, the pages they rendered and their TLS probes, plain HTTP fetches and revalidations, resource requests, cache hits and network-log answers, runs per extractor and the ones the `extractors` bucket answered — printed by `human` as one labelled row per value, embedded in `json` and `sarif` `invocations`.
 - `human` numbers keep the locale’s digits and decimal mark but group with a narrow no-break space (SI), never a dot or comma; bytes take the largest unit they reach.
 - `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
+- The report carries `rules`: each rule with a finding, its `facts`, `expect`, `fix` and `docs`, so `json`, the stored report and the server’s downloads format without the config. `agent` reads it: one Markdown block per finding after folding, page findings sharing rule and message bundled as `human` bundles them, no colour and no summary, the shared origin once on top. Rules come by severity, then by the pages their findings clear (`occurrences`, `urls`), findings within a rule the same way. Each block names the rule and severity, the message, where it is (a fold’s samples, an aggregate’s URLs, pages with their `locations`), what the rule reads and expects, its `fix` (else “follow” its `docs`) and a *Done when*: `spiderlint audit <origin>/ --rules <id>` reporting nothing, since `lint` re-reads the store and cannot see a fix, plus `spiderlint facts <page>` for a declarative page rule. Hints only with `--show-hints`. `--output DIR` writes one `<rule>.md` per rule instead, atomically, the same findings giving the same bytes; any other format with `--output` exits `2`. `groups/heterogeneous` carries a built-in guide, since no ruleset holds it.
 
 ## i18n
 

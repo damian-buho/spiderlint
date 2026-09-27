@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { definePlugin } from "../plugins/types.ts";
+import { formatAgent } from "./agent.ts";
 import { formatCheckstyle } from "./checkstyle.ts";
 import { formatCsv } from "./csv.ts";
 import { formatHtml } from "./html.ts";
@@ -13,5 +14,5 @@ import { formatSarif } from "./sarif.ts";
 // The bundled report formats.
 export default definePlugin({
     name: "report",
-    formatters: { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv, html: formatHtml },
+    formatters: { human: formatHuman, json: formatJson, sarif: formatSarif, checkstyle: formatCheckstyle, csv: formatCsv, html: formatHtml, agent: formatAgent },
 });

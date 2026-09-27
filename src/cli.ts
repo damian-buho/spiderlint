@@ -18,6 +18,7 @@ import { parseResolver } from "./crawl/dns.ts";
 import { parsePin } from "./crawl/resolve.ts";
 import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
+import { writeAgentFiles } from "./report/agent.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 import { enableProgress } from "./progress.ts";
@@ -77,7 +78,8 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json, sarif, checkstyle, csv, html or a plugin’s (human)
+  --format FORMAT       human, json, sarif, checkstyle, csv, html, agent or a plugin’s (human)
+  --output DIR          with --format agent, one Markdown prompt per rule in DIR instead of stdout
   --fail-on LEVEL       error, warning, info or never (error)
   --show-hints          list hints in human output, not only their count
   --[no-]color          force or disable color (auto)
@@ -253,6 +255,7 @@ function parseFlags(argv: string[]) {
                 "allow-private": { type: "boolean" },
                 unfold: { type: "boolean" },
                 format: { type: "string" },
+                output: { type: "string" },
                 "fail-on": { type: "string" },
                 "exclude-rules": { type: "string" },
                 rules: { type: "string", multiple: true },
@@ -360,6 +363,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
             console.error(usage(painter(process.stderr, values.color)));
             return 2;
         }
+        if (formatName !== "agent" && values.output !== undefined) throw new ConfigError(`--output: writes one file per rule for --format agent only, not ${formatName}`);
         if (command === "cache" && seeds[0] === "purge") {
             const olderThan = parseDuration(values["older-than"] ?? "0");
             if (olderThan === undefined) throw new ConfigError(`--older-than: invalid duration ${values["older-than"]} (expected seconds or 45s, 30m, 24h, 7d)`);
@@ -382,9 +386,11 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
             console.log(`${pages.length} pages stored in ${store}`);
             return pages.length === 0 ? 3 : 0;
         }
+        // A report to stdout in the chosen format, or one agent prompt per rule under --output.
+        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
-            console.log(format(stored, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true));
+            await emit(stored);
             return exitCode(stored, config.failOn);
         }
         const options = command === "audit" ? { store, resume: values.resume === true } : {};
@@ -395,7 +401,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
         }, options);
         if (command === "facts") console.log(JSON.stringify({ ...report.pages[0], site: report.site }, undefined, 2));
         else if (command === "groups") console.log(groupsOf(report));
-        else console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true));
+        else await emit(report);
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     }
 }

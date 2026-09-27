@@ -92,8 +92,14 @@ describe("cli", () => {
     it("exits 2 naming a flag with an invalid value, without the whole usage", async () => {
         const run = await spiderlint(directory, "audit", "https://example.com/", "--format", "nope");
         assert.equal(run.code, 2);
-        assert.match(run.stderr, /--format: invalid value nope \(expected: human\|json\|sarif\|checkstyle\|csv\|html\)/);
+        assert.match(run.stderr, /--format: invalid value nope \(expected: human\|json\|sarif\|checkstyle\|csv\|html\|agent\)/);
         assert.doesNotMatch(run.stderr, /Usage:/);
+    });
+
+    it("exits 2 on --output with a format other than agent", async () => {
+        const run = await spiderlint(directory, "audit", "https://example.com/", "--format", "json", "--output", directory);
+        assert.equal(run.code, 2);
+        assert.match(run.stderr, /--output: writes one file per rule for --format agent only, not json/);
     });
 
     it("formats with a plugin formatter and seeds from a plugin source, which follows links", async () => {

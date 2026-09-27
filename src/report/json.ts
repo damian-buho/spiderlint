@@ -4,7 +4,7 @@
 
 import type { Report } from "../index.ts";
 
-// Summary and findings; facts stay behind `spiderlint facts <url>`.
+// Summary, findings and their rules’ docs; facts stay behind `spiderlint facts <url>`.
 export function formatJson(report: Report): string {
-    return JSON.stringify({ summary: report.summary, findings: report.findings }, undefined, 2);
+    return JSON.stringify({ summary: report.summary, findings: report.findings, ...(report.rules && { rules: report.rules }) }, undefined, 2);
 }

@@ -23,7 +23,7 @@ import { linkGraph } from "./facts/graph.ts";
 import { dnsClient } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
-import { fold } from "./fold/index.ts";
+import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
@@ -32,7 +32,7 @@ import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtract
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
-import type { Finding, Rule } from "./rules/types.ts";
+import type { Finding, Rule, RuleGuide } from "./rules/types.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { rate, type Checks, type Rating } from "./report/rating.ts";
@@ -72,6 +72,21 @@ export interface Report {
     findings: Finding[];
     summary: Summary;
     site: SiteFacts;
+    // What each rule with a finding reads, expects and how to fix it.
+    rules?: Record<string, RuleGuide>;
+}
+
+// The docs of every rule with a finding, from its first compiled instance.
+function ruleGuides(findings: Finding[], rulesByGroup: Map<string, Rule[]>): Record<string, RuleGuide> {
+    const found = new Set(findings.map((finding) => finding.rule));
+    const guides = new Map<string, RuleGuide>();
+    for (const { meta } of rulesByGroup.values().toArray().flat()) {
+        if (!found.has(meta.id) || guides.has(meta.id)) continue;
+        guides.set(meta.id, { facts: meta.facts, ...(meta.expect && { expect: meta.expect }), ...(meta.fix && { fix: meta.fix }), ...(meta.docs && { docs: meta.docs }) });
+    }
+    if (found.has("groups/heterogeneous")) guides.set("groups/heterogeneous", HETEROGENEOUS_GUIDE);
+    log.debug({ rules: guides.size, found: found.size }, "rule guides collected");
+    return Object.fromEntries(guides);
 }
 
 // `default` is the implicit catch-all, sampling every page; top-level `rules` replaces every group's, else a group without `rules` gets `recommended`.
@@ -320,7 +335,7 @@ function linter(config: Config): Lint {
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
         log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
-        return { pages, findings, summary, site };
+        return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup) };
     };
 }
 
@@ -467,7 +482,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     const lint = linter(config);
     const persist = async (store: DiskStore) => {
         const report = withPrevious(lint(await crawlPages(config, store), started), store);
-        await store.saveReport({ findings: report.findings, summary: report.summary });
+        await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
         return report;
     };
     const isFresh = !options.resume && config.cacheMode !== "offline";
@@ -499,7 +514,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const site = await store.site();
         warnUnserved(site, siteExtractorsFor(rules));
         const report = withPrevious(lint({ pages, site, cost }, started), store);
-        await store.saveReport({ findings: report.findings, summary: report.summary });
+        await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
         return report;
     });
 }
@@ -529,6 +544,6 @@ export { definePlugin, type Extractor, type Plugin, type SiteContext, type SiteE
 export async function reportStore(directory: string): Promise<Report> {
     return withStore(directory, { fresh: false, existing: true }, async (store) => {
         const stored = await store.report();
-        return { pages: await store.pages(), findings: stored.findings, summary: stored.summary, site: await store.site() };
+        return { pages: await store.pages(), findings: stored.findings, summary: stored.summary, site: await store.site(), ...(stored.rules && { rules: stored.rules }) };
     });
 }

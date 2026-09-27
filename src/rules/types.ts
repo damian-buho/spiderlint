@@ -34,9 +34,14 @@ export interface RuleMeta {
     facts: string[];
     docs?: string;
     fix?: string;
+    // The JSON Schema a declarative rule holds its fact to.
+    expect?: Record<string, unknown>;
     // Also judges hosts the crawl only links or loads under its registrable domains.
     linked?: true;
 }
+
+// What a finding’s rule reads, expects and how to fix it, carried in the report for formatters.
+export type RuleGuide = Pick<RuleMeta, "facts" | "expect" | "fix" | "docs">;
 
 // `undefined` from a page rule means the `when` guard skipped it; `site` answers `when` paths under `site.`.
 export interface PageRule {

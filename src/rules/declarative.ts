@@ -90,7 +90,7 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
     const root = fact.split(".", 1)[0] as string;
     const isSkipped = guard(id, spec.when);
     return {
-        meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs, fix: spec.fix },
+        meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs, fix: spec.fix, expect: spec.expect },
         check(page, site) {
             if (isSkipped(page, page.url.href, site)) return;
             if (get(page, root) === undefined) {
@@ -148,7 +148,7 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     const isSkipped = guard(id, Object.fromEntries(when.map(([path, expected]) => [path.slice(prefix.length), expected])));
     const isSiteSkipped = guard(id, siteWhen(spec.when));
     return {
-        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
+        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix, expect: spec.expect, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
         check(_pages, _group, site) {
             if (isSiteSkipped({}, "site", site)) return;
             const unjudged = new Set(spec.linked === true ? [] : (site?.linked ?? []));
