@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { eta, etaText } from "../src/progress.ts";
+import { eta, etaText, onProgress, progressDone, type Progress } from "../src/progress.ts";
 
 describe("progress ETA", () => {
     it("stays silent until enough pages are sampled or nothing is left", () => {
@@ -31,5 +31,18 @@ describe("progress ETA", () => {
         assert.equal(etaText([45, 130]), "ETA 45 s–3 min");
         assert.equal(etaText([3000, 7300]), "ETA 50 min–3 h");
         assert.equal(etaText([60, 60]), "ETA 1 min");
+    });
+});
+
+describe("progress listener", () => {
+    it("hears every finished page with the ETA once enough are sampled", () => {
+        const heard: Progress[] = [];
+        onProgress((progress) => {
+            heard.push(progress);
+        });
+        for (const done of [1, 2, 3, 4]) progressDone(done);
+        assert.deepEqual(heard.map((progress) => progress.done), [1, 2, 3, 4]);
+        assert.equal(heard.at(-1)?.total, 4);
+        assert.equal(heard[0]?.eta, undefined);
     });
 });

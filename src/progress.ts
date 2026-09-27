@@ -15,6 +15,28 @@ const ETA_Z = 2;
 // The status line: whether it draws, what it shows, the origin trimmed from its URL.
 const state = { isOn: false, isShown: false, done: 0, total: 0, page: "", step: "", since: 0, origin: "", last: 0, intervals: [] as number[] };
 
+// Done and known pages with the ETA range in seconds, as a listener receives them.
+export interface Progress {
+    done: number;
+    total: number;
+    eta?: [number, number];
+}
+
+// Called on every change of done or known pages; the server’s scan runner sets it.
+const observer: { listener?: (progress: Progress) => void } = {};
+
+// Hands every progress change to `listener`, status line or not.
+export function onProgress(listener: (progress: Progress) => void): void {
+    observer.listener = listener;
+}
+
+// The current counts to the listener, if one is set.
+function notify(): void {
+    const total = Math.max(state.done, state.total);
+    const range = eta(state.intervals, total - state.done);
+    observer.listener?.({ done: state.done, total, ...(range && { eta: range }) });
+}
+
 // Turns the status line on for an interactive run; `--no-progress`, a pipe or JSON logs keep it off.
 export function enableProgress(isOn: boolean): void {
     state.isOn = isOn;
@@ -34,10 +56,12 @@ export function progressStep(page: string, step: string): void {
 export function progressDone(done: number): void {
     const now = Date.now();
     // One page since the last joins the window; a jump (a resumed store) only moves the baseline.
-    if (state.isShown && done - state.done === 1) state.intervals = [...state.intervals, (now - state.last) / 1000].slice(-ETA_WINDOW);
-    else if (state.isShown) log.debug({ done, previous: state.done, samples: state.intervals.length }, "progress gap not sampled");
+    const isSampled = state.isShown || observer.listener !== undefined;
+    if (isSampled && done - state.done === 1) state.intervals = [...state.intervals, (now - state.last) / 1000].slice(-ETA_WINDOW);
+    else if (isSampled) log.debug({ done, previous: state.done, samples: state.intervals.length }, "progress gap not sampled");
     Object.assign(state, { done, page: "", step: "", since: 0, last: now });
     progressDraw();
+    notify();
 }
 
 // Seconds left as [low, high]: `remaining` gaps at the window’s mean, ± ETA_Z σ of their sum and of the mean itself.
@@ -96,18 +120,19 @@ async function refresh(known: () => Promise<number>): Promise<void> {
         log.debug({ error: String(error), total: state.total }, "progress total unreadable; last kept");
     }
     progressDraw();
+    notify();
 }
 
 // Redraws each second from `known` until the returned stop runs, which clears the line.
 export function trackProgress(known: () => Promise<number>, origin: string): () => void {
-    if (!state.isOn) return () => {};
-    Object.assign(state, { isShown: true, origin, last: Date.now(), intervals: [] });
+    if (!state.isOn && !observer.listener) return () => {};
+    Object.assign(state, { isShown: state.isOn, origin, last: Date.now(), intervals: [] });
     const timer = setInterval(() => void refresh(known), REDRAW_MS);
     timer.unref();
     return () => {
         clearInterval(timer);
-        logUpdateStderr.clear();
-        logUpdateStderr.done();
+        if (state.isShown) logUpdateStderr.clear();
+        if (state.isShown) logUpdateStderr.done();
         state.isShown = false;
     };
 }
