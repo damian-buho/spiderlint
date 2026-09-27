@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+redis: redis://spiderlint-valkey:6379/0
+retention: 1d
+workers: 2
+allow-private: true
+clients:
+  rate: false
+  trusted-proxies: [172.16.0.0/12]
+policies:
+  - name: ru
+    hosts: [ru, su, рф]
+    ban: Scans of these hosts are disabled on this instance
+  - name: dev
+    hosts: ["*"]
+    repeat: 5m
+    caps: {max-pages: 50, scan-timeout: 5m}
+    fetch: [http, browser, auto, adaptive]

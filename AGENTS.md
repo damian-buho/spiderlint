@@ -492,6 +492,7 @@ Later: `--output`, `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--loc
 - `jobs.ts` owns `submit`, shared by `POST /v1/jobs` and the form, in this order: admit, resolve named rules against the configured plugins (`validateRules`), repeat lookup, queue depth, client bucket, host window. A repeat costs nothing; only the host window is in Redis.
 - `web.ts` renders the form, job and badge routes with `report/html.ts`; `STYLE` and the progress script are inline and allowed by hash in `PAGE_CSP`, so a saved `--format html` file stands alone. The badge route undoes `secureHeaders`’ same-origin CORP by a middleware registered before it.
 - The worker points `spiderlint:latest:<host>` at each completed job for `retention`; the badge reads it.
+- Local: `make dc-up-d` starts `.compose/dev.yaml` in `all` mode with its own Valkey and `.compose/server.yaml` (private addresses allowed, no client limit) at `https://spiderlint.docker.localhost/`; `src/`, `locales/` and `presets/` are mounted, so `make dc-restart` picks up a code change without a rebuild.
 - The queue suite runs against a throwaway `kiota.ch/o9s/valkey` with `O9S_VLKY_PASSWORD` set: without one its protected mode drops connections from the published port as `EPIPE`.
 
 ## Plugins

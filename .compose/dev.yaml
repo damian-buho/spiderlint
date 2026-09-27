@@ -7,6 +7,7 @@ services:
   spiderlint:
     container_name: ${M6E_CONTAINER_INSTANCE}
     image: ${M6E_IMAGE_FULLNAME}
+    depends_on: [spiderlint-valkey]
     # Preset: xlarge (4.0c, 8g) — interactive dev shell. Bounded so it can't starve the shared host.
     deploy:
       resources:
@@ -15,17 +16,48 @@ services:
           memory: 8g
     labels:
       com.docker.compose.watch: 'true'
+      traefik.enable: 'true'
+      traefik.docker.network: traefik-network
+      traefik.http.routers.dbuho-spiderlint.rule: 'Host(`spiderlint.docker.localhost`)'
+      traefik.http.routers.dbuho-spiderlint.entrypoints: 'web,websecure'
+      traefik.http.services.dbuho-spiderlint.loadbalancer.server.port: '8080'
     networks:
       - dev-network
+      - traefik-network
     environment:
       - LANG
       - TZ
       - B19_VERBOSITY=debug
+      - SPIDERLINT_MODE=${SPIDERLINT_MODE:-all}
+      - SPIDERLINT_SERVER_CONFIG=/etc/spiderlint/server.yaml
     tmpfs:
-      - /tmp:size=64m
+      - /tmp:size=256m
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - ./server.yaml:/etc/spiderlint/server.yaml:ro
+      - ../src:/app/src:ro
+      - ../locales:/app/locales:ro
+      - ../presets:/app/presets:ro
+  spiderlint-valkey:
+    container_name: ${M6E_CONTAINER_INSTANCE}-valkey
+    image: kiota.ch/o9s/valkey:latest
+    # Preset: tiny (½c, 512m).
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+    networks:
+      - dev-network
+    environment:
+      O9S_VLKY_SAVE: ""
+      O9S_VLKY_PROTECTED_MODE: "no"
+    tmpfs:
+      - /tmp:size=64m
 networks:
   dev-network:
     name: ${M6E_NETWORK}
+    external: true
+  traefik-network:
+    name: traefik-network
     external: true
