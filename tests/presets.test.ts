@@ -17,6 +17,8 @@ interface Patch {
     contentType?: string;
     decoded?: number;
     pathname?: string;
+    search?: string;
+    twin?: string;
     listed?: boolean;
     meta?: Record<string, string>;
     lang?: string;
@@ -30,15 +32,15 @@ interface Patch {
 function page(patch: Patch = {}): Facts {
     const pathname = patch.pathname ?? "/posts/hello-world/";
     const href = `https://site.test${pathname}`;
-    const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", ...patch.headers };
+    const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
     const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
     const facts: Facts = {
-        url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: "" },
+        url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: patch.search ?? "", ...(patch.twin && { twin: patch.twin }) },
         group: "default",
         crawl: { depth: 0, "discovered-via": "seed", referrers: [] },
         sitemap: { listed: patch.listed ?? true },
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: patch.redirects ?? [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, "content-type": patch.contentType ?? "text/html; charset=utf-8" },
-        html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
+        html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }, { type: "speculationrules", async: false, defer: false, head: false }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {}, cookies: [] },
     };
@@ -87,6 +89,20 @@ const FAILS: Record<string, Patch[]> = {
     "resources/a11y-overlay": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
     "browser/unused-preload": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
     "redirects/permanent": [{ redirects: [{ url: "https://site.test/a", status: 301 }, { url: "https://site.test/b", status: 302 }] }, { redirects: [{ url: "https://site.test/b", status: 307 }] }],
+    "redirects/by": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }, { url: "https://site.test/b", status: 301 }] }],
+    "http/coep": [{ headers: { "cross-origin-embedder-policy": "unsafe-none" } }],
+    "http/digest": [{ headers: { "repr-digest": undefined as unknown as string } }],
+    "http/server-timing": [{ headers: { "server-timing": "" } }],
+    "http/no-vary-search": [{ search: "?utm_source=x" }],
+    "http/link-format": [{ headers: { link: "https://site.test/a.css; rel=preload" } }],
+    "http/dictionary-format": [{ headers: { "use-as-dictionary": "id=\"v1\"" } }],
+    "http/tdm-reservation": [{ headers: { "tdm-reservation": "yes" } }],
+    "html/tdm-reservation": [{ meta: { "tdm-reservation": "2" } }],
+    "html/speculation-rules": [{ html: { scripts: [] } }],
+    "html/feed-discovery": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
+    "html/alternate-formats": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/html", hreflang: "es", href: "https://site.test/es/" }] } } }],
+    "html/nlweb": [{ pathname: "/" }],
+    "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/" }],
 };
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
@@ -112,6 +128,19 @@ const PASSES: Record<string, Patch[]> = {
     "html/img-dimensions": [{ html: { images: [{ src: "/pixel.gif", alt: "", noscript: true }] } }],
     "html/first-img-lazy": [{ html: { images: [] } }, { html: { images: [{ src: "/hero.png", alt: "", loading: "eager" }, { src: "/below.png", alt: "", loading: "lazy" }] } }],
     "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
+    "redirects/by": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }] }],
+    "http/coep": [{ headers: { "cross-origin-embedder-policy": "require-corp; report-to=\"default\"" } }],
+    "http/digest": [{ headers: { "repr-digest": undefined as unknown as string, "content-digest": "sha-256=:x:" } }],
+    "http/no-vary-search": [{ search: "?q=1", headers: { "no-vary-search": "params" } }],
+    "http/link-format": [{ headers: { link: "<https://site.test/a.css>; rel=preload; as=style, <https://site.test/b.js>; rel=modulepreload" } }],
+    "http/dictionary-format": [{ headers: { "use-as-dictionary": "match=\"/app-*.js\", id=\"v1\"" } }],
+    "http/tdm-reservation": [{ headers: { "tdm-reservation": "1" } }],
+    "html/tdm-reservation": [{ meta: { "tdm-reservation": "0" } }],
+    "html/speculation-rules": [{ html: { scripts: [] }, headers: { "speculation-rules": "\"/rules.json\"" } }],
+    "html/feed-discovery": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "application/atom+xml", href: "https://site.test/feed.xml" }] } } }],
+    "html/alternate-formats": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
+    "html/nlweb": [{ pathname: "/", html: { rels: { nlweb: ["https://site.test/ask"] } } }],
+    "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/", meta: { robots: "noindex" } }],
 };
 
 const specs = resolveRuleset("spiderlint:all", {});
@@ -131,6 +160,7 @@ describe("presets", () => {
     it("lists performance, and recommended extends it", () => {
         assert.ok(presetNames().includes("performance"));
         assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));
+        assert.ok(!Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/digest"));
     });
 
     for (const id of Object.keys(FAILS)) {

@@ -103,3 +103,19 @@ rules:
     message: "an <img> without width and height shifts the layout as it loads: {got}"
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions
   http/early-hints-preload: info
+  http/link-format:
+    fact: http.headers.link
+    expect: {type: string, pattern: "^\\s*<[^>]*>[^<]*(,\\s*<[^>]*>[^<]*)*$"}
+    when: {http.headers.link: {type: string}}
+    severity: warning
+    message: "Link should be a comma-separated list of <uri>; params, found {got}"
+    fix: "write each Link entry as <https://example.com/a>; rel=preload, separated by commas"
+    docs: https://www.rfc-editor.org/rfc/rfc8288#section-3
+  http/dictionary-format:
+    fact: http.headers.use-as-dictionary
+    expect: {type: string, pattern: "(^|,)\\s*match\\s*=\\s*\""}
+    when: {http.headers.use-as-dictionary: {type: string}}
+    severity: warning
+    message: "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
+    fix: "send Use-As-Dictionary: match=\"/assets/app-*.js\""
+    docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1

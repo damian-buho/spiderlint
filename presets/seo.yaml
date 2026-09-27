@@ -206,3 +206,27 @@ rules:
     severity: warning
     message: "pages share one og:description: {got}"
     docs: https://ogp.me/#optional
+  html/noindex-twin:
+    fact: robots.noindex
+    expect: {const: true}
+    when: {url.twin: {type: string}}
+    severity: info
+    message: "a page served off the canonical origin is indexable; mark the staging twin noindex"
+    fix: "send X-Robots-Tag: noindex from every origin other than the canonical one"
+    docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
+  http/tdm-reservation:
+    fact: http.headers.tdm-reservation
+    expect: {type: string, pattern: "^\\s*[01]\\s*$"}
+    when: {http.headers.tdm-reservation: {type: string}}
+    severity: warning
+    message: "tdm-reservation should be 0 or 1, found {got}"
+    fix: "send tdm-reservation: 1 to reserve text and data mining rights, 0 to waive them"
+    docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
+  html/tdm-reservation:
+    fact: html.meta.tdm-reservation
+    expect: {type: string, pattern: "^\\s*[01]\\s*$"}
+    when: {html.meta.tdm-reservation: {type: string}}
+    severity: warning
+    message: "<meta name=tdm-reservation> should be 0 or 1, found {got}"
+    fix: "set <meta name=tdm-reservation content=1> to reserve text and data mining rights, 0 to waive them"
+    docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/

@@ -311,7 +311,7 @@ because facts are always retained even when bodies are not.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs, fix }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
-Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `tls`,
+Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `suggestions` (optional headers and head links a site may adopt, all `info`, outside `recommended`), `tls`,
 `links`, `sitemap`, `browser` (console errors and `cookies:browser`; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, hreflang targets answering `2xx`), `cookies` (Secure, HttpOnly,

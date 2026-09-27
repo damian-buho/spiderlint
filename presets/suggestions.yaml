@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: Optional headers and head links a site may adopt, all info, outside recommended
+when:
+  http.status: {minimum: 200, maximum: 299}
+  http.content-type: {pattern: "^text/html"}
+rules:
+  http/coep:
+    fact: http.headers.cross-origin-embedder-policy
+    expect: {type: string, pattern: "^\\s*(require-corp|credentialless)\\s*(;|$)"}
+    severity: info
+    message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless, found {got}"
+    fix: "send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
+  http/digest:
+    fact: http.headers
+    expect: {anyOf: [{required: [content-digest]}, {required: [repr-digest]}]}
+    severity: info
+    message: "no Content-Digest or Repr-Digest lets a client check the body"
+    fix: "send Repr-Digest: sha-256=:<base64 digest>: with each response"
+    docs: https://www.rfc-editor.org/rfc/rfc9530
+  http/server-timing:
+    fact: http.headers.server-timing
+    expect: {type: string, minLength: 1}
+    severity: info
+    message: "no Server-Timing header shows where the server spent its time"
+    fix: "send Server-Timing: app;dur=<milliseconds> with durations that name no internals"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Server-Timing
+  http/no-vary-search:
+    fact: http.headers.no-vary-search
+    expect: {type: string, minLength: 1}
+    when: {url.search: {minLength: 1}}
+    severity: info
+    message: "a URL with a query has no No-Vary-Search to say which parameters change the page"
+    fix: "send No-Vary-Search: params=(\"utm_source\" \"utm_medium\") naming the parameters that do not change the page"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/No-Vary-Search
+  html/speculation-rules:
+    fact: html.scripts
+    expect: {contains: {required: [type], properties: {type: {pattern: "^(?i:speculationrules)$"}}}}
+    when: {http.headers.speculation-rules: {not: {type: string}}}
+    severity: info
+    message: "no Speculation Rules script or header prefetches likely next pages"
+    fix: "add <script type=speculationrules> with a prefetch rule for same-origin links"
+    docs: https://developer.mozilla.org/docs/Web/API/Speculation_Rules_API
+  html/feed-discovery:
+    fact: html.head.links
+    expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {pattern: "^(?i:application/(rss\\+xml|atom\\+xml|feed\\+json))"}}}}
+    when: {url.pathname: "/"}
+    severity: info
+    message: "the home page links no RSS, Atom or JSON feed"
+    fix: "add <link rel=alternate type=application/atom+xml href=/feed.xml> to the head"
+    docs: https://www.rssboard.org/rss-autodiscovery
+  html/alternate-formats:
+    fact: html.head.links
+    expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {not: {pattern: "^(?i:text/html)"}}}}}
+    when: {url.pathname: "/"}
+    severity: info
+    message: "the home page links no machine-readable alternate (feed, JSON, Markdown)"
+    fix: "add <link rel=alternate type=text/markdown href=/index.md> or a feed to the head"
+    docs: https://html.spec.whatwg.org/multipage/links.html#rel-alternate
+  html/nlweb:
+    fact: html.rels.nlweb
+    expect: {type: array, minItems: 1}
+    when: {url.pathname: "/"}
+    severity: info
+    message: "the home page links no NLWeb endpoint with rel=nlweb"
+    fix: "add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint"
+    docs: https://github.com/nlweb-ai/NLWeb
+  redirects/by:
+    fact: http.redirects
+    expect: {type: array, items: {required: [by]}}
+    severity: info
+    message: "a redirect does not say which component sent it with Redirect-By ({got})"
+    fix: "send Redirect-By: <component> with every redirect"
+    docs: https://specification.website/spec/
