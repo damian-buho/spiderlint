@@ -6,12 +6,16 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, utimes, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { ExtractorCache, type CachedFacts } from "../src/cache/extractors.ts";
 import { fetchCached, type Stored } from "../src/cache/http.ts";
 import { Bucket, OfflineMiss, bucketDirectory, parseDuration } from "../src/cache/index.ts";
 import { purgeCache } from "../src/cache/purge.ts";
 import { cacheStatus } from "../src/cache/status.ts";
+import type { RobotsFor } from "../src/crawl/robots.ts";
+import { loadSitemap } from "../src/crawl/sitemap.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const text = async (response: Response) => response.text();
@@ -112,6 +116,32 @@ describe("cache", () => {
         assert.equal(third.status, 200);
         assert.equal(third.value, first.value);
         assert.equal(site.headers.at(-1)?.["if-none-match"], first.headers.etag);
+    });
+
+    it("asks a sitemap candidate that missed once per bucket TTL, even under no-cache", async () => {
+        const requested: string[] = [];
+        const server = createServer((request, response) => {
+            requested.push(request.url ?? "");
+            const isFound = request.url === "/sitemap.xml";
+            response.writeHead(isFound ? 200 : 404, { "content-type": isFound ? "application/xml" : "text/html", "cache-control": "no-cache", etag: '"e"' });
+            response.end(isFound ? '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>/a</loc></url></urlset>' : "gone");
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        const robots = (async () => ({ getSitemaps: () => [] })) as unknown as RobotsFor;
+        const fresh = new Bucket<Stored<string>>("sitemaps", path.join(root, "sitemaps"), 60, "use");
+        const stale = new Bucket<Stored<string>>("sitemaps", path.join(root, "sitemaps"), 0, "use");
+        try {
+            await loadSitemap([`${origin}/`], robots, fresh);
+            const first = requested.length;
+            await loadSitemap([`${origin}/`], robots, fresh);
+            assert.deepEqual(requested.slice(first), ["/sitemap.xml"], "only the found sitemap revalidates, once");
+            const second = requested.length;
+            await loadSitemap([`${origin}/`], robots, stale);
+            assert.ok(requested.slice(second).includes("/sitemap.txt"), "a stale miss is asked again");
+        } finally {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
     });
 });
 

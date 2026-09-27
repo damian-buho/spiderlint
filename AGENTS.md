@@ -371,17 +371,17 @@ Every network crossing has a bucket; every bucket has a key, a TTL, a
 location and a purge. Nothing is fetched twice inside a run, and a re-run
 pays only for what changed.
 
-| Bucket       | Key                                                   | Lives in                       | Fresh for                                                                                    |
-| ------------ | ----------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------- |
-| `pages`      | URL                                                   | the site’s store               | RFC 9111 — `Cache-Control`, `ETag`, `Last-Modified`; bucket TTL when the origin says nothing |
-| `probes`     | URL of an off-scope link                              | `$XDG_CACHE_HOME/spiderlint/`  | 7 days                                                                                       |
-| `resources`  | resource URL                                          | the site’s store               | RFC 9111, else 24 hours — a CDN asset shared by every page is fetched once                   |
-| `robots`     | host                                                  | `$XDG_CACHE_HOME/spiderlint/`  | 24 hours (RFC 9309 §2.4)                                                                     |
-| `sitemaps`   | sitemap URL                                           | the site’s store               | `Last-Modified`, else 24 hours                                                               |
-| `origins`    | `(site extractor, version, settings, origin or host)` | the site’s store               | 24 hours; a failed or timed-out run is not stored                                            |
-| `dns`        | `(server, name, type, CD)`                            | the site’s store               | the smallest record TTL of the answer, at least the bucket TTL (60 s)                        |
-| `extractors` | `(extractor, version, URL, sha256(body))`             | the site’s store               | until the body changes — an html-validate run is never repeated on an unchanged page         |
-| `browser`    | sub-resource URL                                      | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                   |
+| Bucket       | Key                                                   | Lives in                       | Fresh for                                                                                           |
+| ------------ | ----------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `pages`      | URL                                                   | the site’s store               | RFC 9111 — `Cache-Control`, `ETag`, `Last-Modified`; bucket TTL when the origin says nothing        |
+| `probes`     | URL of an off-scope link                              | `$XDG_CACHE_HOME/spiderlint/`  | 7 days                                                                                              |
+| `resources`  | resource URL                                          | the site’s store               | RFC 9111, else 24 hours — a CDN asset shared by every page is fetched once                          |
+| `robots`     | host                                                  | `$XDG_CACHE_HOME/spiderlint/`  | 24 hours (RFC 9309 §2.4)                                                                            |
+| `sitemaps`   | sitemap URL                                           | the site’s store               | RFC 9111, else 24 hours; a candidate name that missed waits out the 24 hours, even under `no-cache` |
+| `origins`    | `(site extractor, version, settings, origin or host)` | the site’s store               | 24 hours; a failed or timed-out run is not stored                                                   |
+| `dns`        | `(server, name, type, CD)`                            | the site’s store               | the smallest record TTL of the answer, at least the bucket TTL (60 s)                               |
+| `extractors` | `(extractor, version, URL, sha256(body))`             | the site’s store               | until the body changes — an html-validate run is never repeated on an unchanged page                |
+| `browser`    | sub-resource URL                                      | one Playwright context per run | the run — CSS, JS and fonts shared by every page load once                                          |
 
 - A re-crawl revalidates: `If-None-Match` / `If-Modified-Since` from the stored response, and a `304` keeps the content facts (`html.*`, `extractors`) while refreshing the transport facts (`http.*`, `tls.*`). `http.revalidated: true` records it. Stored pages are found by their requested URL too (`crawl.requested`), so a link through a redirect revalidates.
 - Site buckets hold private staging pages and live in the site’s owner-only store; user buckets hold only third-party observations and are shared across every site on the machine.
