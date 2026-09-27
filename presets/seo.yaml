@@ -44,7 +44,7 @@ rules:
   html/noindex-listed:
     fact: robots.noindex
     expect: {const: false}
-    when: {sitemap.listed: true}
+    when: {sitemap.listed: true, url.twin: {not: {type: string}}}
     severity: error
     message: "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing

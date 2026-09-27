@@ -125,7 +125,7 @@ const PASSES: Record<string, Patch[]> = {
     "html/lang": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
     "html/viewport": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
     "html/theme-color-schemes": [{ meta: { "color-scheme": "light" }, html: { metas: [{ name: "theme-color", content: "#fff" }] } }, { html: { metas: [{ name: "theme-color", content: "#fff" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }] } }],
-    "html/noindex-listed": [{ meta: { robots: "noindex" }, listed: false }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
+    "html/noindex-listed": [{ meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
     "html/dir-rtl": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
     "html/charset": [{ html: { charset: { declared: "utf8", offset: 1024 } } }],
     "html/favicon": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
