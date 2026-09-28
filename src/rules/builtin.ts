@@ -11,6 +11,7 @@ import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
 import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
+import { insightRules, partition } from "./insights.ts";
 import { lengthRules } from "./length.ts";
 import { relationRules } from "./relations.ts";
 import { robotsRules } from "./robots.ts";
@@ -283,10 +284,7 @@ const ORIGIN: [string, string, (page: Facts) => string | undefined][] = [
 
 // The finding for one host and fact when its value varies across the host's pages.
 function varies(severity: Exclude<Severity, "off">, host: string, members: Facts[], fact: string, label: string, read: (page: Facts) => string | undefined): Finding | undefined {
-    const byValue = Map.groupBy(
-        members.filter((page) => read(page) !== undefined),
-        (page) => read(page) as string,
-    );
+    const byValue = partition(members, read);
     log.debug({ rule: "http/consistent-origin", host, fact, values: byValue.size }, "origin fact compared");
     if (byValue.size < 2) return undefined;
     const entries = byValue.entries().toArray();
@@ -421,6 +419,7 @@ export const builtin: Record<string, Make> = {
     ...deprecatedRules,
     ...clockRules,
     ...urlRules,
+    ...insightRules,
     ...lengthRules,
     ...relationRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),

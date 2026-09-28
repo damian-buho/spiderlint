@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: Pages that stand out from the rest of the site, all hints, outside recommended
+rules:
+  insight/numeric-outlier: hint
+  insight/minority-value: hint

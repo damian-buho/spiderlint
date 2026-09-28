@@ -66,9 +66,9 @@ describe("htmlhint extractor", () => {
 });
 
 describe("rulesets", () => {
-    it("links docs from every shipped rule but the site-specific consistent-origin", () => {
+    it("links docs from every shipped rule but the site-specific consistent-origin and minority-value", () => {
         const bare = listRules({ ...defaults(), rules: ["all"] }, ["all"]).filter((rule) => !rule.docs).map((rule) => rule.id);
-        assert.deepEqual(bare, ["http/consistent-origin"]);
+        assert.deepEqual(bare, ["http/consistent-origin", "insight/minority-value"]);
     });
 
     it("merges an overriding expect into the extended one, keyword by keyword", () => {
