@@ -4,7 +4,8 @@
 
 import { VERSION } from "../agent.ts";
 import type { Report } from "../index.ts";
-import type { Finding, Severity } from "../rules/types.ts";
+import { fixFor } from "../rules/fix.ts";
+import type { Finding, RuleGuide, Severity } from "../rules/types.ts";
 
 const SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json";
 const LEVEL: Record<Exclude<Severity, "off">, string> = { error: "error", warning: "warning", info: "note", hint: "none" };
@@ -31,10 +32,17 @@ function toResult(finding: Finding) {
     };
 }
 
-// One driver rule per distinct rule ID seen in the findings; docs are not threaded through Report yet.
-function toRules(findings: Finding[]) {
+// The rule’s generic fix and docs link, which code scanning shows beside each alert.
+function help({ fix, docs }: RuleGuide) {
+    const text = [fix && fixFor(fix), docs].filter(Boolean);
+    const markdown = [fix && fixFor(fix), docs && `[Documentation](${docs})`].filter(Boolean);
+    return text.length === 0 ? {} : { help: { text: text.join("\n\n"), markdown: markdown.join("\n\n") }, ...(docs && { helpUri: docs }) };
+}
+
+// One driver rule per distinct rule ID seen in the findings, with its help when the report carries its guide.
+function toRules(findings: Finding[], guides: Report["rules"] = {}) {
     const ids = [...new Set(findings.map((finding) => finding.rule))].toSorted((a, b) => a.localeCompare(b));
-    return ids.map((id) => ({ id, shortDescription: { text: id } }));
+    return ids.map((id) => ({ id, shortDescription: { text: id }, ...(guides[id] && help(guides[id])) }));
 }
 
 // The run's totals as a SARIF invocation; the summary rides in its property bag.
@@ -50,7 +58,7 @@ export function formatSarif(report: Report): string {
         version: "2.1.0",
         runs: [
             {
-                tool: { driver: { name: "spiderlint", version: VERSION, rules: toRules(report.findings) } },
+                tool: { driver: { name: "spiderlint", version: VERSION, rules: toRules(report.findings, report.rules) } },
                 invocations: [toInvocation(report.summary)],
                 results: report.findings.map((finding) => toResult(finding)),
             },

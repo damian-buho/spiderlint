@@ -33,6 +33,16 @@ describe("formatSarif", () => {
 
     after(() => site.close());
 
+    it("gives every rule with a guide its fix and docs as help", () => {
+        const rules = sarif.runs[0].tool.driver.rules as { id: string; help?: { text: string; markdown: string }; helpUri?: string }[];
+        const helped = rules.filter((rule) => report.rules?.[rule.id]?.fix);
+        assert.ok(helped.length > 0);
+        for (const rule of helped) {
+            assert.ok(rule.help?.text.startsWith(report.rules?.[rule.id]?.fix as string), rule.id);
+            assert.equal(rule.helpUri, report.rules?.[rule.id]?.docs, rule.id);
+        }
+    });
+
     it("validates against the SARIF 2.1.0 schema", () => {
         const valid = validate(sarif);
         assert.ok(valid, JSON.stringify(validate.errors));

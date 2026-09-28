@@ -9,6 +9,7 @@ import { log } from "../logger.ts";
 import { ConfigError } from "../config/index.ts";
 import { ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
+import { fixFor } from "./fix.ts";
 import { compileRulesets, lookup, presetNames, resolveRuleset } from "./rulesets.ts";
 import type { RuleSpec, Scope, Severity } from "./types.ts";
 
@@ -133,7 +134,7 @@ export function formatExplanation(rule: RuleExplanation, paint: Paint): string {
         ["expect", rule.expect && JSON.stringify(rule.expect)],
         ["when", rule.when && JSON.stringify(rule.when)],
         ["message", rule.message],
-        ["fix", rule.fix],
+        ["fix", rule.fix && fixFor(rule.fix)],
         ["docs", rule.docs],
     ];
     const lines = rows.filter((row): row is [string, string] => row[1] !== undefined).map(([label, value]) => `${paint("dim", label.padEnd(9))}${value}`);

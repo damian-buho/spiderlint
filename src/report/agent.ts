@@ -8,6 +8,7 @@ import { writeAtomic } from "../cache/index.ts";
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
 import { log } from "../logger.ts";
+import { fixFor } from "../rules/fix.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
 import { printableFinding } from "./printable.ts";
@@ -51,7 +52,7 @@ function block(same: Finding[], guide: RuleGuide | undefined, origin: string): s
     const target = originOf(finding, origin);
     const reads = guide?.facts.length ? `Reads: ${guide.facts.map((fact) => `\`${fact}\``).join(", ")}${guide.expect ? `, expects \`${JSON.stringify(guide.expect)}\`` : ""}` : "";
     const facts = finding.scope === "page" && guide?.expect ? `, and \`spiderlint facts ${finding.samples?.[0] ?? finding.url}\` shows \`${guide.facts[0]}\` meeting it` : "";
-    const fix = guide?.fix ? `Fix: ${guide.fix}` : guide?.docs ? `Fix: follow ${guide.docs}` : "";
+    const fix = guide?.fix ? `Fix: ${fixFor(guide.fix, finding)}` : guide?.docs ? `Fix: follow ${guide.docs}` : "";
     return [
         `## ${finding.rule} (${finding.severity})`,
         "",

@@ -95,6 +95,15 @@ describe("formatCheckstyle and formatCsv", () => {
         assert.ok(formatHuman(hostile).includes(String.raw`at 1:1 title \u{1b}[2J`));
     });
 
+    it("human --explain prints each finding’s fix and docs under it, and nothing without the flag", () => {
+        const text = formatHuman(report, undefined, false, undefined, false, true);
+        const withFix = report.findings.find((finding) => finding.severity !== "hint" && report.rules?.[finding.rule]?.fix) as Finding;
+        const guide = report.rules?.[withFix.rule];
+        assert.ok(text.includes(`fix  ${guide?.fix}`), withFix.rule);
+        if (guide?.docs) assert.ok(text.includes(`docs ${guide.docs}`), withFix.rule);
+        assert.ok(!formatHuman(report).includes(`fix  ${guide?.fix}`));
+    });
+
     it("csv has a header and one row per finding", () => {
         const rows = parseCsv(formatCsv(report));
         assert.deepEqual(rows[0], ["severity", "rule", "scope", "group", "url", "message", "occurrences", "locations"]);

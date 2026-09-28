@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import type { Facts, ResourceFacts } from "../src/facts/types.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { compileRule, describe as describeValue } from "../src/rules/declarative.ts";
-import type { AggregateRule, PageRule, Rule } from "../src/rules/types.ts";
+import { fixFor } from "../src/rules/fix.ts";
+import type { AggregateRule, Finding, PageRule, Rule } from "../src/rules/types.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
 import { exempt } from "../src/plugins/html-validate.ts";
 
@@ -140,6 +141,11 @@ describe("external link rel policy", () => {
     });
 });
 
+// A site finding keyed by `url`, for filling fixes.
+function siteFinding(url: string): Finding {
+    return { rule: "dns/dmarc-reject", severity: "warning", scope: "site", url, message: "" };
+}
+
 describe("rule fixes", () => {
     const all = resolveRuleset("spiderlint:all", {});
     const exemptList = new Set(exempt);
@@ -151,6 +157,15 @@ describe("rule fixes", () => {
             assert.ok(rule.meta.fix, `rule ${id} is missing a fix`);
             assert.ok(!rule.meta.fix.includes("\n"), `rule ${id} has a multi-line fix`);
             if (!/^(axe|htmlhint|html-validate)\//.test(id)) assert.match(rule.meta.fix, /^[^a-z].*[.?!]$/su, `rule ${id} fix is not a sentence`);
+            assert.doesNotMatch(rule.meta.fix, /<(host|domain|origin|url)>|\{(?!(host|domain|origin|url)\})[a-z]+\}/, `rule ${id} fix has a placeholder fixFor does not fill`);
         });
     }
+
+    it("fills placeholders from a page URL or a bare host, and shows them generic without a finding", () => {
+        const fix = "Add `_dmarc.{domain}` for {host} on {origin}, see {url}.";
+        assert.equal(fixFor(fix, siteFinding("www.dbuho.me")), "Add `_dmarc.dbuho.me` for www.dbuho.me on https://www.dbuho.me, see https://www.dbuho.me/.");
+        assert.equal(fixFor(fix, siteFinding("https://a.example.co.uk/p?q=1")), "Add `_dmarc.example.co.uk` for a.example.co.uk on https://a.example.co.uk, see https://a.example.co.uk/p?q=1.");
+        assert.equal(fixFor(fix), "Add `_dmarc.<domain>` for <host> on <origin>, see <url>.");
+        assert.equal(fixFor(fix, siteFinding("https://a.test/")), fixFor(fix, siteFinding("https://a.test/")));
+    });
 });

@@ -4,7 +4,8 @@
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
-import type { Finding } from "../rules/types.ts";
+import { fixFor } from "../rules/fix.ts";
+import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
 import { printableFinding } from "./printable.ts";
 import type { Grade, Rating } from "./rating.ts";
@@ -119,15 +120,24 @@ function change(now: number, before: number | undefined, paint: Paint): string {
     return before === undefined || now === before ? "" : ` ${paint(now < before ? "green" : "red", `${now < before ? MINUS : "+"}${number(Math.abs(now - before))}`)}`;
 }
 
-// Findings by severity then rule then URL, bundled.
-function listed(findings: Finding[], origin: string, paint: Paint, limit: number): string[] {
-    findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-    return bundle(findings).flatMap((same) => (same.length > 1 ? bundled(same, origin, paint, limit) : line(same[0] as Finding, origin, paint, limit)));
+// The rule’s fix filled for this finding, then its docs, under the finding.
+function explanation(guide: RuleGuide | undefined, finding: Finding, paint: Paint): string[] {
+    return [guide?.fix ? `${paint("dim", `${DETAIL}fix  `)}${fixFor(guide.fix, finding)}` : "", guide?.docs ? paint("dim", `${DETAIL}docs ${guide.docs}`) : ""].filter(Boolean);
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, then the totals; `isFull` lists every URL and location.
-export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false): string {
+// Findings by severity then rule then URL, bundled, each followed by its explanation when `guides` is given.
+function listed(findings: Finding[], origin: string, paint: Paint, limit: number, guides?: Report["rules"]): string[] {
+    findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
+    return bundle(findings).flatMap((same) => {
+        const first = same[0] as Finding;
+        return [...(same.length > 1 ? bundled(same, origin, paint, limit) : line(first, origin, paint, limit)), ...(guides ? explanation(guides[first.rule], first, paint) : [])];
+    });
+}
+
+// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false): string {
     const limit = isFull ? Infinity : LIST;
+    const guides = isExplained ? (report.rules ?? {}) : undefined;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
@@ -140,9 +150,9 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     }
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
-        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit));
+        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, guides));
     }
-    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
 }

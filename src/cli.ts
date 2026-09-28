@@ -84,6 +84,7 @@ Output:
   --output DIR          with --format agent, one Markdown prompt per rule in DIR instead of stdout
   --fail-on LEVEL       error, warning, info or never (error)
   --show-hints          list hints in human output, not only their count
+  --explain             print each finding’s fix and docs in human output
   --[no-]color          force or disable color (auto)
   --[no-]progress       status line on an interactive stderr (auto)
   --log-level LEVEL     trace, debug, info, warn, error or silent (info)
@@ -266,6 +267,7 @@ function parseFlags(argv: string[]) {
                 info: { type: "string", multiple: true },
                 hint: { type: "string", multiple: true },
                 "show-hints": { type: "boolean" },
+                explain: { type: "boolean" },
                 "log-level": { type: "string" },
                 site: { type: "string", multiple: true },
             },
@@ -394,7 +396,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
             return pages.length === 0 ? 3 : 0;
         }
         // A report to stdout in the chosen format, or one agent prompt per rule under --output.
-        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
+        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
             await emit(stored);
