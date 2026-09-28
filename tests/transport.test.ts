@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { X509Certificate } from "node:crypto";
 import type { TLSSocket } from "node:tls";
-import { cookieFacts, redactHeaders, timingFacts, tlsFacts } from "../src/facts/transport.ts";
+import { cookieFacts, dateSkew, redactHeaders, timingFacts, tlsFacts } from "../src/facts/transport.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
 import type { Facts } from "../src/facts/types.ts";
@@ -30,6 +30,16 @@ function tlsFindings(tls: ReturnType<typeof tlsFacts>): string[] {
 }
 
 describe("transport facts", () => {
+    it("measures Date against the middle of the round trip, and not off a cache", () => {
+        const date = "Sun, 06 Nov 1994 08:49:37 GMT";
+        const at = Date.parse(date);
+        assert.equal(dateSkew("u", { date }, at - 600_000, at - 598_000), 600);
+        assert.equal(dateSkew("u", { date }, at + 10_000, at + 12_000), -10);
+        assert.equal(dateSkew("u", { date, age: "30" }, at, at), undefined);
+        assert.equal(dateSkew("u", { date, "cf-cache-status": "HIT" }, at, at), undefined);
+        assert.equal(dateSkew("u", { date: "yesterday" }, at, at), undefined);
+    });
+
     it("reads every cookie's flags", () => {
         assert.deepEqual(cookieFacts(["a=1; Secure; HttpOnly; SameSite=Strict", "b=2"]), [
             { name: "a", secure: true, "http-only": true, "same-site": "Strict" },

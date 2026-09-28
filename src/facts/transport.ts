@@ -22,7 +22,7 @@ export interface Transport {
     httpVersion?: string;
     ip?: string;
     redirectUrls?: URL[];
-    timings?: { phases?: Record<string, number | undefined> };
+    timings?: { upload?: number; response?: number; phases?: Record<string, number | undefined> };
     socket?: TLSSocket & { remoteFamily?: string };
 }
 
@@ -86,6 +86,26 @@ export function cookieFacts(setCookie: string | string[] | undefined, date?: str
         const maxAge = lifetime(flags, now);
         return { name: pair.split("=", 1)[0] ?? "", secure: flags.has("secure"), "http-only": flags.has("httponly"), ...(sameSite && { "same-site": sameSite }), ...(path !== undefined && { path }), ...(domain !== undefined && { domain }), ...(maxAge !== undefined && { "max-age": maxAge }) };
     });
+}
+
+// Cache-status headers a CDN sets, each to a pattern its hit value matches.
+const CACHE_HITS: [string, RegExp][] = [
+    ["cf-cache-status", /^(?:hit|stale|revalidated|updating)$/i],
+    ["x-cache", /\bhit\b/i],
+    ["x-vercel-cache", /^(?:hit|stale|prerender)$/i],
+    ["cdn-cache", /^hit$/i],
+    ["cache-status", /;\s*hit\b/i],
+];
+
+// Seconds the response `Date`, taken mid-second, runs ahead of our clock at the midpoint of `sent` and `firstByte`, or undefined when absent, unparsable or served from a cache.
+export function dateSkew(url: string, headers: Record<string, string | string[] | undefined>, sent: number | undefined, firstByte: number | undefined): number | undefined {
+    const date = Date.parse(String([headers.date].flat()[0] ?? ""));
+    const age = Number([headers.age].flat()[0] ?? 0);
+    const hit = CACHE_HITS.find(([name, pattern]) => pattern.test(String([headers[name]].flat()[0] ?? "")))?.[0];
+    const isCached = age > 0 || hit !== undefined;
+    log.debug({ url, date: headers.date, age, hit, sent, firstByte }, "response date read");
+    const isMeasured = sent !== undefined && firstByte !== undefined && !isCached && !Number.isNaN(date);
+    return isMeasured ? Math.round((date + 500 - (sent + firstByte) / 2) / 1000) : undefined;
 }
 
 // One redirect hop to `url`, from the status and raw headers of the response that sent it there.

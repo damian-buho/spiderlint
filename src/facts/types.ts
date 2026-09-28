@@ -139,6 +139,8 @@ export interface HttpFacts {
     "content-type": string;
     charset?: string;
     revalidated?: true;
+    // Seconds `Date` runs ahead of the crawler’s clock, halfway through the round trip; absent when served from a cache.
+    "date-skew"?: number;
     // The Content-Security-Policy headers and `<meta>` policies, derived on every lint.
     csp?: CspFacts;
 }

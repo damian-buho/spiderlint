@@ -352,6 +352,16 @@ each host it reports when `tls.cert.fingerprint256`, `tls.protocol`,
 URL sets per value. Two backends behind one name surface here first, and the
 sets are ready-made group candidates.
 
+It carries `http/date` (`warning`: `Date` absent or not an IMF-fixdate) and
+`http/clock-skew` (`scope: site`, `warning` past 60 s, `error` past an hour),
+one finding per host over the median of its pages’ `http.date-skew`. That fact is `Date`,
+taken mid-second, minus our clock halfway between sending the request and the
+first byte, in both crawl modes; a response with `Age` above 0 or a CDN cache-hit
+header carries none. When two or more hosts are off alike (same sign, within
+5 s) the fault is our clock: one run-level warning replaces the findings. One host
+alone cannot tell, so it is reported. The scan server checks its own clock at
+start against `clock-references` (`rules/clock.ts`, `server/clock.ts`).
+
 ## Folding
 
 Runs after all page-scope findings exist, per `(group, rule)`:

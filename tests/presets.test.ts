@@ -36,7 +36,7 @@ interface Patch {
 function page(patch: Patch = {}): Facts {
     const pathname = patch.pathname ?? "/posts/hello-world/";
     const href = `https://site.test${pathname}`;
-    const headers = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
+    const headers = { date: "Sun, 06 Nov 1994 08:49:37 GMT", "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
     const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
     const facts: Facts = {
         url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: patch.search ?? "", ...(patch.twin && { twin: patch.twin }) },
@@ -74,6 +74,7 @@ const FAILS: Record<string, Patch[]> = {
     "http/csp-frame-ancestors": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
     "http/reporting-endpoints": [{ headers: { "reporting-endpoints": "" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
+    "http/date": [{ headers: { date: undefined as unknown as string } }, { headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
     "http/deprecated-header": [{ headers: { "x-xss-protection": "0" } }, { headers: { "report-to": "{\"group\":\"default\",\"max_age\":86400,\"endpoints\":[{\"url\":\"https://site.test/reports\"}]}" } }, { headers: { "feature-policy": "camera 'none'", "expect-ct": "max-age=0" } }],
     "links/internal-nofollow": [{ html: { links: { internal: ["https://site.test/login"], external: [], nofollow: ["https://site.test/login"] } } }],
     "http/compression": [{ headers: { "content-encoding": "deflate" } }, { contentType: "application/ld+json", headers: { "content-encoding": "identity" } }],

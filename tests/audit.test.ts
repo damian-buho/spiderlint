@@ -17,6 +17,9 @@ import type { AggregateRule } from "../src/rules/types.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { painter } from "../src/color.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
+import { serveOrigin, type Origin } from "./fixtures/origin.ts";
+import { log } from "../src/logger.ts";
+import { isOwnClock } from "../src/rules/clock.ts";
 
 const GROUPS = {
     posts: { match: ["/posts/**"], rules: ["seo"] },
@@ -631,5 +634,41 @@ describe("audit options", () => {
         const findings = report.findings.filter((finding) => finding.rule === "html/one-h1");
         assert.equal(findings.length, 5);
         assert.ok(findings.every((finding) => finding.severity === "info"));
+    });
+});
+
+describe("clock skew", () => {
+    let ahead: Origin;
+    let also: Origin;
+    const clock = { rulesets: { clock: { rules: { "http/clock-skew": "warning" as const } } }, groups: { default: { rules: ["clock"] } }, sitemap: false, cacheMode: "off" as const };
+
+    before(async () => {
+        [ahead, also] = await Promise.all([serveOrigin("skew"), serveOrigin("skew")]);
+    });
+
+    after(() => Promise.all([ahead.close(), also.close()]));
+
+    it("reports a host whose Date runs 10 minutes ahead, leaving its cached page out", async () => {
+        const report = await audit({ ...clock, seeds: [`${ahead.origin}/`, `${ahead.origin}/cached`] });
+        const [finding, ...rest] = report.findings;
+        assert.equal(rest.length, 0);
+        assert.equal(finding?.rule, "http/clock-skew");
+        assert.ok(Math.abs((finding?.value as number) - 600) <= 2, `skew ${String(finding?.value)}`);
+        assert.deepEqual(finding?.urls, [`${ahead.origin}/`]);
+    });
+
+    it("blames our own clock, once, when every host is off alike", async (t) => {
+        const warn = t.mock.method(log, "warn");
+        const report = await audit({ ...clock, seeds: [`${ahead.origin}/`, `${also.origin}/`] });
+        assert.deepEqual(report.findings, []);
+        assert.equal(warn.mock.calls.filter((call) => String(call.arguments[1]).startsWith("the local clock is off")).length, 1);
+    });
+
+    it("tells our clock from a host's only across two or more hosts skewed alike", () => {
+        assert.equal(isOwnClock([600, 598, 601]), true);
+        assert.equal(isOwnClock([600]), false);
+        assert.equal(isOwnClock([600, -600]), false);
+        assert.equal(isOwnClock([600, 30]), false);
+        assert.equal(isOwnClock([600, 700]), false);
     });
 });

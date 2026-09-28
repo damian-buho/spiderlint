@@ -16,8 +16,8 @@ const PAGE = `<!DOCTYPE html><html lang="en"><head><title>Page</title></head><bo
 const TRACE = "Error: no route\n    at dispatch (/srv/app/router.js:42:11)\n";
 const CROSS_DOMAIN = `<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>`;
 
-// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only, `/crossdomain.xml` grants every origin; `trace`: a missing path is a 404 stack trace, plain http redirects to https.
-export async function serveOrigin(kind: "soft" | "trace"): Promise<Origin> {
+// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only, `/crossdomain.xml` grants every origin; `trace`: a missing path is a 404 stack trace, plain http redirects to https; `skew`: `Date` runs 10 minutes ahead, and `/cached` comes from a cache.
+export async function serveOrigin(kind: "soft" | "trace" | "skew"): Promise<Origin> {
     const requested: string[] = [];
     const server: Server = createServer((request, response) => {
         const pathname = new URL(request.url ?? "/", "http://origin").pathname;
@@ -41,6 +41,11 @@ export async function serveOrigin(kind: "soft" | "trace"): Promise<Origin> {
         if (kind === "trace" && !["/", "/page"].includes(pathname)) {
             response.writeHead(404, { "content-type": "text/plain", server: "Apache/2.4.58 (Ubuntu)" });
             response.end(TRACE);
+            return;
+        }
+        if (kind === "skew") {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8", date: new Date(Date.now() + 600_000).toUTCString(), ...(pathname === "/cached" && { age: "120" }) });
+            response.end(PAGE);
             return;
         }
         const isGzip = kind === "soft" && pathname === "/" && String(request.headers["accept-encoding"] ?? "").includes("gzip");

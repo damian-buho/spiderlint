@@ -15,7 +15,7 @@ import { COOKIE_WRITES, headerFacts, observedResources, scriptCookies, redirectF
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { parityFacts } from "../facts/parity.ts";
 import { extractResources } from "../facts/resources.ts";
-import { cookieFacts, redactHeaders } from "../facts/transport.ts";
+import { cookieFacts, dateSkew, redactHeaders } from "../facts/transport.ts";
 import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
@@ -361,6 +361,9 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
                 const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober, observation.protocols.get(response.url()))) };
+                const { startTime, requestStart, responseStart } = response.request().timing();
+                const skew = observation.isDownload || responseStart < 0 ? undefined : dateSkew(url.href, headers, startTime + requestStart, startTime + responseStart);
+                if (skew !== undefined) facts.http["date-skew"] = skew;
                 const served = isHtml ? staticHtml(raw, url, config.scope) : undefined;
                 if (isHtml && served) {
                     const $ = await parseWithCheerio();

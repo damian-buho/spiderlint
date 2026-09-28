@@ -6,6 +6,7 @@ import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
 import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
@@ -373,6 +374,7 @@ export const builtin: Record<string, Make> = {
     ...i18nRules,
     ...disclosureRules,
     ...deprecatedRules,
+    ...clockRules,
     ...relationRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(

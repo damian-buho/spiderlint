@@ -9,7 +9,7 @@ import type { Config } from "../config/index.ts";
 import { ACCEPT_ENCODING, capped, isParsed, replayed, type Capped } from "./body.ts";
 import { extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { extractResources } from "../facts/resources.ts";
-import { cookieFacts, earlyHintsHook, redactHeaders, redirectHook, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
+import { cookieFacts, dateSkew, earlyHintsHook, redactHeaders, redirectHook, timingFacts, tlsFacts, type Transport } from "../facts/transport.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { CrawlStorage, Earlier, Frontier, OnPage } from "./frontier.ts";
@@ -123,6 +123,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 const cap = bodies.get(request);
                 const decoded = Buffer.byteLength(body);
                 const declared = Number(response.headers["content-length"]);
+                const skew = dateSkew(url.href, response.headers, cap?.source.timings?.upload, cap?.source.timings?.response);
                 const facts: Facts = {
                     ...frontier.identity(request, url),
                     http: {
@@ -142,6 +143,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                         },
                         "content-type": contentType.type,
                         ...(contentType.encoding && { charset: contentType.encoding }),
+                        ...(skew !== undefined && { "date-skew": skew }),
                     },
                     ...(cap?.tls && { tls: cap.tls }),
                     ...(isHtml && { html: extractHtml($, body.toString(), url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
