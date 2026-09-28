@@ -12,6 +12,7 @@ import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
 import { relationRules } from "./relations.ts";
 import { robotsRules } from "./robots.ts";
+import { urlRules } from "./url.ts";
 import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
@@ -375,6 +376,7 @@ export const builtin: Record<string, Make> = {
     ...disclosureRules,
     ...deprecatedRules,
     ...clockRules,
+    ...urlRules,
     ...relationRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(

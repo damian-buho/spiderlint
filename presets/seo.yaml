@@ -268,3 +268,41 @@ rules:
     message: "<meta name=tdm-reservation> should be 0 or 1, found {got}"
     fix: "Set <meta name=tdm-reservation content=1> to reserve text and data mining rights, 0 to waive them."
     docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
+  url/length:
+    fact: url.href
+    expect: {type: string, maxLength: 100}
+    severity: info
+    message: "the URL is longer than 100 characters: {got}"
+    fix: "Shorten the path to the few words that name the page."
+    docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+  url/uppercase:
+    fact: url.pathname
+    expect: {type: string, not: {pattern: "(?<!%)(?<!%[0-9A-Fa-f])[A-Z]"}}
+    severity: warning
+    message: "the path has uppercase letters, which a server may treat as another URL: {got}"
+    fix: "Use lowercase paths, and redirect each mixed-case path to its lowercase form."
+    docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+  url/session-param:
+    fact: url.href
+    expect: {type: string, not: {pattern: "(?i:[?&;](sid|sessionid|jsessionid|phpsessid)=)"}}
+    severity: warning
+    message: "the URL carries a session ID: {got}"
+    fix: "Keep the session in a cookie, never in the URL."
+    docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+  url/double-slash:
+    fact: url.pathname
+    expect: {type: string, not: {pattern: "//"}}
+    severity: warning
+    message: "the path has an empty segment: {got}"
+    fix: "Remove the doubled slash from the links, and redirect the doubled path to the single one."
+    docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+  url/extension:
+    fact: url.pathname
+    expect: {type: string, not: {pattern: "(?i:\\.(php|aspx?|jsp|cgi|html?)$)"}}
+    severity: hint
+    message: "the path exposes the server technology in its extension: {got}"
+    fix: "Serve the page at an extensionless path, and redirect the old one to it."
+    docs: https://www.w3.org/Provider/Style/URI
+  url/readable-slug: info
+  url/separators: warning
+  url/trailing-slash: warning

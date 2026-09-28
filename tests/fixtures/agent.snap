@@ -274,6 +274,17 @@ Fix: Make the link target point at the final URL, or serve the content directly.
 Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
 Done when: `spiderlint audit ORIGIN/ --rules links/redirected-internal` reports no links/redirected-internal finding.
 
+## url/trailing-slash (warning)
+
+trailing slashes differ in group default: 7 pages without /, 1 with /
+
+Where: /app/, used by or shared with:
+- /app/
+Reads: `url.pathname`
+Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
+Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
+Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash` reports no url/trailing-slash finding.
+
 ## html/favicon (info)
 
 no <link rel=icon> in the head
@@ -354,6 +365,19 @@ Reads: `html.meta.color-scheme`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
+
+## url/readable-slug (info)
+
+the slug 1 is an identifier, not words
+
+Where: 5 pages of group posts (100 %), for example:
+- /posts/1
+- /posts/2
+- /posts/3
+Reads: `url.pathname`, `html.title`, `html.h1`
+Fix: Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.
+Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+Done when: `spiderlint audit ORIGIN/ --rules url/readable-slug` reports no url/readable-slug finding.
 
 ## groups/heterogeneous (info)
 

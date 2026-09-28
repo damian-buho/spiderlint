@@ -9,7 +9,8 @@ import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop, Role, TlsFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
-import type { PageRule } from "../src/rules/types.ts";
+import { builtin } from "../src/rules/builtin.ts";
+import type { AggregateRule, Finding, PageRule } from "../src/rules/types.ts";
 
 interface Patch {
     role?: Role;
@@ -35,7 +36,7 @@ interface Patch {
 // A 2xx https: HTML page that every rule below passes, with the patch applied and robots derived as the linter does.
 function page(patch: Patch = {}): Facts {
     const pathname = patch.pathname ?? "/posts/hello-world/";
-    const href = `https://site.test${pathname}`;
+    const href = `https://site.test${pathname}${patch.search ?? ""}`;
     const headers = { date: "Sun, 06 Nov 1994 08:49:37 GMT", "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=()", "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin", "reporting-endpoints": "default=\"/reports\"", "content-encoding": "br", vary: "Accept-Encoding", etag: "\"x\"", "cache-control": "max-age=60", "alt-svc": "h3=\":443\"", "cross-origin-embedder-policy": "credentialless", "repr-digest": "sha-256=:x:", "server-timing": "app;dur=1", ...patch.headers };
     const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
     const facts: Facts = {
@@ -74,6 +75,12 @@ const FAILS: Record<string, Patch[]> = {
     "http/csp-frame-ancestors": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
     "http/reporting-endpoints": [{ headers: { "reporting-endpoints": "" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
+    "url/length": [{ pathname: `/posts/${"very-long-words-".repeat(6)}/` }],
+    "url/uppercase": [{ pathname: "/Posts/hello-world/" }],
+    "url/session-param": [{ search: "?sid=4f2a" }, { pathname: "/posts/hello-world;jsessionid=4F2A" }],
+    "url/double-slash": [{ pathname: "/posts//hello-world/" }],
+    "url/extension": [{ pathname: "/posts/hello-world.php" }, { pathname: "/index.HTML" }],
+    "url/readable-slug": [{ pathname: "/p/8f3a91c" }, { pathname: "/p/1234" }, { pathname: "/p/0b8e6f3a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" }, { pathname: "/p/spring-recipes/", html: { h1: ["Summer salads"] } }],
     "http/date": [{ headers: { date: undefined as unknown as string } }, { headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
     "http/deprecated-header": [{ headers: { "x-xss-protection": "0" } }, { headers: { "report-to": "{\"group\":\"default\",\"max_age\":86400,\"endpoints\":[{\"url\":\"https://site.test/reports\"}]}" } }, { headers: { "feature-policy": "camera 'none'", "expect-ct": "max-age=0" } }],
     "links/internal-nofollow": [{ html: { links: { internal: ["https://site.test/login"], external: [], nofollow: ["https://site.test/login"] } } }],
@@ -133,6 +140,10 @@ const FAILS: Record<string, Patch[]> = {
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
 const PASSES: Record<string, Patch[]> = {
+    "url/uppercase": [{ pathname: "/posts/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82/" }],
+    "url/session-param": [{ search: "?side=left" }],
+    "url/extension": [{ pathname: "/feed.xml" }],
+    "url/readable-slug": [{ pathname: "/" }, { pathname: "/p/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82-%D0%BC%D0%B8%D1%80/", html: { h1: ["Привет, мир"] } }, { pathname: "/privet/", html: { h1: ["Привет"] } }, { pathname: "/strasse.html", html: { h1: ["Die Straße"] } }],
     "http/csp": [{ headers: { "content-security-policy": undefined as unknown as string }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
     "http/csp-unsafe-inline": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'unsafe-inline'" } }, { headers: { "content-security-policy": "script-src 'self' 'unsafe-inline', script-src 'self'" } }, { headers: { "content-security-policy": "style-src 'unsafe-inline'; script-src 'self'" } }],
     "http/csp-unsafe-eval": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
@@ -224,6 +235,29 @@ describe("presets", () => {
             }
         });
     }
+});
+
+// The paths of the pages a site rule's findings list.
+function paths(findings: ReturnType<AggregateRule["check"]>): string[] {
+    return (findings ?? []).flatMap((finding) => finding.urls ?? []).map((url) => new URL(url).pathname);
+}
+
+describe("url shape across pages", () => {
+    it("names the pages joining words with the separator fewer pages use", () => {
+        const rule = builtin["url/separators"]?.("warning") as AggregateRule;
+        const pages = ["/a-b/", "/c-d/", "/e_f/", "/", "/g/"].map((pathname) => page({ pathname }));
+        assert.deepEqual(paths(rule.check(pages)), ["/e_f/"]);
+        assert.deepEqual(rule.check(["/a_b/", "/c_d/"].map((pathname) => page({ pathname }))), []);
+    });
+
+    it("names the pages of a group whose trailing slash breaks the group's usual form", () => {
+        const rule = builtin["url/trailing-slash"]?.("warning") as AggregateRule;
+        const pages = ["/a/", "/b/", "/c", "/", "/feed.xml"].map((pathname) => page({ pathname }));
+        const [finding, ...rest] = rule.check(pages) ?? [];
+        assert.equal(rest.length, 0);
+        assert.deepEqual(paths([finding as Finding]), ["/c"]);
+        assert.match(finding?.message ?? "", /2 pages with \/, 1 without \//);
+    });
 });
 
 describe("content security policy", () => {

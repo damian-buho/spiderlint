@@ -296,7 +296,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}304 of 351 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
+        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}378 of 425 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
 
@@ -328,8 +328,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 351, failed: 47, errored: 6, passed: 304 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8661, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 425, failed: 47, errored: 6, passed: 378 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8894, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });
