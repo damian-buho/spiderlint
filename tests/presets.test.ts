@@ -259,6 +259,7 @@ describe("presets", () => {
         assert.ok(presetNames().includes("performance"));
         assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));
         assert.ok(!Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/digest"));
+        assert.equal(resolveRuleset("spiderlint:recommended", {})["insight/numeric-outlier"]?.severity, "info");
     });
 
     for (const id of Object.keys(FAILS)) {

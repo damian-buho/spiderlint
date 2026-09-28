@@ -18,6 +18,7 @@ extends:
   - spiderlint:dns:recommended
   - spiderlint:images
   - spiderlint:icons
+  - spiderlint:insights
 rules:
   http/consistent-origin: info
   icons/favicon: warning

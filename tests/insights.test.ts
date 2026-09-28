@@ -30,8 +30,8 @@ describe("insights", () => {
     it("names the one HTTP/2 page among HTTP/3 pages and the one page 20 times slower, and nothing else", () => {
         const found = insights(site(25));
         assert.deepEqual(found.map((finding) => [finding.rule, finding.severity, finding.urls]), [
-            ["insight/numeric-outlier", "hint", ["https://site.test/p/2"]],
-            ["insight/minority-value", "hint", ["https://site.test/p/1"]],
+            ["insight/numeric-outlier", "info", ["https://site.test/p/2"]],
+            ["insight/minority-value", "info", ["https://site.test/p/1"]],
         ]);
         assert.match(found[0]?.message ?? "", /^http\.timing\.total stands far above the median 101 of 25 pages: https:\/\/site\.test\/p\/2 2000 \(19\.8×\); .* alone outweighs the next 10 pages combined$/);
         assert.equal(found[1]?.message, "http.version is 3.0 on 24 of 25 pages, but 2.0 on https://site.test/p/1");
