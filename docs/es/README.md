@@ -30,6 +30,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Dependencias de página descargadas una sola vez
 - robots.txt leído como lo leen los rastreadores
 - Reglas como datos, con preajustes
+- Servidor de análisis
 - Rastrear una vez, analizar muchas
 - Configuración TLS analizada en casa
 - Transporte comprobado por página, no por host

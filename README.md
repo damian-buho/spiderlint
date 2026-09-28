@@ -28,6 +28,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Page dependencies fetched once
 - robots.txt read the way crawlers read it
 - Rules as data, with presets
+- Scan server
 - Crawl once, lint many times
 - TLS configuration scanned in-house
 - Transport checked per page, not per host
