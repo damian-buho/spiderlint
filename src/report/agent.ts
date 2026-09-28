@@ -7,11 +7,12 @@ import path from "node:path";
 import { writeAtomic } from "../cache/index.ts";
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
+import { isRanked } from "../facts/flatten.ts";
 import { log } from "../logger.ts";
 import { fixFor } from "../rules/fix.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
-import { printableFinding } from "./printable.ts";
+import { printable, printableFinding } from "./printable.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 
@@ -76,11 +77,17 @@ function actionable(report: Report, isHintListed: boolean): Finding[] {
     return findings;
 }
 
-// One block per finding after folding, no colour and no summary; the shared origin once on top and URLs under it relative.
+// CO2, bytes, requests and timings as one Markdown table, so an agent weighs a fix against the site; nothing without statistics.
+function statistics(stats: Report["summary"]["stats"] = {}): string[] {
+    const rows = Object.entries(stats).filter(([path]) => isRanked(path)).map(([path, stat]) => `| \`${printable(path).replaceAll("|", String.raw`\|`)}\` | ${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].join(" | ")} |`);
+    return rows.length === 0 ? [] : [["# Site statistics", "", "| Fact | Pages | Min | Median | p95 | Max | Total |", "| --- | --: | --: | --: | --: | --: | --: |", ...rows].join("\n")];
+}
+
+// One block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative.
 export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false): string {
     const origin = sharedOrigin(report);
     const blocks = ordered(actionable(report, isHintListed)).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
-    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."])].join("\n\n");
+    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."]), ...statistics(report.summary.stats)].join("\n\n");
 }
 
 // One Markdown prompt per rule, by file name, the same findings always giving the same bytes.

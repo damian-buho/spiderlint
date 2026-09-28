@@ -117,6 +117,13 @@ function table(t: Translator, findings: Finding[], origin: string): string {
     return `<table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin)).join("")}</tbody></table>`;
 }
 
+// Every numeric fact’s pages, min, median, p95, max and total, in a closed disclosure; nothing without statistics.
+function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): string {
+    const rows = Object.entries(stats).map(([path, stat]) => `<tr><td><code>${escape(path)}</code></td>${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(t.number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" }))}</td>`).join("")}</tr>`);
+    const head = [t._("Fact"), t._("Pages"), t._("Minimum"), t._("Median"), t._("95th percentile"), t._("Maximum"), t._("Total")].map((label) => `<th>${escape(label)}</th>`).join("");
+    return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
+}
+
 // The rating, the totals and every finding grouped by group, site-wide ones last; findings keep their English message.
 export function reportBody(report: Pick<Report, "summary" | "findings"> & { pages?: Report["pages"] }, t: Translator, title: string): string {
     const { summary } = report;
@@ -145,7 +152,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
     });
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
     if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${table(t, hints.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url)), origin)}</details></section>`);
-    return `${head}<dl class="totals">${totals.join("")}</dl>${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}`;
+    return `${head}<dl class="totals">${totals.join("")}</dl>${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${statistics(t, summary.stats)}`;
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.

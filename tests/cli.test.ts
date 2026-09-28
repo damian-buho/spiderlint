@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseCsv } from "./fixtures/csv.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const CLI = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
@@ -125,9 +126,9 @@ describe("cli", () => {
         assert.match(unknown.stderr, /source nope: unknown \(known: list, pair\)/);
     });
 
-    it("exits 3 on lint and report of a site never crawled, creating no store", async () => {
-        for (const command of ["lint", "report"]) {
-            const run = await spiderlint(directory, command, "https://never-crawled.example/");
+    it("exits 3 on lint, report and facts --all of a site never crawled, creating no store", async () => {
+        for (const command of [["lint"], ["report"], ["facts", "--all"]]) {
+            const run = await spiderlint(directory, ...command, "https://never-crawled.example/");
             assert.equal(run.code, 3);
             assert.match(run.stderr, /nothing stored in .*run spiderlint audit or crawl first/);
         }
@@ -154,6 +155,30 @@ describe("cli", () => {
         assert.equal((JSON.parse(linted.stdout) as { summary: { pages: number } }).summary.pages, 2);
         const unnamed = await spiderlint(directory, "lint");
         assert.equal(unnamed.code, 2);
+    });
+
+    it("exports every stored page’s facts as CSV, and the json report carries their statistics", async () => {
+        const seed = `${site.origin}/`;
+        const audited = await spiderlint(directory, "audit", seed, "--rules", "sustainability", "--exclude-urls", "/tmp/**", "--format", "json", "--fail-on", "never");
+        assert.equal(audited.code, 0, audited.stderr);
+        const { summary } = JSON.parse(audited.stdout) as { summary: { pages: number; stats: Record<string, { median: number; total: number }> } };
+        assert.ok((summary.stats["co2.grams"]?.total ?? 0) > 0 && (summary.stats["co2.grams"]?.median ?? 0) > 0, JSON.stringify(summary.stats["co2.grams"]));
+        assert.equal(Object.keys(summary.stats)[0], "co2.bytes");
+        const exported = await spiderlint(directory, "facts", "--all", seed, "--format", "csv");
+        assert.equal(exported.code, 0, exported.stderr);
+        const [header = [], ...rows] = parseCsv(exported.stdout.trimEnd());
+        assert.equal(rows.length, summary.pages);
+        assert.deepEqual(header.slice(0, 3), ["url.href", "group", "co2.bytes"]);
+        assert.ok(rows.every((row) => row.length === header.length && row[0]?.startsWith(site.origin)));
+        const picked = await spiderlint(directory, "facts", "--all", seed, "--format", "csv", "--facts", "co2.grams", "--facts", "http.timing.*");
+        const [columns = []] = parseCsv(picked.stdout.trimEnd());
+        assert.deepEqual(columns.slice(0, 4), ["url.href", "group", "co2.grams", "http.timing.dns"]);
+        assert.ok(columns.includes("http.timing.total") && columns.slice(3).every((column) => column.startsWith("http.timing.")), columns.join(","));
+        const yaml = await spiderlint(directory, "facts", "--all", seed, "--format", "yaml");
+        assert.match(yaml.stdout, /^pages:\n {2}- url:\n/);
+        const refused = await spiderlint(directory, "facts", "--all", seed, "--facts", "co2.*");
+        assert.equal(refused.code, 2);
+        assert.match(refused.stderr, /--facts: picks csv columns only/);
     });
 
     it("refuses a severity override naming no known rule before any request", async () => {

@@ -83,7 +83,7 @@ export interface SiteExtractor {
 }
 
 // A report as text; `isFull` when folding is off, `lang` the reader’s language when a formatter translates, `isHintListed` to list hints a formatter collapses, `isExplained` to print each finding’s fix.
-export type Formatter = (report: Report, paint: Paint, isFull: boolean, lang?: string, isHintListed?: boolean, isExplained?: boolean) => string;
+export type Formatter = (report: Report, paint: Paint, isFull: boolean, lang?: string, isHintListed?: boolean, isExplained?: boolean, isStats?: boolean) => string;
 
 // URLs for the frontier, read from what follows `<id>:` in `sources`.
 export interface Source {

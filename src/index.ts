@@ -42,6 +42,7 @@ import { stopIfInterrupted } from "./interrupt.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { rate, type Checks, type Rating } from "./report/rating.ts";
+import { factStats, type Stat } from "./report/stats.ts";
 
 const PAGE_CONTEXT_MS = 60_000;
 
@@ -71,6 +72,8 @@ export interface Summary {
     // Each group’s fetch mode, an adaptive one as it settled; absent on a re-lint.
     fetch?: Record<string, GroupMode>;
     cost: Cost;
+    // Count, min, median, p95, max and total of every numeric page fact.
+    stats?: Record<string, Stat>;
 }
 
 export interface Report {
@@ -155,6 +158,7 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         checks,
         ...(rating && { rating }),
         cost,
+        stats: factStats(pages),
     };
 }
 
@@ -226,15 +230,9 @@ function requiresDetector(rules: Rule[]): boolean {
     return rules.some((rule) => rule.meta.facts.some((fact) => fact.startsWith("html.detected")));
 }
 
-// Whether a rule reads the CO2 estimate, which needs CO2.js loaded.
-function requiresEstimator(rules: Rule[]): boolean {
-    return rules.some((rule) => rule.meta.facts.some((fact) => fact === "co2" || fact.startsWith("co2.")));
-}
-
-// Loads the language detector and CO2.js when an enabled rule needs them, before the synchronous lint.
+// Loads CO2.js, and the language detector when an enabled rule needs it, before the synchronous lint.
 async function prepareLint(config: Config): Promise<void> {
-    const rules = enabledRules(config);
-    await Promise.all([requiresDetector(rules) && loadDetector(), requiresEstimator(rules) && loadEstimator()]);
+    await Promise.all([requiresDetector(enabledRules(config)) && loadDetector(), loadEstimator()]);
 }
 
 // A sampler handing each page only the extractors its own group’s rules read.
@@ -328,6 +326,27 @@ function capped(run: RuleRun, rulesByGroup: Map<string, Rule[]>): void {
     log.debug({ rules: [...readers], findings: partial.length }, "graph findings marked partial");
 }
 
+// Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, byline, CO2, the detected language when asked, referrers, twins, role and the link graph.
+function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: ReturnType<typeof compileGroups>, isDetected: boolean): void {
+    for (const page of pages) {
+        page.group = assignGroup(page, matchers);
+        page.robots = robotsFacts(page);
+        const csp = cspFacts(page);
+        if (csp) page.http.csp = csp;
+        const parsed = parsedHeaders(page.url.href, page.http.headers);
+        if (parsed) page.http.parsed = parsed;
+        const detected = isDetected && page.html && detectedFacts(page.html);
+        if (detected && page.html) page.html.detected = detected;
+        if (page.html) Object.assign(page.html, bylineFacts(page.html));
+        const co2 = page.html ? co2Facts(page) : undefined;
+        if (co2) page.co2 = co2;
+    }
+    referrers(pages, site.redirects);
+    twins(pages, config.canonicalOrigin);
+    site.role = config.role;
+    site.graph = linkGraph(pages, site.redirects, isCapped(config, pages));
+}
+
 // Compiles groups and rules up front, so a config error fails before the first request.
 function linter(config: Config): Lint {
     const groups = groupsOf(config);
@@ -337,31 +356,14 @@ function linter(config: Config): Lint {
     const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
     refuseUnknown(config, groups);
     const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
-    const isEstimated = requiresEstimator(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
         stopIfInterrupted("lint");
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
         if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, "parity rules skipped on pages crawled over http");
-        for (const page of pages) {
-            page.group = assignGroup(page, matchers);
-            page.robots = robotsFacts(page);
-            const csp = cspFacts(page);
-            if (csp) page.http.csp = csp;
-            const parsed = parsedHeaders(page.url.href, page.http.headers);
-            if (parsed) page.http.parsed = parsed;
-            const detected = isDetected && page.html && detectedFacts(page.html);
-            if (detected && page.html) page.html.detected = detected;
-            if (page.html) Object.assign(page.html, bylineFacts(page.html));
-            const co2 = isEstimated && page.html ? co2Facts(page) : undefined;
-            if (co2) page.co2 = co2;
-        }
-        referrers(pages, site.redirects);
-        twins(pages, config.canonicalOrigin);
-        site.role = config.role;
-        site.graph = linkGraph(pages, site.redirects, isCapped(config, pages));
+        derive(pages, site, config, matchers, isDetected);
         const run = runRules(pages, rulesByGroup, site);
-        if (site.graph.capped) capped(run, rulesByGroup);
+        if (site.graph?.capped) capped(run, rulesByGroup);
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
@@ -554,6 +556,21 @@ export async function lintStore(overrides: Partial<Config>, directory: string): 
         const report = withPrevious(lint({ pages, site, cost }, started), store);
         await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
         return report;
+    });
+}
+
+// Every stored page’s facts and the site document, derived as a lint derives them, with no network and no rule run.
+export async function factsStore(overrides: Partial<Config>, directory: string): Promise<Crawled> {
+    const config = layered([overrides]);
+    await loadPlugins(config.plugins, config.pluginSettings);
+    await Promise.all([loadDetector(), loadEstimator()]);
+    return withStore(directory, { fresh: false, existing: true }, async (store) => {
+        const pages = await store.pages();
+        attachResources(pages, await store.resources());
+        const site = await store.site();
+        derive(pages, site, config, compileGroups(groupsOf(config)), true);
+        log.info({ pages: pages.length, store: directory }, "stored facts read");
+        return { pages, site, cost: { extractors: {} } };
     });
 }
 

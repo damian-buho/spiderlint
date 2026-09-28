@@ -8,6 +8,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "95th percentile"
+msgstr "95-й процентиль"
+
 msgid "A requested rule is not available on this instance."
 msgstr "Одне з запитаних правил недоступне на цьому сервері."
 
@@ -32,6 +35,9 @@ msgstr "Введіть вебадресу, наприклад example.com."
 msgid "Error"
 msgstr "Помилка"
 
+msgid "Fact"
+msgstr "Показник"
+
 msgid "Finding"
 msgstr "Знахідка"
 
@@ -43,6 +49,15 @@ msgstr "Порад: {count}"
 
 msgid "Info"
 msgstr "Інфо"
+
+msgid "Maximum"
+msgstr "Максимум"
+
+msgid "Median"
+msgstr "Медіана"
+
+msgid "Minimum"
+msgstr "Мінімум"
 
 msgid "No checks ran"
 msgstr "Жодної перевірки не виконано"
@@ -116,6 +131,9 @@ msgstr "spiderlint — перевірка сайтів"
 msgid "Start a new scan"
 msgstr "Почати нову перевірку"
 
+msgid "Statistics"
+msgstr "Статистика"
+
 msgid "The form could not be read. Try again."
 msgstr "Не вдалося прочитати форму. Спробуйте ще раз."
 
@@ -142,6 +160,9 @@ msgstr "Час"
 
 msgid "Too many scans are waiting. Try again {when}."
 msgstr "Забагато перевірок у черзі. Спробуйте ще раз {when}."
+
+msgid "Total"
+msgstr "Сума"
 
 msgid "Waiting in the queue…"
 msgstr "Очікує в черзі…"

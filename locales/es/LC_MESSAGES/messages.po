@@ -8,6 +8,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "95th percentile"
+msgstr "Percentil 95"
+
 msgid "A requested rule is not available on this instance."
 msgstr "Una de las reglas pedidas no está disponible en esta instancia."
 
@@ -32,6 +35,9 @@ msgstr "Escribe una dirección web, como example.com."
 msgid "Error"
 msgstr "Error"
 
+msgid "Fact"
+msgstr "Dato"
+
 msgid "Finding"
 msgstr "Hallazgo"
 
@@ -43,6 +49,15 @@ msgstr "Sugerencias: {count}"
 
 msgid "Info"
 msgstr "Info"
+
+msgid "Maximum"
+msgstr "Máximo"
+
+msgid "Median"
+msgstr "Mediana"
+
+msgid "Minimum"
+msgstr "Mínimo"
 
 msgid "No checks ran"
 msgstr "No se ejecutó ninguna comprobación"
@@ -116,6 +131,9 @@ msgstr "spiderlint — revisión de sitios web"
 msgid "Start a new scan"
 msgstr "Iniciar un nuevo análisis"
 
+msgid "Statistics"
+msgstr "Estadísticas"
+
 msgid "The form could not be read. Try again."
 msgstr "No se pudo leer el formulario. Inténtalo de nuevo."
 
@@ -142,6 +160,9 @@ msgstr "Tiempo"
 
 msgid "Too many scans are waiting. Try again {when}."
 msgstr "Hay demasiados análisis en espera. Inténtalo de nuevo {when}."
+
+msgid "Total"
+msgstr "Total"
 
 msgid "Waiting in the queue…"
 msgstr "Esperando en la cola…"

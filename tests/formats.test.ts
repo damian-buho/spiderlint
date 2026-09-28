@@ -13,6 +13,7 @@ import { formatCsv } from "../src/report/csv.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { formatHtml } from "../src/report/html.ts";
 import type { Finding } from "../src/rules/types.ts";
+import { parseCsv } from "./fixtures/csv.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const GROUPS = { posts: { match: ["/posts/**"], rules: ["seo"] }, default: { rules: ["seo", "links"] } };
@@ -39,18 +40,6 @@ function parseXml(xml: string): Element[] {
     });
     parser.write(xml).close();
     return elements;
-}
-
-// RFC 4180 rows, quoted fields unescaped.
-function parseCsv(csv: string): string[][] {
-    const rows: string[][] = [[]];
-    for (const match of csv.matchAll(/("(?:[^"]|"")*"|[^",\r\n]*)(,|\r\n|$)/g)) {
-        const [, raw = "", separator] = match;
-        rows.at(-1)?.push(raw.startsWith('"') ? raw.slice(1, -1).replaceAll('""', '"') : raw);
-        if (separator === "\r\n") rows.push([]);
-        else if (separator === "") break;
-    }
-    return rows;
 }
 
 describe("formatCheckstyle and formatCsv", () => {

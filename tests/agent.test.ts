@@ -24,7 +24,7 @@ describe("agent format", () => {
     before(async () => {
         site = await serveFixture();
         report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
-        output = `${formatAgent(report).replaceAll(site.origin, "ORIGIN").replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL")}\n`;
+        output = `${formatAgent({ ...report, summary: { ...report.summary, stats: undefined } }).replaceAll(site.origin, "ORIGIN").replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL")}\n`;
     });
     after(() => site.close());
 
@@ -45,6 +45,14 @@ describe("agent format", () => {
             assert.match(block, /^Fix: /m, block);
             assert.match(block, /^Done when: `spiderlint audit ORIGIN\/ --rules [^`]+` reports no /m, block);
         }
+    });
+
+    it("ends with the CO2, bytes, requests and timings of the crawl, timings varying run to run", () => {
+        const table = formatAgent(report).split("\n\n# Site statistics\n\n", 2)[1] ?? "";
+        const paths = table.matchAll(/^\| `([^`]+)`/gm).map((match) => match[1]).toArray();
+        assert.deepEqual(paths.slice(0, 2), ["co2.bytes", "co2.grams"]);
+        assert.ok(paths.includes("resources.length") && paths.includes("http.timing.total"), table);
+        assert.ok(!paths.includes("graph.rank"), table);
     });
 
     it("orders errors first, then the rule clearing the most pages", () => {

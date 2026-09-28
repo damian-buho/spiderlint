@@ -7,7 +7,7 @@ import type { Report } from "../index.ts";
 import { fixFor } from "../rules/fix.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
-import { printableFinding } from "./printable.ts";
+import { printable, printableFinding } from "./printable.ts";
 import type { Grade, Rating } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
@@ -134,8 +134,8 @@ function listed(findings: Finding[], origin: string, paint: Paint, limit: number
     });
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
-export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false): string {
+// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, the fact statistics with `isStats`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false, isStats = false): string {
     const limit = isFull ? Infinity : LIST;
     const guides = isExplained ? (report.rules ?? {}) : undefined;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
@@ -153,6 +153,7 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
         out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, guides));
     }
     if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
 }
@@ -172,6 +173,15 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
         row("findings", `${number(findings.total)}${change(findings.total, previous?.findings.total, paint)} (${severities.join(", ")})${since}`),
         row("rating", ratingValue(rating, paint)),
     ];
+}
+
+// One aligned row per numeric fact: pages, min, median, p95, max and total, under a header.
+function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
+    const cells = Object.entries(stats).map(([path, stat]) => [printable(path), ...[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" }))]);
+    const rows = [["stats", "pages", "min", "median", "p95", "max", "total"], ...cells];
+    const widths = (rows[0] as string[]).map((_, column) => Math.max(...rows.map((row) => (row[column] as string).length)));
+    const lines = rows.map((row) => row.map((cell, column) => (column === 0 ? cell.padEnd(widths[0] as number) : cell.padStart(widths[column] as number))).join("  ").trimEnd());
+    return cells.length === 0 ? [row("stats", "none")] : [paint("bold", lines[0] as string), ...lines.slice(1)];
 }
 
 // Browsers launched and pages they rendered, plain HTTP fetches, resource requests, extractor runs and cache hits, one row each.

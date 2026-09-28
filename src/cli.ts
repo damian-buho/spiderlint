@@ -10,11 +10,12 @@ import { painter, type Paint } from "./color.ts";
 import { OfflineMiss, parseDuration, siteDirectory, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
-import { audit, crawl, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
+import { audit, crawl, factsStore, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
 import { ConfigError, PROFILES, ROLES, layered, originOf, proxyOf, type Config, type FailOn } from "./config/index.ts";
 import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
+import { FACT_FORMATS, formatFacts } from "./facts/export.ts";
 import { parsePin } from "./crawl/resolve.ts";
 import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
@@ -34,7 +35,8 @@ Commands:
   crawl [url…]          crawl into the store, lint nothing
   lint [url…]           lint the stored facts, no network
   report [url…]         re-format the stored report
-  facts <url>           one page’s facts as JSON, with the site’s
+  facts <url>           one page’s facts, with the site’s
+  facts --all [url…]    every stored page’s facts, no network
   groups [url…]         page count per group
   rules [ruleset|id…]   every rule, its severity here and its docs
   presets               shipped rulesets and whether groups use them
@@ -80,7 +82,9 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json, sarif, checkstyle, csv, html, agent or a plugin’s (human)
+  --format FORMAT       human, json, sarif, checkstyle, csv, html, agent or a plugin’s (human); facts: json, yaml or csv (json)
+  --facts GLOB          with facts --format csv, the fact paths to keep as columns, repeatable (all)
+  --stats               count, min, median, p95, max and total of each numeric fact in human output
   --output DIR          with --format agent, one Markdown prompt per rule in DIR instead of stdout
   --fail-on LEVEL       error, warning, info or never (error)
   --show-hints          list hints in human output, not only their count
@@ -112,6 +116,7 @@ Examples:
   spiderlint audit --source list:urls.txt
   spiderlint crawl https://example.com/
   spiderlint lint https://example.com/ --fail-on warning
+  spiderlint facts --all https://example.com/ --format csv --facts 'co2.*' --facts 'http.timing.*'
   spiderlint rules security-headers
   spiderlint explain html/theme-color-schemes
   spiderlint cache purge pages --older-than 7d`;
@@ -268,6 +273,9 @@ function parseFlags(argv: string[]) {
                 hint: { type: "string", multiple: true },
                 "show-hints": { type: "boolean" },
                 explain: { type: "boolean" },
+                all: { type: "boolean" },
+                facts: { type: "string", multiple: true },
+                stats: { type: "boolean" },
                 "log-level": { type: "string" },
                 site: { type: "string", multiple: true },
             },
@@ -301,7 +309,7 @@ async function main(argv: string[]): Promise<number> {
     }
     const [command = "", ...seeds] = positionals;
     nameSpan(`spiderlint ${command}`);
-    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0) || (command === "explain" && seeds.length !== 1) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
+    if (!COMMANDS.has(command) || (command === "facts" && seeds.length === 0 && values.all !== true) || (command === "explain" && seeds.length !== 1) || (command === "cache" && !["status", "purge", "warm"].includes(seeds[0] ?? ""))) {
         console.error(usage(painter(process.stderr, values.color)));
         return 2;
     }
@@ -332,7 +340,7 @@ async function main(argv: string[]): Promise<number> {
         if (unknown.length > 0) throw new ConfigError(`--site: unknown site ${unknown.join(", ")} (declared: ${Object.keys(sites).join(", ") || "none"})`);
         // Command-line urls win over every declared site; with none declared the shared settings are the one site.
         const chosen = targets.length > 0 || Object.keys(sites).length === 0 ? [["", {}] as const] : Object.entries(sites).filter(([name]) => named.length === 0 || named.includes(name));
-        if (chosen.length > 1 && config.format !== "human") throw new ConfigError(`--format ${config.format}: one document per run, pick a site with --site (declared: ${Object.keys(sites).join(", ")})`);
+        if (chosen.length > 1 && (command === "facts" || config.format !== "human")) throw new ConfigError(`${command === "facts" ? command : `--format ${config.format}`}: one document per run, pick a site with --site (declared: ${Object.keys(sites).join(", ")})`);
         let worst = 0;
         for (const [name, site] of chosen) {
             if (name) log.info({ site: name }, "site selected");
@@ -364,6 +372,7 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
         // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
         log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
+        if (command === "facts") return await facts(config, store, values);
         const formatName = pick("--format", config.format, formatNames());
         const format = formatter(formatName);
         const failOn = RANK[config.failOn];
@@ -396,23 +405,29 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
             return pages.length === 0 ? 3 : 0;
         }
         // A report to stdout in the chosen format, or one agent prompt per rule under --output.
-        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
+        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
         if (command === "lint" || command === "report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
             await emit(stored);
             return exitCode(stored, config.failOn);
         }
         const options = command === "audit" ? { store, resume: values.resume === true } : {};
-        const report = await audit({
-            ...config,
-            maxPages: command === "facts" ? 1 : config.maxPages,
-            groups: command === "facts" ? { default: { rules: [] } } : config.groups,
-        }, options);
-        if (command === "facts") console.log(JSON.stringify({ ...report.pages[0], site: report.site }, undefined, 2));
-        else if (command === "groups") console.log(groupsOf(report));
+        const report = await audit(config, options);
+        if (command === "groups") console.log(groupsOf(report));
         else await emit(report);
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     }
+}
+
+// Every stored page with --all, else the first seed crawled alone, in json, yaml or csv; 3 when there is no page.
+async function facts(config: Config, store: string | undefined, values: Flags): Promise<number> {
+    const format = pick("--format", values.format ?? "json", FACT_FORMATS);
+    const isAll = values.all === true;
+    log.debug({ format, isAll, store, picks: values.facts }, "facts export chosen");
+    if (config.seeds.length === 0) throw new ConfigError("facts: no url, and org.spiderlint names no targets");
+    const { pages, site } = isAll ? await factsStore(config, store as string) : await audit({ ...config, maxPages: 1, groups: { default: { rules: [] } } });
+    console.log(formatFacts(pages, site, format, values.facts ?? [], !isAll));
+    return pages.length === 0 ? 3 : 0;
 }
 
 // Trust the OS store beside Node’s bundled roots, as `node --use-system-ca` does.
