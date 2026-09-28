@@ -20,6 +20,7 @@ import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { writeAgentFiles } from "./report/agent.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
+import { handleInterrupts, Interrupted } from "./interrupt.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 import { enableProgress } from "./progress.ts";
 import { inSpan, nameSpan, startTelemetry } from "./telemetry.ts";
@@ -338,6 +339,10 @@ async function main(argv: string[]): Promise<number> {
         }
         return worst;
     } catch (error) {
+        if (error instanceof Interrupted) {
+            log.warn({ command, code: error.code }, error.message);
+            return error.code;
+        }
         const isConfig = error instanceof ConfigError;
         const isOfflineMiss = error instanceof OfflineMiss || error instanceof NothingStored;
         log.error({ command, error: error instanceof Error ? error.message : String(error), isConfig, isOfflineMiss }, `${command} aborted`);
@@ -413,6 +418,7 @@ const systemRoots = getCACertificates("system");
 setDefaultCACertificates([...getCACertificates("default"), ...systemRoots]);
 log.debug({ system: systemRoots.length }, "system CA certificates trusted");
 const telemetry = await startTelemetry("spiderlint");
+handleInterrupts();
 process.exitCode = await inSpan("spiderlint", {}, async (span) => {
     const code = await main(process.argv.slice(2));
     span.setAttribute("process.exit.code", code);

@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
+import { hostname } from "node:os";
 import path from "node:path";
 import { Configuration, Dataset, KeyValueStore, RequestQueue } from "crawlee";
 import lockfile from "proper-lockfile";
@@ -53,15 +54,58 @@ async function openStorages(config: Configuration): Promise<Storages> {
 // `lint` or `report` found no stored crawl; the run exits 3.
 export class NothingStored extends Error {}
 
-// Holds the store at `directory` for this process; a second holder is a ConfigError.
+const STALE_MS = 30_000;
+
+interface Holder {
+    pid: number;
+    host: string;
+}
+
+// The lock holder the pid file names, when it is readable.
+async function readHolder(holderPath: string): Promise<Holder | undefined> {
+    try {
+        return JSON.parse(await readFile(holderPath, "utf8")) as Holder;
+    } catch {
+        return undefined;
+    }
+}
+
+// Whether the process that wrote `holder` is gone; one on another host is presumed alive.
+function isGone(holder: Holder | undefined): boolean {
+    if (!holder || holder.host !== hostname()) return false;
+    try {
+        process.kill(holder.pid, 0);
+        return false;
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === "ESRCH";
+    }
+}
+
+// Holds the store at `directory` for this process; a live second holder is a ConfigError, a dead one’s lock is waited out until stale.
 export async function lockStore(directory: string): Promise<() => Promise<void>> {
     await mkdir(directory, { recursive: true, mode: 0o700 });
+    const lockfilePath = path.join(directory, "manifest.json.lock");
+    const holderPath = `${lockfilePath}.pid`;
+    const options = { lockfilePath, realpath: false, stale: STALE_MS, update: STALE_MS / 3 };
+    let release: () => Promise<void>;
     try {
-        return await lockfile.lock(directory, { lockfilePath: path.join(directory, "manifest.json.lock"), realpath: false, retries: 0, stale: 30_000, update: 10_000 });
+        release = await lockfile.lock(directory, { ...options, retries: 0 });
     } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "ELOCKED") throw new ConfigError(`store ${directory} is in use by another process`);
-        throw error;
+        if ((error as NodeJS.ErrnoException).code !== "ELOCKED") throw error;
+        const holder = await readHolder(holderPath);
+        const isDead = isGone(holder);
+        log.debug({ directory, holder, isDead }, "store lock held");
+        if (!isDead) throw new ConfigError(`store ${directory} is in use by ${holder ? `process ${holder.pid} on ${holder.host}` : "another process"}`);
+        log.warn({ directory, holder: holder?.pid, staleSeconds: STALE_MS / 1000 }, "store lock left by a process that is gone, waiting for it to go stale");
+        try {
+            release = await lockfile.lock(directory, { ...options, retries: { retries: STALE_MS / 1000 + 5, factor: 1, minTimeout: 1000, maxTimeout: 1000 } });
+        } catch (error_) {
+            if ((error_ as NodeJS.ErrnoException).code === "ELOCKED") throw new ConfigError(`store ${directory} was taken by another process`);
+            throw error_;
+        }
     }
+    await writeAtomic(holderPath, JSON.stringify({ pid: process.pid, host: hostname() } satisfies Holder));
+    return release;
 }
 
 // The `pages` bucket: facts in a Dataset, bodies and results in KeyValueStores, the frontier in a RequestQueue.

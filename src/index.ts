@@ -37,6 +37,7 @@ import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule, RuleGuide } from "./rules/types.ts";
+import { stopIfInterrupted } from "./interrupt.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { rate, type Checks, type Rating } from "./report/rating.ts";
@@ -338,6 +339,7 @@ function linter(config: Config): Lint {
     const isEstimated = requiresEstimator(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
+        stopIfInterrupted("lint");
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
         if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, "parity rules skipped on pages crawled over http");
         for (const page of pages) {
@@ -418,6 +420,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     const siteActive = proxied(siteExtractorsFor(rules), config);
     const sample = samplerOf(config);
     if (config.cacheMode === "offline") return servedOffline(earlier, store, active, siteActive, sample, config);
+    stopIfInterrupted("crawl");
     for (const facts of earlier) memory.add(facts);
     const router = new Router(groupsOf(config), groupModes(config));
     const resourceActive = resourceExtractorsFor(rules);
@@ -452,6 +455,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
         active.some((extractor) => extractor.debugging),
         active.some((extractor) => extractor.mode === "browser" && extractor.cost === "expensive"),
     );
+    stopIfInterrupted("resources");
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
@@ -462,7 +466,9 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     log.debug({ isProbed, isMediaProbed }, "external link probes decided");
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
+    stopIfInterrupted("link probes");
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
+    stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules)));
     await store?.saveSite(site);

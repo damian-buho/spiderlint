@@ -16,9 +16,10 @@ const METHOD: Partial<Record<LogLevel, Method>> = {
     [LogLevel.PERF]: "trace",
 };
 
-// Crawlee lines land in the pino stream with their data fields and a `crawlee` marker.
+// Crawlee lines land in the pino stream with their data fields and a `crawlee` marker; its npm-worded Ctrl-C hint is dropped for spiderlint’s own.
 class PinoLogger extends Logger {
     override _log(level: LogLevel, message: string, data?: Record<string, unknown>, exception?: unknown, options?: Record<string, unknown>): void {
+        if (message.startsWith("Pausing...")) return;
         const error = exception instanceof Error ? exception.message : exception;
         log[METHOD[level] ?? "info"]({ ...data, crawlee: options?.prefix ?? true, ...(error !== undefined && { error }) }, message.split("\n    at ", 1)[0] as string);
     }

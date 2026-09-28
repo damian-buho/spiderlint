@@ -33,7 +33,7 @@ recorded so the v1 shape does not block them.
 - Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
 - Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses — `html`, the renderer the server’s report page shares, and `agent`, findings as fix prompts for a coding agent
-- Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
+- Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started, `130`/`143` stopped by SIGINT/SIGTERM
 - External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
 - Features: one `docs/features.d` fragment per check family, past the 3–5 guideline on purpose, since the breadth is the pitch
 - License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
@@ -414,7 +414,8 @@ the one bucket a user re-lints from.
 - Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `report` and `cache` find it from their URLs or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue`s `frontier` and `frontier-browser` each crawler’s frontier, so `--resume` continues a killed run.
 - `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `report` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint` or `--resume` warns.
-- `proper-lockfile` on the manifest; a second process on the same store exits `2`.
+- `proper-lockfile` on the manifest, its holder’s pid beside it in `manifest.json.lock.pid`; a second process on the same store exits `2` naming that pid, and waits out the 30 s stale window instead when the holder is gone.
+- The first SIGINT or SIGTERM stops both crawlers after the pages in flight and ends the run before its next stage (resources, link probes, site extractors, lint), releasing the lock and leaving `finished` unset, so `--resume` continues it; a second exits at once, `proper-lockfile`’s exit hook still removing the lock.
 - Authorization, cookie and proxy-auth headers are redacted before anything is written; a `Set-Cookie` keeps its name and attributes, never its value.
 
 ## Cache

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { ConfigError, type Config } from "../config/index.ts";
+import { interrupted } from "../interrupt.ts";
 import { log } from "../logger.ts";
 import { browserCrawler } from "./browser.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage, type Runnable } from "./frontier.ts";
@@ -23,9 +24,14 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     log.info({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
+    const halt = () => {
+        for (const crawler of [http?.crawler, browser?.crawler]) crawler?.stop(`interrupted by ${String(interrupted.reason)}`);
+    };
+    interrupted.addEventListener("abort", halt, { once: true });
     try {
         await frontier.run(crawlers, cache.robots);
     } finally {
+        interrupted.removeEventListener("abort", halt);
         stop();
     }
     const [fetched, rendered] = [http?.stats(), browser?.stats()];

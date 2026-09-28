@@ -4,7 +4,9 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { existsSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -94,10 +96,26 @@ describe("store", () => {
         try {
             const result = spawnSync(process.execPath, ["--experimental-strip-types", CLI, "lint", "--store", directory], { encoding: "utf8" });
             assert.equal(result.status, 2, result.stderr);
-            assert.match(result.stderr, /is in use by another process/);
+            assert.match(result.stderr, new RegExp(`is in use by process ${process.pid} `));
         } finally {
             await store.close(false);
         }
+    });
+
+    it("stops an interrupted audit with exit 130, the store unlocked and unfinished", async () => {
+        const interruptedStore = path.join(directory, "interrupted");
+        const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", interruptedStore, "--no-progress"], { stdio: ["ignore", "ignore", "pipe"] });
+        let stderr = "";
+        child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+            if (!stderr.includes("store opened") && (stderr + chunk).includes("store opened")) child.kill("SIGINT");
+            stderr += chunk;
+        });
+        const [code] = (await once(child, "exit")) as [number];
+        assert.equal(code, 130, stderr);
+        assert.match(stderr, /interrupted by SIGINT before/);
+        assert.ok(!existsSync(path.join(interruptedStore, "manifest.json.lock")));
+        const manifest = await readFile(path.join(interruptedStore, "manifest.json"), "utf8");
+        assert.equal(JSON.parse(manifest).finished, undefined);
     });
 
     it("re-crawls a capped audit into a store that already holds one", async () => {
