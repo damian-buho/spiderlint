@@ -29,6 +29,9 @@ export function delay(attempt: number, retryAfter?: string): number {
     return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, TIMEOUT_MS) : 500 * 2 ** attempt + Math.random() * 250;
 }
 
+// The error undici raises for a short body, a duplicate Content-Length, or one beside chunked.
+export const MISMATCH = "Response body length does not match content-length header";
+
 // The innermost cause of a fetch failure, which names the socket error rather than "fetch failed".
 export function reason(error: unknown): string {
     return error instanceof Error ? (error.cause instanceof Error ? error.cause.message : error.message) : String(error);

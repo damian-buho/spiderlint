@@ -8,7 +8,7 @@ import { Bucket, OfflineMiss } from "../cache/index.ts";
 import { fetchCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
 import type { Logged } from "./frontier.ts";
-import { attemptsFor, reason } from "./fetch.ts";
+import { attemptsFor, MISMATCH, reason } from "./fetch.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import type { ResourceExtractor } from "../plugins/types.ts";
@@ -30,13 +30,24 @@ export function width(concurrency = 0): number {
     return Number.isSafeInteger(numprocs) && numprocs > 0 ? numprocs : availableParallelism();
 }
 
+// The next body chunk; a read failing short of `Content-Length` names both byte counts.
+async function readChunk(reader: ReadableStreamDefaultReader<Uint8Array>, response: Response, bytes: number): Promise<ReadableStreamReadResult<Uint8Array>> {
+    try {
+        return await reader.read();
+    } catch (error) {
+        const declared = Number(response.headers.get("content-length"));
+        log.debug({ url: response.url, bytes, declared, error: String(error) }, "resource body cut off");
+        throw bytes < declared ? new Error(`${MISMATCH}: body ended at ${bytes} of the ${declared} bytes Content-Length declares`) : error;
+    }
+}
+
 // Reads at most `max` body bytes, then cancels the rest; `isKept` also returns what it read.
 async function drain(response: Response, max: number, isKept = false): Promise<{ bytes: number; body?: Uint8Array }> {
     let bytes = 0;
     const chunks: Uint8Array[] = [];
     const reader = response.body?.getReader();
     while (reader) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readChunk(reader, response, bytes);
         if (done) break;
         bytes += value.byteLength;
         if (isKept) chunks.push(value);
