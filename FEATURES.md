@@ -9,13 +9,19 @@ SPDX-License-Identifier: MIT
 
 ## Project Features
 
+### Accessibility checked from every side
+
+- Every axe-core rule for WCAG 2.2 A and AA, and its best practices, runs in the rendered page, so defects that scripts introduce are caught too.
+- The markup of every page, not a sample, is checked for the accessibility defects html-validate sees without a browser: missing labels, skipped heading levels, missing alt text.
+- Keyboard use is tried on a few pages per template: Tab must reach every control without a trap, focus must show and stay uncovered, a skip link must come first, and click handlers on plain elements are reported.
+- Visitor settings are honoured: animations stop under reduced motion, text stays readable in the dark scheme and the higher contrast a page offers, focus and icons survive Windows high contrast, and form fields are large enough that phones do not zoom.
+
 ### Client-rendered pages audited as visitors see them
 
 - A page whose tags, links or content appear only after its scripts run is rendered in a real browser, so what gets linted is what search engines and visitors see.
 - Only the sections that need a browser are rendered; the rest of the site is crawled over plain HTTP at full speed in the same run, and a section that renders its tags client-side can be detected on its own.
 - Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
-- Accessibility is checked in the rendered page against WCAG A and AA, so defects that scripts introduce are caught too.
-- Keyboard use, motion and speed are tried on a few pages per template: Tab must reach every control and show where focus is, animations must stop when the visitor asks for less motion, text must stay readable in the dark scheme and the higher contrast a page offers, focus and icons must survive Windows high contrast, and Lighthouse scores and lab Core Web Vitals come from the same browser.
+- What a page loses without JavaScript — its title, description, canonical link, heading, internal links or text — is reported, from its raw HTML against its rendered page.
 
 ### The DNS behind every crawled host
 
@@ -30,7 +36,6 @@ SPDX-License-Identifier: MIT
 - Pages are grouped by URL pattern, so a defect every post shares is reported once for the post template, with sample pages; costly checks such as accessibility run on only a few pages of each template.
 - A group whose pages disagree on a rule gets an advisory that it likely mixes two templates.
 - Values that must be unique across the site, such as titles and descriptions, are reported once per duplicate with every URL that shares it.
-- Results come as text, JSON or SARIF, so code-scanning views show one row per defect.
 - Every run ends with the number of checks passed and a grade from S to F, so sites and releases compare at a glance.
 
 ### Image weight measured, not estimated
@@ -62,7 +67,27 @@ SPDX-License-Identifier: MIT
 - Structured data in JSON-LD, Microdata or RDFa is reported when it does not parse, lacks what its rich result needs, contradicts the page or the rest of the site, uses retired schema.org terms or malformed or contradictory dates, or has breadcrumbs leading to missing or moved pages.
 - The web app manifest is checked for what installing the site needs: a name, a start page, a display mode and icons in the sizes phones ask for.
 - Vague link text such as “click here” is found in the page’s own language, and a language without a reviewed list is skipped rather than judged in English.
+
+### Speed problems found without a browser
+
+- Every text response must be compressed with Brotli, Zstandard or gzip, and every page must be cacheable, revalidatable and eligible for the back/forward cache.
+- A server still on HTTP/1.1, one that does not advertise HTTP/3, and a certificate whose RSA key makes every handshake larger than an EC key would are reported.
+- Scripts and style sheets that block the first render, a lazy loaded first image, and images with no size to hold their place are found in the HTML of every page.
+- Rendered pages get Lighthouse performance, accessibility, best-practices and SEO scores and lab LCP, CLS, TBT and FCP, on a sample of each template.
+
+### Privacy before consent
+
+- Third-party and tracking cookies set on the first load, before the visitor touches anything, are reported, and so is web storage written the same way.
+- Cookies that scripts write are held to the same expectations as the cookies a server sets.
 - The analytics and advertising vendors a site loads are listed in one inventory, so what the privacy policy must name is known.
+- A page with no link to its privacy policy is reported.
+
+### Reports for people, pipelines and coding agents
+
+- Findings come as text, JSON, SARIF, Checkstyle, CSV or an HTML report, and a stored crawl is re-formatted without fetching the site again.
+- The agent format turns findings into fix prompts for a coding agent, ordered by severity and by how many pages each fix clears.
+- A CI action audits a site on every push, fails the job at the severity you choose, uploads SARIF to code scanning, and caches the crawl so an unchanged site costs almost nothing to re-audit.
+- Exit codes tell findings apart from a bad configuration and from a site that could not be reached, so a pipeline knows which one failed.
 
 ### Page dependencies fetched once
 
@@ -77,13 +102,28 @@ SPDX-License-Identifier: MIT
 - The AI crawlers it names are listed by purpose — training, search or user fetch — with the ones it shuts out and the names no vendor sends any more.
 - Content Signals that say something other than yes or no to search, AI input or AI training are reported.
 
-### Rules as data, with presets
+### Over 500 rules, and new ones written as data
 
 - A rule is a fact path plus a JSON Schema, so a new check needs no code.
-- Bundled presets cover SEO, security headers, TLS, cookies, redirects, language versions, sitemaps, robots.txt, links and page resources.
+- Bundled presets cover search, security headers, TLS, DNS, cookies, performance, accessibility, privacy, sustainability, links, redirects, sitemaps, robots.txt, well-known files and files for AI agents.
 - Each URL group runs its own rule sets, and any rule’s severity can be changed or switched off from the command line, the environment or the projectfile.
-- Every page’s markup can be validated against the HTML standard and for accessibility defects; a defect a whole template shares is one finding, not one per page.
+- axe-core, html-validate and htmlhint run inside the same crawl, each of their checks a rule you can tune or switch off like any other, and Lighthouse scores join them on rendered pages.
 - Plugins add their own facts, rules, presets, report formats and URL sources beside the bundled ones, and a plain list of URLs can be audited on its own.
+
+### Search visibility checked across the whole site
+
+- Titles, descriptions, headings, canonical links and Open Graph tags are checked on every page, and a title or description that pages share is one finding listing all of them.
+- The sitemap is held against the crawl: pages it lists that no page links to, pages it leaves out, and listed pages marked noindex are reported.
+- Pages more than three clicks from the start page, pages that link nowhere, and pages only one other page links to are found in the link graph of the whole site.
+- Language versions must name each other back and answer, and each page’s declared language is compared with the language its title and description are written in.
+- A staging or development copy left open to indexing is caught before search engines find it.
+
+### Security headers judged, not just detected
+
+- Content-Security-Policy is read directive by directive, from the header or a `<meta>`: inline scripts without a nonce or hash, `eval`, scripts from any host, and a missing `object-src`, `base-uri`, `frame-ancestors` or Trusted Types are each a finding of their own.
+- HSTS must last long enough and cover subdomains, and responses must not be sniffed, framed by other sites, or leak full URLs through the referrer.
+- Cross-origin isolation, Permissions-Policy and reporting endpoints are checked on every page, not only the front page.
+- An X-XSS-Protection header that still turns the retired filter on is reported, since that filter can itself be abused.
 
 ### Scan server
 
@@ -100,6 +140,11 @@ SPDX-License-Identifier: MIT
 - A repeat crawl asks the site only whether each page, script and sitemap changed, and neither downloads nor analyses again what did not.
 - Binary downloads are judged by their headers and never fetched in full, so a linked archive or video costs no bandwidth.
 - A staging copy is audited as the site it is built for, so its links and sitemap naming the production address are not reported as wrong.
+
+### The footprint of every page view
+
+- The carbon one view of each page emits is estimated from the bytes the page and everything it loads transfer, by the Sustainable Web Design model, and pages over the budget are reported.
+- A site’s carbon.txt must be present, valid and current, and the disclosures it names must be reachable.
 
 ### TLS configuration scanned in-house
 

@@ -20,6 +20,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 
 ## Características
 
+- Accesibilidad revisada desde todos los lados
 - Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 - El DNS detrás de cada host rastreado
 - Un hallazgo por plantilla, no por página
@@ -27,11 +28,17 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Enlaces rotos, dentro y fuera del sitio
 - Cada origen comprobado una vez, más allá de sus páginas
 - Feeds, datos estructurados y marcado revisados en cada página
+- Problemas de velocidad encontrados sin navegador
+- Privacidad antes del consentimiento
+- Informes para personas, canalizaciones y agentes de código
 - Dependencias de página descargadas una sola vez
 - robots.txt leído como lo leen los rastreadores
-- Reglas como datos, con preajustes
+- Más de 500 reglas, y las nuevas escritas como datos
+- Visibilidad en buscadores revisada en todo el sitio
+- Cabeceras de seguridad evaluadas, no solo detectadas
 - Servidor de análisis
 - Rastrear una vez, analizar muchas
+- La huella de cada visita a una página
 - Configuración TLS analizada en casa
 - Transporte comprobado por página, no por host
 - Los archivos que un sitio publica junto a sus páginas

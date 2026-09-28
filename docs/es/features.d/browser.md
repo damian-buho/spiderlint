@@ -11,7 +11,6 @@ SPDX-License-Identifier: MIT
 - Una página cuyas etiquetas, enlaces o contenido aparecen solo después de ejecutar sus scripts se renderiza en un navegador real, así que se revisa lo que ven los buscadores y los visitantes.
 - Solo se renderizan las secciones que necesitan un navegador; el resto del sitio se rastrea por HTTP simple a toda velocidad en la misma ejecución, y una sección que renderiza sus etiquetas en el cliente se puede detectar sola.
 - Los errores de consola, los tiempos de carga y cada recurso que una página carga en tiempo de ejecución se convierten en hechos que las reglas pueden comprobar.
-- La accesibilidad se comprueba en la página renderizada frente a WCAG A y AA, así que también se detectan los defectos que introducen los scripts.
-- El uso con teclado, el movimiento y la velocidad se prueban en unas pocas páginas por plantilla: Tab debe alcanzar cada control y mostrar dónde está el foco, las animaciones deben detenerse cuando el visitante pide menos movimiento, el texto debe seguir legible en el esquema oscuro y en el contraste alto que ofrece la página, el foco y los iconos deben sobrevivir al contraste alto de Windows, y las puntuaciones de Lighthouse y las Core Web Vitals de laboratorio salen del mismo navegador.
+- Se informa de lo que pierde una página sin JavaScript —su título, descripción, enlace canónico, encabezado, enlaces internos o texto—, comparando su HTML original con la página renderizada.
 
 <!-- textlint-enable -->

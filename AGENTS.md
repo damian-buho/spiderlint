@@ -35,6 +35,7 @@ recorded so the v1 shape does not block them.
 - Output: `human` (default), `json`, `sarif`, `checkstyle`, `csv` — same names ignorelint uses — `html`, the renderer the server’s report page shares, and `agent`, findings as fix prompts for a coding agent
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started
 - External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
+- Features: one `docs/features.d` fragment per check family, past the 3–5 guideline on purpose, since the breadth is the pitch
 - License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
 
 ## Scope

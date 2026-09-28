@@ -11,13 +11,19 @@ SPDX-License-Identifier: MIT
 
 ## Características del proyecto
 
+### Accesibilidad revisada desde todos los lados
+
+- Cada regla de axe-core para WCAG 2.2 A y AA, y sus buenas prácticas, se ejecuta en la página renderizada, así que también se detectan los defectos que introducen los scripts.
+- El marcado de cada página, no de una muestra, se revisa en busca de los defectos de accesibilidad que html-validate ve sin navegador: etiquetas que faltan, niveles de encabezado saltados, texto alternativo ausente.
+- El uso con teclado se prueba en unas pocas páginas por plantilla: Tab debe alcanzar cada control sin quedar atrapado, el foco debe verse y no quedar tapado, un enlace para saltar al contenido debe ir primero, y se informa de los manejadores de clic en elementos simples.
+- Se respetan los ajustes del visitante: las animaciones se detienen con movimiento reducido, el texto sigue legible en el esquema oscuro y en el contraste alto que ofrece la página, el foco y los iconos sobreviven al contraste alto de Windows, y los campos de formulario son lo bastante grandes para que los teléfonos no amplíen.
+
 ### Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 
 - Una página cuyas etiquetas, enlaces o contenido aparecen solo después de ejecutar sus scripts se renderiza en un navegador real, así que se revisa lo que ven los buscadores y los visitantes.
 - Solo se renderizan las secciones que necesitan un navegador; el resto del sitio se rastrea por HTTP simple a toda velocidad en la misma ejecución, y una sección que renderiza sus etiquetas en el cliente se puede detectar sola.
 - Los errores de consola, los tiempos de carga y cada recurso que una página carga en tiempo de ejecución se convierten en hechos que las reglas pueden comprobar.
-- La accesibilidad se comprueba en la página renderizada frente a WCAG A y AA, así que también se detectan los defectos que introducen los scripts.
-- El uso con teclado, el movimiento y la velocidad se prueban en unas pocas páginas por plantilla: Tab debe alcanzar cada control y mostrar dónde está el foco, las animaciones deben detenerse cuando el visitante pide menos movimiento, el texto debe seguir legible en el esquema oscuro y en el contraste alto que ofrece la página, el foco y los iconos deben sobrevivir al contraste alto de Windows, y las puntuaciones de Lighthouse y las Core Web Vitals de laboratorio salen del mismo navegador.
+- Se informa de lo que pierde una página sin JavaScript —su título, descripción, enlace canónico, encabezado, enlaces internos o texto—, comparando su HTML original con la página renderizada.
 
 ### El DNS detrás de cada host rastreado
 
@@ -32,7 +38,6 @@ SPDX-License-Identifier: MIT
 - Las páginas se agrupan por patrón de URL, así que un defecto que comparten todas las entradas se informa una sola vez para su plantilla, con páginas de ejemplo; las comprobaciones costosas, como la accesibilidad, se ejecutan solo en unas pocas páginas de cada plantilla.
 - Un grupo cuyas páginas discrepan en una regla recibe un aviso de que probablemente mezcla dos plantillas.
 - Los valores que deben ser únicos en todo el sitio, como títulos y descripciones, se informan una vez por duplicado con todas las URL que lo comparten.
-- Los resultados salen en texto, JSON o SARIF, así que las vistas de análisis de código muestran una fila por defecto.
 - Cada ejecución termina con el número de comprobaciones superadas y una nota de la S a la F, para comparar sitios y versiones de un vistazo.
 
 ### Peso de imágenes medido, no estimado
@@ -64,7 +69,27 @@ SPDX-License-Identifier: MIT
 - Se informa de los datos estructurados en JSON-LD, Microdata o RDFa que no se pueden leer, carecen de lo que exige su resultado enriquecido, contradicen a la página o al resto del sitio, usan términos retirados de schema.org o fechas mal escritas o contradictorias, o cuyas migas de pan llevan a páginas inexistentes o movidas.
 - El manifiesto de la aplicación web se revisa en lo que hace falta para instalar el sitio: un nombre, una página de inicio, un modo de visualización e iconos de los tamaños que piden los teléfonos.
 - Los textos de enlace vagos como «haz clic aquí» se buscan en el idioma de la propia página, y un idioma sin lista revisada se omite en vez de juzgarse en inglés.
+
+### Problemas de velocidad encontrados sin navegador
+
+- Cada respuesta de texto debe ir comprimida con Brotli, Zstandard o gzip, y cada página debe poder guardarse en caché, revalidarse y entrar en la caché de ida y vuelta.
+- Se informa de un servidor que sigue en HTTP/1.1, de uno que no anuncia HTTP/3 y de un certificado cuya clave RSA hace cada negociación más grande de lo que haría una clave EC.
+- Los scripts y hojas de estilo que bloquean el primer renderizado, una primera imagen con carga diferida y las imágenes sin tamaño que les reserve su hueco se encuentran en el HTML de cada página.
+- Las páginas renderizadas obtienen las puntuaciones de rendimiento, accesibilidad, buenas prácticas y SEO de Lighthouse y LCP, CLS, TBT y FCP de laboratorio, en una muestra de cada plantilla.
+
+### Privacidad antes del consentimiento
+
+- Se informa de las cookies de terceros y de seguimiento que se crean en la primera carga, antes de que el visitante toque nada, y también del almacenamiento web escrito de la misma forma.
+- Las cookies que escriben los scripts se juzgan con las mismas exigencias que las que crea el servidor.
 - Los proveedores de analítica y publicidad que carga el sitio se reúnen en un inventario, para saber qué debe nombrar la política de privacidad.
+- Se informa de una página sin enlace a su política de privacidad.
+
+### Informes para personas, canalizaciones y agentes de código
+
+- Los hallazgos salen en texto, JSON, SARIF, Checkstyle, CSV o un informe HTML, y un rastreo guardado se vuelve a formatear sin pedir de nuevo el sitio.
+- El formato agent convierte los hallazgos en instrucciones de corrección para un agente de código, ordenadas por severidad y por cuántas páginas arregla cada corrección.
+- Una acción de CI audita un sitio en cada push, hace fallar el trabajo en la severidad que elijas, sube el SARIF al análisis de código y guarda el rastreo en caché, así que volver a auditar un sitio sin cambios cuesta casi nada.
+- Los códigos de salida distinguen los hallazgos de una configuración errónea y de un sitio que no se pudo alcanzar, para que una canalización sepa qué falló.
 
 ### Dependencias de página descargadas una sola vez
 
@@ -79,13 +104,28 @@ SPDX-License-Identifier: MIT
 - Los rastreadores de IA que nombra se listan por propósito —entrenamiento, búsqueda o petición de un usuario—, con los que bloquea y los nombres que ningún proveedor usa ya.
 - Se informan las Content Signals que dicen algo distinto de sí o no a la búsqueda, a la entrada de IA o al entrenamiento de IA.
 
-### Reglas como datos, con preajustes
+### Más de 500 reglas, y las nuevas escritas como datos
 
 - Una regla es una ruta de hecho más un JSON Schema, así que una comprobación nueva no requiere código.
-- Los preajustes incluidos cubren SEO, cabeceras de seguridad, TLS, cookies, redirecciones, versiones de idioma, sitemaps, robots.txt, enlaces y recursos de página.
+- Los preajustes incluidos cubren buscadores, cabeceras de seguridad, TLS, DNS, cookies, rendimiento, accesibilidad, privacidad, sostenibilidad, enlaces, redirecciones, sitemaps, robots.txt, archivos well-known y archivos para agentes de IA.
 - Cada grupo de URL ejecuta sus propios conjuntos de reglas, y la severidad de cualquier regla se puede cambiar o desactivar desde la línea de órdenes, el entorno o el projectfile.
-- El marcado de cada página se puede validar contra el estándar HTML y en busca de defectos de accesibilidad; un defecto que comparte toda una plantilla es un solo hallazgo, no uno por página.
+- axe-core, html-validate y htmlhint se ejecutan dentro del mismo rastreo, cada una de sus comprobaciones es una regla que se puede ajustar o desactivar como cualquier otra, y las puntuaciones de Lighthouse se suman en las páginas renderizadas.
 - Los complementos añaden sus propios hechos, reglas, preajustes, formatos de informe y fuentes de URL junto a los incluidos, y una simple lista de URL se puede auditar por sí sola.
+
+### Visibilidad en buscadores revisada en todo el sitio
+
+- Títulos, descripciones, encabezados, enlaces canónicos y etiquetas Open Graph se revisan en cada página, y un título o una descripción que comparten varias páginas es un solo hallazgo que las lista todas.
+- El sitemap se contrasta con el rastreo: se informa de las páginas que lista y a las que ninguna página enlaza, de las que omite y de las listadas marcadas como noindex.
+- En el grafo de enlaces de todo el sitio se encuentran las páginas a más de tres clics de la inicial, las que no enlazan a ninguna parte y las que solo enlaza otra página.
+- Las versiones de idioma deben nombrarse entre sí y responder, y el idioma declarado de cada página se compara con el idioma en que están escritos su título y su descripción.
+- Una copia de pruebas o de desarrollo abierta a la indexación se detecta antes de que la encuentren los buscadores.
+
+### Cabeceras de seguridad evaluadas, no solo detectadas
+
+- Content-Security-Policy se lee directiva por directiva, desde la cabecera o un `<meta>`: los scripts en línea sin nonce ni hash, `eval`, los scripts desde cualquier host y la falta de `object-src`, `base-uri`, `frame-ancestors` o Trusted Types son cada uno un hallazgo propio.
+- HSTS debe durar lo suficiente y cubrir los subdominios, y las respuestas no deben poder ser olfateadas, enmarcadas por otros sitios ni filtrar URL completas por el referente.
+- El aislamiento entre orígenes, Permissions-Policy y los puntos de notificación se revisan en cada página, no solo en la portada.
+- Se informa de una cabecera X-XSS-Protection que aún activa el filtro retirado, porque ese filtro también se puede aprovechar.
 
 ### Servidor de análisis
 
@@ -102,6 +142,11 @@ SPDX-License-Identifier: MIT
 - Un rastreo repetido solo pregunta al sitio si cada página, script y sitemap cambió, y no vuelve a descargar ni a analizar lo que no cambió.
 - Las descargas binarias se juzgan por sus cabeceras y nunca se descargan completas, así que un archivo comprimido o un vídeo enlazado no consume ancho de banda.
 - Una copia de staging se audita como el sitio para el que está construida, así que sus enlaces y su sitemap que nombran la dirección de producción no se informan como errores.
+
+### La huella de cada visita a una página
+
+- El carbono que emite una visita a cada página se estima a partir de los bytes que transfieren la página y todo lo que carga, según el modelo Sustainable Web Design, y se informa de las páginas que superan el presupuesto.
+- El carbon.txt del sitio debe existir, ser válido y estar al día, y las declaraciones que nombra deben ser accesibles.
 
 ### Configuración TLS analizada en casa
 

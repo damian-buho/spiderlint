@@ -18,6 +18,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 
 ## Features
 
+- Accessibility checked from every side
 - Client-rendered pages audited as visitors see them
 - The DNS behind every crawled host
 - One finding per template, not per page
@@ -25,11 +26,17 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Dead links, on the site and off it
 - Each origin checked once, beyond its pages
 - Feeds, structured data and markup checked on every page
+- Speed problems found without a browser
+- Privacy before consent
+- Reports for people, pipelines and coding agents
 - Page dependencies fetched once
 - robots.txt read the way crawlers read it
-- Rules as data, with presets
+- Over 500 rules, and new ones written as data
+- Search visibility checked across the whole site
+- Security headers judged, not just detected
 - Scan server
 - Crawl once, lint many times
+- The footprint of every page view
 - TLS configuration scanned in-house
 - Transport checked per page, not per host
 - The files a site publishes beside its pages
