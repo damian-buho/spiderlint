@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { X509Certificate } from "node:crypto";
 import type { EventEmitter } from "node:events";
 import type { IncomingHttpHeaders } from "node:http";
-import type { TLSSocket } from "node:tls";
+import type { DetailedPeerCertificate, TLSSocket } from "node:tls";
 import { log } from "../logger.ts";
 import type { CookieFacts, HttpFacts, RedirectHop, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
+// OpenSSL curve names to the NIST ones a certificate policy speaks.
+const CURVES: Record<string, string> = { prime256v1: "P-256", secp384r1: "P-384", secp521r1: "P-521" };
 const REDACTED = "[redacted]";
 const SECRET = new Set(["authorization", "proxy-authorization", "cookie"]);
 
@@ -122,10 +125,41 @@ function isoDate(raw: string | undefined): string | undefined {
     return Number.isNaN(time) ? undefined : new Date(time).toISOString();
 }
 
+// The leaf's public key as type, size and curve; absent when the certificate does not parse.
+function keyFacts(raw: Buffer | undefined): TlsFacts["cert"]["key"] {
+    if (!raw?.length) return undefined;
+    try {
+        const key = new X509Certificate(raw).publicKey;
+        const { modulusLength, namedCurve } = key.asymmetricKeyDetails ?? {};
+        const type = key.asymmetricKeyType === "ec" ? "EC" : key.asymmetricKeyType?.startsWith("rsa") ? "RSA" : key.asymmetricKeyType === "ed25519" ? "Ed25519" : String(key.asymmetricKeyType);
+        return { type, ...(modulusLength && { bits: modulusLength }), ...(namedCurve && { curve: CURVES[namedCurve] ?? namedCurve }) };
+    } catch (error) {
+        log.debug({ error: String(error) }, "peer certificate key unreadable");
+        return undefined;
+    }
+}
+
+// Signature algorithms from the leaf up to, not including, a self-signed root.
+function signatureFacts(leaf: DetailedPeerCertificate): string[] {
+    const algorithms: string[] = [];
+    try {
+        for (let cert = leaf; cert?.raw?.length && algorithms.length < 10; cert = cert.issuerCertificate) {
+            const x509 = new X509Certificate(cert.raw);
+            if (cert !== leaf && x509.checkIssued(x509)) break;
+            algorithms.push(x509.signatureAlgorithm ?? "unknown");
+            if (cert.issuerCertificate === cert) break;
+        }
+    } catch (error) {
+        log.debug({ error: String(error), read: algorithms.length }, "peer certificate chain unreadable");
+    }
+    return algorithms;
+}
+
 // This connection's TLS observation; absent on a plain-text socket.
 export function tlsFacts(socket: TLSSocket | undefined, now = Date.now()): TlsFacts | undefined {
     if (typeof socket?.getPeerCertificate !== "function") return undefined;
-    const cert = socket.getPeerCertificate();
+    const cert = socket.getPeerCertificate(true);
+    const key = keyFacts(cert.raw);
     const notAfter = isoDate(cert.valid_to);
     const error = socket.authorizationError;
     return {
@@ -141,6 +175,8 @@ export function tlsFacts(socket: TLSSocket | undefined, now = Date.now()): TlsFa
             ...(notAfter && { "not-after": notAfter, "days-left": Math.floor((Date.parse(notAfter) - now) / DAY) }),
             san: subjectAltNames(cert.subjectaltname),
             ...(cert.fingerprint256 && { fingerprint256: cert.fingerprint256 }),
+            ...(key && { key }),
+            ...(cert.raw?.length && { signatures: signatureFacts(cert) }),
         },
     };
 }

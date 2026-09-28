@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { cspFacts } from "../src/facts/csp.ts";
 import { robotsFacts } from "../src/facts/robots.ts";
-import type { Facts, HtmlFacts, RedirectHop, Role } from "../src/facts/types.ts";
+import type { Facts, HtmlFacts, RedirectHop, Role, TlsFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import type { PageRule } from "../src/rules/types.ts";
@@ -29,6 +29,7 @@ interface Patch {
     html?: Partial<HtmlFacts>;
     redirects?: RedirectHop[];
     daysLeft?: number;
+    cert?: Partial<TlsFacts["cert"]>;
 }
 
 // A 2xx https: HTML page that every rule below passes, with the patch applied and robots derived as the linter does.
@@ -45,7 +46,7 @@ function page(patch: Patch = {}): Facts {
         http: { status: patch.status ?? 200, version: patch.version ?? "2.0", redirects: patch.redirects ?? [], headers, timing: {}, cookies: [], size: { body: 900, decoded: patch.decoded ?? 4096 }, "content-type": patch.contentType ?? "text/html; charset=utf-8" },
         html: { lang: patch.lang ?? "en-GB", charset: { declared: "utf8", offset: 300 }, h1: ["Hello"], meta, property: {}, metas: [{ name: "theme-color", content: "#fff", media: "(prefers-color-scheme: light)" }, { name: "theme-color", content: "#000", media: "(prefers-color-scheme: dark)" }], head: { links: [{ rel: "icon", href: "https://site.test/favicon.svg" }] }, hreflang: [], jsonld: [{ "@type": "WebPage" }], scripts: [{ src: "https://site.test/app.js", type: "module", async: false, defer: false, head: true }, { type: "speculationrules", async: false, defer: false, head: false }], links: { internal: [], external: [], nofollow: [] }, images: [{ src: "/a.png", alt: "", width: "10", height: "10" }], rels: { "privacy-policy": ["https://site.test/privacy/"] }, inputs: [], ...patch.html },
         resources: (patch.resources ?? ["https://site.test/app.js"]).map((url) => ({ url, kind: "script", origin: "same" })),
-        tls: { authorized: true, cert: { san: [], "days-left": patch.daysLeft ?? 60 } },
+        tls: { authorized: true, cert: { san: [], "days-left": patch.daysLeft ?? 60, key: { type: "EC", curve: "P-256" }, signatures: ["ecdsa-with-SHA256", "sha256WithRSAEncryption"], ...patch.cert } },
         browser: { timing: {}, console: { errors: [], warnings: patch.warnings ?? [] }, weight: {}, cookies: [] },
     };
     facts.robots = robotsFacts(facts);
@@ -121,6 +122,9 @@ const FAILS: Record<string, Patch[]> = {
     "tls/cert-expiry": [{ daysLeft: 13 }, { daysLeft: 2 }],
     "tls/cert-expiring": [{ daysLeft: 1 }, { daysLeft: 0 }],
     "tls/cert-expired": [{ daysLeft: -1 }],
+    "tls/key-strength": [{ cert: { key: { type: "RSA", bits: 1024 } } }, { cert: { key: { type: "EC", curve: "P-192" } } }, { cert: { key: { type: "DSA" } } }],
+    "tls/signature": [{ cert: { signatures: ["sha256WithRSAEncryption", "sha1WithRSAEncryption"] } }, { cert: { signatures: ["md5WithRSAEncryption"] } }, { cert: { signatures: ["ecdsa-with-SHA1"] } }],
+    "tls/ec-key": [{ cert: { key: { type: "RSA", bits: 2048 } } }],
     "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "Stylesheet", media: "screen", href: "https://site.test/b.css" }] } } }],
 };
 
@@ -170,6 +174,8 @@ const PASSES: Record<string, Patch[]> = {
     "tls/cert-expiry": [{ daysLeft: 14 }, { daysLeft: 1 }, { daysLeft: -3 }],
     "tls/cert-expiring": [{ daysLeft: 2 }, { daysLeft: -1 }],
     "tls/cert-expired": [{ daysLeft: 0 }, { daysLeft: 13 }],
+    "tls/key-strength": [{ cert: { key: { type: "RSA", bits: 4096 } } }, { cert: { key: { type: "Ed25519" } } }, { cert: { key: undefined } }],
+    "tls/signature": [{ cert: { signatures: undefined } }],
     "html/render-blocking-css": [{ html: { head: { links: [{ rel: "stylesheet", href: "https://site.test/a.css" }, { rel: "stylesheet", media: "print", href: "https://site.test/p.css" }, { rel: "alternate stylesheet", href: "https://site.test/c.css" }] } } }],
 };
 

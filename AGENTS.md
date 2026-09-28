@@ -199,7 +199,8 @@ http:     { status, version, redirects: [{ url, status, headers, by }],
             early-hints: [{ link }],                                    # each 103’s Link, http mode only
             csp: { policies, directives: { name: [sources] }, report-only: { policies, directives } } }   # derived on every lint
 tls:      { protocol, cipher, alpn, authorized, error,          # from this page’s connection
-            cert: { subject, issuer, not-before, not-after, days-left, san: [], fingerprint256 } }
+            cert: { subject, issuer, not-before, not-after, days-left, san: [], fingerprint256,
+                    key: { type: RSA|EC|Ed25519, bits, curve: P-256|P-384… }, signatures: [] } }   # signatures: leaf up to, not including, a self-signed root
 html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], canonical,   # offset: byte where the declaring <meta> ends
             meta: { name: content }, metas: [{ name, content, media }], http-equiv: [{ name, content }], property: { og:title: … },   # meta: first per name; metas: every one
             head: { links: [{ rel, href, type, hreflang, sizes, media, as, crossorigin }] },

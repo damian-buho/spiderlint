@@ -71,6 +71,14 @@ rules:
     message: "Alt-Svc should advertise h3, found {got}"
     fix: "Add h3 to the Alt-Svc header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Alt-Svc
+  tls/ec-key:
+    fact: tls.cert.key.type
+    expect: {not: {const: RSA}}
+    when: {url.protocol: "https:", tls.cert.key: {type: object}}
+    severity: hint
+    message: "the certificate carries an RSA key, where an EC key makes a smaller handshake"
+    fix: "Issue the certificate for an EC P-256 key."
+    docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
   http/retry-after:
     fact: http.headers.retry-after
     expect: {type: string, minLength: 1}

@@ -156,7 +156,7 @@ export interface TlsFacts {
     alpn?: string;
     authorized: boolean;
     error?: string;
-    cert: { subject?: string; issuer?: string; "not-before"?: string; "not-after"?: string; "days-left"?: number; san: string[]; fingerprint256?: string };
+    cert: { subject?: string; issuer?: string; "not-before"?: string; "not-after"?: string; "days-left"?: number; san: string[]; fingerprint256?: string; key?: { type: string; bits?: number; curve?: string }; signatures?: string[] };
 }
 
 export interface HtmlFacts {
