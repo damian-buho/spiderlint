@@ -312,11 +312,10 @@ const isDateProperty = (key: string) => key.startsWith("date") || key.endsWith("
 // Milliseconds since the epoch, NaN for anything but a parsable string.
 const time = (value: unknown) => (typeof value === "string" ? Date.parse(value) : NaN);
 
-// Dates that are not ISO 8601, a modification before publication, a publication date disagreeing with `article:published_time`, and an article with no publication date at all.
+// Dates that are not ISO 8601, a modification before publication, and a publication date disagreeing with `article:published_time`.
 const dates = pageRule("structured-data/dates", ["html.jsonld", ID, "html.property"], (page) => {
     if (!page.html) return;
     const meta = page.html.property;
-    const nodes = nodesOf(page);
     const locations = allNodes(page).flatMap((node) => {
         const type = typesOf(node)[0] ?? "node";
         const invalid = Object.entries(node).filter(([key, value]) => isDateProperty(key) && typeof value === "string" && (!ISO_DATE.test(value.trim()) || Number.isNaN(Date.parse(value)))).map(([key, value]) => `${type} ${key} “${String(value)}” is not ISO 8601`);
@@ -327,12 +326,8 @@ const dates = pageRule("structured-data/dates", ["html.jsonld", ID, "html.proper
             ...(published !== shown && !Number.isNaN(published) && !Number.isNaN(shown) ? [`${type} datePublished ${String(node.datePublished)} disagrees with article:published_time ${meta["article:published_time"]}`] : []),
         ];
     });
-    const articles = nodes.filter((node) => typesOf(node).some((type) => ARTICLES.has(type)));
-    const isArticle = articles.length > 0 || meta["og:type"] === "article";
-    const isDated = meta["article:published_time"] !== undefined || articles.some((node) => isSet(node.datePublished));
-    log.debug({ url: page.url.href, articles: articles.length, ogType: meta["og:type"], dated: isDated, invalid: locations.length }, "dates judged");
-    if (isArticle && !isDated) locations.push("article without datePublished or article:published_time");
-    return locations.length === 0 ? [] : [{ message: `${locations.length} structured data date${locations.length === 1 ? " is" : "s are"} missing, malformed or contradictory`, value: locations, locations }];
+    log.debug({ url: page.url.href, invalid: locations.length }, "dates judged");
+    return locations.length === 0 ? [] : [{ message: `${locations.length} structured data date${locations.length === 1 ? " is" : "s are"} malformed or contradictory`, value: locations, locations }];
 }, { docs: "https://developers.google.com/search/docs/appearance/structured-data/article", fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`." });
 
 export default definePlugin({
