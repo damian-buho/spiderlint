@@ -82,8 +82,8 @@ Rules:
   --unfold              one finding per page and every URL and location listed
 
 Output:
-  --format FORMAT       human, json, sarif, checkstyle, csv, html, agent or a plugin’s (human); facts: json, yaml or csv (json)
-  --facts GLOB          with facts --format csv, the fact paths to keep as columns, repeatable (all)
+  --format FORMAT       human, json, sarif, checkstyle, csv, html, agent or a plugin’s (human); facts: human, json, yaml or csv (human)
+  --facts GLOB          with facts --all, the fact paths to show as columns, repeatable
   --stats               count, min, median, p95, max and total of each numeric fact in human output
   --output DIR          with --format agent, one Markdown prompt per rule in DIR instead of stdout
   --fail-on LEVEL       error, warning, info or never (error)
@@ -419,14 +419,14 @@ async function run(command: string, seeds: string[], targets: string[], bucket: 
     }
 }
 
-// Every stored page with --all, else the first seed crawled alone, in json, yaml or csv; 3 when there is no page.
+// Every stored page with --all, else the first seed crawled alone, in human, json, yaml or csv; 3 when there is no page.
 async function facts(config: Config, store: string | undefined, values: Flags): Promise<number> {
-    const format = pick("--format", values.format ?? "json", FACT_FORMATS);
+    const format = pick("--format", values.format ?? "human", FACT_FORMATS);
     const isAll = values.all === true;
     log.debug({ format, isAll, store, picks: values.facts }, "facts export chosen");
     if (config.seeds.length === 0) throw new ConfigError("facts: no url, and org.spiderlint names no targets");
     const { pages, site } = isAll ? await factsStore(config, store as string) : await audit({ ...config, maxPages: 1, groups: { default: { rules: [] } } });
-    console.log(formatFacts(pages, site, format, values.facts ?? [], !isAll));
+    console.log(formatFacts(pages, site, format, values.facts ?? [], !isAll, painter(process.stdout, values.color)));
     return pages.length === 0 ? 3 : 0;
 }
 

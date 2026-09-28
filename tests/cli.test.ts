@@ -176,9 +176,17 @@ describe("cli", () => {
         assert.ok(columns.includes("http.timing.total") && columns.slice(3).every((column) => column.startsWith("http.timing.")), columns.join(","));
         const yaml = await spiderlint(directory, "facts", "--all", seed, "--format", "yaml");
         assert.match(yaml.stdout, /^pages:\n {2}- url:\n/);
-        const refused = await spiderlint(directory, "facts", "--all", seed, "--facts", "co2.*");
+        const refused = await spiderlint(directory, "facts", "--all", seed, "--format", "json", "--facts", "co2.*");
         assert.equal(refused.code, 2);
-        assert.match(refused.stderr, /--facts: picks csv columns only/);
+        assert.match(refused.stderr, /--facts: picks human and csv columns only/);
+        const table = await spiderlint(directory, "facts", "--all", seed);
+        assert.equal(table.code, 0, table.stderr);
+        assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\npage +group +http\.status +co2\.grams +http\.size\.body +resources\.length +http\.timing\.total\n/ +default +200 `));
+        assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nco2\.grams +\d+ /);
+        const one = await spiderlint(directory, "facts", `${seed}about`);
+        assert.equal(one.code, 0, one.stderr);
+        assert.match(one.stdout, /^url\.href +http:\/\/127\.0\.0\.1:\d+\/about\n/);
+        assert.match(one.stdout, /\nhttp\.status +200\n/);
     });
 
     it("refuses a severity override naming no known rule before any request", async () => {

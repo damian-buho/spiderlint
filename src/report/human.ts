@@ -175,13 +175,22 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     ];
 }
 
-// One aligned row per numeric fact: pages, min, median, p95, max and total, under a header.
-function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
-    const cells = Object.entries(stats).map(([path, stat]) => [printable(path), ...[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" }))]);
-    const rows = [["stats", "pages", "min", "median", "p95", "max", "total"], ...cells];
-    const widths = (rows[0] as string[]).map((_, column) => Math.max(...rows.map((row) => (row[column] as string).length)));
+// A measured value: four decimals below 1, one above, never a signed zero.
+export function measure(value: number): string {
+    return number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" });
+}
+
+// Rows as aligned columns, the first padded at its end and the rest at their start, the header bold.
+export function aligned(rows: string[][], paint: Paint): string[] {
+    const widths = (rows[0] as string[]).map((_, column) => Math.max(...rows.map((row) => (row[column] ?? "").length)));
     const lines = rows.map((row) => row.map((cell, column) => (column === 0 ? cell.padEnd(widths[0] as number) : cell.padStart(widths[column] as number))).join("  ").trimEnd());
-    return cells.length === 0 ? [row("stats", "none")] : [paint("bold", lines[0] as string), ...lines.slice(1)];
+    return [paint("bold", lines[0] as string), ...lines.slice(1)];
+}
+
+// One aligned row per numeric fact: pages, min, median, p95, max and total, under a header.
+export function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
+    const cells = Object.entries(stats).map(([path, stat]) => [printable(path), ...[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => measure(value))]);
+    return cells.length === 0 ? [row("stats", "none")] : aligned([["stats", "pages", "min", "median", "p95", "max", "total"], ...cells], paint);
 }
 
 // Browsers launched and pages they rendered, plain HTTP fetches, resource requests, extractor runs and cache hits, one row each.
