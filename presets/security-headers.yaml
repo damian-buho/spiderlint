@@ -34,6 +34,7 @@ rules:
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options: info
+  http/server-disclosure: warning
   http/hsts-subdomains:
     fact: http.headers.strict-transport-security
     expect: {type: string, pattern: "(?i:includeSubDomains)"}

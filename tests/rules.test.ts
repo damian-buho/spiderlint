@@ -23,6 +23,47 @@ function served(url: string, kind: ResourceFacts["kind"], type: string, headers:
     return { url, kind, origin: "same", http: { status: 200, headers, "content-type": type, size: { body }, timing: {} } };
 }
 
+// A page answering with `headers`, loading `resources`.
+function answering(href: string, headers: Record<string, string>, resources: ResourceFacts[] = []): Facts {
+    const facts = page(href, resources);
+    facts.http.headers = headers;
+    return facts;
+}
+
+// The severities `http/server-disclosure` gives one page answering with `headers`.
+function levels(headers: Record<string, string>): string[] {
+    return ((builtin["http/server-disclosure"]?.("warning") as AggregateRule).check([answering("https://site.test/", headers)]) ?? []).map((finding) => finding.severity);
+}
+
+describe("server disclosure", () => {
+    const rule = builtin["http/server-disclosure"]?.("warning") as AggregateRule;
+
+    it("warns on a version or X-Powered-By, and keeps quiet on a CDN name", () => {
+        assert.deepEqual(levels({ server: "nginx/1.25.3" }), ["warning"]);
+        assert.deepEqual(levels({ "x-powered-by": "Express" }), ["warning"]);
+        assert.deepEqual(levels({ server: "cloudflare" }), []);
+        assert.deepEqual(levels({ server: "nginx" }), ["hint"]);
+        assert.deepEqual(levels({ via: "1.1 varnish" }), ["hint"]);
+        assert.deepEqual(levels({ "x-varnish": "123 456" }), ["hint"]);
+    });
+
+    it("folds one value across pages, and judges same-site resources only", () => {
+        const versioned = { server: "Apache/2.4.58" };
+        const findings = rule.check([
+            answering("https://site.test/", versioned, [served("https://static.site.test/a.css", "style", "text/css", versioned), served("https://cdn.test/b.js", "script", "text/javascript", versioned)]),
+            answering("https://site.test/b", versioned),
+        ]) ?? [];
+        assert.deepEqual(findings.map((finding) => [finding.url, finding.urls?.length]), [["https://site.test/", 2], ["https://static.site.test/a.css", 1]]);
+        assert.equal(findings[0]?.message, "site.test names its software in server: Apache/2.4.58 (2 responses)");
+    });
+
+    it("reads the generator meta as a disclosing field", () => {
+        const facts = answering("https://site.test/", {});
+        facts.html = { meta: { generator: "WordPress 6.4.2" } } as unknown as Facts["html"];
+        assert.deepEqual(rule.check([facts])?.map((finding) => finding.value), [{ "meta generator": "WordPress 6.4.2" }]);
+    });
+});
+
 describe("resource rules", () => {
     it("reports an http: resource on https: pages only", () => {
         const script: ResourceFacts = { url: "http://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" };
