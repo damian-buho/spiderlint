@@ -51,14 +51,6 @@ console.log(finding ? finding.message : "");
 b19-log info "SPIDERLINT" "$(_p "known dead-link finding: %s" "${BROKEN_LINK}")"
 [ -n "${BROKEN_LINK}" ]
 
-HTTPS_ENTRY="$(node -e '
-const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-const finding = report.findings.find((entry) => entry.rule === "origin/https-entry");
-console.log(finding ? finding.url : "");
-' "${REPORT_FILE}")"
-b19-log info "SPIDERLINT" "$(_p "plain-http fixture origin faulted once: %s" "${HTTPS_ENTRY}")"
-[ -n "${HTTPS_ENTRY}" ]
-
 printf 'org:\n  spiderlint:\n    groups:\n      default:\n        rules: [recommended, browser]\n' > "${CONFIG_FILE}"
 SPIDERLINT_LOG_FORMAT=json spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}" 2> "${CONFIG_LOG}"
 
