@@ -7,4 +7,5 @@ SPDX-License-Identifier: MIT
 
 - A missing page is requested on purpose, so a soft 404, or an error page that leaks a stack trace or a server version, is a finding.
 - Plain HTTP must lead to HTTPS in one permanent redirect, and the home page must not redirect visitors by their language.
+- Cross-domain policy files that let any other site read pages with the visitor’s session are reported.
 - Plugins add their own once-per-origin or once-per-host checks; their results are reused between runs, and their requests never leave the host they check.

@@ -14,8 +14,9 @@ export interface Origin {
 
 const PAGE = `<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body><h1>Page</h1><p>${"Page text. ".repeat(100)}</p></body></html>`;
 const TRACE = "Error: no route\n    at dispatch (/srv/app/router.js:42:11)\n";
+const CROSS_DOMAIN = `<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>`;
 
-// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only; `trace`: a missing path is a 404 stack trace, plain http redirects to https.
+// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only, `/crossdomain.xml` grants every origin; `trace`: a missing path is a 404 stack trace, plain http redirects to https.
 export async function serveOrigin(kind: "soft" | "trace"): Promise<Origin> {
     const requested: string[] = [];
     const server: Server = createServer((request, response) => {
@@ -25,6 +26,11 @@ export async function serveOrigin(kind: "soft" | "trace"): Promise<Origin> {
         if (kind === "soft" && pathname === "/" && language?.startsWith("ja")) {
             response.writeHead(302, { location: "/ja/" });
             response.end();
+            return;
+        }
+        if (kind === "soft" && pathname === "/crossdomain.xml") {
+            response.writeHead(200, { "content-type": "text/x-cross-domain-policy" });
+            response.end(CROSS_DOMAIN);
             return;
         }
         if (kind === "trace" && pathname === "/" && language === undefined) {

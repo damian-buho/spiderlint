@@ -127,13 +127,35 @@ const favicon: SiteExtractor = {
     },
 };
 
+// Policy files granting cross-origin reads to Flash and Acrobat, and the pattern of a grant to any origin.
+const POLICIES: Record<string, RegExp> = {
+    "/crossdomain.xml": /<allow-(?:access|http-request-headers)-from\s[^>]*\bdomain\s*=\s*["']\*["']/i,
+    "/clientaccesspolicy.xml": /<domain\s[^>]*\buri\s*=\s*["'](?:https?:\/\/)?\*["']/i,
+};
+
+// The policy files that answer 2xx and grant every origin.
+const crossDomain: SiteExtractor = {
+    id: "cross-domain",
+    per: "origin",
+    async extract(origin, context) {
+        const open: string[] = [];
+        for (const [path, grant] of Object.entries(POLICIES)) {
+            const answer = await context.fetch(`${origin}${path}`, { redirect: "manual" });
+            const isOpen = answer.status >= 200 && answer.status <= 299 && grant.test(answer.body);
+            log.debug({ origin, path, status: answer.status, isOpen }, "cross-domain policy probed");
+            if (isOpen) open.push(path);
+        }
+        return { open };
+    },
+};
+
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    sites: [notFound, entry, locale, encodings, favicon, revalidation],
+    sites: [notFound, entry, locale, encodings, favicon, revalidation, crossDomain],
     presets: {
         origin: {
-            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon, revalidation",
+            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon, revalidation, cross-domain policies",
             rules: {
                 "origin/soft-404": {
                     fact: "site.origins.*.not-found.status",
@@ -193,6 +215,14 @@ export default definePlugin({
                     severity: "info",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Conditional_requests",
                     fix: "Answer a request whose If-None-Match or If-Modified-Since still matches with 304 and no body.",
+                },
+                "origin/cross-domain-policy": {
+                    fact: "site.origins.*.cross-domain.open",
+                    expect: { maxItems: 0 },
+                    message: "a cross-domain policy file lets any origin read the site as its visitor: {got}",
+                    severity: "warning",
+                    docs: "https://www.adobe.com/devnet-docs/acrobatetk/tools/AppSec/xdomain.html",
+                    fix: "Delete crossdomain.xml and clientaccesspolicy.xml, or list only the domains that need access.",
                 },
             },
         },

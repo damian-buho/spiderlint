@@ -37,13 +37,14 @@ describe("origin preset", () => {
         assert.deepEqual(rules(report), ["origin/https-entry"]);
         assert.equal(report.findings[0]?.url, site.origin);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
-        assert.deepEqual(report.summary.cost.extractors, { encodings: 1, entry: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1 });
+        assert.deepEqual(report.summary.cost.extractors, { "cross-domain": 1, encodings: 1, entry: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1 });
         assert.equal(site.headers.filter((headers) => headers["if-none-match"] !== undefined).length, 1, "the seed page is asked again with its ETag");
     });
 
-    it("finds a soft 404, a language redirect, gzip alone, a favicon that is a page and an ignored ETag", async () => {
+    it("finds a soft 404, a language redirect, gzip alone, a favicon that is a page, an ignored ETag and an open cross-domain policy", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["origin/compression", "origin/favicon", "origin/https-entry", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "origin/cross-domain-policy")?.value, ["/crossdomain.xml"]);
+        assert.deepEqual(rules(report), ["origin/compression", "origin/cross-domain-policy", "origin/favicon", "origin/https-entry", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
         assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /gzip/);
         assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404")?.message ?? "", /answers 200/);
     });

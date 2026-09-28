@@ -160,5 +160,6 @@ rules:
     expect: {properties: {x-xss-protection: {pattern: "^\\s*0\\s*$"}}}
     severity: warning
     message: "X-XSS-Protection should be absent or 0, found {got}"
-    fix: "Remove X-XSS-Protection, or set it to 0."
+    fix: "Remove X-XSS-Protection."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection
+  http/deprecated-header: info
