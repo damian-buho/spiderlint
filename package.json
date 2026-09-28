@@ -38,7 +38,7 @@
     "eld": "2.1.0",
     "esbuild": "0.28.2",
     "gettext-parser": "9.1.1",
-    "hono": "4.13.9",
+    "hono": "4.13.10",
     "html-validate": "11.16.0",
     "htmlhint": "1.9.2",
     "http-cache-semantics": "4.2.0",
