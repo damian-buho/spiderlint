@@ -4,10 +4,13 @@
 
 import { randomUUID } from "node:crypto";
 import { load } from "cheerio";
+import { getDomain } from "tldts";
 import { reason } from "../crawl/fetch.ts";
 import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
+import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { definePlugin, type SiteExtractor } from "./types.ts";
+import type { Finding, Make } from "../rules/types.ts";
+import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
 // Stack trace shapes of the common server runtimes.
 const TRACE = /Traceback \(most recent call last\)|^\s+at \S.*:\d+:\d+\)?$|Stack trace:|Exception in thread|Fatal error: .* on line \d+/m;
@@ -58,6 +61,137 @@ const entry: SiteExtractor = {
         }
     },
 };
+
+// Hops an entry variant is followed through by hand.
+const MAX_ENTRY_HOPS = 5;
+
+// Statuses a moved entry may answer with.
+const PERMANENT = new Set([301, 308]);
+
+// One entry variant: the `[status, location]` hops, the URL it ends on, and whether its name resolves at all.
+export interface Variant {
+    url: string;
+    chain: [number, string][];
+    final: string;
+    resolves: boolean;
+    error?: string;
+}
+
+// `hostname` with its `www.` label added to an apex or stripped from `www.<apex>`; any other name has none.
+export function swapped(hostname: string): string | undefined {
+    const domain = getDomain(hostname, { allowPrivateDomains: true });
+    if (!domain) return undefined;
+    if (hostname === domain) return `www.${domain}`;
+    return hostname === `www.${domain}` ? domain : undefined;
+}
+
+// Where an answer sends its reader: a 3xx `Location`, or a 2xx HTML meta refresh.
+function sentTo(answer: Probe, url: string): string | undefined {
+    const location = answer.headers.location;
+    const isMoved = answer.status >= 300 && answer.status < 400 && typeof location === "string";
+    const refresh = !isMoved && answer.status >= 200 && answer.status < 300 && mediaType(answer) === "text/html" ? load(answer.body)('meta[http-equiv="refresh" i]').attr("content") : undefined;
+    const href = isMoved ? location : /url\s*=\s*['"]?([^'"\s]+)/i.exec(refresh ?? "")?.[1];
+    return href && URL.canParse(href, url) ? new URL(href, url).href : undefined;
+}
+
+// `href` followed hop by hop; a name with no DNS answer does not resolve, and any other failure, TLS included, is its error.
+async function walk(href: string, context: SiteContext): Promise<Variant> {
+    const chain: Variant["chain"] = [];
+    let url = href;
+    try {
+        for (let hop = 0; hop <= MAX_ENTRY_HOPS; hop += 1) {
+            const answer = await context.delegated(url, { redirect: "manual" });
+            const next = sentTo(answer, url);
+            log.debug({ href, url, status: answer.status, next, hop }, "entry variant hop");
+            if (!next) return { url: href, chain, final: url, resolves: true };
+            chain.push([answer.status, next]);
+            url = next;
+        }
+        return { url: href, chain, final: url, resolves: true, error: `more than ${MAX_ENTRY_HOPS} hops` };
+    } catch (error) {
+        if (error instanceof RobotsDisallowed && !error.unreachable) throw error;
+        const why = error instanceof RobotsDisallowed ? (error.unreachable as string) : reason(error);
+        const isUnresolved = chain.length === 0 && /\bENOTFOUND\b/.test(why);
+        log.debug({ href, url, hops: chain.length, isUnresolved, error: why }, "entry variant stopped");
+        return { url: href, chain, final: url, resolves: !isUnresolved, ...(!isUnresolved && { error: why }) };
+    }
+}
+
+// A URL’s path and query.
+function pathOf(href: string): string {
+    const { pathname, search } = new URL(href);
+    return pathname + search;
+}
+
+// Whether a variant takes one hop, or the two HSTS preload asks for: http to https on its own host first.
+function isShort(variant: Variant): boolean {
+    const [first] = variant.chain;
+    return variant.chain.length <= 1 || (variant.chain.length === 2 && variant.url.startsWith("http:") && first?.[1] === variant.url.replace(/^http:/, "https:"));
+}
+
+// Whether a variant is sent from https to plain http anywhere on its way.
+function isDowngraded(variant: Variant): boolean {
+    const steps = [variant.url, ...variant.chain.map(([, location]) => location)];
+    return steps.some((step, index) => step.startsWith("https:") && steps[index + 1]?.startsWith("http:"));
+}
+
+// Every entry variant of the origin: http and https, on its host and its `www.` twin, at `/` and at the seed path with a marked query.
+const variants: SiteExtractor = {
+    id: "variants",
+    per: "origin",
+    async extract(origin, context) {
+        const { protocol, hostname, port } = new URL(origin);
+        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p")) return;
+        const hosts = [hostname, swapped(hostname) ?? []].flat();
+        const schemes = port ? [protocol] : ["http:", "https:"];
+        const seed = context.pages.find((page) => page.crawl["discovered-via"] === "seed") ?? context.pages[0];
+        const deep = `${seed?.url.pathname ?? "/"}?spiderlint=${randomUUID()}`;
+        const urls = [...new Set(["/", deep].flatMap((path) => hosts.flatMap((host) => schemes.map((scheme) => `${scheme}//${host}${port ? `:${port}` : ""}${path}`))))];
+        log.info({ origin, urls }, "entry variants probed");
+        const settled = await Promise.all(urls.map(async (url) => {
+            try {
+                return await walk(url, context);
+            } catch (error) {
+                if (!(error instanceof RobotsDisallowed)) throw error;
+                log.info({ url, error: reason(error) }, "robots.txt withholds the entry variant");
+                return;
+            }
+        }));
+        const probes = settled.filter((variant) => variant !== undefined);
+        const landed = probes.filter((variant) => variant.resolves && !variant.error);
+        return {
+            probes,
+            unresolved: [...new Set(probes.filter((variant) => !variant.resolves).map((variant) => new URL(variant.url).hostname))],
+            long: landed.filter((variant) => !isShort(variant)).map((variant) => variant.url),
+            temporary: probes.filter((variant) => variant.chain.some(([status]) => !PERMANENT.has(status))).map((variant) => variant.url),
+            dropped: landed.filter((variant) => pathOf(variant.final) !== pathOf(variant.url)).map((variant) => variant.url),
+            downgraded: probes.filter((variant) => isDowngraded(variant)).map((variant) => variant.url),
+        };
+    },
+};
+
+// The origin `subject`’s variants must land on: the canonical origin its pages twin to when that is on its host or `www.` twin, else itself.
+export function canonicalOf(subject: string, pages: readonly Facts[]): string {
+    const twin = pages.find((page) => page.url.origin === subject && page.url.twin)?.url.twin;
+    const { hostname } = new URL(subject);
+    const candidate = twin ? new URL(twin).origin : subject;
+    return [hostname, swapped(hostname)].includes(new URL(candidate).hostname) ? candidate : subject;
+}
+
+// One finding per origin naming each resolving variant that fails or ends off the canonical origin.
+const hostCanonical: Make = (severity) => ({
+    meta: { id: "origin/host-canonical", severity, scope: "site", facts: ["site.origins.*.variants.probes"], docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308." },
+    check(pages, _group, site) {
+        const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts.variants !== undefined);
+        if (origins.length === 0) return;
+        return origins.flatMap(([subject, facts]): Finding[] => {
+            const canonical = canonicalOf(subject, pages);
+            const astray = ((facts.variants as { probes: Variant[] }).probes).filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
+            log.debug({ rule: "origin/host-canonical", subject, canonical, astray: astray.length }, "entry variants judged");
+            return astray.length === 0 ? [] : [{ rule: "origin/host-canonical", severity, scope: "site", url: subject, message: `entry variants do not land on ${canonical}: ${astray.map((variant) => `${variant.url} → ${variant.error ?? variant.final}`).join("; ")}`, value: astray }];
+        });
+    },
+});
 
 // Where `/` lands in each probed language, and how many distinct URLs that makes.
 const locale: SiteExtractor = {
@@ -192,10 +326,11 @@ const meProfiles: SiteExtractor = {
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    sites: [notFound, entry, locale, encodings, favicon, revalidation, crossDomain, meProfiles],
+    rules: { "origin/host-canonical": hostCanonical },
+    sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, meProfiles],
     presets: {
         origin: {
-            description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon, revalidation, cross-domain policies",
+            description: "Once per origin: missing pages, error pages, entry variants, language redirects, compression, favicon, revalidation, cross-domain policies",
             rules: {
                 "origin/soft-404": {
                     fact: "site.origins.*.not-found.status",
@@ -217,10 +352,51 @@ export default definePlugin({
                 "origin/https-entry": {
                     fact: "site.origins.*.entry",
                     expect: { required: ["status", "https"], properties: { status: { enum: [301, 308] }, https: { const: true } } },
-                    message: "plain http does not redirect to https in one permanent hop (got {got})",
-                    severity: "warning",
+                    message: "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical",
+                    severity: "off",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
                     fix: "Redirect every http request to https with a 301 or 308, preserving the URL.",
+                },
+                "origin/host-canonical": "warning",
+                "origin/entry-hops": {
+                    fact: "site.origins.*.variants.long",
+                    expect: { maxItems: 0 },
+                    message: "entry variants take more than one hop, or two not starting http to https on the same host: {got}",
+                    severity: "warning",
+                    docs: "https://hstspreload.org/#deployment-recommendations",
+                    fix: "Redirect each variant straight to the canonical origin, or first to https on its own host and then there.",
+                },
+                "origin/entry-permanent": {
+                    fact: "site.origins.*.variants.temporary",
+                    expect: { maxItems: 0 },
+                    message: "entry variants redirect with a temporary status or a meta refresh: {got}",
+                    severity: "warning",
+                    docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side",
+                    fix: "Answer every entry variant with 301 or 308, never 302, 307 or a meta refresh.",
+                },
+                "origin/entry-path": {
+                    fact: "site.origins.*.variants.dropped",
+                    expect: { maxItems: 0 },
+                    message: "entry variants lose the requested path or query on the way: {got}",
+                    severity: "warning",
+                    docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
+                    fix: "Carry the request path and query into the Location of every entry redirect.",
+                },
+                "origin/entry-downgrade": {
+                    fact: "site.origins.*.variants.downgraded",
+                    expect: { maxItems: 0 },
+                    message: "entry variants are sent from https back to plain http: {got}",
+                    severity: "error",
+                    docs: "https://developer.mozilla.org/docs/Web/Security/Practical_implementation_guides/TLS#http_redirections",
+                    fix: "Never redirect an https request to an http URL.",
+                },
+                "origin/www-resolves": {
+                    fact: "site.origins.*.variants.unresolved",
+                    expect: { maxItems: 0 },
+                    message: "no DNS answer for the entry host {got}; make sure that is deliberate",
+                    severity: "hint",
+                    docs: "https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes",
+                    fix: "Publish an A or AAAA record for the www or apex host and redirect it to the canonical origin.",
                 },
                 "origin/locale-redirect": {
                     fact: "site.origins.*.locale.distinct",

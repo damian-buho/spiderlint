@@ -19,6 +19,7 @@ extends:
   - spiderlint:images
 rules:
   http/consistent-origin: info
+  origin/www-resolves: off
   http/clock-skew: warning
   http/content-length: warning
   http/date:

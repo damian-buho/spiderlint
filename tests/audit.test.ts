@@ -437,7 +437,7 @@ describe("audit options", () => {
     });
 
     it("lints a 403 page instead of retrying it as blocked", async () => {
-        const report = await audit({ seeds: [`${site.origin}/forbidden`], maxPages: 1, sitemap: false });
+        const report = await audit({ seeds: [`${site.origin}/forbidden`], maxPages: 1, sitemap: false, rules: ["seo"] });
         assert.equal(report.pages[0]?.http.status, 403);
         assert.equal(site.requested.filter((path) => path === "/forbidden").length, 1);
     });

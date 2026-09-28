@@ -12,7 +12,8 @@ import path from "node:path";
 import { audit, crawl, lintStore, loadPlugins, type Report } from "../src/index.ts";
 import { PrivateAddress } from "../src/crawl/guard.ts";
 import { probe } from "../src/crawl/probe.ts";
-import { serveOrigin, type Origin } from "./fixtures/origin.ts";
+import { parsePin } from "../src/crawl/resolve.ts";
+import { ENTRY_HOSTS, serveOrigin, type Origin } from "./fixtures/origin.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 import { runs } from "./fixtures/site-plugin.ts";
 
@@ -27,33 +28,54 @@ describe("origin preset", () => {
     let site: Fixture;
     let soft: Origin;
     let trace: Origin;
+    let entry: Origin;
 
     before(async () => {
-        [site, soft, trace] = await Promise.all([serveFixture(), serveOrigin("soft"), serveOrigin("trace")]);
+        [site, soft, trace, entry] = await Promise.all([serveFixture(), serveOrigin("soft"), serveOrigin("trace"), serveOrigin("entry")]);
     });
 
-    after(() => Promise.all([site.close(), soft.close(), trace.close()]));
+    after(() => Promise.all([site.close(), soft.close(), trace.close(), entry.close()]));
 
-    it("probes the fixture origin once and faults only its plain http entry", async () => {
+    // The entry-variant findings of a run seeded on `host` of the `entry` fixture.
+    async function entryRules(host: string): Promise<string[]> {
+        const port = new URL(entry.origin).port;
+        const report = await audit({ seeds: [`http://${host}:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), rules: ["origin"], maxPages: 1, cacheMode: "off" });
+        return rules(report).filter((rule) => /^origin\/(host-canonical|entry-|www-)/.test(rule));
+    }
+
+    it("probes the fixture origin once and faults none of its entry variants", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["origin/https-entry"]);
-        assert.equal(report.findings[0]?.url, site.origin);
+        assert.deepEqual(rules(report), []);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
-        assert.deepEqual(report.summary.cost.extractors, { "cross-domain": 1, encodings: 1, entry: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1 });
+        assert.deepEqual(report.summary.cost.extractors, { "cross-domain": 1, encodings: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1, variants: 1 });
         assert.equal(site.headers.filter((headers) => headers["if-none-match"] !== undefined).length, 1, "the seed page is asked again with its ETag");
     });
 
     it("finds a soft 404, a language redirect, gzip alone, a favicon that is a page, an ignored ETag and an open cross-domain policy", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["origin"], cacheMode: "off" });
         assert.deepEqual(report.findings.find((finding) => finding.rule === "origin/cross-domain-policy")?.value, ["/crossdomain.xml"]);
-        assert.deepEqual(rules(report), ["origin/compression", "origin/cross-domain-policy", "origin/favicon", "origin/https-entry", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
+        assert.deepEqual(rules(report), ["origin/compression", "origin/cross-domain-policy", "origin/favicon", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
         assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /gzip/);
         assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404")?.message ?? "", /answers 200/);
     });
 
-    it("finds a stack trace on the not-found page and accepts a one-hop https entry", async () => {
+    it("finds a stack trace on the not-found page and an entry that leaves the crawled origin", async () => {
         const report = await audit({ seeds: [`${trace.origin}/page`], rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["origin/error-page", "origin/favicon"]);
+        assert.deepEqual(rules(report), ["origin/error-page", "origin/favicon", "origin/host-canonical"]);
+    });
+
+    it("faults a www host that 302s to the apex root, dropping the path", async () => {
+        assert.deepEqual(await entryRules("drop.test"), ["origin/entry-path", "origin/entry-permanent"]);
+    });
+
+    it("faults a www host that reaches the apex in two hops through another host", async () => {
+        assert.deepEqual(await entryRules("hops.test"), ["origin/entry-hops"]);
+    });
+
+    it("faults variants that land off the canonical origin", async () => {
+        const port = new URL(entry.origin).port;
+        const report = await audit({ seeds: [`http://www.hops.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), canonicalOrigin: `http://www.hops.test:${port}`, rules: ["origin"], maxPages: 1, cacheMode: "off" });
+        assert.ok(rules(report).includes("origin/host-canonical"));
     });
 
     it("probes nothing when no enabled rule reads site.origins", async () => {
