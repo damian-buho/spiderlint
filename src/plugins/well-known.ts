@@ -548,7 +548,7 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
         specs.flatMap((spec) => {
             if (!spec.rule) return [];
             const at = `site.origins.*.${extractor}.${spec.key}`;
-            return [[`well-known/${spec.rule.id}`, { fact: `${at}.errors`, expect: { maxItems: 0 }, when: { [`${at}.present`]: true }, message: [spec.paths[0], "is malformed: {got}"].join(" "), severity, docs: spec.rule.docs }]];
+            return [[`well-known/${spec.rule.id}`, { fact: `${at}.errors`, expect: { maxItems: 0 }, when: { [`${at}.present`]: true }, message: [spec.paths[0], "is malformed: {got}"].join(" "), severity, docs: spec.rule.docs, fix: `Correct each error the finding lists in ${spec.paths[0]}.` }]];
         }),
     );
 }
@@ -560,6 +560,7 @@ const SECURITY: Record<string, RuleSpec> = {
         message: "no /.well-known/security.txt tells researchers how to report a vulnerability",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-3",
+        fix: "Publish /.well-known/security.txt with a Contact field and an Expires.",
     },
     "well-known/security-txt-valid": {
         fact: "site.origins.*.well-known.security-txt.errors",
@@ -568,6 +569,7 @@ const SECURITY: Record<string, RuleSpec> = {
         message: "/.well-known/security.txt breaks RFC 9116: {got}",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5",
+        fix: "Rewrite security.txt so each field is on its own line with `Field: value`.",
     },
     "well-known/security-txt-expires": {
         fact: "site.origins.*.well-known.security-txt.days-left",
@@ -576,6 +578,7 @@ const SECURITY: Record<string, RuleSpec> = {
         message: "/.well-known/security.txt expires in {got} days, not within the next year",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
+        fix: "Set Expires in security.txt to a date less than a year away.",
     },
     "well-known/change-password": {
         fact: "site.origins.*.well-known.change-password.present",
@@ -584,6 +587,7 @@ const SECURITY: Record<string, RuleSpec> = {
         message: "a crawled page asks for a password, but /.well-known/change-password leads nowhere",
         severity: "warning",
         docs: "https://w3c.github.io/webappsec-change-password-url/",
+        fix: "Serve a 302 or 303 redirect from /.well-known/change-password to the password-change page.",
     },
 };
 
@@ -596,6 +600,7 @@ const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
         message: "the crawl links /.well-known/ suffixes IANA has not registered: {got}",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc8615#section-3",
+        fix: "Register the suffix with IANA, or remove the link if it is not a standard well-known path.",
     },
 };
 
@@ -606,6 +611,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         message: "no /llms.txt summarises the site for language models",
         severity: "hint",
         docs: "https://llmstxt.org/",
+        fix: "Add /llms.txt with an H1, a one-line description, and links to the site’s resources.",
     },
     "well-known/llms-txt-valid": {
         fact: "site.origins.*.agents.llms-txt.errors",
@@ -614,6 +620,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         message: "/llms.txt is malformed: {got}",
         severity: "info",
         docs: "https://llmstxt.org/#format",
+        fix: "Rewrite /llms.txt as Markdown that opens with one H1 followed by its sections.",
     },
     "well-known/llms-full-txt": {
         fact: "site.origins.*.agents.llms-full-txt.present",
@@ -641,6 +648,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         message: "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one",
         severity: "hint",
         docs: "https://llmstxt.org/#proposal",
+        fix: "Add an index.md twin beside each page, or answer Accept: text/markdown with Markdown at the same URL.",
     },
 };
 

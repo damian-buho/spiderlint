@@ -14,9 +14,11 @@ rules:
     severity: warning
     message: "the browser console logged errors ({got})"
     docs: https://developer.mozilla.org/docs/Web/API/console/error_static
+    fix: "fix the JavaScript error logged to the console"
   browser/unused-preload:
     fact: browser.console.warnings
     expect: {not: {contains: {type: string, pattern: "preloaded using link preload but not used"}}}
     severity: info
     message: "a preloaded resource went unused ({got})"
     docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload
+    fix: "remove the preload link, or use the resource it points at"

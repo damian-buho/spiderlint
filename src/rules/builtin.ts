@@ -12,7 +12,7 @@ import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx or 5xx, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({
-    meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors" },
+    meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors", fix: "Fix the page at the link target so it answers 2xx, or point the links to a working URL." },
     check(pages: Facts[]) {
         const findings: Finding[] = [];
         for (const page of pages) {
@@ -26,7 +26,7 @@ const brokenInternal: Make = (severity) => ({
 
 // Every probed external link answering 4xx or 5xx, or nothing, once per target, with the pages linking to it; a 429, a bot wall, an excluded host or a refused address is not judged.
 const brokenExternal: Make = (severity) => ({
-    meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404" },
+    meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404", fix: "Remove or repoint each broken external link." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const answers = site?.links ?? {};
         const linking = new Map<string, string[]>();
@@ -73,7 +73,7 @@ function pageCount(count: number): string {
 
 // Every internal link answering with a redirect, once per target, with the pages linking to it.
 const redirectedInternal: Make = (severity) => ({
-    meta: { id: "links/redirected-internal", severity, scope: "site", facts: ["site.redirects", "html.links.internal"], docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects" },
+    meta: { id: "links/redirected-internal", severity, scope: "site", facts: ["site.redirects", "html.links.internal"], docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects", fix: "Make the link target point at the final URL, or serve the content directly." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const landing = new Map(Object.entries(site?.redirects ?? {}));
         const linking = new Map<string, string[]>();
@@ -88,7 +88,7 @@ const redirectedInternal: Make = (severity) => ({
 
 // Every sitemap file that failed to fetch, failed to parse, or named no URL.
 const sitemapUnreadable: Make = (severity) => ({
-    meta: { id: "sitemap/unreadable", severity, scope: "site", facts: ["site.sitemaps"], docs: "https://www.sitemaps.org/protocol.html" },
+    meta: { id: "sitemap/unreadable", severity, scope: "site", facts: ["site.sitemaps"], docs: "https://www.sitemaps.org/protocol.html", fix: "Serve the sitemap at its listed URL and make sure it parses as XML or plain text with one URL per line." },
     check(_pages: Facts[], _group?: string, site?: SiteFacts) {
         const files = site?.sitemaps ?? [];
         log.debug({ rule: "sitemap/unreadable", files: files.length }, "sitemap files judged");
@@ -104,7 +104,7 @@ export function header(page: Facts, name: string): string {
 
 // Framing refused by CSP `frame-ancestors` or by `X-Frame-Options` DENY or SAMEORIGIN.
 const frameOptions: Make = (severity) => ({
-    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.csp.directives", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors" },
+    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.csp.directives", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors", fix: "Send a Content-Security-Policy frame-ancestors directive, or X-Frame-Options: DENY." },
     check(page: Facts) {
         const hasAncestors = page.http.csp?.directives?.["frame-ancestors"] !== undefined;
         const options = header(page, "x-frame-options").trim();
@@ -123,7 +123,7 @@ export function linkTargets(raw: string, relation: string, base: string): string
 
 // A preload a 103 hinted that the final response’s `Link` no longer carries.
 const earlyHintsPreload: Make = (severity) => ({
-    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103" },
+    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103", fix: "Remove the preload from the 103 Early Hints, or add it to the final Link header." },
     check(page: Facts) {
         const hints = page.http["early-hints"];
         if (!hints) return;
@@ -252,7 +252,7 @@ function varies(severity: Exclude<Severity, "off">, host: string, members: Facts
 
 // One finding per host and fact whose value varies across its pages, with the URL count per value.
 const consistentOrigin: Make = (severity) => ({
-    meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact) },
+    meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact), fix: "Make every page of the host serve the same certificate, TLS protocol and Server header." },
     check(pages: Facts[]) {
         const hosts = Map.groupBy(pages, (page) => page.url.host).entries().toArray();
         return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, label, read]) => varies(severity, host, members, fact, label, read)).filter((finding) => finding !== undefined));
@@ -368,14 +368,14 @@ export const builtin: Record<string, Make> = {
     "sitemap/media": sitemapMedia,
     ...robotsRules,
     ...i18nRules,
-    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status" }),
+    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
         (resource, pages) => `${resource.kind} loads over http: on ${pages} https: pages`,
         undefined,
         undefined,
-        { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content" },
+        { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content", fix: "Load the resource over https instead of http." },
     ),
     "resources/sri": resourceRule(
         "resources/sri",
@@ -383,7 +383,7 @@ export const builtin: Record<string, Make> = {
         (resource, pages) => (resource.integrity ? undefined : `cross-origin ${resource.kind} without integrity; used by ${pages} pages`),
         undefined,
         undefined,
-        { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity" },
+        { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." },
     ),
     "resources/cache-control": resourceRule("resources/cache-control", isAnyUse, resourceCacheControl, undefined, (resource) => resource.http?.headers["cache-control"], {
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Caching#cache_busting",
@@ -393,6 +393,6 @@ export const builtin: Record<string, Make> = {
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Compression",
         fix: "Serve text assets br, zstd or gzip to every client whose Accept-Encoding offers one.",
     }),
-    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls" }),
-    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata" }),
+    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Point <link rel=canonical> at this page’s own URL." }),
+    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata", fix: "Point <meta property=og:url> at this page’s own URL." }),
 };

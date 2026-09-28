@@ -355,6 +355,7 @@ const MAIL: Record<string, RuleSpec> = {
         message: "no null MX, so senders queue mail for a name that takes none (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7505",
+        fix: "Publish a null MX (`MX 0 .`) so senders know the name takes no mail.",
     },
     "dns/spf-none": {
         fact: "site.hosts.*.mail.spf",
@@ -362,6 +363,7 @@ const MAIL: Record<string, RuleSpec> = {
         message: "SPF is not a lone v=spf1 -all, so mail forged from this name is not refused (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
+        fix: "Set the sole SPF TXT record to \"v=spf1 -all\".",
     },
     "dns/dmarc-reject": {
         fact: "site.hosts.*.mail.dmarc",
@@ -369,6 +371,7 @@ const MAIL: Record<string, RuleSpec> = {
         message: "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        fix: "Publish a DMARC TXT record at _dmarc.<host> with p=reject.",
     },
 };
 
@@ -379,6 +382,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "no HTTPS record, so a first visit learns h3 and ECH only from Alt-Svc, one connection late",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9460",
+        fix: "Publish an HTTPS record (TYPE 65) naming your ALPNs and addresses.",
     },
     "dns/https-alpn": {
         fact: "site.hosts.*.dns.h3",
@@ -386,6 +390,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the HTTPS record and Alt-Svc disagree about h3 (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.1",
+        fix: "Keep the HTTPS record’s h3 flag and the Alt-Svc h3 advertisement in agreement.",
     },
     "dns/https-hints": {
         fact: "site.hosts.*.dns.https",
@@ -393,6 +398,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "ipv4hint or ipv6hint does not match the A and AAAA records",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.3",
+        fix: "Update the IPv4 and IPv6 hints in the HTTPS record to match the current A and AAAA sets.",
     },
     "dns/caa": {
         fact: "site.hosts.*.dns.caa",
@@ -400,6 +406,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "no CAA record on the host or any parent, so any CA may issue for it",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc8659",
+        fix: "Publish a CAA record at the zone apex allowing the CAs you use, e.g. CAA 0 issue \"letsencrypt.org\".",
     },
     "dns/caa-issuer": {
         fact: "site.hosts.*.dns.caa.issuer",
@@ -408,6 +415,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "CAA does not allow the CA that issued the served certificate (got {got})",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.2",
+        fix: "Add an issue or issuewild tag to CAA for the CA that holds the certificate.",
     },
     "dns/caa-iodef": {
         fact: "site.hosts.*.dns.caa.records",
@@ -416,6 +424,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "CAA names no iodef address for refused issuance reports",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.4",
+        fix: "Add a CAA iodef tag pointing at a contact URI or email for issuance incident reports.",
     },
     "dns/aaaa": {
         fact: "site.hosts.*.dns.aaaa",
@@ -423,6 +432,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "no AAAA record, so the host is unreachable over IPv6",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc3596",
+        fix: "Publish an AAAA record with the host’s IPv6 address.",
     },
     "dns/cname-chain": {
         fact: "site.hosts.*.dns.cname",
@@ -430,6 +440,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the name resolves through {got} of CNAME hops",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
+        fix: "Cut the CNAME chain at one hop by pointing the alias directly at the target’s A or AAAA.",
     },
     "dns/dangling-cname": {
         fact: "site.hosts.*.dns.dangling",
@@ -438,6 +449,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the name is a CNAME to a name that does not exist, open to takeover (got {got})",
         severity: "error",
         docs: "https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeovers",
+        fix: "Delete the dangling CNAME, or claim the delegated name before a third party can.",
     },
     "dns/dnssec": {
         fact: "site.hosts.*.dnssec.signed",
@@ -445,6 +457,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the zone is not signed with DNSSEC",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9364",
+        fix: "Enable DNSSEC signing on the zone and publish a DS record at the parent.",
     },
     "dns/dnssec-bogus": {
         fact: "site.hosts.*.dnssec.bogus",
@@ -453,6 +466,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the zone is signed but fails validation, so every validating resolver answers SERVFAIL",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-5.5",
+        fix: "Fix the broken DS or DNSKEY at the parent or the zone so the chain of trust validates.",
     },
     "dns/dnssec-algorithm": {
         fact: "site.hosts.*.dnssec",
@@ -461,6 +475,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the zone signs or digests with an algorithm RFC 8624 forbids",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc8624#section-3.1",
+        fix: "Re-sign the zone and republish its DS with a non-deprecated algorithm.",
     },
     "dns/rrsig-expiry": {
         fact: "site.hosts.*.dnssec.rrsig",
@@ -469,6 +484,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "less than a quarter of the host’s signature validity is left, so re-signing has stalled (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc6781#section-4.4.2",
+        fix: "Re-sign the zone and fix the process that stopped refreshing RRSIGs.",
     },
     "dns/nsec3-iterations": {
         fact: "site.hosts.*.dnssec.nsec3",
@@ -477,6 +493,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "NSEC3 uses extra iterations or a salt (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9276#section-3.1",
+        fix: "Disable NSEC3 iterations and salt, or migrate to NSEC by removing the NSEC3PARAM records.",
     },
     "dns/ns-count": {
         fact: "site.hosts.*.nameservers.servers",
@@ -484,6 +501,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the zone has {got} name servers, fewer than 2",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.1",
+        fix: "Add a second name server at a different network from the first.",
     },
     "dns/ns-consistent": {
         fact: "site.hosts.*.nameservers",
@@ -492,6 +510,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "a name server is lame or the servers disagree on the SOA serial (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
+        fix: "Sync the zone to every name server and bump the SOA serial.",
     },
     "dns/ns-answers": {
         fact: "site.hosts.*.nameservers.answer-sets",
@@ -543,6 +562,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "every name server address sits in one /24 or /48",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc2182#section-3.1",
+        fix: "Place name servers on addresses in different /24 or /48 networks.",
     },
 };
 

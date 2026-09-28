@@ -7,8 +7,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Facts, ResourceFacts } from "../src/facts/types.ts";
 import { builtin } from "../src/rules/builtin.ts";
-import { describe as describeValue } from "../src/rules/declarative.ts";
-import type { AggregateRule, PageRule } from "../src/rules/types.ts";
+import { compileRule, describe as describeValue } from "../src/rules/declarative.ts";
+import type { AggregateRule, PageRule, Rule } from "../src/rules/types.ts";
+import { resolveRuleset } from "../src/rules/rulesets.ts";
+import { exempt } from "../src/plugins/html-validate.ts";
 
 // The smallest facts document a site rule reads.
 function page(href: string, resources: ResourceFacts[]): Facts {
@@ -83,4 +85,18 @@ describe("finding value", () => {
         assert.match(got, /^300 characters: “ax+…x+z”$/);
         assert.equal(got.length - "300 characters: “”".length, 200);
     });
+});
+
+describe("rule fixes", () => {
+    const all = resolveRuleset("spiderlint:all", {});
+    const exemptList = new Set(exempt);
+
+    for (const [id, spec] of Object.entries(all)) {
+        it(`rule ${id} has a fix`, () => {
+            if (exemptList.has(id)) return;
+            const rule = compileRule(id, spec) as Rule;
+            assert.ok(rule.meta.fix, `rule ${id} is missing a fix`);
+            assert.ok(!rule.meta.fix.includes("\n"), `rule ${id} has a multi-line fix`);
+        });
+    }
 });

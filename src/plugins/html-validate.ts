@@ -57,9 +57,28 @@ function severities(presets: Upstream[]): Record<string, Exclude<Severity, "off"
     return Object.fromEntries(Object.entries(merged).filter(([id, severity]) => severity !== "off" && !IGNORED.has(id))) as Record<string, Exclude<Severity, "off">>;
 }
 
-// The page rule of html-validate rule `id`.
+// The first line of each html-validate rule description; a rule with none without an element context is exempt.
+export const exempt: Set<string> = new Set();
+const DESCRIPTIONS = new Map<string, string>();
+const htmlValidateIds = Object.keys(severities(BASE));
+for (const id of htmlValidateIds) {
+    try {
+        const documentation = validators.http.getContextualDocumentationSync({ ruleId: id, context: undefined });
+        const summary = documentation?.description?.split("\n").map((line) => line.trim()).find(Boolean);
+        if (summary) DESCRIPTIONS.set(id, summary);
+        else {
+            log.debug({ id }, "html-validate rule has no description");
+            exempt.add(`${PREFIX}${id}`);
+        }
+    } catch {
+        log.debug({ id }, "html-validate rule has no context-free description");
+        exempt.add(`${PREFIX}${id}`);
+    }
+}
+
+// The page rule of html-validate rule `id`; `fix` is derived from the upstream description when present.
 function rule(id: string): Make {
-    return messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`);
+    return messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`, DESCRIPTIONS.get(id));
 }
 
 // A spiderlint preset from html-validate presets.

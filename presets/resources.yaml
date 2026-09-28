@@ -14,4 +14,5 @@ rules:
     expect: {not: {contains: {properties: {url: {pattern: "^https?://([^/]+\\.)?(acsbapp\\.com|acsbap\\.com|accessibe\\.com|userway\\.org|audioeye\\.com|equalweb\\.com|nagich\\.co\\.il|maxaccess\\.io|allyable\\.com|accessiblyapp\\.com|user1st\\.info|purplelens\\.eu)(:|/|$)"}}}}}
     severity: warning
     message: "loads an accessibility overlay, which does not fix the page and gets in the way of assistive tools ({got})"
+    fix: "remove the accessibility overlay script and fix accessibility issues directly"
     docs: https://overlayfactsheet.com/

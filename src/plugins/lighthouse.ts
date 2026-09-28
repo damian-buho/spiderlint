@@ -67,12 +67,12 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Lightho
 
 // A category score of at least 0.9, Lighthouse’s own green.
 function score(category: string, label: string, link: string): RuleSpec {
-    return { fact: `${ID}.scores.${category}`, expect: { type: "number", minimum: 0.9 }, severity: "warning", message: `Lighthouse ${label} score is ${GOT}, under 0.9`, docs: link };
+    return { fact: `${ID}.scores.${category}`, expect: { type: "number", minimum: 0.9 }, severity: "warning", message: `Lighthouse ${label} score is ${GOT}, under 0.9`, docs: link, fix: `Fix the failing audits Lighthouse lists under ${label}, largest savings first.` };
 }
 
 // A lab metric at most `limit`, the bound Lighthouse marks good.
 function metric(key: keyof typeof VITALS, limit: number, unit: string, link: string): RuleSpec {
-    return { fact: `${ID}.vitals.${key}`, expect: { type: "number", maximum: limit }, severity: "warning", message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`, docs: link };
+    return { fact: `${ID}.vitals.${key}`, expect: { type: "number", maximum: limit }, severity: "warning", message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`, docs: link, fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.` };
 }
 
 export default definePlugin({

@@ -201,47 +201,47 @@ const modernFormat: Make = (severity, settings) => resourceRule("images/modern-f
     const target = (["avif", "webp"] as const).filter((name) => encoded[name] !== undefined).toSorted((a, b) => (encoded[a] as number) - (encoded[b] as number))[0];
     const share = target && LEGACY.has(image.format) ? saved((settings as ImagesSettings).saving, image.bytes, encoded[target]) : undefined;
     return share === undefined ? undefined : `${image.format} of ${kB(image.bytes)} is ${kB(encoded[target as Target] as number)} as ${target} (${share} % smaller); used by ${pages} pages`;
-}, FACTS, valueOf, { docs: "https://web.dev/articles/choose-the-right-image-format" })(severity);
+}, FACTS, valueOf, { docs: "https://web.dev/articles/choose-the-right-image-format", fix: "Convert the image to WebP or AVIF." })(severity);
 
 // An image its own format, or SVGO, re-encodes much smaller.
 const recompress: Make = (severity, settings) => resourceRule("images/recompress", isImage, (resource, pages) => {
     const image = imageOf(resource) as ImageFacts;
     const share = saved((settings as ImagesSettings).saving, image.bytes, image.encoded?.same);
     return share === undefined ? undefined : `${image.format} of ${kB(image.bytes)} re-encodes to ${kB(image.encoded?.same as number)} (${share} % smaller); used by ${pages} pages`;
-}, FACTS, valueOf, { docs: "https://web.dev/articles/use-imagemin-to-compress-images" })(severity);
+}, FACTS, valueOf, { docs: "https://web.dev/articles/use-imagemin-to-compress-images", fix: "Re-encode the image with a modern tool at a lower quality or smaller dimensions." })(severity);
 
 // An image heavier than `weight`.
 const weight: Make = (severity, settings) => resourceRule("images/weight", isImage, (resource, pages) => {
     const image = imageOf(resource) as ImageFacts;
     const limit = (settings as ImagesSettings).weight;
     return image.bytes > limit ? `${image.format} of ${kB(image.bytes)} is above ${kB(limit)}; used by ${pages} pages` : undefined;
-}, FACTS, valueOf, { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia" })(severity);
+}, FACTS, valueOf, { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia", fix: "Resize or re-compress the image so the file is below the weight limit." })(severity);
 
 // A stylesheet or script minification shrinks by both `saving` bounds.
 const minify: Make = (severity, settings) => resourceRule("images/minify", (_page, resource) => textOf(resource) !== undefined, (resource, pages) => {
     const text = textOf(resource) as TextFacts;
     const share = saved((settings as ImagesSettings).saving, text.bytes, text.minified);
     return share === undefined ? undefined : `${resource.kind} of ${kB(text.bytes)} minifies to ${kB(text.minified)} (${share} % smaller); used by ${pages} pages`;
-}, [`resources.${TEXT}`], textOf, { docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression" })(severity);
+}, [`resources.${TEXT}`], textOf, { docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression", fix: "Minify the stylesheet or script in the build." })(severity);
 
 // A font served in any format but WOFF2.
 const fontFormat = resourceRule("images/font-format", (_page, resource) => fontOf(resource) !== undefined, (resource, pages) => {
     const font = fontOf(resource) as { format: string; bytes: number };
     return font.format === "woff2" ? undefined : `${font.format} font of ${kB(font.bytes)} is not WOFF2; used by ${pages} pages`;
-}, [`resources.${FONTS}`], fontOf, { docs: "https://web.dev/articles/reduce-webfont-size" });
+}, [`resources.${FONTS}`], fontOf, { docs: "https://web.dev/articles/reduce-webfont-size", fix: "Convert the font to WOFF2." });
 
 // A stylesheet whose `@font-face` rules hide text while their font loads.
 const fontDisplay = resourceRule("images/font-display", (_page, resource) => textOf(resource)?.["font-faces"] !== undefined, (resource, pages) => {
     const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
     return invisible.length === 0 ? undefined : `${invisible.length} @font-face without font-display: swap, fallback or optional (${[...new Set(invisible)].join(", ")}); used by ${pages} pages`;
-}, [`resources.${TEXT}`], (resource) => textOf(resource)?.["font-faces"], { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display" });
+}, [`resources.${TEXT}`], (resource) => textOf(resource)?.["font-faces"], { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display", fix: "Add font-display: swap (or fallback or optional) to each @font-face." });
 
 type Img = HtmlFacts["images"][number];
 
 // A page rule over its `<img>` elements: one finding listing each offender as a location.
-function imgRule(id: string, facts: string[], documentation: string, message: (count: number) => string, offends: (page: Facts, img: Img) => string | undefined): Make {
+function imgRule(id: string, facts: string[], documentation: string, message: (count: number) => string, offends: (page: Facts, img: Img) => string | undefined, fix?: string): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "page", facts, docs: documentation },
+        meta: { id, severity, scope: "page", facts, docs: documentation, ...(fix && { fix }) },
         check(page: Facts) {
             if (!page.html) return;
             const locations = page.html.images.filter((img) => !img.noscript).flatMap((img) => offends(page, img) ?? []);
@@ -254,9 +254,9 @@ function imgRule(id: string, facts: string[], documentation: string, message: (c
 type Box = LayoutFacts["images"][number];
 
 // A page rule over its rendered `<img>` boxes, skipped on a page the layout extractor did not sample; hidden images are never judged.
-function layoutRule(id: string, documentation: string, message: (count: number) => string, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings) => string | undefined): Make {
+function layoutRule(id: string, documentation: string, message: (count: number) => string, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings) => string | undefined, fix?: string): Make {
     return (severity, settings) => ({
-        meta: { id, severity, scope: "page", facts: [LAYOUT], docs: documentation },
+        meta: { id, severity, scope: "page", facts: [LAYOUT], docs: documentation, ...(fix && { fix }) },
         check(page: Facts) {
             const layout = page[LAYOUT] as LayoutFacts | undefined;
             if (!layout) return;
@@ -279,7 +279,7 @@ function loaded(page: Facts, source: string): ImageFacts | undefined {
 // `count` with the verb form agreeing with it.
 const agree = (count: number, one: string, many: string) => (count === 1 ? one : many);
 
-const dimensions = imgRule("images/dimensions", ["html.images"], "https://web.dev/articles/optimize-cls#images-without-dimensions", (count) => `${count} <img> without width and height, so the layout shifts as ${agree(count, "it loads", "they load")}`, (_page, img) => (img.width === undefined || img.height === undefined ? img.src : undefined));
+const dimensions = imgRule("images/dimensions", ["html.images"], "https://web.dev/articles/optimize-cls#images-without-dimensions", (count) => `${count} <img> without width and height, so the layout shifts as ${agree(count, "it loads", "they load")}`, (_page, img) => (img.width === undefined || img.height === undefined ? img.src : undefined), "Add width and height attributes to each <img>.");
 
 const oversized: Make = (severity, settings) => {
     const { oversize } = settings as ImagesSettings;
@@ -287,14 +287,14 @@ const oversized: Make = (severity, settings) => {
         const declared = Number(img.width);
         const intrinsic = img.srcset === undefined && /^\d+$/.test(img.width ?? "") ? loaded(page, img.src)?.width : undefined;
         return intrinsic !== undefined && declared > 0 && intrinsic > declared * oversize ? `${img.src} ${intrinsic} px for width=${declared}` : undefined;
-    })(severity);
+    }, "Serve a srcset with a width matching what the page renders.")(severity);
 };
 
-const lazyBelow = layoutRule("images/lazy-below-fold", "https://web.dev/articles/browser-level-image-lazy-loading", (count) => `${count} <img> below the fold without loading=lazy ${agree(count, "loads", "load")} before the reader scrolls`, (layout, box) => (box.top >= layout.viewport.height && box.loading !== "lazy" ? `${box.src} at ${box.top} px` : undefined));
+const lazyBelow = layoutRule("images/lazy-below-fold", "https://web.dev/articles/browser-level-image-lazy-loading", (count) => `${count} <img> below the fold without loading=lazy ${agree(count, "loads", "load")} before the reader scrolls`, (layout, box) => (box.top >= layout.viewport.height && box.loading !== "lazy" ? `${box.src} at ${box.top} px` : undefined), "Add loading=lazy to off-screen images.");
 
-const lazyAbove = layoutRule("images/lazy-above-fold", "https://web.dev/articles/lcp-lazy-loading", (count) => `${count} <img> in the first viewport with loading=lazy ${agree(count, "waits", "wait")} for layout before loading`, (layout, box) => (box.top < layout.viewport.height && box.loading === "lazy" ? `${box.src} at ${box.top} px` : undefined));
+const lazyAbove = layoutRule("images/lazy-above-fold", "https://web.dev/articles/lcp-lazy-loading", (count) => `${count} <img> in the first viewport with loading=lazy ${agree(count, "waits", "wait")} for layout before loading`, (layout, box) => (box.top < layout.viewport.height && box.loading === "lazy" ? `${box.src} at ${box.top} px` : undefined), "Remove loading=lazy from images in the first viewport.");
 
-const renderedOversize = layoutRule("images/rendered-oversize", "https://web.dev/articles/serve-responsive-images", (count) => `${count} <img> ${agree(count, "ships", "ship")} far more pixels than the page renders`, (layout, box, settings) => (box.natural > box.width * layout.viewport.dpr * settings.oversize ? `${box.src} ${box.natural} px shown at ${box.width} px` : undefined));
+const renderedOversize = layoutRule("images/rendered-oversize", "https://web.dev/articles/serve-responsive-images", (count) => `${count} <img> ${agree(count, "ships", "ship")} far more pixels than the page renders`, (layout, box, settings) => (box.natural > box.width * layout.viewport.dpr * settings.oversize ? `${box.src} ${box.natural} px shown at ${box.width} px` : undefined), "Serve an image whose natural width matches what the layout renders.");
 
 export default definePlugin({
     name: "images",

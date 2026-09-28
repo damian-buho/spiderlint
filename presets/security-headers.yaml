@@ -10,24 +10,28 @@ rules:
     when: {url.protocol: "https:"}
     severity: warning
     message: "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
+    fix: "send Strict-Transport-Security: max-age=63072000; includeSubDomains"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
   http/csp:
     fact: http.csp.directives
     expect: {type: object}
     severity: warning
     message: "no enforced Content-Security-Policy, in a header or a <meta>"
+    fix: "send a Content-Security-Policy header that allows only the origins and directives the page needs"
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
   http/content-type-options:
     fact: http.headers.x-content-type-options
     expect: {type: string, pattern: "^nosniff$"}
     severity: warning
     message: "X-Content-Type-Options should be nosniff, found {got}"
+    fix: "send X-Content-Type-Options: nosniff"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
   http/referrer-policy:
     fact: http.headers.referrer-policy
     expect: {type: string, minLength: 1, not: {pattern: "(?i:unsafe-url|no-referrer-when-downgrade)\\s*$"}}
     severity: warning
     message: "Referrer-Policy should not leak full URLs, found {got}"
+    fix: "send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options: info
   http/hsts-subdomains:
@@ -36,24 +40,28 @@ rules:
     when: {url.protocol: "https:", http.headers.strict-transport-security: {type: string}}
     severity: info
     message: "Strict-Transport-Security should carry includeSubDomains, found {got}"
+    fix: "add includeSubDomains to the Strict-Transport-Security header"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security#includesubdomains
   http/permissions-policy:
     fact: http.headers.permissions-policy
     expect: {type: string, minLength: 1}
     severity: info
     message: "no Permissions-Policy header"
+    fix: "send a Permissions-Policy header listing the features the page uses"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
   http/coop:
     fact: http.headers.cross-origin-opener-policy
     expect: {type: string, pattern: "^\\s*same-origin(-allow-popups)?\\s*(;|$)"}
     severity: info
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
+    fix: "send Cross-Origin-Opener-Policy: same-origin"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
   http/corp:
     fact: http.headers.cross-origin-resource-policy
     expect: {type: string, minLength: 1}
     severity: info
     message: "no Cross-Origin-Resource-Policy header"
+    fix: "send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
   http/csp-upgrade-insecure:
     fact: http.csp.directives
@@ -61,6 +69,7 @@ rules:
     when: {url.protocol: "https:", http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy lacks upgrade-insecure-requests"
+    fix: "add upgrade-insecure-requests to the Content-Security-Policy"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
   http/csp-trusted-types:
     fact: http.csp.directives
@@ -68,6 +77,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: info
     message: "Content-Security-Policy lacks require-trusted-types-for 'script'"
+    fix: "add require-trusted-types-for 'script' to the Content-Security-Policy"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
   http/csp-script-src:
     fact: http.csp.directives
@@ -75,6 +85,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
+    fix: "set script-src to the origins that may run scripts, or default-src if every directive needs the same"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
   http/csp-unsafe-inline:
     fact: http.csp.directives
@@ -85,6 +96,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash: {got}"
+    fix: "replace 'unsafe-inline' with nonces or hashes"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_inline_script
   http/csp-unsafe-eval:
     fact: http.csp.directives
@@ -95,6 +107,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy allows eval() with 'unsafe-eval': {got}"
+    fix: "remove 'unsafe-eval' from script-src"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_eval_expressions
   http/csp-script-wildcard:
     fact: http.csp.directives
@@ -105,6 +118,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy loads scripts from any host through a * or scheme-only source: {got}"
+    fix: "replace * and scheme-only sources with specific origins"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/Sources
   http/csp-object-src:
     fact: http.csp.directives
@@ -115,6 +129,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: warning
     message: "Content-Security-Policy should set object-src 'none', found {got}"
+    fix: "set object-src 'none' in the Content-Security-Policy"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
   http/csp-base-uri:
     fact: http.csp.directives
@@ -122,6 +137,7 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: info
     message: "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
+    fix: "add base-uri to the Content-Security-Policy, e.g. the site origin"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
   http/csp-frame-ancestors:
     fact: http.csp.directives
@@ -129,16 +145,19 @@ rules:
     when: {http.csp.directives: {type: object}}
     severity: info
     message: "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
+    fix: "add frame-ancestors to the Content-Security-Policy"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
   http/reporting-endpoints:
     fact: http.headers.reporting-endpoints
     expect: {type: string, minLength: 1}
     severity: info
     message: "no Reporting-Endpoints header"
+    fix: "send a Reporting-Endpoints header naming your reporting endpoints"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Reporting-Endpoints
   http/no-x-xss-protection:
     fact: http.headers
     expect: {properties: {x-xss-protection: {pattern: "^\\s*0\\s*$"}}}
     severity: warning
     message: "X-XSS-Protection should be absent or 0, found {got}"
+    fix: "remove X-XSS-Protection, or set it to 0"
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection

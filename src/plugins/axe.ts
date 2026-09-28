@@ -98,11 +98,11 @@ function locate(node: AxeNode): string {
     return `${node.target} ${html}${related.length > 0 ? `, related: ${related.join(", ")}` : ""}`;
 }
 
-// One finding per violated rule on a page, its impact and elements as the value.
-function rule(id: string, helpUrl: string): Make {
+// One finding per violated rule on a page, its impact and elements as the value; `fix` is axe’s `help`.
+function rule(id: string, helpUrl: string, fix?: string): Make {
     const ruleId = `${PREFIX}${id}`;
     return (severity) => ({
-        meta: { id: ruleId, severity, scope: "page", facts: [`${ID}.violations`], docs: helpUrl },
+        meta: { id: ruleId, severity, scope: "page", facts: [`${ID}.violations`], docs: helpUrl, ...(fix && { fix }) },
         check(page: Facts) {
             const facts = page[ID] as AxeFacts | undefined;
             if (!facts) return;
@@ -140,7 +140,7 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<AxeFact
 export default definePlugin({
     name: "axe",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
-    rules: Object.fromEntries(RULES.map((entry) => [`${PREFIX}${entry.ruleId}`, rule(entry.ruleId, entry.helpUrl.replace(/\?.*$/, ""))])),
+    rules: Object.fromEntries(RULES.map((entry) => [`${PREFIX}${entry.ruleId}`, rule(entry.ruleId, entry.helpUrl.replace(/\?.*$/, ""), entry.help)])),
     presets: {
         axe: preset("Accessibility checked by axe-core in the rendered page: WCAG A and AA, and best practices", () => true),
         "axe:wcag": preset("WCAG 2.2 A and AA success criteria axe-core can test", isWcag),

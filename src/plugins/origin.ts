@@ -141,6 +141,7 @@ export default definePlugin({
                     message: "a missing page answers {got}, not 404 or 410",
                     severity: "warning",
                     docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors#soft-404-errors",
+                    fix: "Return 404 or 410 for missing pages instead of 200 with a soft-404 body.",
                 },
                 "origin/error-page": {
                     fact: "site.origins.*.not-found",
@@ -149,6 +150,7 @@ export default definePlugin({
                     message: "the not-found page is not plain HTML free of stack traces and server versions (got {got})",
                     severity: "warning",
                     docs: "https://owasp.org/www-community/Improper_Error_Handling",
+                    fix: "Serve a plain HTML 404 page with no server version or stack trace.",
                 },
                 "origin/https-entry": {
                     fact: "site.origins.*.entry",
@@ -156,6 +158,7 @@ export default definePlugin({
                     message: "plain http does not redirect to https in one permanent hop (got {got})",
                     severity: "warning",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
+                    fix: "Redirect every http request to https with a 301 or 308, preserving the URL.",
                 },
                 "origin/locale-redirect": {
                     fact: "site.origins.*.locale.distinct",
@@ -163,6 +166,7 @@ export default definePlugin({
                     message: "/ lands on {got} different URLs depending on Accept-Language",
                     severity: "warning",
                     docs: "https://developers.google.com/search/docs/specialty/international/locale-adaptive-pages",
+                    fix: "Serve the same content for every language unless the page has language-specific alternates.",
                 },
                 "origin/compression": {
                     fact: "site.origins.*.encodings.served",
@@ -171,6 +175,7 @@ export default definePlugin({
                     message: "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it",
                     severity: "info",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Accept-Encoding",
+                    fix: "Configure the server to compress text responses with br, zstd and gzip.",
                 },
                 "origin/favicon": {
                     fact: "site.origins.*.favicon",
@@ -178,6 +183,7 @@ export default definePlugin({
                     message: "/favicon.ico is not an image (got {got})",
                     severity: "info",
                     docs: "https://developers.google.com/search/docs/appearance/favicon-in-search",
+                    fix: "Serve /favicon.ico as a real image (PNG, ICO, or SVG).",
                 },
                 "origin/revalidation": {
                     fact: "site.origins.*.revalidation.repeat",

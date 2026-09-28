@@ -154,6 +154,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server still accepts {got}, which RFC 6176, RFC 7568 and RFC 8996 retire",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
+        fix: "Disable SSLv3, TLS 1.0 and TLS 1.1; keep only TLS 1.2 and 1.3.",
     },
     "tls-probe/insecure-ciphers": {
         fact: "site.origins.*.tls-probe.insecure-ciphers",
@@ -162,6 +163,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server accepts suites broken outright: {got}",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.1",
+        fix: "Remove NULL, RC4, 3DES and other broken cipher suites from the server config.",
     },
     "tls-probe/vulnerabilities": {
         fact: "site.origins.*.tls-probe.vulnerabilities",
@@ -170,6 +172,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "what the server negotiates leaves it open to {got}",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc7457",
+        fix: "Update the TLS library, and disable the protocol, suite or extension each named attack needs.",
     },
     "tls-probe/weak-ciphers": {
         fact: "site.origins.*.tls-probe.weak-ciphers",
@@ -178,6 +181,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2",
+        fix: "Keep only AEAD suites that offer forward secrecy (ECDHE).",
     },
     "tls-probe/forward-secrecy": {
         fact: "site.origins.*.tls-probe.forward-secrecy",
@@ -186,6 +190,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "{got} of the accepted suites give forward secrecy, where all should",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-7.3",
+        fix: "Configure only ECDHE suites so every handshake offers forward secrecy.",
     },
     "tls-probe/weak-dh": {
         fact: "site.origins.*.tls-probe.dh-bits",
@@ -194,6 +199,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server’s DHE prime has {got} bits, short of 2048",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.5",
+        fix: "Use a DH group of at least 2048 bits, or drop the DHE suites for ECDHE.",
     },
     "tls-probe/compression": {
         fact: "site.origins.*.tls-probe.compression",
@@ -202,6 +208,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server compresses TLS records, through which CRIME reads secrets",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.3",
+        fix: "Disable TLS compression.",
     },
     "tls-probe/secure-renegotiation": {
         fact: "site.origins.*.tls-probe.secure-renegotiation",
@@ -210,6 +217,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server does not answer renegotiation_info, so a renegotiation can be spliced into a session",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc5746",
+        fix: "Enable secure renegotiation in the TLS library.",
     },
     "tls-probe/server-cipher-order": {
         fact: "site.origins.*.tls-probe.server-order",
@@ -218,6 +226,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server lets the client pick a weak suite over a strong one",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2.1",
+        fix: "Set the server to prefer its own strong suites over the client’s list.",
     },
     "tls-probe/fallback-scsv": {
         fact: "site.origins.*.tls-probe.fallback-scsv",
@@ -226,6 +235,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server accepts a needless fallback to an older version instead of refusing it",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc7507",
+        fix: "Enable TLS_FALLBACK_SCSV in the TLS library.",
     },
     "tls-probe/tls13-missing": {
         fact: "site.origins.*.tls-probe.protocols",
@@ -233,6 +243,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server offers {got} and no TLS 1.3",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
+        fix: "Enable TLS 1.3 in the server configuration.",
     },
     "tls-probe/chain-complete": {
         fact: "site.origins.*.tls-probe.chain.complete",
@@ -241,6 +252,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server does not send the intermediate certificates its chain needs, so clients that have not cached them fail",
         severity: "error",
         docs: "https://www.rfc-editor.org/rfc/rfc8446#section-4.4.2",
+        fix: "Configure the server to serve the full certificate chain, including intermediates.",
     },
     "tls-probe/ocsp-stapling": {
         fact: "site.origins.*.tls-probe.ocsp.stapled",
@@ -249,6 +261,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the certificate names an OCSP responder but the server staples no response, so each client asks the CA",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc6066#section-8",
+        fix: "Enable OCSP stapling so the server attaches the CA’s response to handshakes.",
     },
     "tls-probe/early-data": {
         fact: "site.origins.*.tls-probe.early-data",
@@ -257,6 +270,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "the server accepts TLS 1.3 early data, which an attacker can replay; non-idempotent requests must answer 425",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc8470",
+        fix: "Disable early data, or answer 425 Too Early to non-idempotent requests.",
     },
 };
 

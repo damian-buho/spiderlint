@@ -40,6 +40,10 @@ const EXTRA: Record<string, Level> = {
 };
 const RULESET = Object.fromEntries(Object.keys({ ...DEFAULT, ...EXTRA }).map((id) => [id, true]));
 
+// htmlhint’s rule descriptions, keyed by ID; `fix` is derived from them where present.
+const DESCRIPTIONS = new Map<string, string>();
+for (const [id, rule] of Object.entries(HTMLHint.rules)) if (rule?.description) DESCRIPTIONS.set(id, rule.description);
+
 export interface HtmlHintFacts {
     messages: (MarkupMessage & { type: string })[];
 }
@@ -61,7 +65,7 @@ function preset(description: string, levels: Record<string, Level>): RulesetConf
     return { description, rules: Object.fromEntries(Object.entries(levels).map(([id, severity]) => [`${PREFIX}${id}`, severity])) };
 }
 
-const rules = Object.fromEntries(Object.keys(RULESET).map((id) => [`${PREFIX}${id}`, messageRule(ID, PREFIX, id, `https://htmlhint.com/rules/${id}`)]));
+const rules = Object.fromEntries(Object.keys(RULESET).map((id) => [`${PREFIX}${id}`, messageRule(ID, PREFIX, id, `https://htmlhint.com/rules/${id}`, DESCRIPTIONS.get(id))]));
 
 export default definePlugin({
     name: "htmlhint",
