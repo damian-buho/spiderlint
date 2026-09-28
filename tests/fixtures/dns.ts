@@ -108,7 +108,7 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides:
     const isChecked = ((query.flags ?? 0) & dnsPacket.CHECKING_DISABLED) === 0;
     const isBogus = zone.bogus === true && isValidating && isChecked;
     const isTruncated = zone.truncate === true && !isTcp;
-    const flags = (isBogus ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
+    const flags = (isBogus || zone.rcode === "SERVFAIL" ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
     return dnsPacket.encode({ type: "response", id: query.id, flags, questions: query.questions, answers: isBogus || isTruncated ? [] : (zone.answers ?? []) } as Packet);
 }
 

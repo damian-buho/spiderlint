@@ -45,7 +45,7 @@ export interface DnsSettings {
 }
 
 // The answers of `type`, in wire order.
-function records<T>(reply: Reply, type: string): Data<T>[] {
+export function records<T>(reply: Reply, type: string): Data<T>[] {
     return reply.answers.filter((answer) => answer.type === type) as Data<T>[];
 }
 
@@ -83,7 +83,7 @@ export function isSpecialUse(host: string): boolean {
 }
 
 // The first name from `host` up to its registrable domain that answers SOA; none for an IP, a special-use name or a public suffix.
-async function zoneOf(host: string, dns: DnsClient): Promise<string | undefined> {
+export async function zoneOf(host: string, dns: DnsClient): Promise<string | undefined> {
     const domain = isIP(host) === 0 && !isSpecialUse(host) ? getDomain(host, { allowPrivateDomains: true }) : undefined;
     if (!domain) {
         log.debug({ host }, "dns skipped, no registrable domain");
