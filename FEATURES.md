@@ -38,6 +38,12 @@ SPDX-License-Identifier: MIT
 - Values that must be unique across the site, such as titles and descriptions, are reported once per duplicate with every URL that shares it.
 - Every run ends with the number of checks passed and a grade from S to F, so sites and releases compare at a glance.
 
+### Icons fetched and measured
+
+- Every icon the pages, the web app manifest and `browserconfig.xml` name is downloaded once and measured, so an icon that is really smaller than it claims, or another format, is a finding.
+- The favicon, the Apple touch icon, the SVG icon, the Safari pinned tab and the Windows tiles are each judged on what the platform really asks for, such as an opaque 180×180 PNG for iOS.
+- A page that links no Apple touch icon is checked against the path iOS requests anyway.
+
 ### Image weight measured, not estimated
 
 - Every image the site loads is re-encoded once, and the bytes AVIF, WebP or a tighter encode of its own format would save are reported.

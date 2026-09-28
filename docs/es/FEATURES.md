@@ -40,6 +40,12 @@ SPDX-License-Identifier: MIT
 - Los valores que deben ser únicos en todo el sitio, como títulos y descripciones, se informan una vez por duplicado con todas las URL que lo comparten.
 - Cada ejecución termina con el número de comprobaciones superadas y una nota de la S a la F, para comparar sitios y versiones de un vistazo.
 
+### Iconos descargados y medidos
+
+- Cada icono que nombran las páginas, el manifiesto de la aplicación web y `browserconfig.xml` se descarga una vez y se mide, así que un icono realmente más pequeño de lo que declara, o de otro formato, es un hallazgo.
+- El favicon, el icono táctil de Apple, el icono SVG, la pestaña fijada de Safari y los mosaicos de Windows se juzgan cada uno según lo que la plataforma pide de verdad, como un PNG opaco de 180×180 para iOS.
+- Una página que no enlaza ningún icono táctil de Apple se comprueba contra la ruta que iOS pide de todos modos.
+
 ### Peso de imágenes medido, no estimado
 
 - Cada imagen que carga el sitio se recodifica una vez, y se informan los bytes que ahorrarían AVIF, WebP o una codificación más ajustada de su propio formato.

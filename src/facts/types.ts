@@ -174,7 +174,7 @@ export interface HtmlFacts {
     metas: { name: string; content: string; media?: string }[];
     "http-equiv"?: { name: string; content: string }[];
     property: Record<string, string>;
-    head: { links: Partial<Record<"rel" | "href" | "type" | "hreflang" | "sizes" | "media" | "as" | "crossorigin", string>>[] };
+    head: { links: Partial<Record<"rel" | "href" | "type" | "hreflang" | "sizes" | "media" | "as" | "crossorigin" | "color", string>>[] };
     hreflang: { lang: string; href: string }[];
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];

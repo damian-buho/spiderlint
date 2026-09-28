@@ -55,7 +55,7 @@ function resolve(href: string, page: URL): string {
     }
 }
 
-const LINK_KEYS = ["rel", "type", "hreflang", "sizes", "media", "as", "crossorigin"] as const;
+const LINK_KEYS = ["rel", "type", "hreflang", "sizes", "media", "as", "crossorigin", "color"] as const;
 
 // Rel tokens every `<a>` to an href carries, for hrefs whose every anchor carries one.
 function anchorRels($: CheerioAPI, page: URL): Record<string, string[]> {

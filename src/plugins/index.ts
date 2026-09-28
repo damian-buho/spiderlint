@@ -32,6 +32,7 @@ import lighthouse from "./lighthouse.ts";
 import linkText from "./link-text.ts";
 import list from "./list.ts";
 import live from "./live.ts";
+import icons from "./icons.ts";
 import manifest from "./manifest.ts";
 import markup from "./markup.ts";
 import origin from "./origin.ts";
@@ -41,7 +42,7 @@ import trackers from "./trackers.ts";
 import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, tlsProbe, cookies, images, wellKnown, feeds, structuredData, manifest, linkText, markup, trackers, list];
+const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, tlsProbe, cookies, images, wellKnown, feeds, structuredData, manifest, icons, linkText, markup, trackers, list];
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
