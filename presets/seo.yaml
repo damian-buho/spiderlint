@@ -20,6 +20,7 @@ rules:
     message: "meta viewport should set width=device-width and allow zoom, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
     fix: "Set <meta name=viewport content=\"width=device-width\"> and allow zoom."
+  html/viewport-syntax: info
   html/theme-color:
     fact: html.meta.theme-color
     expect: {type: string, minLength: 1}
@@ -29,9 +30,9 @@ rules:
     fix: "Add <meta name=theme-color> with a color value."
   html/color-scheme:
     fact: html.meta.color-scheme
-    expect: {type: string, minLength: 1}
+    expect: {type: string, pattern: "^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}
     severity: info
-    message: "no meta color-scheme"
+    message: "meta color-scheme should be normal, or scheme names such as light dark, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
     fix: "Add <meta name=color-scheme content=\"light dark\">."
   html/theme-color-schemes:
@@ -189,23 +190,23 @@ rules:
     fix: "Set og:description to 50–200 characters."
   html/og-image:
     fact: html.property.og:image
-    expect: {type: string, pattern: "^https?://"}
+    expect: {type: string, format: uri, pattern: "^(?i:https?)://"}
     severity: warning
-    message: "og:image should be an absolute URL, found {got}"
+    message: "og:image should be an absolute http(s) URL, found {got}"
     docs: https://ogp.me/#metadata
     fix: "Make og:image an absolute URL."
   html/og-type:
     fact: html.property.og:type
-    expect: {type: string, minLength: 1}
+    expect: {type: string, pattern: "^(?:website|article|book|profile|music\\.(?:song|album|playlist|radio_station)|video\\.(?:movie|episode|tv_show|other)|[a-z][\\w-]*:[\\w.-]+)$"}
     severity: info
-    message: "no og:type"
+    message: "og:type should be an Open Graph type or namespace:type, found {got}"
     docs: https://ogp.me/#types
-    fix: "Set og:type to a valid value."
+    fix: "Set og:type to website, or article on a post."
   html/og-url:
     fact: html.property.og:url
-    expect: {type: string, pattern: "^https?://"}
+    expect: {type: string, format: uri, pattern: "^(?i:https?)://"}
     severity: info
-    message: "og:url should be an absolute URL, found {got}"
+    message: "og:url should be an absolute http(s) URL, found {got}"
     docs: https://ogp.me/#metadata
     fix: "Make og:url an absolute URL of this page."
   html/author:

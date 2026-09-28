@@ -64,9 +64,9 @@ rules:
     fix: "Enable HTTP/2 or HTTP/3 on the server."
     docs: https://developer.mozilla.org/docs/Glossary/HTTP_2
   http/alt-svc-h3:
-    fact: http.headers.alt-svc
-    expect: {type: string, pattern: "\\bh3="}
-    when: {url.protocol: "https:", http.version: {not: {const: "3.0"}}}
+    fact: http.parsed.alt-svc.value
+    expect: {type: array, contains: {properties: {protocol: {const: h3}}, required: [protocol]}}
+    when: {url.protocol: "https:", http.version: {not: {const: "3.0"}}, http.parsed.alt-svc.errors: {maxItems: 0}}
     severity: warning
     message: "Alt-Svc should advertise h3, found {got}"
     fix: "Add h3 to the Alt-Svc header."
@@ -128,12 +128,12 @@ rules:
   html/preconnect-unused: info
   html/preconnect-missing: info
   html/preconnect-crossorigin: info
-  http/link-format:
-    fact: http.headers.link
-    expect: {type: string, pattern: "^\\s*<[^>]*>[^<]*(,\\s*<[^>]*>[^<]*)*$"}
-    when: {http.headers.link: {type: string}}
+  http/link-syntax:
+    fact: http.parsed.link.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.link: {type: object}}
     severity: warning
-    message: "Link should be a comma-separated list of <uri>; params, found {got}"
+    message: "Link breaks RFC 8288 §3, so clients drop the links they cannot read: {got}"
     fix: "Write each Link entry as <https://example.com/a>; rel=preload, separated by commas."
     docs: https://www.rfc-editor.org/rfc/rfc8288#section-3
   http/dictionary-format:
@@ -223,3 +223,11 @@ rules:
     message: "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry: {got}"
     fix: "Send Retry-After as a number of seconds, as in Retry-After: 120, or an IMF-fixdate."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3
+  http/alt-svc-syntax:
+    fact: http.parsed.alt-svc.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.alt-svc: {type: object}}
+    severity: warning
+    message: "Alt-Svc breaks RFC 7838 §3, so clients never try the alternative: {got}"
+    fix: "Send Alt-Svc as h3=\":443\"; ma=86400."
+    docs: https://www.rfc-editor.org/rfc/rfc7838#section-3

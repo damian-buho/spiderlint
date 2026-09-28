@@ -203,9 +203,58 @@ const urgency: Vocabulary = (key, value, errors) => {
     if (key === "i" && typeof value !== "boolean") errors.push(`i is ${String(value)}, not a boolean`);
 };
 
+// RFC 7838 §3 alt-authority: `[ uri-host ] ":" port`.
+const AUTHORITY = /^(?:\[[\d.:a-f]+\]|[^\s:[\]]*):\d{1,5}$/i;
+
+// RFC 7838 §3: `clear`, or `protocol-id="authority"` entries with parameters; unknown parameters are ignored.
+const altSvc: Parser = (text, errors) => {
+    const entries = elements(text);
+    if (entries.length === 1 && entries[0] === "clear") return "clear";
+    return entries.map((entry) => {
+        const [alternative = "", ...parameters] = elements(entry, ";");
+        const match = new RegExp(`^(${TOKEN})=(${QUOTED})$`).exec(alternative);
+        const authority = match && unquote(match[2] as string);
+        if (!match) errors.push(`“${alternative}” is not protocol-id="host:port"`);
+        else if (!AUTHORITY.test(authority as string)) errors.push(`${match[1]} authority “${authority}” is not host:port`);
+        const value: Record<string, string | number | undefined> = { protocol: match?.[1], authority: authority ?? undefined };
+        for (const [name, argument] of directives(parameters, PARAMETER, errors)) if (name === "ma") value.ma = seconds(name, argument, errors);
+        return value;
+    });
+};
+
+// RFC 8288 §3 link-value, `<` URI-Reference `>` then `;` parameters; commas in the URI and in quoted strings stay inside it.
+const LINK_VALUE = new RegExp(String.raw`[\s,]*<([^>]*)>((?:\s*;\s*${TOKEN}\s*(?:=\s*(?:${TOKEN}|${QUOTED}))?)*)\s*(?:,|$)`, "y");
+const LINK_PARAMETER = new RegExp(String.raw`;\s*(${TOKEN})\s*(?:=\s*(${TOKEN}|${QUOTED}))?`, "g");
+
+// RFC 8288 §3: each link as `href` beside its lower-cased parameters, a bare one empty; `rel` is required and its first occurrence wins.
+const link: Parser = (text, errors) => {
+    const links: Record<string, string>[] = [];
+    LINK_VALUE.lastIndex = 0;
+    while (LINK_VALUE.lastIndex < text.length && !/^[\s,]*$/.test(text.slice(LINK_VALUE.lastIndex))) {
+        const start = LINK_VALUE.lastIndex;
+        const match = LINK_VALUE.exec(text);
+        if (!match) {
+            errors.push(`“${text.slice(start).trim()}” is not <uri>; rel=…`);
+            break;
+        }
+        const entry: Record<string, string> = { href: match[1] as string };
+        const parameters = (match[2] as string).matchAll(LINK_PARAMETER);
+        for (const [, name = "", argument] of parameters) {
+            const key = name.toLowerCase();
+            if (Object.hasOwn(entry, key)) errors.push(`<${entry.href}> gives ${key} twice, and the second is ignored`);
+            else entry[key] = argument === undefined ? "" : key === "rel" ? unquote(argument).toLowerCase() : unquote(argument);
+        }
+        if (entry.rel === undefined) errors.push(`<${entry.href}> has no rel`);
+        links.push(entry);
+    }
+    return links;
+};
+
 // Header name → parser; a header absent from the table is not parsed.
 const PARSERS: Record<string, Parser> = {
     "cache-control": cacheControl,
+    "alt-svc": altSvc,
+    link,
     "strict-transport-security": hsts,
     vary,
     "content-type": contentType,
@@ -236,9 +285,15 @@ export function parsedHeaders(url: string, headers: Record<string, string | stri
     return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
-// A Cache-Control value parsed alone, for resource rules.
-export function parseCacheControl(text: string): ParsedHeader {
+// One value parsed alone, `value` only when it keeps its grammar.
+function parseAlone(parse: Parser, text: string): ParsedHeader {
     const errors: string[] = [];
-    const value = cacheControl(text, errors);
+    const value = parse(text, errors);
     return errors.length === 0 ? { value, errors } : { errors };
 }
+
+// A Cache-Control value parsed alone, for resource rules.
+export const parseCacheControl = (text: string): ParsedHeader => parseAlone(cacheControl, text);
+
+// A Link value parsed alone, for 103 Early Hints and plugins.
+export const parseLink = (text: string): ParsedHeader => parseAlone(link, text);

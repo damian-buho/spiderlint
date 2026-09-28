@@ -10,8 +10,8 @@ import { log } from "../logger.ts";
 import { ruleMaker } from "../plugins/index.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
 
-// strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it.
-const ajv = new Ajv2020({ strictTypes: false });
+// strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it; `format: uri` is an absolute URL a browser parses.
+const ajv = new Ajv2020({ strictTypes: false, formats: { uri: (text: string) => URL.canParse(text) } });
 
 // Dotted path into a facts document; absent stays undefined.
 export function get(facts: unknown, path: string): unknown {

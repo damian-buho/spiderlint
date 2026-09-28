@@ -230,10 +230,10 @@ Done when: `spiderlint audit ORIGIN/ --rules html/og-description` reports no htm
 
 ## html/og-image (warning)
 
-og:image should be an absolute URL, found none
+og:image should be an absolute http(s) URL, found none
 
 Where: /app/
-Reads: `html.property.og:image`, expects `{"type":"string","pattern":"^https?://"}`
+Reads: `html.property.og:image`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
 Fix: Make og:image an absolute URL.
 Docs: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:image` meeting it.
@@ -365,20 +365,20 @@ Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no htm
 
 ## html/color-scheme (info)
 
-no meta color-scheme
+meta color-scheme should be normal, or scheme names such as light dark, found none
 
 Where: 5 pages of group posts (100 %), for example:
 - /posts/1
 - /posts/2
 - /posts/3
-Reads: `html.meta.color-scheme`, expects `{"type":"string","minLength":1}`
+Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding.
 
 ## html/color-scheme (info)
 
-no meta color-scheme
+meta color-scheme should be normal, or scheme names such as light dark, found none
 
 Where: 6 pages:
 - /app/
@@ -387,7 +387,7 @@ Where: 6 pages:
 - /tags/a
 - /tags/b
 - /tags/c
-Reads: `html.meta.color-scheme`, expects `{"type":"string","minLength":1}`
+Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
@@ -435,20 +435,20 @@ Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default` reports no
 
 ## html/og-type (info)
 
-no og:type
+og:type should be an Open Graph type or namespace:type, found none
 
 Where: /app/
-Reads: `html.property.og:type`, expects `{"type":"string","minLength":1}`
-Fix: Set og:type to a valid value.
+Reads: `html.property.og:type`, expects `{"type":"string","pattern":"^(?:website|article|book|profile|music\\.(?:song|album|playlist|radio_station)|video\\.(?:movie|episode|tv_show|other)|[a-z][\\w-]*:[\\w.-]+)$"}`
+Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
 Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:type` meeting it.
 
 ## html/og-url (info)
 
-og:url should be an absolute URL, found none
+og:url should be an absolute http(s) URL, found none
 
 Where: /app/
-Reads: `html.property.og:url`, expects `{"type":"string","pattern":"^https?://"}`
+Reads: `html.property.og:url`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
 Fix: Make og:url an absolute URL of this page.
 Docs: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-url` reports no html/og-url finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:url` meeting it.

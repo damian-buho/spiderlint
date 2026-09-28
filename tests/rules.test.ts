@@ -6,6 +6,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Facts, ResourceFacts } from "../src/facts/types.ts";
+import { parseLink } from "../src/facts/headers.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { compileRule, describe as describeValue } from "../src/rules/declarative.ts";
 import { fixFor } from "../src/rules/fix.ts";
@@ -115,6 +116,22 @@ describe("resource hints", () => {
         const rule = builtin["html/preconnect-unused"]?.("info") as PageRule;
         assert.equal(rule.check(statik), undefined);
         assert.deepEqual(rule.check(rendered)?.map((finding) => finding.message), ["rel=dns-prefetch warms https://gone.test, which no resource of the page loads"]);
+    });
+
+    it("counts a preconnect the Link header sends", () => {
+        const statik = { ...page("https://site.test/", []), html: { head: { links: [] }, scripts: [{ src: "https://cdn.test/a.js", async: false, defer: false, head: true }] } as unknown as Facts["html"] };
+        const hinted: Facts = { ...statik, http: { ...statik.http, parsed: { link: parseLink("<https://cdn.test>; rel=preconnect") } } };
+        const rule = builtin["html/preconnect-missing"]?.("info") as PageRule;
+        assert.equal(rule.check(statik)?.length, 1);
+        assert.deepEqual(rule.check(hinted), []);
+    });
+
+    it("leaves early hints unjudged while the final Link breaks its grammar", () => {
+        const hints = { ...page("https://site.test/", []), http: { ...page("https://site.test/", []).http, "early-hints": [{ link: "</a.css>; rel=preload; as=style" }] } };
+        const broken: Facts = { ...hints, http: { ...hints.http, parsed: { link: parseLink("</a.css>; as=style") } } };
+        const rule = builtin["http/early-hints-preload"]?.("info") as PageRule;
+        assert.deepEqual(rule.check(hints)?.map((finding) => finding.value), [["https://site.test/a.css"]]);
+        assert.equal(rule.check(broken), undefined);
     });
 });
 

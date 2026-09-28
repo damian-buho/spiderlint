@@ -4,8 +4,8 @@
 
 import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
-import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
-import { parseCacheControl } from "../facts/headers.ts";
+import type { Facts, HtmlFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
+import { parseCacheControl, parseLink } from "../facts/headers.ts";
 import { log } from "../logger.ts";
 import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
@@ -121,20 +121,27 @@ const frameOptions: Make = (severity) => ({
     },
 });
 
+// Parsed `Link` entries, empty when the value breaks RFC 8288.
+const linksOf = (parsed: ParsedHeader | undefined): Record<string, string>[] => (parsed?.value as Record<string, string>[] | undefined) ?? [];
+
+// Absolute targets of the entries carrying relation token `relation`.
+function targets(links: Record<string, string>[], relation: string, base: string): string[] {
+    return links.filter((link) => (link.rel ?? "").split(/\s+/).includes(relation)).map((link) => resolve(link.href ?? "", base));
+}
+
 // Absolute targets of the `Link` entries carrying relation token `relation`.
 export function linkTargets(raw: string, relation: string, base: string): string[] {
-    const carries = new RegExp(String.raw`;\s*rel="?[^";]*\b${relation}\b`, "i");
-    const entries = raw.match(/<[^>]*>[^,<]*/g) ?? [];
-    return entries.filter((entry) => carries.test(entry)).map((entry) => resolve(entry.slice(1, entry.indexOf(">")), base));
+    return targets(linksOf(parseLink(raw)), relation, base);
 }
 
 // A preload a 103 hinted that the final response’s `Link` no longer carries.
 const earlyHintsPreload: Make = (severity) => ({
-    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.headers.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103", fix: "Remove the preload from the 103 Early Hints, or add it to the final Link header." },
+    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.parsed.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103", fix: "Remove the preload from the 103 Early Hints, or add it to the final Link header." },
     check(page: Facts) {
         const hints = page.http["early-hints"];
-        if (!hints) return;
-        const final = new Set(linkTargets(header(page, "link"), "preload", page.url.href));
+        const parsed = page.http.parsed?.link;
+        if (!hints || (parsed?.errors.length ?? 0) > 0) return;
+        const final = new Set(targets(linksOf(parsed), "preload", page.url.href));
         const dropped = [...new Set(hints.flatMap((hint) => linkTargets(hint.link ?? "", "preload", page.url.href))).difference(final)];
         log.debug({ rule: "http/early-hints-preload", url: page.url.href, hints: hints.length, final: final.size, dropped: dropped.length }, "early hints compared");
         return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `103 Early Hints preload ${dropped.join(", ")}, which the final Link header lacks`, value: dropped }];
@@ -150,9 +157,10 @@ function originOf(href: string | undefined): string | undefined {
     return /^https?:$/.test(url.protocol) ? url.origin : undefined;
 }
 
-// Head links whose `rel` carries one of `relations`.
+// Head links and `Link` header entries whose `rel` carries one of `relations`.
 function withRelation(page: Facts, relations: string[]): HeadLink[] {
-    return (page.html?.head.links ?? []).filter((link) => (link.rel ?? "").toLowerCase().split(/\s+/).some((token) => relations.includes(token)));
+    const headers = linksOf(page.http.parsed?.link).map((link): HeadLink => ({ ...link, href: resolve(link.href ?? "", page.url.href) }));
+    return [...(page.html?.head.links ?? []), ...headers].filter((link) => (link.rel ?? "").toLowerCase().split(/\s+/).some((token) => relations.includes(token)));
 }
 
 // Origins warmed by `preconnect` or `dns-prefetch`, with the relation that names each.
@@ -163,7 +171,7 @@ function hintedOrigins(page: Facts): Map<string, string> {
 // A hinted origin no resource of the rendered page loads; a static parse misses what CSS and scripts load, so only a browser census is judged.
 const preconnectUnused = pageRule(
     "html/preconnect-unused",
-    ["html.head.links", "resources"],
+    ["html.head.links", "http.parsed.link", "resources"],
     (page) => {
         if (!page.browser || !page.html) return;
         const used = new Set((page.resources ?? []).map((resource) => originOf(resource.url)));
@@ -172,6 +180,36 @@ const preconnectUnused = pageRule(
         return unused.map(([origin, relation]) => ({ message: `rel=${relation} warms ${origin}, which no resource of the page loads`, value: origin }));
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Remove the preconnect or dns-prefetch link to an origin the page no longer loads from." },
+);
+
+// Viewport meta keys with the values browsers read; any other key or value is dropped quietly.
+const VIEWPORT: Record<string, RegExp> = {
+    width: /^(?:device-width|\d+(?:\.\d+)?)$/i,
+    height: /^(?:device-height|\d+(?:\.\d+)?)$/i,
+    "initial-scale": /^\d*\.?\d+$/,
+    "minimum-scale": /^\d*\.?\d+$/,
+    "maximum-scale": /^\d*\.?\d+$/,
+    "user-scalable": /^(?:yes|no|\d*\.?\d+)$/i,
+    "viewport-fit": /^(?:auto|contain|cover)$/i,
+    "interactive-widget": /^(?:resizes-visual|resizes-content|overlays-content)$/i,
+};
+
+// Each viewport entry a browser drops: an unknown key, a value it cannot read, or a key without `=`.
+const viewportSyntax = pageRule(
+    "html/viewport-syntax",
+    ["html.meta.viewport"],
+    (page) => {
+        const content = page.html?.meta.viewport;
+        if (content === undefined) return;
+        const entries = content.replaceAll(/\s*=\s*/g, "=").split(/[\s,;]+/).filter((entry) => entry.length > 0);
+        const dropped = entries.filter((entry) => {
+            const [key = "", value] = entry.split("=", 2);
+            return value === undefined || !VIEWPORT[key.toLowerCase()]?.test(value);
+        });
+        log.debug({ rule: "html/viewport-syntax", url: page.url.href, entries: entries.length, dropped: dropped.length }, "viewport entries read");
+        return dropped.map((entry) => ({ message: `meta viewport entry “${entry}” is not a key and value browsers read, so they ignore it`, value: entry }));
+    },
+    { docs: "https://drafts.csswg.org/css-viewport/#viewport-meta", fix: "Keep meta viewport to known keys, as in width=device-width, initial-scale=1." },
 );
 
 // Cross origins serving a head script without `async`, `defer` or `type=module`, or a style sheet for every medium.
@@ -184,7 +222,7 @@ function blockingOrigins(page: Facts): Map<string, string> {
 // A cross origin serving a render-blocking resource with no `preconnect`, `dns-prefetch` or `preload` towards it.
 const preconnectMissing = pageRule(
     "html/preconnect-missing",
-    ["html.head.links", "html.scripts"],
+    ["html.head.links", "http.parsed.link", "html.scripts"],
     (page) => {
         if (!page.html) return;
         const warmed = new Set([...hintedOrigins(page).keys(), ...withRelation(page, ["preload"]).map((link) => originOf(link.href))]);
@@ -198,7 +236,7 @@ const preconnectMissing = pageRule(
 // A `preconnect` to an origin serving fonts that lacks `crossorigin`, so the font fetch opens a second connection.
 const preconnectCrossorigin = pageRule(
     "html/preconnect-crossorigin",
-    ["html.head.links", "resources"],
+    ["html.head.links", "http.parsed.link", "resources"],
     (page) => {
         if (!page.html) return;
         const fonts = new Set([...(page.resources ?? []).filter((resource) => resource.kind === "font").map((resource) => originOf(resource.url)), ...withRelation(page, ["preload"]).filter((link) => link.as === "font").map((link) => originOf(link.href))]);
@@ -373,6 +411,7 @@ export const builtin: Record<string, Make> = {
     "html/preconnect-unused": preconnectUnused,
     "html/preconnect-missing": preconnectMissing,
     "html/preconnect-crossorigin": preconnectCrossorigin,
+    "html/viewport-syntax": viewportSyntax,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     "sitemap/media": sitemapMedia,
