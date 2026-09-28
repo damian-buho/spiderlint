@@ -86,7 +86,7 @@ const serverDisclosure: Make = (severity) => ({
         for (const { host, field, value, urls } of seen.values()) {
             const level = judge(field, value, severity);
             if (!level) continue;
-            const listed = [...urls];
+            const listed = [...urls].toSorted((a, b) => a.localeCompare(b));
             findings.push({ rule: "http/server-disclosure", severity: level, scope: "site", url: listed[0] as string, message: `${host} names its software in ${field}: ${value} (${listed.length} responses)`, value: { [field]: value }, urls: listed });
         }
         return findings;
