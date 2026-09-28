@@ -631,6 +631,7 @@ export default definePlugin({
 - The same flag guards the crawl itself: `dns.lookup` is swapped for the guarded one for the run, a private address literal is refused before got or `fetch` sends a request and on every redirect hop — `guardedFetch` follows `fetch` redirects itself while the guard is on — and a run that needs the browser is a config error, since Chromium resolves names itself. The server’s network should still route to nothing it cares about.
 - `--no-robots` warns; `retryOnBlocked` is never enabled.
 - Plugins load by explicit name only. Chromium runs as the `b19` user, never root. Its DevTools port opens on loopback only while a `debugging` extractor is active.
+- Site text is hostile to a terminal: `human`, `agent` and `checkstyle` pass every finding string through `printable` (`src/report/printable.ts`), which shows C0/C1 controls, newline included, and bidi overrides as `\u{…}` escapes. `html` escapes markup, `json` and `sarif` escape through `JSON.stringify`; `csv` keeps raw data for spreadsheets.
 - The store can hold private staging pages; it lives owner-only in the user cache, never beside the project, and its path is logged on every run.
 
 ## Observability

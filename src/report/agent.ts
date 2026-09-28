@@ -10,6 +10,7 @@ import type { Report } from "../index.ts";
 import { log } from "../logger.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
+import { printableFinding } from "./printable.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 
@@ -69,7 +70,7 @@ function sharedOrigin(report: Report): string {
 
 // Findings a coding agent acts on: hints only when listed.
 function actionable(report: Report, isHintListed: boolean): Finding[] {
-    const findings = report.findings.filter((finding) => isHintListed || finding.severity !== "hint");
+    const findings = report.findings.filter((finding) => isHintListed || finding.severity !== "hint").map((finding) => printableFinding(finding));
     log.debug({ findings: findings.length, hints: report.findings.length - findings.length, isHintListed }, "agent findings chosen");
     return findings;
 }

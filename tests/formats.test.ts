@@ -8,12 +8,15 @@ import { HtmlValidate } from "html-validate";
 import { SaxesParser } from "saxes";
 import { audit, type Report } from "../src/index.ts";
 import { formatCheckstyle } from "../src/report/checkstyle.ts";
+import { formatAgent } from "../src/report/agent.ts";
 import { formatCsv } from "../src/report/csv.ts";
+import { formatHuman } from "../src/report/human.ts";
 import { formatHtml } from "../src/report/html.ts";
 import type { Finding } from "../src/rules/types.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const GROUPS = { posts: { match: ["/posts/**"], rules: ["seo"] }, default: { rules: ["seo", "links"] } };
+const HOSTILE: Finding = { rule: "seo/title", severity: "warning", scope: "page", url: "https://a.test/", message: "title \u{1B}]8;;https://evil.test\u{7}x\n  error   forged \u{202E}evil", locations: ["1:1 title \u{1B}[2J"] };
 const TRICKY: Finding = { rule: "seo/title", severity: "warning", scope: "page", url: "https://a.test/?q=<&>", message: 'says "hi", twice', locations: ["3:7 title <title>", "9:1 h1 <h1>"] };
 
 interface Element {
@@ -81,6 +84,15 @@ describe("formatCheckstyle and formatCsv", () => {
         const [, file, error] = parseXml(formatCheckstyle({ findings: [TRICKY] } as Report));
         assert.equal(file?.attributes.name, TRICKY.url);
         assert.deepEqual(error?.attributes, { line: "3", column: "7", severity: "warning", message: TRICKY.message, source: "spiderlint.seo/title" });
+    });
+
+    it("human, agent and checkstyle show site controls as escapes", () => {
+        const hostile = { ...report, findings: [HOSTILE] };
+        for (const text of [formatHuman(hostile), formatAgent(hostile), formatCheckstyle(hostile)]) {
+            for (const control of ["\u{1B}", "\u{7}", "\u{202E}"]) assert.ok(!text.includes(control), JSON.stringify(control));
+            assert.ok(text.includes(String.raw`title \u{1b}]8;;https://evil.test\u{7}x\u{a}  error   forged \u{202e}evil`));
+        }
+        assert.ok(formatHuman(hostile).includes(String.raw`at 1:1 title \u{1b}[2J`));
     });
 
     it("csv has a header and one row per finding", () => {

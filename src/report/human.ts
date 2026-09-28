@@ -6,6 +6,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import type { Report } from "../index.ts";
 import type { Finding } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
+import { printableFinding } from "./printable.ts";
 import type { Grade, Rating } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
@@ -130,8 +131,9 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
-    const hints = report.findings.filter((finding) => finding.severity === "hint");
-    for (const finding of report.findings) {
+    const findings = report.findings.map((finding) => printableFinding(finding));
+    const hints = findings.filter((finding) => finding.severity === "hint");
+    for (const finding of findings) {
         if (finding.severity === "hint") continue;
         const key = finding.scope === "site" ? "site" : (finding.group as string);
         groups.set(key, [...(groups.get(key) ?? []), finding]);
