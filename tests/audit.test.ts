@@ -208,7 +208,7 @@ describe("audit", () => {
         assert.equal(h1?.occurrences, 5);
         assert.equal(h1?.coverage, 1);
         assert.equal(h1?.samples?.length, 3);
-        assert.match(h1?.message ?? "", /^should have exactly one <h1>, found 0 items$/);
+        assert.match(h1?.message ?? "", /^should have exactly one <h1>, found none$/);
     });
 
     it("keeps a one-page defect on its page", () => {

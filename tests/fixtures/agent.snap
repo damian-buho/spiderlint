@@ -28,7 +28,7 @@ Done when: `spiderlint audit ORIGIN/ --rules links/broken-internal` reports no l
 
 ## html/one-h1 (error)
 
-should have exactly one <h1>, found 0 items
+should have exactly one <h1>, found none
 
 Where: 5 pages of group posts (100 %), for example:
 - /posts/1
