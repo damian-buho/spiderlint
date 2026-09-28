@@ -51,7 +51,7 @@ async function openStorages(config: Configuration): Promise<Storages> {
 }
 
 
-// `lint` or `report` found no stored crawl; the run exits 3.
+// `lint` or `show-report` found no stored crawl; the run exits 3.
 export class NothingStored extends Error {}
 
 const STALE_MS = 30_000;

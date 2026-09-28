@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -77,7 +77,7 @@ describe("cli", () => {
     });
 
     it("exits 2 on a seed that is not an http or https URL, before any request", async () => {
-        for (const seed of ["ftp://example.com/", "example.com"]) {
+        for (const seed of ["ftp://example.com/", "file:///etc/hosts"]) {
             const run = await spiderlint(directory, "audit", seed, "--no-cache");
             assert.equal(run.code, 2);
             assert.match(run.stderr, /not an http or https URL/);
@@ -85,9 +85,9 @@ describe("cli", () => {
     });
 
     it("names the command that aborted", async () => {
-        const run = await spiderlint(directory, "explain", "nope/nope");
+        const run = await spiderlint(directory, "explain-rule", "nope/nope");
         assert.equal(run.code, 2);
-        assert.match(run.stderr, /"command":"explain".*"msg":"explain aborted"/);
+        assert.match(run.stderr, /"command":"explain-rule".*"msg":"explain-rule aborted"/);
     });
 
     it("exits 2 naming a flag with an invalid value, without the whole usage", async () => {
@@ -126,8 +126,8 @@ describe("cli", () => {
         assert.match(unknown.stderr, /source nope: unknown \(known: list, pair\)/);
     });
 
-    it("exits 3 on lint, report and facts --all of a site never crawled, creating no store", async () => {
-        for (const command of [["lint"], ["report"], ["facts", "--all"]]) {
+    it("exits 3 on lint, show-report and export-facts of a site never crawled, creating no store", async () => {
+        for (const command of [["lint"], ["show-report"], ["export-facts"]]) {
             const run = await spiderlint(directory, ...command, "https://never-crawled.example/");
             assert.equal(run.code, 3);
             assert.match(run.stderr, /nothing stored in .*run spiderlint audit or crawl first/);
@@ -164,26 +164,26 @@ describe("cli", () => {
         const { summary } = JSON.parse(audited.stdout) as { summary: { pages: number; stats: Record<string, { median: number; total: number }> } };
         assert.ok((summary.stats["co2.grams"]?.total ?? 0) > 0 && (summary.stats["co2.grams"]?.median ?? 0) > 0, JSON.stringify(summary.stats["co2.grams"]));
         assert.equal(Object.keys(summary.stats)[0], "co2.bytes");
-        const exported = await spiderlint(directory, "facts", "--all", seed, "--format", "csv");
+        const exported = await spiderlint(directory, "export-facts", seed, "--format", "csv");
         assert.equal(exported.code, 0, exported.stderr);
         const [header = [], ...rows] = parseCsv(exported.stdout.trimEnd());
         assert.equal(rows.length, summary.pages);
         assert.deepEqual(header.slice(0, 3), ["url.href", "group", "co2.bytes"]);
         assert.ok(rows.every((row) => row.length === header.length && row[0]?.startsWith(site.origin)));
-        const picked = await spiderlint(directory, "facts", "--all", seed, "--format", "csv", "--facts", "co2.grams", "--facts", "http.timing.*");
+        const picked = await spiderlint(directory, "export-facts", seed, "--format", "csv", "--facts", "co2.grams", "--facts", "http.timing.*");
         const [columns = []] = parseCsv(picked.stdout.trimEnd());
         assert.deepEqual(columns.slice(0, 4), ["url.href", "group", "co2.grams", "http.timing.dns"]);
         assert.ok(columns.includes("http.timing.total") && columns.slice(3).every((column) => column.startsWith("http.timing.")), columns.join(","));
-        const yaml = await spiderlint(directory, "facts", "--all", seed, "--format", "yaml");
+        const yaml = await spiderlint(directory, "export-facts", seed, "--format", "yaml");
         assert.match(yaml.stdout, /^pages:\n {2}- url:\n/);
-        const refused = await spiderlint(directory, "facts", "--all", seed, "--format", "json", "--facts", "co2.*");
+        const refused = await spiderlint(directory, "export-facts", seed, "--format", "json", "--facts", "co2.*");
         assert.equal(refused.code, 2);
         assert.match(refused.stderr, /--facts: picks human and csv columns only/);
-        const table = await spiderlint(directory, "facts", "--all", seed);
+        const table = await spiderlint(directory, "export-facts", seed);
         assert.equal(table.code, 0, table.stderr);
         assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\npage +group +http\.status +co2\.grams +http\.size\.body +resources\.length +http\.timing\.total\n/ +default +200 `));
         assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nco2\.grams +\d+ /);
-        const one = await spiderlint(directory, "facts", `${seed}about`);
+        const one = await spiderlint(directory, "show-facts", `${seed}about`);
         assert.equal(one.code, 0, one.stderr);
         assert.match(one.stdout, /^url\.href +http:\/\/127\.0\.0\.1:\d+\/about\n/);
         assert.match(one.stdout, /\nhttp\.status +200\n/);
@@ -236,7 +236,7 @@ describe("cli", () => {
     it("rejects an unknown flag in one line, with no stack trace", async () => {
         const run = await spiderlint(directory, "lint", "https://a.test/", "--log-levl", "error");
         assert.equal(run.code, 2);
-        assert.match(run.stderr, /^spiderlint: Unknown option '--log-levl' \(see spiderlint --help\)\n$/);
+        assert.match(run.stderr, /^spiderlint: unknown option '--log-levl' \(did you mean --log-level\?\) \(see spiderlint --help\)\n$/);
     });
 
     it("keeps stderr empty at --log-level silent", async () => {
@@ -259,8 +259,40 @@ describe("cli", () => {
         assert.ok(!disabled.stdout.includes("\u{1B}"));
     });
 
+    it("shows grouped commands, tool-wide options and exit codes on the main screen, one command’s sections on its own", async () => {
+        const main = await spiderlint(directory, "--help");
+        assert.match(main.stdout, /^spiderlint \S+\n.+\nhttps:\/\/dbuho\.me\/project\/spiderlint\/\n/);
+        assert.match(main.stdout, /\nCheck a site:\n {2}audit \[domain…\]/);
+        assert.match(main.stdout, /\nExit codes:\n/);
+        assert.doesNotMatch(main.stdout, /--max-pages|Examples:/);
+        const own = await spiderlint(directory, "audit", "--help");
+        const named = await spiderlint(directory, "help", "audit");
+        assert.equal(own.stdout, named.stdout);
+        assert.ok(["Crawl:", "Rules:", "Report:", "Store:", "Examples:"].every((heading) => own.stdout.includes(`\n${heading}\n`)), own.stdout);
+        assert.ok(own.stdout.includes(path.join(directory, "cache", "spiderlint", "<host>")), own.stdout);
+        const listing = await spiderlint(directory, "list-presets", "--help");
+        assert.doesNotMatch(listing.stdout, /Crawl:|--store/);
+    });
+
+    it("points an old command name at the verbs that replaced it", async () => {
+        const run = await spiderlint(directory, "facts");
+        assert.equal(run.code, 2);
+        assert.equal(run.stderr, "spiderlint: unknown command 'facts' (did you mean show-facts or export-facts?) (see spiderlint --help)\n");
+    });
+
+    it("reads every SPIDERLINT_ variable the help names", async () => {
+        const screens = await Promise.all(["--help", "audit", "show-facts", "list-rules"].map((command) => spiderlint(directory, ...(command === "--help" ? [command] : [command, "--help"]))));
+        const named = new Set(screens.flatMap((screen) => screen.stdout.match(/SPIDERLINT_[A-Z_]+/g) ?? []));
+        const sources = fileURLToPath(new URL("../src/", import.meta.url));
+        const entries = await readdir(sources, { recursive: true });
+        const contents = await Promise.all(entries.filter((file) => file.endsWith(".ts")).map((file) => readFile(path.join(sources, file), "utf8")));
+        const code = contents.join("\n");
+        assert.ok(named.size > 20, [...named].join(", "));
+        assert.deepEqual([...named].filter((name) => !code.includes(`.${name}`)), []);
+    });
+
     it("lists every rule with the severity this configuration runs it at", async () => {
-        const run = await spiderlint(directory, "rules", "--format", "json", "--error", "http/csp");
+        const run = await spiderlint(directory, "list-rules", "--format", "json", "--error", "http/csp");
         const rules = new Map((JSON.parse(run.stdout) as { id: string; severity: string; preset: string; rulesets: string[] }[]).map((rule) => [rule.id, rule]));
         assert.equal(run.code, 0);
         assert.deepEqual(rules.get("http/csp"), { ...rules.get("http/csp"), severity: "error", preset: "warning", rulesets: ["security-headers"] });
@@ -268,7 +300,7 @@ describe("cli", () => {
     });
 
     it("lists the shipped presets and which ones the groups use", async () => {
-        const run = await spiderlint(directory, "presets", "--format", "json");
+        const run = await spiderlint(directory, "list-presets", "--format", "json");
         const presets = new Map((JSON.parse(run.stdout) as { name: string; used: boolean; description: string }[]).map((preset) => [preset.name, preset]));
         assert.equal(presets.get("recommended")?.used, true);
         assert.equal(presets.get("browser")?.used, false);
@@ -276,24 +308,24 @@ describe("cli", () => {
     });
 
     it("explains a declarative, a built-in and a plugin rule, and refuses an unknown one", async () => {
-        const declarative = await spiderlint(directory, "explain", "html/theme-color-schemes", "--format", "json");
+        const declarative = await spiderlint(directory, "explain-rule", "html/theme-color-schemes", "--format", "json");
         assert.equal(declarative.code, 0, declarative.stderr);
         const rule = JSON.parse(declarative.stdout) as { kind: string; facts: string[]; expect: object; fix: string; docs: string };
         assert.deepEqual([rule.kind, rule.facts], ["declarative", ["html.metas"]]);
         assert.ok(rule.expect && rule.fix && rule.docs, declarative.stdout);
-        const builtin = await spiderlint(directory, "explain", "links/redirected-internal", "--no-color");
+        const builtin = await spiderlint(directory, "explain-rule", "links/redirected-internal", "--no-color");
         assert.match(builtin.stdout, /^kind\s+built-in$/m);
         assert.match(builtin.stdout, /^docs\s+https:/m);
-        const plugin = await spiderlint(directory, "explain", "axe/color-contrast", "--format", "json");
+        const plugin = await spiderlint(directory, "explain-rule", "axe/color-contrast", "--format", "json");
         assert.deepEqual((JSON.parse(plugin.stdout) as { rulesets: string[] }).rulesets, ["axe", "axe:wcag"]);
-        const unknown = await spiderlint(directory, "explain", "nope/missing");
-        const bare = await spiderlint(directory, "explain");
+        const unknown = await spiderlint(directory, "explain-rule", "nope/missing");
+        const bare = await spiderlint(directory, "explain-rule");
         assert.deepEqual([unknown.code, bare.code], [2, 2]);
     });
 
     it("covers every shipped rule with the all preset", async () => {
-        const every = await spiderlint(directory, "rules", "--format", "json");
-        const all = await spiderlint(directory, "rules", "all", "--format", "json");
+        const every = await spiderlint(directory, "list-rules", "--format", "json");
+        const all = await spiderlint(directory, "list-rules", "all", "--format", "json");
         assert.deepEqual(ruleIdsOf(all), ruleIdsOf(every));
     });
 

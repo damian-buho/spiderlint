@@ -37,6 +37,13 @@ license:
   spdx: MIT
 links:
   - label:
+      en: Spiderlint on dbuho.me
+      es: Spiderlint en dbuho.me
+      uk: Spiderlint на dbuho.me
+    priority: 20
+    type: homepage
+    url: https://dbuho.me/project/spiderlint/
+  - label:
       en: Spiderlint on kiota.ch
       es: Spiderlint en kiota.ch
       uk: Spiderlint на kiota.ch

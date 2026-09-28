@@ -16,11 +16,11 @@ discovery, scope, depth, glob and body-size limits; a fetch mode derived per
 group, both crawlers side by side in one run, and `adaptive` detection per group; sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
-`resources`, `browser`, `parity`, `sustainability`, `insights`, `recommended`, `all`; site-wide `unique`; folding; fact statistics and the `facts --all` export; `human`, `json`,
+`resources`, `browser`, `parity`, `sustainability`, `insights`, `recommended`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
 `sarif`, `checkstyle`, `csv`, `html`, `agent` with `--output`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
-`report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
-buckets with RFC 9111 revalidation, `cache status|purge|warm`, `--no-cache`,
-`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `rules`, `presets` and `explain`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
+`show-report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
+buckets with RFC 9111 revalidation, `show-cache`, `purge-cache`, `warm-cache`, `--no-cache`,
+`--refresh` and `--offline`; `concurrency`, `rate` and `proxy`, SOCKS included; `list-rules`, `list-presets` and `explain-rule`; plugins with extractors, rules, presets, formatters and sources, the bundled `list` source, browser-mode
 extractors, extractor `cost` with the group `sample`, site extractors per origin or host with the `origins` bucket and the probe address guard, resource extractors, the bundled `html-validate`, `htmlhint`, `axe`, `keyboard`, `live`, `lighthouse`, `origin`, `dns` with the `dns` bucket and `--resolver`, `network`, `tls-probe`, `images`, `well-known`, `feeds`, `structured-data`, `manifest`, `icons`, `link-text`, `markup` and `trackers`; the fixture site; the scan server with its job queue, per-domain policies, repeat windows, per-client buckets, the crawl address guard, localised pages and the badge. Not yet: localised finding messages and `human` output, PDF.
 The rest of this document is the specification the remaining parts are built from.
 Sections marked *v1* are in scope for the first release; *later* rows are
@@ -83,7 +83,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
                                                      lint (group, site) ─► fold ─► format ─► exit code
 ```
 
-- **accumulate** (default): keep facts and bodies in the site’s store. `spiderlint lint <url>` re-runs rules with no network; `spiderlint report <url>` re-formats.
+- **accumulate** (default): keep facts and bodies in the site’s store. `spiderlint lint <domain>` re-runs rules with no network; `spiderlint show-report <domain>` re-formats.
 - **stream** (`--no-cache`): lint each page as its facts land; keep facts, drop the body; fold and format at the end, writing nothing. Memory is bounded by findings, not pages.
 - One pipeline, two store adapters. The linter subscribes to the store’s `page` event in both modes; only what the store retains differs.
 - `--fail-fast` exits on the first `error` finding and skips folding.
@@ -115,7 +115,7 @@ extractor, and every extractor declares the mode it needs (`html.*` and
 A group’s mode is the highest mode any of its enabled rules reads — one rule
 on `browser.console.errors` upgrades its whole group, and since a page is
 fetched once, upgrading the group is exactly upgrading the job for those
-pages. `spiderlint groups` prints each group’s mode; the rule that forced it is logged at `debug`.
+pages. `spiderlint list-groups` prints each group’s mode; the rule that forced it is logged at `debug`.
 
 `fetch` values: `auto` (default — derived as above; a group nothing forces
 runs `http`, so a default run never launches a browser), `http` (pin; a
@@ -182,8 +182,8 @@ The CLI trusts the OS certificate store beside Node’s bundled roots, as
 ## Facts document
 
 The single contract between extractors and rules. Dump it for any page with
-`spiderlint facts <url>`; writing a rule is reading this JSON and writing a
-schema against it. `human` (the default) prints one `path  value` line per leaf, a list of plain values on one line and a list of objects numbered. `spiderlint facts --all` prints every stored page from the store with no network, derived as `lint` derives them: `human` as one row per page with `http.status`, `co2.grams`, `http.size.body`, `resources.length` and `http.timing.total`, then those columns’ statistics; `json` and `yaml` as `pages` beside `site`; `csv` as one row per page, `url.href` and `group` first, then one column per scalar path (an array as its `.length`, a map keyed by URL left out, site facts left out). `--facts GLOB` picks the `human` and `csv` columns.
+`spiderlint show-facts <url>`; writing a rule is reading this JSON and writing a
+schema against it. `human` (the default) prints one `path  value` line per leaf, a list of plain values on one line and a list of objects numbered. `spiderlint export-facts` prints every stored page from the store with no network, derived as `lint` derives them: `human` as one row per page with `http.status`, `co2.grams`, `http.size.body`, `resources.length` and `http.timing.total`, then those columns’ statistics; `json` and `yaml` as `pages` beside `site`; `csv` as one row per page, `url.href` and `group` first, then one column per scalar path (an array as its `.length`, a map keyed by URL left out, site facts left out). `--facts GLOB` picks the `human` and `csv` columns.
 
 ```yaml
 url:      { href, origin, protocol, host, pathname, search, twin }   # twin: the same URL on canonical-origin
@@ -263,18 +263,18 @@ groups:
     rules: [recommended]
 ```
 
-- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s. Wherever a ruleset is named — group `rules`, `extends`, `--rules`, `spiderlint rules` — a name no ruleset carries is read as a rule ID or glob over every shipped rule (`http/alt-svc-h3`, `http/*`), at its preset severity; one matching nothing exits 2.
+- Ordered, first match wins, `default` last. Exactly one group per page — a group stands in for a template, and folding depends on that. A group without `rules` runs `recommended`; `rules: []` runs nothing. A top-level `rules` (`--rules`, `SPIDERLINT_RULES`) replaces every group’s. Wherever a ruleset is named — group `rules`, `extends`, `--rules`, `spiderlint list-rules` — a name no ruleset carries is read as a rule ID or glob over every shipped rule (`http/alt-svc-h3`, `http/*`), at its preset severity; one matching nothing exits 2.
 - `match` accepts globs (picomatch semantics) and `re:`-prefixed regexes against `url.pathname + url.search`; `content-type:` prefixed entries match the response type (`content-type:application/pdf`).
 - `sample: 3` caps how many pages of the group expensive extractors (Lighthouse, axe) run on. Three pages per template cover every template at a fraction of the cost. `sample: all` disables, and is the implicit `default` group’s, so a config without groups checks every page. A crawl takes the first arrivals; `lint` backfilling a stored crawl fills each sample with the lowest URLs, so a re-lint is deterministic.
 - `fetch` on a group overrides the derived mode upward only; it cannot pin a group below what its rules need.
-- `spiderlint groups <url>` is the dry run: crawls, prints the page count and fetch mode per group, and lists pages that fell through to `default`.
+- `spiderlint list-groups <domain>` is the dry run: crawls, prints the page count and fetch mode per group, and lists pages that fell through to `default`.
 
 ## Rules
 
 ```yaml
 rulesets:
   seo:
-    description: SEO with longer titles    # optional; shown by `spiderlint presets` for presets
+    description: SEO with longer titles    # optional; shown by `spiderlint list-presets` for presets
     extends: [spiderlint:seo]              # bundled preset
     rules:
       html/title-length:
@@ -298,7 +298,7 @@ rulesets:
 - `canonical-origin` audits a staging twin serving pages built for another origin: `html/canonical-self` and `html/og-url-self` accept the page’s `url.twin`, and sitemap URLs on that origin, from `robots.txt` and `<loc>`, are read from the crawled one. A self reference to the wrong path still fails.
 - A ruleset entry for a rule it extends overrides it field by field, and `expect` keyword by keyword, so `html/title-length: {expect: {minLength: 25}}` keeps the preset’s `fact`, `when` and `maxLength`.
 - A declarative rule is `fact` (dotted path into the facts document) + `expect` (JSON Schema 2020-12 applied to that value). AJV compiles it once; `ajv-i18n` localises the failure. `format: uri` is `URL.canParse`, so `https://` alone fails. Ranges, regexes, enums, array counts and existence all come for free, so there is no expression parser to write or secure.
-- `fix` is one line telling the owner what to change; `{host}`, `{domain}` (registrable), `{origin}` and `{url}` are filled from the finding by `rules/fix.ts` at format time, so a stored report re-renders, and read `<host>` where no finding exists (`explain`, SARIF). `human --explain` prints it with `docs` under each finding, `agent` always, SARIF as each rule’s `help`, which code scanning shows beside the alert. A ruleset entry’s `fix` or `docs` overrides a built-in’s.
+- `fix` is one line telling the owner what to change; `{host}`, `{domain}` (registrable), `{origin}` and `{url}` are filled from the finding by `rules/fix.ts` at format time, so a stored report re-renders, and read `<host>` where no finding exists (`explain-rule`, SARIF). `human --explain` prints it with `docs` under each finding, `agent` always, SARIF as each rule’s `help`, which code scanning shows beside the alert. A ruleset entry’s `fix` or `docs` overrides a built-in’s.
 - Every new native rule ships its `fix` in the same change, and `tests/rules.test.ts` fails without it. A fix is sentence case, ends in a full stop, gives the concrete header, tag or value, names no tool or host, and its example passes the rule itself. A DNS fix names the record by the fields a DNS dashboard shows (Name, Content, Mail server, Priority), a zone-file line beside them where it helps. A wrapped rule takes the first line of its upstream description.
 - Every check tells absent, present but invalid, and valid but weak apart: an `<area>/<header>-syntax` rule reads the grammar’s `errors`, and the policy rules read `value` and skip while `errors` is not empty, so one bad value is one finding.
 - `message` is the finding’s sentence, `{got}` standing for the offending value (`none` when absent); every shipped declarative rule carries one. Without it the finding reads AJV’s wording against the fact path. An override that sets `expect` without `message` drops the inherited one, which may state the old bounds.
@@ -415,8 +415,8 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 The `pages` cache bucket (see Cache). Kept as its own section because it is
 the one bucket a user re-lints from.
 
-- Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `report` and `cache` find it from their URLs or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue`s `frontier` and `frontier-browser` each crawler’s frontier, so `--resume` continues a killed run.
-- `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `report` re-formats the last stored report.
+- Crawlee storage in the site’s directory, `$XDG_CACHE_HOME/spiderlint/<host>` (`~/.cache` when unset; seed hosts sorted and `+`-joined when they span several), created owner-only; `--store DIR` names another. `crawl`, `lint`, `show-report` and the cache commands find it from their domains or `targets`, so none needs a flag: `Dataset` `facts` holds one facts record per page, `KeyValueStore` `bodies` the bodies keyed by URL hash, `records` the resource results, the site facts and the last report, `RequestQueue`s `frontier` and `frontier-browser` each crawler’s frontier, so `--resume` continues a killed run.
+- `audit --no-cache` writes nothing. Groups, referrers and resource results are re-derived on every `lint`, so a changed group config needs no re-crawl; `show-report` re-formats the last stored report.
 - `manifest.json`, written atomically: tool version, seeds, a hash of the crawl-shaping config, started, finished. A hash mismatch on `lint` or `--resume` warns.
 - `proper-lockfile` on the manifest, its holder’s pid beside it in `manifest.json.lock.pid`; a second process on the same store exits `2` naming that pid, and waits out the 30 s stale window instead when the holder is gone.
 - The first SIGINT or SIGTERM stops both crawlers after the pages in flight and ends the run before its next stage (resources, link probes, site extractors, lint), releasing the lock and leaving `finished` unset, so `--resume` continues it; a second exits at once, `proper-lockfile`’s exit hook still removing the lock.
@@ -444,7 +444,7 @@ pays only for what changed.
 - Site buckets hold private staging pages and live in the site’s owner-only store; user buckets hold only third-party observations and are shared across every site on the machine.
 - Writes are atomic (temp file + rename). Project buckets share the store’s lock, so a second process on the store exits `2`; the user bucket relies on atomic writes alone, so parallel audits of different sites never block each other.
 - `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`; an `--offline` audit lints the stored pages and fetches nothing. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
-- `spiderlint cache status` lists every bucket with entries, bytes, oldest and newest; `spiderlint cache purge [bucket] [--older-than 7d]` deletes; `spiderlint cache warm <url>` fills `robots` and `sitemaps` without crawling. The shape is `pf-cli cache status|warm|purge`, which the fleet already knows.
+- `spiderlint show-cache` lists every bucket with entries, bytes, oldest and newest; `spiderlint purge-cache [bucket] [domain…] [--older-than 7d]` deletes; `spiderlint warm-cache <domain>` fills `robots` and `sitemaps` without crawling.
 - The action persists its store through the forge’s cache keyed by job and `site` (`cache: false` turns it off), running the image as the runner’s uid so the cache step can read it; a CI run on an unchanged site is a run of `304`s.
 
 ## Configuration
@@ -510,8 +510,8 @@ plugins load, and one no loaded plugin claims is an unknown key. No flag or
 environment variable mirrors it.
 
 A `sites.<name>` entry takes every key above except `sites`, and each key it sets
-replaces the shared one whole; a plugin key replaces only that plugin’s. Without a URL, `audit`, `crawl`, `lint`, `report`,
-`groups` and `cache` run once per site, `--site` narrows the set, and the exit code
+replaces the shared one whole; a plugin key replaces only that plugin’s. Without a domain, `audit`, `crawl`, `lint`, `show-report`,
+`list-groups` and the cache commands run once per site, `--site` narrows the set, and the exit code
 is the worst of the runs. Shared `targets` beside `sites` is a config error, and so
 is `json` or `sarif` over more than one site, since each is one document. The action therefore audits one `site` per step, each with its own report paths and SARIF category.
 
@@ -521,18 +521,20 @@ with a fragment under `spec/shapes/org.spiderlint.yaml` once v1 ships.
 ## CLI
 
 ```text
-spiderlint audit  [url…]                  crawl + lint into the site’s store (--no-cache streams)
-spiderlint crawl  [url…]                  accumulate only
-spiderlint lint   [url…]                  rules over stored facts, no network
-spiderlint report [url…]                  re-format stored findings
-spiderlint facts  <url>                   one page’s facts document, the site document under `site`
-spiderlint facts  --all [url…]            every stored page’s facts, no network; --format human|json|yaml|csv, --facts GLOB
-spiderlint groups [url…]                  page count per group, unmatched pages
-spiderlint rules [ruleset|id…]            every rule: severity here, scope, ruleset, docs
-spiderlint presets                        shipped rulesets, rule count, used by a group
-spiderlint explain <rule>                 severity, scope, facts read, expect, when, message, fix, docs
-spiderlint cache status|purge|warm        every bucket: entries, bytes, age
+spiderlint audit [domain…]                    crawl + lint into the site’s store (--no-cache streams)
+spiderlint crawl [domain…]                    accumulate only
+spiderlint lint [domain…]                     rules over stored facts, no network
+spiderlint show-report [domain…]              re-format stored findings
+spiderlint show-facts <url>                   one page’s facts document, the site document under `site`
+spiderlint export-facts [domain…]             every stored page’s facts, no network; --format human|json|yaml|csv, --facts GLOB
+spiderlint list-groups [domain…]              page count per group, unmatched pages
+spiderlint list-rules [ruleset|id…]           every rule: severity here, scope, ruleset, docs
+spiderlint list-presets                       shipped rulesets, rule count, used by a group
+spiderlint explain-rule <rule>                severity, scope, facts read, expect, when, message, fix, docs
+spiderlint show-cache|purge-cache|warm-cache  every bucket: entries, bytes, age
 ```
+
+Commands are verb-noun and flat, parsed by commander: each flag is declared once in `src/cli.ts`, under the help section of every command that reads it, with its default and environment variable in its help line; `environment.ts` stays the environment reader, since commander’s `.env()` sets a boolean from any value. A seed without `://` gets `https://` (`seedOf`), wherever it comes from. `spiderlint <old name>` names the verbs that replaced it.
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--role`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
@@ -576,7 +578,7 @@ export default definePlugin({
 - Bundled plugins are always registered. `plugins` names the others: a path (`./`, `../`, `/`) from the working directory, else a package resolved beside spiderlint. Nothing is discovered from `node_modules`. A plugin redefining a rule, preset, extractor, format or source ID is a config error.
 - An extractor runs on a page only when a rule of the page’s group reads a fact under its ID, as a `browser.*` rule forces Chromium. It sees every fetched page with its body and returns `undefined` to add nothing; one that throws logs a warning and leaves its key absent, so its rules skip.
 - Extractor facts are stored with the page. `lint` and `--offline` run an extractor the stored facts lack against the stored body, so enabling a plugin’s rules needs no re-crawl.
-- Plugin presets sit beside the shipped ones and list in `spiderlint presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
+- Plugin presets sit beside the shipped ones and list in `spiderlint list-presets`; `<plugin>:<variant>` names a variant (`html-validate:a11y`).
 - An extractor with `mode: browser` gets the crawler’s live Playwright page as `live`, runs only on a rendered HTML page, and forces the browser crawl as a `browser.*` rule does. `lint` and `--offline` cannot backfill it from a stored body; a store lacking its facts warns once.
 - `sites: [{ id, per: origin|host, timeout?, extract(subject, context) }]` runs once per origin (scheme, host, port) or hostname the crawl kept pages on, after the crawl, `NUMPROCS` subjects at a time, each abandoned after `timeout` (60 s). Facts land under `site.origins[<origin>].<id>` or `site.hosts[<host>].<id>`; `undefined` adds nothing, a throw or a timeout warns and leaves the key absent. `context` holds the subject’s `pages`, an abort `signal`, its plugin’s validated `settings`, `address(host)` (the address a raw socket or external tool may connect to, through the run’s lookup, a private one refused unless `allowPrivate`), and `linked` when the subject is a host only linked or loaded, and `fetch(url, { method: GET|HEAD, headers, redirect: manual|follow })`: the spiderlint user agent, a 10 s timeout, one retry on a network error, `429` or `503`, a 1 MB body cap, every URL and followed hop on the subject’s host, and none that `robots.txt` disallows for `spiderlint` unless `robots` is off: that probe logs its URL at `info` and throws, `well-known` records the file as `disallowed`, and a subject rule whose path runs through it is skipped.
 - A site extractor runs only when an enabled rule reads `site.origins.*.<id>` or `site.hosts.*.<id>`. Its facts persist with the site document and are reused from the `origins` bucket while fresh; `lint` and `--offline` cannot backfill one, and warn once when the stored site facts lack it.
@@ -645,7 +647,7 @@ export default definePlugin({
 - OpenTelemetry: any `OTEL_EXPORTER_OTLP_*ENDPOINT` switches on OTLP/HTTP traces and metrics (`src/telemetry.ts`, `sdk-trace-node` and `sdk-metrics`, imported only then; no auto-instrumentation) and log export through `pino-opentelemetry-transport`, with a `mixin` adding `trace_id` and `span_id`, kept off stderr’s one-line output. Unset, only the `@opentelemetry/api` façade loads (about 10 ms), every span is a no-op and a test proves no provider is registered. A job carries its trace as W3C headers in `ScanData.trace` and the worker hands it to the runner on stdin. [docs/server.md](docs/server.md#telemetry) names the variables, spans and metrics.
 - `human` numbers keep the locale’s digits and decimal mark but group with a narrow no-break space (SI), never a dot or comma; bytes take the largest unit they reach.
 - `human` prints unfolded page findings that share severity, rule and message once, with one page per line under them; `json` and `sarif` keep one finding per page.
-- The report carries `rules`: each rule with a finding, its `facts`, `expect`, `fix` and `docs`, so `json`, the stored report and the server’s downloads format without the config. `agent` reads it: one Markdown block per finding after folding, page findings sharing rule and message bundled as `human` bundles them, no colour and no totals, the shared origin once on top. Rules come by severity, then by the pages their findings clear (`occurrences`, `urls`), findings within a rule the same way. Each block names the rule and severity, the message, where it is (a fold’s samples, an aggregate’s URLs, pages with their `locations`), what the rule reads and expects, its `fix` (else “follow” its `docs`) and a *Done when*: `spiderlint audit <origin>/ --rules <id>` reporting nothing, since `lint` re-reads the store and cannot see a fix, plus `spiderlint facts <page>` for a declarative page rule. Hints only with `--show-hints`. `--output DIR` writes one `<rule>.md` per rule instead, atomically, the same findings giving the same bytes; any other format with `--output` exits `2`. `groups/heterogeneous` carries a built-in guide, since no ruleset holds it.
+- The report carries `rules`: each rule with a finding, its `facts`, `expect`, `fix` and `docs`, so `json`, the stored report and the server’s downloads format without the config. `agent` reads it: one Markdown block per finding after folding, page findings sharing rule and message bundled as `human` bundles them, no colour and no totals, the shared origin once on top. Rules come by severity, then by the pages their findings clear (`occurrences`, `urls`), findings within a rule the same way. Each block names the rule and severity, the message, where it is (a fold’s samples, an aggregate’s URLs, pages with their `locations`), what the rule reads and expects, its `fix` (else “follow” its `docs`) and a *Done when*: `spiderlint audit <origin>/ --rules <id>` reporting nothing, since `lint` re-reads the store and cannot see a fix, plus `spiderlint show-facts <page>` for a declarative page rule. Hints only with `--show-hints`. `--output DIR` writes one `<rule>.md` per rule instead, atomically, the same findings giving the same bytes; any other format with `--output` exits `2`. `groups/heterogeneous` carries a built-in guide, since no ruleset holds it.
 
 ## i18n
 
@@ -705,7 +707,7 @@ projectfile.yaml
 ## Later
 
 - `--baseline previous.json`: report only new findings, SARIF `baselineState`.
-- Template fingerprinting: hash the DOM skeleton (tag paths, no text) per page; cluster; `spiderlint groups --suggest` proposes groups, and `match: [fingerprint:<hash>]` groups pages whose URLs do not reveal their template.
+- Template fingerprinting: hash the DOM skeleton (tag paths, no text) per page; cluster; `spiderlint list-groups --suggest` proposes groups, and `match: [fingerprint:<hash>]` groups pages whose URLs do not reveal their template.
 - String assertion sugar (`title.length in 30..60`) compiling to the same JSON Schema, only if the schema form proves clumsy in practice.
 - `tls-probe` keyed by `(origin, remote.address)` instead of the one address the lookup answers, so two backends behind one name get two probes.
 - `keyed: body` extractor entries, one run per distinct body rather than per URL: the 184-page static reference build shows no two HTML bodies alike, and an app shell renders per route in browser mode, so it waits for a site that shows the duplication.

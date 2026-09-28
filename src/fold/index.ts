@@ -10,7 +10,7 @@ import type { Finding, RuleGuide } from "../rules/types.ts";
 const HETEROGENEOUS = 0.2;
 
 // The guide of the advisory folding raises, which no ruleset carries.
-export const HETEROGENEOUS_GUIDE: RuleGuide = { facts: ["group"], fix: "Split the group’s `match` so each template gets its own group, then check with `spiderlint groups`." };
+export const HETEROGENEOUS_GUIDE: RuleGuide = { facts: ["group"], fix: "Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`." };
 
 // Per (group, rule): one template-level finding once failures saturate the group.
 export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {

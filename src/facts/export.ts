@@ -17,7 +17,7 @@ import type { Facts, SiteFacts } from "./types.ts";
 
 export const FACT_FORMATS = ["human", "json", "yaml", "csv"];
 
-// The columns `facts --all` shows a person when `--facts` picks none.
+// The columns `export-facts` shows a person when `--facts` picks none.
 const SHOWN = ["http.status", "co2.grams", "http.size.body", "resources.length", "http.timing.total"];
 
 // Widest path column before values stop lining up, so one long key cannot push every value off screen.

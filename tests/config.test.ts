@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ConfigError, defaults, layered, overlay } from "../src/config/index.ts";
+import { ConfigError, defaults, layered, overlay, seedOf } from "../src/config/index.ts";
 import { environmentSettings } from "../src/config/environment.ts";
 import { loadSettings } from "../src/config/policy.ts";
 import { validateSubtree } from "../src/config/schema.ts";
@@ -54,6 +54,12 @@ describe("overlay", () => {
         assert.equal(withFlags.fetch, "http");
         assert.equal(withFlags.maxPages, 20);
         assert.equal(withFlags.scope, "origin");
+    });
+});
+
+describe("seedOf", () => {
+    it("prepends https:// to a domain, a host with a port and a path, and keeps a URL", () => {
+        assert.deepEqual(["example.com", "localhost:8080", "example.com/about/", "ftp://example.com/"].map((seed) => seedOf(seed)), ["https://example.com", "https://localhost:8080", "https://example.com/about/", "ftp://example.com/"]);
     });
 });
 

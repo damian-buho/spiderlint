@@ -211,7 +211,7 @@ function refuseUnknown(config: Config, groups: Record<string, GroupConfig>): voi
         const guess = closest(pattern, known);
         return guess === undefined ? pattern : `${pattern} (did you mean ${guess}?)`;
     });
-    throw new ConfigError(`rule option names no known rule: ${named.join(", ")}; see spiderlint rules`);
+    throw new ConfigError(`rule option names no known rule: ${named.join(", ")}; see spiderlint list-rules`);
 }
 
 // Each group’s rules, flags applied.
@@ -512,7 +512,7 @@ export interface StoreOptions {
     resume?: boolean;
 }
 
-// crawl → facts → group → rules → fold; `store` keeps everything on disk for `lint` and `report`.
+// crawl → facts → group → rules → fold; `store` keeps everything on disk for `lint` and `show-report`.
 export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
     const started = new Date();
     const config = layered([overrides]);
@@ -538,7 +538,7 @@ export async function crawl(overrides: Partial<Config>, directory: string, isRes
     });
 }
 
-// Rules over stored facts with no network; the report is stored for `report`.
+// Rules over stored facts with no network; the report is stored for `show-report`.
 export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
     const started = new Date();
     const config = layered([overrides]);

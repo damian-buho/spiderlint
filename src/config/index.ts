@@ -147,6 +147,11 @@ export function originOf(name: string, raw: string): string {
     return url.origin;
 }
 
+// A seed with https:// prepended when it names no scheme, so example.com and localhost:8080 stay domains.
+export function seedOf(raw: string): string {
+    return raw.includes("://") ? raw : `https://${raw}`;
+}
+
 // A proxy URL of a scheme every client can use, or empty for none; anything else names `name` in the error.
 export function proxyOf(name: string, raw: string): string {
     const url = URL.canParse(raw) ? new URL(raw) : undefined;

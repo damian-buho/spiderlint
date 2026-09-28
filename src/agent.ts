@@ -4,7 +4,7 @@
 
 import { createRequire } from "node:module";
 
-export const { version: VERSION, description: DESCRIPTION } = createRequire(import.meta.url)("../package.json") as { version: string; description: string };
+export const { version: VERSION, description: DESCRIPTION, homepage: HOMEPAGE } = createRequire(import.meta.url)("../package.json") as { version: string; description: string; homepage: string };
 
 // How every request names the tool (AGENTS.md ## Security).
 export const USER_AGENT = `spiderlint/${VERSION} (+https://kiota.ch/damian-buho/spiderlint)`;

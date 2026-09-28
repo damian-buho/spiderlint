@@ -96,7 +96,7 @@ export function explainRule(config: Config, id: string): RuleExplanation {
     log.debug({ rule: id, found: found !== undefined, maker: ruleMaker(id) !== undefined }, "rule explained");
     if (found) return found;
     if (ruleMaker(id)) return describeRule(id, { severity: "off" }, running(config), []);
-    throw new ConfigError(`rule ${id}: not defined (see spiderlint rules)`);
+    throw new ConfigError(`rule ${id}: not defined (see spiderlint list-rules)`);
 }
 
 // Every shipped preset, with whether a configured group runs it.

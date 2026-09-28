@@ -4,12 +4,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Proves the CLI boots: --help must print the usage line.
+# Proves the CLI boots: --help must print the title line.
 set -eou pipefail
 
 # shellcheck source=/dev/null
 . b19-i18n
 
-USAGE="$(spiderlint --help | head -n 1)"
-b19-log info "SPIDERLINT" "$(_p "Usage line: %s" "${USAGE}")"
-[ -n "${USAGE}" ]
+TITLE="$(spiderlint --help | head -n 1)"
+b19-log info "SPIDERLINT" "$(_p "Title line: %s" "${TITLE}")"
+[ -n "${TITLE}" ]

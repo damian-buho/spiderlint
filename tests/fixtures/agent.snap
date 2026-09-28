@@ -92,7 +92,7 @@ Where: 6 pages:
 Reads: `html.meta.theme-color`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta name=theme-color> with a color value.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
-Done when: `spiderlint audit ORIGIN/ --rules html/theme-color` reports no html/theme-color finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.theme-color` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/theme-color` reports no html/theme-color finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.theme-color` meeting it.
 
 ## html/author (warning)
 
@@ -186,7 +186,7 @@ Where: /app/
 Reads: `html.meta.description`, expects `{"type":"string"}`
 Fix: Add <meta name=description> with a summary to the head.
 Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/description` reports no html/description finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.description` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/description` reports no html/description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.description` meeting it.
 
 ## html/description-redundant (warning)
 
@@ -196,7 +196,7 @@ Where: /duplicate
 Reads: `html.meta.description`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
 Fix: Remove the repeated suffix from the meta description.
 Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/description-redundant` reports no html/description-redundant finding, and `spiderlint facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/description-redundant` reports no html/description-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
 
 ## html/img-alt (warning)
 
@@ -206,7 +206,7 @@ Where: /posts/3
 Reads: `html.images`, expects `{"type":"array","items":{"required":["alt"]}}`
 Fix: Add an alt attribute to every <img>.
 Docs: https://developers.google.com/search/docs/appearance/google-images
-Done when: `spiderlint audit ORIGIN/ --rules html/img-alt` reports no html/img-alt finding, and `spiderlint facts ORIGIN/posts/3` shows `html.images` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/img-alt` reports no html/img-alt finding, and `spiderlint show-facts ORIGIN/posts/3` shows `html.images` meeting it.
 
 ## html/jsonld-parses (warning)
 
@@ -216,7 +216,7 @@ Where: /about
 Reads: `html.jsonld`, expects `{"items":{"not":{"required":["@error"]}}}`
 Fix: Fix the JSON-LD block so it is valid JSON.
 Docs: https://json-ld.org/spec/latest/json-ld/
-Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html/jsonld-parses finding, and `spiderlint facts ORIGIN/about` shows `html.jsonld` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html/jsonld-parses finding, and `spiderlint show-facts ORIGIN/about` shows `html.jsonld` meeting it.
 
 ## html/og-description (warning)
 
@@ -226,7 +226,7 @@ Where: /app/
 Reads: `html.property.og:description`, expects `{"type":"string","minLength":50,"maxLength":200}`
 Fix: Set og:description to 50–200 characters.
 Docs: https://ogp.me/#optional
-Done when: `spiderlint audit ORIGIN/ --rules html/og-description` reports no html/og-description finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:description` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-description` reports no html/og-description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
 
 ## html/og-image (warning)
 
@@ -236,7 +236,7 @@ Where: /app/
 Reads: `html.property.og:image`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
 Fix: Make og:image an absolute URL.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:image` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
 
 ## html/og-title (warning)
 
@@ -246,7 +246,7 @@ Where: /app/
 Reads: `html.property.og:title`, expects `{"type":"string","minLength":10,"maxLength":90}`
 Fix: Set og:title to 10–90 characters.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-title` reports no html/og-title finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:title` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-title` reports no html/og-title finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
 
 ## html/theme-color-schemes (warning)
 
@@ -256,7 +256,7 @@ Where: /about
 Reads: `html.metas`, expects `{"allOf":[{"contains":{"properties":{"name":{"const":"theme-color"}},"required":["name"]},"minContains":2},{"contains":{"properties":{"name":{"const":"theme-color"},"media":{"pattern":"(?i:prefers-color-scheme)"}},"required":["name","media"]}}]}`
 Fix: Add <meta name=theme-color media="(prefers-color-scheme: dark)"> beside the light one.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
-Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-schemes` reports no html/theme-color-schemes finding, and `spiderlint facts ORIGIN/about` shows `html.metas` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-schemes` reports no html/theme-color-schemes finding, and `spiderlint show-facts ORIGIN/about` shows `html.metas` meeting it.
 
 ## html/title-length (warning)
 
@@ -266,7 +266,7 @@ Where: /about
 Reads: `html.title`, expects `{"type":"string","minLength":30,"maxLength":60}`
 Fix: Shorten or lengthen <title> to 30–60 characters.
 Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/title-length` reports no html/title-length finding, and `spiderlint facts ORIGIN/about` shows `html.title` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/title-length` reports no html/title-length finding, and `spiderlint show-facts ORIGIN/about` shows `html.title` meeting it.
 
 ## html/title-redundant (warning)
 
@@ -276,7 +276,7 @@ Where: /duplicate
 Reads: `html.title`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
 Fix: Remove the repeated suffix from <title>.
 Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/title-redundant` reports no html/title-redundant finding, and `spiderlint facts ORIGIN/duplicate` shows `html.title` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/title-redundant` reports no html/title-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.title` meeting it.
 
 ## links/broken-external (warning)
 
@@ -390,7 +390,7 @@ Where: 6 pages:
 Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
 
 ## url/readable-slug (info)
 
@@ -411,7 +411,7 @@ html/theme-color fails on 6 of 8 pages; the group likely spans two templates
 
 Where: /app/
 Reads: `group`
-Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint groups`.
+Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
 ## groups/heterogeneous (info)
@@ -420,7 +420,7 @@ html/color-scheme fails on 6 of 8 pages; the group likely spans two templates
 
 Where: /app/
 Reads: `group`
-Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint groups`.
+Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
 ## html/hreflang-x-default (info)
@@ -431,7 +431,7 @@ Where: /about
 Reads: `html.hreflang`, expects `{"contains":{"required":["lang"],"properties":{"lang":{"const":"x-default"}}}}`
 Fix: Add <link rel=alternate hreflang=x-default> to the head.
 Docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
-Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default` reports no html/hreflang-x-default finding, and `spiderlint facts ORIGIN/about` shows `html.hreflang` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default` reports no html/hreflang-x-default finding, and `spiderlint show-facts ORIGIN/about` shows `html.hreflang` meeting it.
 
 ## html/og-type (info)
 
@@ -441,7 +441,7 @@ Where: /app/
 Reads: `html.property.og:type`, expects `{"type":"string","pattern":"^(?:website|article|book|profile|music\\.(?:song|album|playlist|radio_station)|video\\.(?:movie|episode|tv_show|other)|[a-z][\\w-]*:[\\w.-]+)$"}`
 Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
-Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:type` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
 
 ## html/og-url (info)
 
@@ -451,7 +451,7 @@ Where: /app/
 Reads: `html.property.og:url`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
 Fix: Make og:url an absolute URL of this page.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-url` reports no html/og-url finding, and `spiderlint facts ORIGIN/app/` shows `html.property.og:url` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-url` reports no html/og-url finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:url` meeting it.
 
 ## html/og-url-self (info)
 
