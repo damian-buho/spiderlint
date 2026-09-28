@@ -28,6 +28,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Feeds, structured data and markup checked on every page
 - Speed problems found without a browser
 - Privacy before consent
+- Sites on any network, crawled politely
 - Reports for people, pipelines and coding agents
 - Page dependencies fetched once
 - robots.txt read the way crawlers read it

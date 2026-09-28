@@ -30,8 +30,8 @@ SPDX-License-Identifier: MIT
 - Se informa de la falta de registros HTTPS, para que una primera visita pueda empezar en HTTP/3 sin un viaje extra para descubrirlo.
 - CAA se juzga contra el certificado que el sitio sirve de verdad, así que una CA que CAA prohíbe se detecta antes de que falle una renovación.
 - DNSSEC se comprueba de extremo a extremo: una zona sin firmar, algoritmos débiles, firmas que ya no se renuevan y una zona firmada que los resolvedores con validación rechazan.
-- Se pregunta directamente a los servidores de nombres, así que un servidor cojo o una zona desincronizada salen a la luz, y un enlace a un subdominio cuyo CNAME no apunta a nada se marca como riesgo de secuestro.
-- Las consultas van solo al resolvedor que indiques y se reutilizan mientras los registros lo permitan.
+- Se pregunta directamente a los servidores de nombres y cualquier otra consulta va solo al resolvedor que indiques, así que un servidor cojo o una zona desincronizada salen a la luz, y un enlace a un subdominio cuyo CNAME no apunta a nada se marca como riesgo de secuestro.
+- A un dominio que no envía ni recibe correo se le puede exigir un MX nulo, un SPF que lo rechaza todo y una política DMARC de rechazo, para que nadie envíe correo en su nombre.
 
 ### Un hallazgo por plantilla, no por página
 
@@ -83,6 +83,13 @@ SPDX-License-Identifier: MIT
 - Las cookies que escriben los scripts se juzgan con las mismas exigencias que las que crea el servidor.
 - Los proveedores de analítica y publicidad que carga el sitio se reúnen en un inventario, para saber qué debe nombrar la política de privacidad.
 - Se informa de una página sin enlace a su política de privacidad.
+
+### Sitios en cualquier red, rastreados con cortesía
+
+- Los servicios onion y los sitios I2P se auditan con un solo ajuste, a través del proxy local de Tor o I2P, al ritmo y con los tiempos de espera que esas redes necesitan.
+- Cada petición del rastreo simple y del rastreo con navegador puede pasar por un proxy HTTP, HTTPS o SOCKS, incluidos los proxies SOCKS que resuelven ellos mismos los nombres de host.
+- Un servidor que responde «demasiadas peticiones» o «no disponible» se reintenta con espera creciente respetando su `Retry-After`, y un límite de peticiones por minuto mantiene el rastreo dentro de lo que el sitio tolera.
+- robots.txt se obedece salvo que indiques lo contrario.
 
 ### Informes para personas, canalizaciones y agentes de código
 

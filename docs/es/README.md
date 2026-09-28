@@ -30,6 +30,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Feeds, datos estructurados y marcado revisados en cada página
 - Problemas de velocidad encontrados sin navegador
 - Privacidad antes del consentimiento
+- Sitios en cualquier red, rastreados con cortesía
 - Informes para personas, canalizaciones y agentes de código
 - Dependencias de página descargadas una sola vez
 - robots.txt leído como lo leen los rastreadores

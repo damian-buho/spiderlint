@@ -28,8 +28,8 @@ SPDX-License-Identifier: MIT
 - Missing HTTPS records are reported, so a first visit can start on HTTP/3 without a round trip to discover it.
 - CAA is judged against the certificate the site actually serves, so a CA that CAA forbids is caught before it fails a renewal.
 - DNSSEC is checked end-to-end: an unsigned zone, weak algorithms, stalled re-signing, and a signed zone that validating resolvers reject.
-- Name servers are asked directly, so a lame server or a zone out of sync shows, and a link to a subdomain whose CNAME points nowhere is flagged as a takeover risk.
-- Queries go only to the resolver you name, and are reused for as long as the records say.
+- Name servers are asked directly and every other query goes only to the resolver you name, so a lame server or a zone out of sync shows, and a link to a subdomain whose CNAME points nowhere is flagged as a takeover risk.
+- A domain that sends and takes no mail can be held to a null MX, a deny-all SPF and a DMARC reject policy, so nobody can send mail in its name.
 
 ### One finding per template, not per page
 
@@ -81,6 +81,13 @@ SPDX-License-Identifier: MIT
 - Cookies that scripts write are held to the same expectations as the cookies a server sets.
 - The analytics and advertising vendors a site loads are listed in one inventory, so what the privacy policy must name is known.
 - A page with no link to its privacy policy is reported.
+
+### Sites on any network, crawled politely
+
+- Onion services and I2P sites are audited with one setting, through the local Tor or I2P proxy, at the pace and timeouts those networks need.
+- Every request of the plain and the browser crawl can go through an HTTP, HTTPS or SOCKS proxy, including SOCKS proxies that resolve hostnames themselves.
+- A server that answers “too many requests” or “unavailable” is retried with backoff and its `Retry-After` honoured, and a cap on requests per minute keeps the crawl within what a site tolerates.
+- robots.txt is obeyed unless you say otherwise.
 
 ### Reports for people, pipelines and coding agents
 
