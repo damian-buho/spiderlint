@@ -8,6 +8,7 @@ import { serve } from "@hono/node-server";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { api } from "./api.ts";
+import { checkClock } from "./clock.ts";
 import { connect, scanQueue } from "./queue.ts";
 import { DEFAULT_PATH, watchSettings } from "./settings.ts";
 import { startWorker } from "./worker.ts";
@@ -21,10 +22,11 @@ async function main(): Promise<void> {
     if (!MODES.includes(mode)) throw new ConfigError(`SPIDERLINT_MODE: invalid value ${mode} (expected: ${MODES.join("|")})`);
     const path = process.env.SPIDERLINT_SERVER_CONFIG ?? DEFAULT_PATH;
     const settings = watchSettings(path);
-    const { redis: url, redisPasswordFile, listen, retention, workers } = settings.current();
+    const { redis: url, redisPasswordFile, listen, retention, workers, clockReferences } = settings.current();
     const password = redisPasswordFile ? readFileSync(redisPasswordFile, "utf8").trim() : undefined;
     log.info({ mode, path, listen, workers, redisPasswordFile }, "server starting");
     const telemetry = await startTelemetry("spiderlint");
+    void checkClock(clockReferences);
     const closers: (() => Promise<unknown>)[] = [];
     if (mode !== "worker") {
         const redis = connect(url, password);

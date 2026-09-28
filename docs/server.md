@@ -32,7 +32,7 @@ a stuck crawl dies with its process.
 Runtime settings live in one YAML file, `/etc/spiderlint/server.yaml` by default
 (`SPIDERLINT_SERVER_CONFIG` names another). It is read at start and polled every
 5 s: a valid edit applies to the next request, an invalid one is logged and the
-previous settings stay. `redis`, `redis-password-file`, `listen` and `workers` need a restart. Without the
+previous settings stay. `redis`, `redis-password-file`, `listen`, `workers` and `clock-references` need a restart. Without the
 file, one policy admits every host with the defaults below.
 
 ```yaml
@@ -43,6 +43,7 @@ retention: 7d # jobs and reports are deleted this long after they settle
 workers: 2 # scans one worker process runs at a time
 max-queued: 100 # a new job is refused with 503 while this many wait
 allow-private: false # true lets scans reach loopback and private networks, and allows the browser
+clock-references: [https://www.cloudflare.com/, https://www.google.com/, https://www.wikipedia.org/] # our clock is checked against their Date at start; [] skips it
 defaults: # org.spiderlint keys every scan starts from, under the request’s
   resources: { max-per-page: 50 }
 clients:

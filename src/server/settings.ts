@@ -47,7 +47,12 @@ export interface ServerSettings {
     policies: Policy[];
     // One bucket per client address over job submissions, and the proxies whose X-Forwarded-For is believed.
     clients: { rate?: { jobs: number; seconds: number }; trusted: BlockList; providers: string[] };
+    // Origins whose `Date` our clock is checked against at startup; empty skips the check.
+    clockReferences: string[];
 }
+
+// Origins run by different operators, so one bad clock cannot pass for ours.
+const CLOCK_REFERENCES = ["https://www.cloudflare.com/", "https://www.google.com/", "https://www.wikipedia.org/"];
 
 const duration = { oneOf: [{ type: "string", pattern: String.raw`^\d+[smhd]?$` }, { type: "integer", minimum: 1 }] };
 const positive = { type: "integer", minimum: 1 };
@@ -64,6 +69,7 @@ const schema = {
         workers: positive,
         "max-queued": positive,
         "allow-private": { type: "boolean" },
+        "clock-references": { type: "array", uniqueItems: true, items: { type: "string", pattern: "^https://" } },
         defaults: { type: "object" },
         clients: { type: "object", additionalProperties: false, properties: { rate: { oneOf: [rate, { const: false }] }, "trusted-proxies": { type: "array", items: { type: "string", minLength: 1 } }, "trust-providers": { type: "array", uniqueItems: true, items: { enum: Object.keys(PROVIDERS) } } } },
         policies: {
@@ -165,6 +171,7 @@ export function settingsOf(raw: unknown): ServerSettings {
         defaults,
         policies,
         clients: { ...clientRate(value.clients?.rate), trusted: trustedOf(value.clients?.["trusted-proxies"] ?? []), providers: value.clients?.["trust-providers"] ?? [] },
+        clockReferences: (value["clock-references"] as string[] | undefined) ?? CLOCK_REFERENCES,
     };
 }
 
