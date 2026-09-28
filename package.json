@@ -39,7 +39,7 @@
     "esbuild": "0.28.2",
     "gettext-parser": "9.1.1",
     "hono": "4.13.10",
-    "html-validate": "11.16.0",
+    "html-validate": "11.16.1",
     "htmlhint": "1.9.2",
     "http-cache-semantics": "4.2.0",
     "ioredis": "6.0.0",
