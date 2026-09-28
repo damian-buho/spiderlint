@@ -133,6 +133,7 @@ describe("external link rel policy", () => {
         assert.equal(compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": "sponsored" } }).meta.id, "links/external-rel");
         assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": [] } }), /must name lower-case rel tokens/);
         assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": ["Sponsored"] } }), /must name lower-case rel tokens/);
+        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "sidebar:*": ["ugc"] } }), /names region sidebar, not one of main, nav/);
         assert.throws(() => compileRule("links/no-such-rule", { expect: { type: "string" } }), /needs both fact and expect/);
     });
 });

@@ -4,6 +4,7 @@
 
 import picomatch from "picomatch";
 import { ConfigError } from "../config/index.ts";
+import { REGIONS } from "../facts/html.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Make } from "./types.ts";
@@ -20,13 +21,15 @@ const internalNofollow: Make = (severity) => ({
     },
 });
 
-// The `expect` of `links/external-rel`: host glob → the rel tokens a link to a matching host carries.
-function policyOf(expect: unknown): { isMatch: picomatch.Matcher; tokens: string[] }[] {
+// The `expect` of `links/external-rel`: `[region:]host glob` → the rel tokens a link to a matching host, inside that region when named, carries.
+function policyOf(expect: unknown): { region?: string; isMatch: picomatch.Matcher; tokens: string[] }[] {
     const entries = Object.entries((expect ?? {}) as Record<string, unknown>);
-    return entries.map(([glob, tokens]) => {
+    return entries.map(([key, tokens]) => {
         const list = [tokens].flat();
-        if (glob.length === 0 || list.length === 0 || list.some((token) => typeof token !== "string" || !/^[a-z-]+$/.test(token))) throw new ConfigError(`rule links/external-rel: expect ${glob || "\"\""} must name lower-case rel tokens, found ${JSON.stringify(tokens)}`);
-        return { isMatch: picomatch(glob, { nocase: true }), tokens: list as string[] };
+        const [region, glob] = key.includes(":") ? (key.split(":", 2) as [string, string]) : [undefined, key];
+        if (region !== undefined && !Object.hasOwn(REGIONS, region)) throw new ConfigError(`rule links/external-rel: expect ${key} names region ${region}, not one of ${Object.keys(REGIONS).join(", ")}`);
+        if (glob.length === 0 || list.length === 0 || list.some((token) => typeof token !== "string" || !/^[a-z-]+$/.test(token))) throw new ConfigError(`rule links/external-rel: expect ${key || "\"\""} must name lower-case rel tokens, found ${JSON.stringify(tokens)}`);
+        return { ...(region !== undefined && { region }), isMatch: picomatch(glob, { nocase: true }), tokens: list as string[] };
     });
 }
 
@@ -38,12 +41,15 @@ const externalRelation: Make = (severity, expect) => {
         check(page: Facts) {
             if (!page.html || policy.length === 0) return;
             const findings: Finding[] = [];
-            for (const href of page.html.links.external) {
-                const carried = page.html.links.rel?.[href] ?? [];
-                const missing = [...new Set(policy.filter(({ isMatch }) => isMatch(new URL(href).hostname)).flatMap(({ tokens }) => tokens))].filter((token) => !carried.includes(token));
-                if (missing.length === 0) continue;
-                log.debug({ rule: "links/external-rel", url: page.url.href, href, carried, missing }, "external link lacks declared rel");
-                findings.push({ rule: "links/external-rel", severity, scope: "page", url: page.url.href, group: page.group, message: `the link to ${href} lacks rel=${missing.join(" ")} (carries ${carried.join(" ") || "none"})`, value: { href, missing } });
+            const links = page.html.links;
+            const scopes: [string | undefined, [string, string[]][]][] = [[undefined, links.external.map((href) => [href, links.rel?.[href] ?? []])], ...new Set(policy.flatMap(({ region }) => region ?? [])).values().map((region): [string, [string, string[]][]] => [region, Object.entries(links.regions?.[region] ?? {})])];
+            for (const [region, hrefs] of scopes) {
+                for (const [href, carried] of hrefs) {
+                    const missing = [...new Set(policy.filter((entry) => entry.region === region && entry.isMatch(new URL(href).hostname)).flatMap(({ tokens }) => tokens))].filter((token) => !carried.includes(token));
+                    if (missing.length === 0) continue;
+                    log.debug({ rule: "links/external-rel", url: page.url.href, href, region, carried, missing }, "external link lacks declared rel");
+                    findings.push({ rule: "links/external-rel", severity, scope: "page", url: page.url.href, group: page.group, message: `the link to ${href}${region ? ` in ${region}` : ""} lacks rel=${missing.join(" ")} (carries ${carried.join(" ") || "none"})`, value: { href, missing, ...(region !== undefined && { region }) } });
+                }
             }
             return findings;
         },

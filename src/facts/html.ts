@@ -68,6 +68,25 @@ function anchorRels($: CheerioAPI, page: URL): Record<string, string[]> {
     return Object.fromEntries([...found].filter(([href, tokens]) => tokens.length > 0 && /^https?:/.test(href)));
 }
 
+// Page regions a link policy can name, each with the ancestor selector that marks it.
+export const REGIONS: Record<string, string> = { main: "main", nav: "nav", header: "header", footer: "footer", aside: "aside", article: "article", comments: '[id*="comment" i], [class*="comment" i]' };
+
+// External hrefs linked inside each region, with the rel tokens every anchor to one there carries.
+function regionRels($: CheerioAPI, page: URL, external: Set<string>): Record<string, Record<string, string[]>> {
+    const regions: Record<string, Record<string, string[]>> = {};
+    for (const element of $("a[href]")) {
+        const href = resolve(String($(element).attr("href")), page);
+        if (!external.has(href)) continue;
+        const tokens = String($(element).attr("rel") ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+        for (const [name, selector] of Object.entries(REGIONS)) {
+            if ($(element).parents(selector).length === 0) continue;
+            const region = (regions[name] ??= {});
+            region[href] = (region[href] ?? tokens).filter((token) => tokens.includes(token));
+        }
+    }
+    return regions;
+}
+
 // Every `<link>` in the head with the attributes it carries.
 function headLinks($: CheerioAPI, page: URL): HtmlFacts["head"]["links"] {
     return $("head link[href]")
@@ -114,6 +133,7 @@ function charsetOf(body: string): HtmlFacts["charset"] {
 // Static HTML facts from the parsed document and its source; the http fetch mode is enough.
 export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope): HtmlFacts {
     const anchors = hrefs($, "a[href]", page).map((url) => url.href);
+    const external = [...new Set(anchors.filter((href) => !isInScope(new URL(href), page, scope)))];
     return {
         lang: $("html").attr("lang"),
         dir: $("html").attr("dir"),
@@ -137,11 +157,12 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
             .get(),
         links: {
             internal: [...new Set(anchors.filter((href) => isInScope(new URL(href), page, scope)))],
-            external: [...new Set(anchors.filter((href) => !isInScope(new URL(href), page, scope)))],
+            external,
             nofollow: [...new Set(hrefs($, "a[href][rel~='nofollow']", page).map((url) => url.href))],
             sponsored: [...new Set(hrefs($, "a[href][rel~='sponsored']", page).map((url) => url.href))],
             ugc: [...new Set(hrefs($, "a[href][rel~='ugc']", page).map((url) => url.href))],
             rel: anchorRels($, page),
+            regions: regionRels($, page, new Set(external)),
         },
         images: $("img")
             .map((_, element) => {

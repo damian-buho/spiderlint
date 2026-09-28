@@ -428,6 +428,14 @@ describe("audit options", () => {
         ]);
     });
 
+    it("scopes a rel policy to the comments region, leaving the same link outside it alone", async () => {
+        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel": { severity: "warning" as const, expect: { "comments:*": ["ugc"] } } } } };
+        const report = await audit({ seeds: [`${site.origin}/rel`], maxPages: 1, sitemap: false, fold: false, rulesets, groups: { default: { rules: ["rel"] } } });
+        assert.deepEqual(report.pages[0]?.html?.links.regions, { comments: { "https://visitor.test/": [], "https://forum.test/t/1": ["ugc", "nofollow"] } });
+        const found = report.findings.filter((finding) => finding.rule === "links/external-rel").map((finding) => finding.value);
+        assert.deepEqual(found, [{ href: "https://visitor.test/", missing: ["ugc"], region: "comments" }]);
+    });
+
     it("judges a binary by its headers without downloading it", async () => {
         const report = await audit({ seeds: [`${site.origin}/big.bin`], maxPages: 1 });
         const size = report.pages[0]?.http.size;

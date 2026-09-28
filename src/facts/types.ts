@@ -179,7 +179,7 @@ export interface HtmlFacts {
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
     // `rel`: the tokens every anchor to an href carries; absent on facts stored before it.
-    links: { internal: string[]; external: string[]; nofollow: string[]; sponsored?: string[]; ugc?: string[]; rel?: Record<string, string[]> };
+    links: { internal: string[]; external: string[]; nofollow: string[]; sponsored?: string[]; ugc?: string[]; rel?: Record<string, string[]>; regions?: Record<string, Record<string, string[]>> };
     images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; loading?: string; noscript?: true }[];
     rels: Record<string, string[]>;
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];
