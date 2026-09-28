@@ -10,3 +10,4 @@ SPDX-License-Identifier: MIT
 - DNSSEC is checked end-to-end: an unsigned zone, weak algorithms, stalled re-signing, and a signed zone that validating resolvers reject.
 - Name servers are asked directly and every other query goes only to the resolver you name, so a lame server or a zone out of sync shows, and a link to a subdomain whose CNAME points nowhere is flagged as a takeover risk.
 - A domain that sends and takes no mail can be held to a null MX, a deny-all SPF and a DMARC reject policy, so nobody can send mail in its name.
+- Every address is traced to the network that routes it, so a route that RPKI-enforcing networks drop, a mail server with no matching reverse DNS, or a site and its name servers all behind one provider come to light.
