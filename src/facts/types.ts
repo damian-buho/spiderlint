@@ -185,6 +185,9 @@ export interface HtmlFacts {
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];
     // The language of the title and description, derived on every lint that reads it.
     detected?: DetectedFacts;
+    // Author and publication date, resolved from JSON-LD then the head on every lint.
+    author?: string;
+    published?: string;
 }
 
 // One string’s language: an ISO 639-1 code, eld’s top score, and whether eld calls the guess reliable.

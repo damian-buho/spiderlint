@@ -249,6 +249,16 @@ describe("audit", () => {
         }
     });
 
+    it("asks an article, never the home page, for an author and a publication date", () => {
+        for (const rule of ["html/author", "html/published-date"]) {
+            const urls = of(rule).flatMap((finding) => [finding.url, ...(finding.urls ?? [])]);
+            assert.ok(urls.includes(`${site.origin}/about`), rule);
+            assert.ok(!urls.includes(`${site.origin}/`) && urls.every((url) => !url?.includes("/posts/")), rule);
+        }
+        const post = report.pages.find((page) => page.url.pathname === "/posts/1");
+        assert.deepEqual([post?.html?.author, post?.html?.published], ["Fixture Author", "2026-09-01T12:00:00Z"]);
+    });
+
     it("catches a templated title or description that repeats the same value twice", () => {
         const [title, ...restTitle] = of("html/title-redundant");
         assert.equal(restTitle.length, 0);
@@ -297,7 +307,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}378 of 425 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
+        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}388 of 447 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
 
@@ -329,8 +339,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 425, failed: 47, errored: 6, passed: 378 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8894, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 447, failed: 59, errored: 6, passed: 388 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.868, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

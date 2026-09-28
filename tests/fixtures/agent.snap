@@ -94,6 +94,32 @@ Fix: Add <meta name=theme-color> with a color value.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color` reports no html/theme-color finding, and `spiderlint facts ORIGIN/app/` shows `html.meta.theme-color` meeting it.
 
+## html/author (warning)
+
+an article names no author for its link preview
+
+Where: 6 pages of group default (100 %), for example:
+- /about
+- /duplicate
+- /orphan
+Reads: `html.author`, expects `{"type":"string","minLength":1}`
+Fix: Add <meta name=author>, article:author, or a JSON-LD author to the article head.
+Docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
+Done when: `spiderlint audit ORIGIN/ --rules html/author` reports no html/author finding.
+
+## html/published-date (warning)
+
+an article gives no publication date for its link preview
+
+Where: 6 pages of group default (100 %), for example:
+- /about
+- /duplicate
+- /orphan
+Reads: `html.published`, expects `{"type":"string","minLength":1}`
+Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
+Docs: https://ogp.me/#type_article
+Done when: `spiderlint audit ORIGIN/ --rules html/published-date` reports no html/published-date finding.
+
 ## html/unique-description (warning)
 
 pages share one meta description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”

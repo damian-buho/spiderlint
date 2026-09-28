@@ -208,6 +208,22 @@ rules:
     message: "og:url should be an absolute URL, found {got}"
     docs: https://ogp.me/#metadata
     fix: "Make og:url an absolute URL of this page."
+  html/author:
+    fact: html.author
+    expect: {type: string, minLength: 1}
+    when: {html.property.og:type: article}
+    severity: warning
+    message: "an article names no author for its link preview"
+    fix: "Add <meta name=author>, article:author, or a JSON-LD author to the article head."
+    docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
+  html/published-date:
+    fact: html.published
+    expect: {type: string, minLength: 1}
+    when: {html.property.og:type: article}
+    severity: warning
+    message: "an article gives no publication date for its link preview"
+    fix: "Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601."
+    docs: https://ogp.me/#type_article
   html/unique-title:
     unique: html.title
     scope: site

@@ -210,6 +210,7 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             inputs: [{ type, autocomplete, inputmode }],               # type lowercased, `text` when unset
             jsonld: [],                                              # parsed blocks; an unparsable one is { "@error": message }
             detected: { title: { language, confidence, reliable }, description: { … } },   # derived on a lint that reads it
+            author, published,                                       # derived on every lint, as Mastodon previews: JSON-LD author/datePublished, then article:author, meta author, og:author / article:published_time
             scripts: [{ src, type, async, defer, head }], word-count }
 resources: [{ url, kind: script|style|image|font|iframe|preload|manifest, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log

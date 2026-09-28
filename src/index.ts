@@ -17,6 +17,7 @@ import { attachResources, fetchResources, isFailure } from "./crawl/resources.ts
 import { probeLinks } from "./crawl/links.ts";
 import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
+import { bylineFacts } from "./facts/byline.ts";
 import { cspFacts } from "./facts/csp.ts";
 import { inSpan } from "./telemetry.ts";
 import { detectedFacts, loadDetector } from "./facts/language.ts";
@@ -346,6 +347,7 @@ function linter(config: Config): Lint {
             if (csp) page.http.csp = csp;
             const detected = isDetected && page.html && detectedFacts(page.html);
             if (detected && page.html) page.html.detected = detected;
+            if (page.html) Object.assign(page.html, bylineFacts(page.html));
             const co2 = isEstimated && page.html ? co2Facts(page) : undefined;
             if (co2) page.co2 = co2;
         }
