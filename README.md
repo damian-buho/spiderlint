@@ -22,7 +22,9 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Client-rendered pages audited as visitors see them
 - The DNS behind every crawled host
 - One finding per template, not per page
+- Icons fetched and measured
 - Image weight measured, not estimated
+- The site measured as a whole
 - Dead links, on the site and off it
 - Each origin checked once, beyond its pages
 - Feeds, structured data and markup checked on every page

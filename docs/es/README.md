@@ -24,7 +24,9 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 - Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 - El DNS detrás de cada host rastreado
 - Un hallazgo por plantilla, no por página
+- Iconos descargados y medidos
 - Peso de imágenes medido, no estimado
+- El sitio medido como un todo
 - Enlaces rotos, dentro y fuera del sitio
 - Cada origen comprobado una vez, más allá de sus páginas
 - Feeds, datos estructurados y marcado revisados en cada página

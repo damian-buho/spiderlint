@@ -54,6 +54,12 @@ SPDX-License-Identifier: MIT
 - Measurements are cached with the image, so a re-run measures only what changed.
 - Fonts, style sheets and scripts are weighed the same way: fonts that are not WOFF2, font faces that hide text while they load, and bytes minification would save.
 
+### The site measured as a whole
+
+- Weight, requests, timings and carbon of every page add up to site-wide figures: median, 95th percentile, extremes and totals, even when no page breaks a budget.
+- A page far slower or heavier than the rest, or served differently from nearly every other page, is pointed out, and the same crawl always gives the same answer.
+- Every fact about every page exports to a spreadsheet, with no second crawl.
+
 ### Dead links, on the site and off it
 
 - A link that leads nowhere, to this site or to another one, is one finding listing every page that carries it.

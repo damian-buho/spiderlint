@@ -56,6 +56,12 @@ SPDX-License-Identifier: MIT
 - Las mediciones se guardan en caché con la imagen, así que una nueva ejecución solo mide lo que cambió.
 - Las fuentes, hojas de estilo y scripts se pesan igual: fuentes que no son WOFF2, tipografías que ocultan el texto mientras cargan y los bytes que ahorraría la minificación.
 
+### El sitio medido como un todo
+
+- El peso, las peticiones, los tiempos y el carbono de cada página se suman en cifras de todo el sitio: mediana, percentil 95, extremos y totales, aunque ninguna página supere un presupuesto.
+- Se señala la página mucho más lenta o pesada que el resto, o servida de otra forma que casi todas las demás, y el mismo rastreo siempre da la misma respuesta.
+- Todos los datos de cada página se exportan a una hoja de cálculo, sin volver a rastrear.
+
 ### Enlaces rotos, dentro y fuera del sitio
 
 - Un enlace que no lleva a ninguna parte, a este sitio o a otro, es un solo hallazgo con la lista de páginas que lo contienen.
