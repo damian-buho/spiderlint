@@ -18,6 +18,10 @@ const APPLE = "180x180";
 const ICO_SIZES = ["16x16", "32x32"];
 const SVG = "image/svg+xml";
 const MAX_PIXELS = 50_000_000;
+// A fill or stroke paint, as an attribute or a style declaration.
+const PAINT = /\b(?:fill|stroke)\s*[:=]\s*["']?\s*([^"';\s>]+)/gi;
+// Paints that add no colour of their own.
+const UNPAINTED = new Set(["none", "transparent", "currentcolor", "inherit"]);
 
 type Source = "icon" | "apple-touch-icon" | "mask-icon" | "manifest" | "ms-tile";
 
@@ -38,6 +42,8 @@ export interface IconFile {
     sizes?: string[];
     opaque?: boolean;
     xml?: false;
+    // Distinct fill and stroke paints an SVG names; none named paints black.
+    colours?: number;
     error?: string;
 }
 
@@ -74,9 +80,11 @@ async function measure(url: string, bytes: Buffer): Promise<Pick<IconFile, "form
     if (bytes.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0]))) return { format: "ico", sizes: icoSizes(bytes) };
     const text = bytes.subarray(0, 1024).toString("utf8");
     if (/<svg[\s>]/i.test(text)) {
+        const svg = bytes.toString("utf8");
+        const colours = new Set(svg.matchAll(PAINT).map((match) => String(match[1]).toLowerCase()).filter((paint) => !UNPAINTED.has(paint))).size;
         try {
-            optimize(bytes.toString("utf8"));
-            return { format: "svg" };
+            optimize(svg);
+            return { format: "svg", ...(colours > 0 && { colours }) };
         } catch (error) {
             log.debug({ url, error: reason(error) }, "SVG icon does not parse");
             return { format: "svg", xml: false };
@@ -226,12 +234,13 @@ function appleProblems(declared: DeclaredIcon[], files: Record<string, IconFile>
     return problems;
 }
 
-// Safari pinned tab: an SVG with a `color`, judged only when linked.
+// Safari pinned tab: a single-colour SVG with a `color`, judged only when linked.
 function maskProblems(declared: DeclaredIcon[], files: Record<string, IconFile>): string[] {
     return declared.filter((icon) => icon.source === "mask-icon").flatMap((icon) => {
         const problem = unusable(icon.url, files[icon.url]);
         if (problem) return [problem];
-        return [...(files[icon.url]?.format === "svg" ? [] : [`${icon.url} is not an SVG`]), ...(icon.color ? [] : [`${icon.url} is linked without a color`])];
+        const colours = files[icon.url]?.colours ?? 0;
+        return [...(files[icon.url]?.format === "svg" ? [] : [`${icon.url} is not an SVG`]), ...(colours > 1 ? [`${icon.url} paints ${colours} colours, not one`] : []), ...(icon.color ? [] : [`${icon.url} is linked without a color`])];
     });
 }
 
@@ -260,7 +269,7 @@ function sizeProblems(declared: DeclaredIcon[], files: Record<string, IconFile>)
 const icons: SiteExtractor = {
     id: ID,
     per: "origin",
-    version: "1",
+    version: "2",
     async extract(origin, context) {
         const pages = context.pages.filter((page) => page.html !== undefined);
         if (pages.length === 0) return;
