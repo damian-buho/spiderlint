@@ -26,7 +26,7 @@ rules:
     when: {tls.cert.days-left: {minimum: 2}}
     severity: info
     message: "certificate expires within 14 days ({got} left)"
-    fix: "check that certificate renewal is scheduled and has succeeded before"
+    fix: "Check that certificate renewal is scheduled and has succeeded before."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/cert-expiring:
     fact: tls.cert.days-left
@@ -34,12 +34,12 @@ rules:
     when: {tls.cert.days-left: {minimum: 0}}
     severity: warning
     message: "certificate expires within 2 days ({got} left)"
-    fix: "renew the certificate now and find out why automatic renewal did not run"
+    fix: "Renew the certificate now and find out why automatic renewal did not run."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/cert-expired:
     fact: tls.cert.days-left
     expect: {type: integer, minimum: 0}
     severity: error
     message: "certificate has expired ({got} days left)"
-    fix: "renew the certificate and reload the server that serves it"
+    fix: "Renew the certificate and reload the server that serves it."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security

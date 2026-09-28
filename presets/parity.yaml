@@ -11,40 +11,40 @@ rules:
     expect: {properties: {title: false}}
     severity: warning
     message: "the title exists only after JavaScript runs: {got}"
-    fix: "render <title> on the server"
+    fix: "Render <title> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/description:
     fact: parity.missing
     expect: {properties: {description: false}}
     severity: info
     message: "the meta description exists only after JavaScript runs: {got}"
-    fix: "render <meta name=\"description\"> on the server"
+    fix: "Render <meta name=\"description\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/canonical:
     fact: parity.missing
     expect: {properties: {canonical: false}}
     severity: warning
     message: "the canonical link exists only after JavaScript runs: {got}"
-    fix: "render <link rel=\"canonical\"> on the server"
+    fix: "Render <link rel=\"canonical\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics#properly-inject-canonical-links
   parity/h1:
     fact: parity.missing
     expect: {properties: {h1: false}}
     severity: info
     message: "the h1 exists only after JavaScript runs: {got}"
-    fix: "render the page heading on the server"
+    fix: "Render the page heading on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/text:
     fact: parity
     expect: {if: {properties: {rendered: {properties: {text: {minimum: 200}}}}}, then: {properties: {text-share: {minimum: 0.5}}}}
     severity: warning
     message: "the raw HTML carries a {got} share of the text the rendered page shows"
-    fix: "render the main content on the server, or give it a <noscript> fallback"
+    fix: "Render the main content on the server, or give it a <noscript> fallback."
     docs: https://developer.mozilla.org/docs/Glossary/SSR
   parity/links:
     fact: parity.missing
     expect: {properties: {links: false}}
     severity: warning
     message: "internal links exist only after JavaScript runs: {got}"
-    fix: "render navigation links as <a href> on the server"
+    fix: "Render navigation links as <a href> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable

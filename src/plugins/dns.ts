@@ -518,7 +518,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.nameservers.answer-sets": { type: "integer" } },
         message: "the name servers give {got} different answers for the host, so what a visitor reaches depends on which one their resolver asks",
         severity: "warning",
-        fix: "sync the zone on every name server and bump its SOA serial",
+        fix: "Sync the zone on every name server and bump its SOA serial.",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
     },
     "dns/ns-resolver": {
@@ -527,7 +527,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.nameservers.resolver-agrees": { type: "boolean" } },
         message: "the configured resolver answers the host differently from its name servers, a cached old answer or a split view",
         severity: "info",
-        fix: "wait out the old record’s TTL, or check which view the resolver serves",
+        fix: "Wait out the old record’s TTL, or check which view the resolver serves.",
         docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
     },
     "dns/resolver-rcode": {
@@ -535,7 +535,7 @@ const RULES: Record<string, RuleSpec> = {
         expect: { maxItems: 1 },
         message: "the compared resolvers disagree on whether the host resolves (got {got}); a SERVFAIL on a validating resolver alone points at DNSSEC",
         severity: "warning",
-        fix: "query each resolver named in the finding and fix what the failing one reports, a broken DNSSEC chain first",
+        fix: "Query each resolver named in the finding and fix what the failing one reports, a broken DNSSEC chain first.",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-5.5",
     },
     "dns/resolver-answers": {
@@ -544,7 +544,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.resolvers.answer-sets": { type: "integer" } },
         message: "the compared resolvers give {got} different answers for the host; geo-DNS does this on purpose, a stale or split view does not",
         severity: "info",
-        fix: "if the answers should match, wait out the old TTL or fix the view that differs",
+        fix: "If the answers should match, wait out the old TTL or fix the view that differs.",
         docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
     },
     "dns/resolver-validation": {
@@ -553,7 +553,7 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.dnssec.signed": true },
         message: "some compared resolvers validate the signed zone and some do not (got {got})",
         severity: "info",
-        fix: "check the DS at the parent and the DNSKEY set against each resolver’s trust anchors",
+        fix: "Check the DS at the parent and the DNSKEY set against each resolver’s trust anchors.",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-4.3",
     },
     "dns/ns-diversity": {

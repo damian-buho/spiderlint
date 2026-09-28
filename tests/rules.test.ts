@@ -97,6 +97,7 @@ describe("rule fixes", () => {
             const rule = compileRule(id, spec) as Rule;
             assert.ok(rule.meta.fix, `rule ${id} is missing a fix`);
             assert.ok(!rule.meta.fix.includes("\n"), `rule ${id} has a multi-line fix`);
+            if (!/^(axe|htmlhint|html-validate)\//.test(id)) assert.match(rule.meta.fix, /^[^a-z].*[.?!]$/su, `rule ${id} fix is not a sentence`);
         });
     }
 });

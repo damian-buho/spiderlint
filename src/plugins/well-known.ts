@@ -658,7 +658,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         expect: { const: true },
         message: "no carbon.txt discloses the site’s sustainability documents and providers",
         severity: "info",
-        fix: "publish /carbon.txt naming your sustainability disclosures and upstream providers",
+        fix: "Publish /carbon.txt naming your sustainability disclosures and upstream providers.",
         docs: "https://carbontxt.org/",
     },
     "well-known/carbon-txt-valid": {
@@ -667,7 +667,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.present": true },
         message: "carbon.txt is malformed: {got}",
         severity: "info",
-        fix: "correct carbon.txt against syntax 0.5",
+        fix: "Correct carbon.txt against syntax 0.5.",
         docs: "https://carbontxt.org/syntax",
     },
     "well-known/carbon-txt-expired": {
@@ -676,7 +676,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.present": true },
         message: "carbon.txt names disclosures past their valid_until: {got}",
         severity: "info",
-        fix: "replace each expired disclosure with its current document and valid_until",
+        fix: "Replace each expired disclosure with its current document and valid_until.",
         docs: "https://carbontxt.org/syntax",
     },
     "well-known/carbon-txt-stale": {
@@ -685,7 +685,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.age-days": { type: "number" } },
         message: "carbon.txt was last updated {got} days ago, more than a year",
         severity: "info",
-        fix: "review carbon.txt and bump last_updated",
+        fix: "Review carbon.txt and bump last_updated.",
         docs: "https://carbontxt.org/syntax",
     },
 };

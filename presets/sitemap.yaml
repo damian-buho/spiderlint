@@ -12,7 +12,7 @@ rules:
     when: {crawl.discovered-via: sitemap}
     severity: warning
     message: "listed in the sitemap, yet no crawled page links here"
-    fix: "add a link to this page from somewhere on the site, or remove it from the sitemap"
+    fix: "Add a link to this page from somewhere on the site, or remove it from the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
   sitemap/unlisted:
     fact: sitemap.listed
@@ -20,7 +20,7 @@ rules:
     when: {html: {type: object}}
     severity: info
     message: "missing from the sitemap"
-    fix: "add this URL to the sitemap"
+    fix: "Add this URL to the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview
   sitemap/unreadable: warning
   sitemap/hreflang: warning

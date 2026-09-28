@@ -9,7 +9,7 @@ rules:
     expect: {type: array, maxItems: 2}
     severity: warning
     message: "takes more than 2 redirects to land ({got})"
-    fix: "collapse the redirect chain so the final URL is reached in one or two hops"
+    fix: "Collapse the redirect chain so the final URL is reached in one or two hops."
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
   redirects/permanent:
     fact: http.redirects
@@ -17,5 +17,5 @@ rules:
     when: {http.status: {minimum: 200, maximum: 299}}
     severity: info
     message: "reached through a temporary redirect ({got})"
-    fix: "answer a moved page with 301 or 308, not 302, 303 or 307"
+    fix: "Answer a moved page with 301 or 308, not 302, 303 or 307."
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side

@@ -13,7 +13,7 @@ rules:
       http.size.decoded: {minimum: 1024}
     severity: warning
     message: "a text response over 1 KB should be sent br, zstd or gzip, found {got}"
-    fix: "compress text responses with br, zstd or gzip at the edge or in the server"
+    fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
   http/vary-encoding:
     fact: http.headers.vary
@@ -21,7 +21,7 @@ rules:
     when: {http.headers.content-encoding: {type: string}}
     severity: warning
     message: "a compressed response should carry Vary: Accept-Encoding, found {got}"
-    fix: "add Vary: Accept-Encoding to the response"
+    fix: "Add Vary: Accept-Encoding to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Vary
   http/vary-star:
     fact: http.headers.vary
@@ -29,7 +29,7 @@ rules:
     when: {http.headers.vary: {type: string}}
     severity: warning
     message: "Vary: * makes the response uncacheable, found {got}"
-    fix: "replace Vary: * with the specific header names the response varies by"
+    fix: "Replace Vary: * with the specific header names the response varies by."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Vary
   http/validator:
     fact: http.headers
@@ -37,7 +37,7 @@ rules:
     when: {http.status: {minimum: 200, maximum: 299}}
     severity: info
     message: "no ETag or Last-Modified to revalidate against"
-    fix: "add an ETag or Last-Modified header to the response"
+    fix: "Add an ETag or Last-Modified header to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Caching#validation
   http/html-cache-control:
     fact: http.headers.cache-control
@@ -45,7 +45,7 @@ rules:
     when: {http.status: {minimum: 200, maximum: 299}, http.content-type: {pattern: "^text/html"}}
     severity: info
     message: "no Cache-Control header on an HTML page"
-    fix: "add a Cache-Control header, e.g. no-cache to revalidate, or public with a max-age"
+    fix: "Add a Cache-Control header, e.g. no-cache to revalidate, or public with a max-age."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control
   http/no-store-bfcache:
     fact: http.headers.cache-control
@@ -53,7 +53,7 @@ rules:
     when: {http.content-type: {pattern: "^text/html"}, http.headers.cache-control: {type: string}}
     severity: info
     message: "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
-    fix: "remove no-store from Cache-Control, or replace it with no-cache"
+    fix: "Remove no-store from Cache-Control, or replace it with no-cache."
     docs: https://web.dev/articles/bfcache#minimize-use-of-cache-control-no-store
   http/version:
     fact: http.version
@@ -61,7 +61,7 @@ rules:
     when: {http.version: {type: string}}
     severity: warning
     message: "the server should speak HTTP/2 or HTTP/3, found {got}"
-    fix: "enable HTTP/2 or HTTP/3 on the server"
+    fix: "Enable HTTP/2 or HTTP/3 on the server."
     docs: https://developer.mozilla.org/docs/Glossary/HTTP_2
   http/alt-svc-h3:
     fact: http.headers.alt-svc
@@ -69,7 +69,7 @@ rules:
     when: {url.protocol: "https:", http.version: {not: {const: "3.0"}}}
     severity: info
     message: "Alt-Svc should advertise h3, found {got}"
-    fix: "add h3 to the Alt-Svc header"
+    fix: "Add h3 to the Alt-Svc header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Alt-Svc
   http/retry-after:
     fact: http.headers.retry-after
@@ -77,7 +77,7 @@ rules:
     when: {http.status: 503}
     severity: warning
     message: "a 503 should say when to retry with Retry-After"
-    fix: "send Retry-After with a delay, or an HTTP-date for when to try again"
+    fix: "Send Retry-After with a delay, or an HTTP-date for when to try again."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Retry-After
   http/sunset-format:
     fact: http.headers.sunset
@@ -85,7 +85,7 @@ rules:
     when: {http.headers.sunset: {type: string}}
     severity: warning
     message: "Sunset should be an HTTP-date, found {got}"
-    fix: "send Sunset as an HTTP-date, e.g. Sun, 01 Jan 2027 00:00:00 GMT"
+    fix: "Send Sunset as an HTTP-date, e.g. Sun, 01 Jan 2027 00:00:00 GMT."
     docs: https://www.rfc-editor.org/rfc/rfc8594
   http/deprecation-format:
     fact: http.headers.deprecation
@@ -93,28 +93,28 @@ rules:
     when: {http.headers.deprecation: {type: string}}
     severity: warning
     message: "Deprecation should be @ and Unix seconds, found {got}"
-    fix: "send Deprecation: @1704067200 with the Unix timestamp of the removal"
+    fix: "Send Deprecation: @1704067200 with the Unix timestamp of the removal."
     docs: https://www.rfc-editor.org/rfc/rfc9745
   html/render-blocking-script:
     fact: html.scripts
     expect: {items: {if: {required: [src], properties: {head: {const: true}, async: {const: false}, defer: {const: false}}}, then: {required: [type], properties: {type: {const: module}}}}}
     severity: info
     message: "a script in <head> without async, defer or type=module blocks rendering: {got}"
-    fix: "add async, defer, or type=module to the script, or move it to the end of <body>"
+    fix: "Add async, defer, or type=module to the script, or move it to the end of <body>."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/script#defer
   html/first-img-lazy:
     fact: html.images.0
     expect: {not: {type: object, required: [loading], properties: {loading: {pattern: "^(?i:lazy)$"}}}}
     severity: info
     message: "the first <img> is usually above the fold, and loading=lazy delays it: {got}"
-    fix: "remove loading=lazy from the first <img>, or set it to eager"
+    fix: "Remove loading=lazy from the first <img>, or set it to eager."
     docs: https://web.dev/articles/lcp-lazy-loading
   html/img-dimensions:
     fact: html.images
     expect: {items: {if: {not: {required: [noscript]}}, then: {required: [width, height]}}}
     severity: warning
     message: "an <img> without width and height shifts the layout as it loads: {got}"
-    fix: "add width and height attributes to the <img>"
+    fix: "Add width and height attributes to the <img>."
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions
   http/early-hints-preload: info
   html/preconnect-unused: info
@@ -126,7 +126,7 @@ rules:
     when: {http.headers.link: {type: string}}
     severity: warning
     message: "Link should be a comma-separated list of <uri>; params, found {got}"
-    fix: "write each Link entry as <https://example.com/a>; rel=preload, separated by commas"
+    fix: "Write each Link entry as <https://example.com/a>; rel=preload, separated by commas."
     docs: https://www.rfc-editor.org/rfc/rfc8288#section-3
   http/dictionary-format:
     fact: http.headers.use-as-dictionary
@@ -134,12 +134,12 @@ rules:
     when: {http.headers.use-as-dictionary: {type: string}}
     severity: warning
     message: "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
-    fix: "send Use-As-Dictionary: match=\"/assets/app-*.js\""
+    fix: "Send Use-As-Dictionary: match=\"/assets/app-*.js\"."
     docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1
   html/render-blocking-css:
     fact: html.head.links
     expect: {minContains: 0, maxContains: 1, contains: {required: [rel], properties: {rel: {pattern: "^\\s*(?i:stylesheet)\\s*$"}, media: {pattern: "^\\s*(?i:all|screen)?\\s*$"}}}}
     severity: info
     message: "more than one stylesheet in <head> blocks rendering: {got}"
-    fix: "inline the critical CSS and load the rest with media=print onload, or merge the stylesheets into one"
+    fix: "Inline the critical CSS and load the rest with media=print onload, or merge the stylesheets into one."
     docs: https://web.dev/articles/defer-non-critical-css

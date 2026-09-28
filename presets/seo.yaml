@@ -12,28 +12,28 @@ rules:
     severity: error
     message: "<html lang> should be a BCP 47 language tag, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
-    fix: "set <html lang> to a BCP 47 language tag"
+    fix: "Set <html lang> to a BCP 47 language tag."
   html/viewport:
     fact: html.meta.viewport
     expect: {type: string, pattern: "^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}
     severity: warning
     message: "meta viewport should set width=device-width and allow zoom, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
-    fix: "set <meta name=viewport content=\"width=device-width\"> and allow zoom"
+    fix: "Set <meta name=viewport content=\"width=device-width\"> and allow zoom."
   html/theme-color:
     fact: html.meta.theme-color
     expect: {type: string, minLength: 1}
     severity: warning
     message: "no meta theme-color"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
-    fix: "add <meta name=theme-color> with a color value"
+    fix: "Add <meta name=theme-color> with a color value."
   html/color-scheme:
     fact: html.meta.color-scheme
     expect: {type: string, minLength: 1}
     severity: info
     message: "no meta color-scheme"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-    fix: "add <meta name=color-scheme content=\"light dark\">"
+    fix: "Add <meta name=color-scheme content=\"light dark\">."
   html/theme-color-schemes:
     when: {html.meta.color-scheme: {type: string, allOf: [{pattern: "(?i:\\blight\\b)"}, {pattern: "(?i:\\bdark\\b)"}]}}
     fact: html.metas
@@ -43,7 +43,7 @@ rules:
         - {contains: {properties: {name: {const: theme-color}, media: {pattern: "(?i:prefers-color-scheme)"}}, required: [name, media]}}
     severity: warning
     message: "color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media"
-    fix: "add <meta name=theme-color media=\"(prefers-color-scheme: dark)\"> beside the light one"
+    fix: "Add <meta name=theme-color media=\"(prefers-color-scheme: dark)\"> beside the light one."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
   html/noindex-listed:
     fact: robots.noindex
@@ -52,7 +52,7 @@ rules:
     severity: error
     message: "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
-    fix: "remove noindex from <meta name=robots> or X-Robots-Tag, or unlist the page from the sitemap"
+    fix: "Remove noindex from <meta name=robots> or X-Robots-Tag, or unlist the page from the sitemap."
   html/dir-rtl:
     fact: html.dir
     expect: {const: rtl}
@@ -60,28 +60,28 @@ rules:
     severity: warning
     message: "a right-to-left language should set <html dir=rtl>, found {got}"
     docs: https://www.w3.org/International/questions/qa-html-dir
-    fix: "add dir=rtl to the <html> element"
+    fix: "Add dir=rtl to the <html> element."
   html/charset:
     fact: html.charset
     expect: {type: object, required: [declared, offset], properties: {declared: {pattern: "^(?i:utf-?8)$"}, offset: {maximum: 1024}}}
     severity: warning
     message: "<meta charset> should declare UTF-8 within the first 1024 bytes, found {got}"
     docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
-    fix: "add <meta charset=utf-8> as the first element of <head>"
+    fix: "Add <meta charset=utf-8> as the first element of <head>."
   html/privacy-policy:
     fact: html.rels.privacy-policy
     expect: {type: array, minItems: 1}
     severity: info
     message: "no link with rel=privacy-policy"
     docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
-    fix: "add <link rel=privacy-policy href=/privacy> to the head"
+    fix: "Add <link rel=privacy-policy href=/privacy> to the head."
   html/favicon:
     fact: html.head.links
     expect: {contains: {required: [rel], properties: {rel: {pattern: "(?i:(^|\\s)icon(\\s|$))"}}}}
     severity: info
     message: "no <link rel=icon> in the head"
     docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
-    fix: "add <link rel=icon href=/favicon.ico> to the head"
+    fix: "Add <link rel=icon href=/favicon.ico> to the head."
   html/hreflang-x-default:
     fact: html.hreflang
     expect: {contains: {required: [lang], properties: {lang: {const: x-default}}}}
@@ -89,35 +89,35 @@ rules:
     severity: info
     message: "hreflang alternates should include x-default, found {got}"
     docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
-    fix: "add <link rel=alternate hreflang=x-default> to the head"
+    fix: "Add <link rel=alternate hreflang=x-default> to the head."
   html/jsonld-parses:
     fact: html.jsonld
     expect: {items: {not: {required: ["@error"]}}}
     severity: warning
     message: "a JSON-LD block does not parse: {got}"
     docs: https://json-ld.org/spec/latest/json-ld/
-    fix: "fix the JSON-LD block so it is valid JSON"
+    fix: "Fix the JSON-LD block so it is valid JSON."
   url/shape:
     fact: url.pathname
     expect: {type: string, pattern: "^(?!.*//)(%[0-9A-Fa-f]{2}|[^A-Z_%])*$"}
     severity: info
     message: "URL path should be lowercase, with hyphens and no empty segment, found {got}"
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
-    fix: "rewrite the path to be lowercase, with hyphens and no empty segments"
+    fix: "Rewrite the path to be lowercase, with hyphens and no empty segments."
   html/title:
     fact: html.title
     expect: {type: string}
     severity: error
     message: "no <title>"
     docs: https://developers.google.com/search/docs/appearance/title-link
-    fix: "add a <title> to the head"
+    fix: "Add a <title> to the head."
   html/description:
     fact: html.meta.description
     expect: {type: string}
     severity: warning
     message: "no meta description"
     docs: https://developers.google.com/search/docs/appearance/snippet
-    fix: "add <meta name=description> with a summary to the head"
+    fix: "Add <meta name=description> with a summary to the head."
   html/title-length:
     when: {html.title: {type: string}}
     fact: html.title
@@ -125,7 +125,7 @@ rules:
     severity: warning
     message: "<title> should be 30–60 characters, found {got}"
     docs: https://developers.google.com/search/docs/appearance/title-link
-    fix: "shorten or lengthen <title> to 30–60 characters"
+    fix: "Shorten or lengthen <title> to 30–60 characters."
   html/description-length:
     when: {html.meta.description: {type: string}}
     fact: html.meta.description
@@ -133,7 +133,7 @@ rules:
     severity: warning
     message: "meta description should be 50–160 characters, found {got}"
     docs: https://developers.google.com/search/docs/appearance/snippet
-    fix: "shorten or lengthen the meta description to 50–160 characters"
+    fix: "Shorten or lengthen the meta description to 50–160 characters."
   html/title-redundant:
     when: {html.title: {type: string}}
     fact: html.title
@@ -141,7 +141,7 @@ rules:
     severity: warning
     message: "<title> repeats itself around a separator: {got}"
     docs: https://developers.google.com/search/docs/appearance/title-link
-    fix: "remove the repeated suffix from <title>"
+    fix: "Remove the repeated suffix from <title>."
   html/description-redundant:
     when: {html.meta.description: {type: string}}
     fact: html.meta.description
@@ -149,21 +149,21 @@ rules:
     severity: warning
     message: "meta description repeats itself around a separator: {got}"
     docs: https://developers.google.com/search/docs/appearance/snippet
-    fix: "remove the repeated suffix from the meta description"
+    fix: "Remove the repeated suffix from the meta description."
   html/one-h1:
     fact: html.h1
     expect: {type: array, minItems: 1, maxItems: 1}
     severity: error
     message: "should have exactly one <h1>, found {got}"
     docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
-    fix: "use exactly one <h1> per page"
+    fix: "Use exactly one <h1> per page."
   html/canonical:
     fact: html.canonical
     expect: {type: string, pattern: "^https?://"}
     severity: warning
     message: "canonical link should be an absolute URL, found {got}"
     docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
-    fix: "make the canonical link an absolute URL"
+    fix: "Make the canonical link an absolute URL."
   html/canonical-self: warning
   html/og-url-self: info
   html/img-alt:
@@ -172,77 +172,77 @@ rules:
     severity: warning
     message: "an <img> has no alt attribute: {got}"
     docs: https://developers.google.com/search/docs/appearance/google-images
-    fix: "add an alt attribute to every <img>"
+    fix: "Add an alt attribute to every <img>."
   html/og-title:
     fact: html.property.og:title
     expect: {type: string, minLength: 10, maxLength: 90}
     severity: warning
     message: "og:title should be 10–90 characters, found {got}"
     docs: https://ogp.me/#metadata
-    fix: "set og:title to 10–90 characters"
+    fix: "Set og:title to 10–90 characters."
   html/og-description:
     fact: html.property.og:description
     expect: {type: string, minLength: 50, maxLength: 200}
     severity: warning
     message: "og:description should be 50–200 characters, found {got}"
     docs: https://ogp.me/#optional
-    fix: "set og:description to 50–200 characters"
+    fix: "Set og:description to 50–200 characters."
   html/og-image:
     fact: html.property.og:image
     expect: {type: string, pattern: "^https?://"}
     severity: warning
     message: "og:image should be an absolute URL, found {got}"
     docs: https://ogp.me/#metadata
-    fix: "make og:image an absolute URL"
+    fix: "Make og:image an absolute URL."
   html/og-type:
     fact: html.property.og:type
     expect: {type: string, minLength: 1}
     severity: info
     message: "no og:type"
     docs: https://ogp.me/#types
-    fix: "set og:type to a valid value"
+    fix: "Set og:type to a valid value."
   html/og-url:
     fact: html.property.og:url
     expect: {type: string, pattern: "^https?://"}
     severity: info
     message: "og:url should be an absolute URL, found {got}"
     docs: https://ogp.me/#metadata
-    fix: "make og:url an absolute URL of this page"
+    fix: "Make og:url an absolute URL of this page."
   html/unique-title:
     unique: html.title
     scope: site
     severity: warning
     message: "pages share one <title>: {got}"
     docs: https://developers.google.com/search/docs/appearance/title-link
-    fix: "give each page a distinct <title>"
+    fix: "Give each page a distinct <title>."
   html/unique-description:
     unique: html.meta.description
     scope: site
     severity: warning
     message: "pages share one meta description: {got}"
     docs: https://developers.google.com/search/docs/appearance/snippet
-    fix: "give each page a distinct meta description"
+    fix: "Give each page a distinct meta description."
   html/unique-og-title:
     unique: html.property.og:title
     scope: site
     severity: warning
     message: "pages share one og:title: {got}"
     docs: https://ogp.me/#metadata
-    fix: "give each page a distinct og:title"
+    fix: "Give each page a distinct og:title."
   html/unique-og-description:
     unique: html.property.og:description
     scope: site
     severity: warning
     message: "pages share one og:description: {got}"
     docs: https://ogp.me/#optional
-    fix: "give each page a distinct og:description"
+    fix: "Give each page a distinct og:description."
   html/noindex-twin:
     fact: robots.noindex
     expect: {const: true}
     when: {url.twin: {type: string}}
     severity: info
     message: "a page served off the canonical origin is indexable; mark the staging twin noindex"
-    fix: "send X-Robots-Tag: noindex from every origin other than the canonical one"
+    fix: "Send X-Robots-Tag: noindex from every origin other than the canonical one."
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
   html/noindex-staging:
     fact: robots.noindex
@@ -250,7 +250,7 @@ rules:
     when: {site.role: {enum: [development, staging]}, url.twin: {not: {type: string}}}
     severity: warning
     message: "a page of a staging or development site is indexable"
-    fix: "send X-Robots-Tag: noindex from every non-production host"
+    fix: "Send X-Robots-Tag: noindex from every non-production host."
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
   http/tdm-reservation:
     fact: http.headers.tdm-reservation
@@ -258,7 +258,7 @@ rules:
     when: {http.headers.tdm-reservation: {type: string}}
     severity: warning
     message: "tdm-reservation should be 0 or 1, found {got}"
-    fix: "send tdm-reservation: 1 to reserve text and data mining rights, 0 to waive them"
+    fix: "Send tdm-reservation: 1 to reserve text and data mining rights, 0 to waive them."
     docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
   html/tdm-reservation:
     fact: html.meta.tdm-reservation
@@ -266,5 +266,5 @@ rules:
     when: {html.meta.tdm-reservation: {type: string}}
     severity: warning
     message: "<meta name=tdm-reservation> should be 0 or 1, found {got}"
-    fix: "set <meta name=tdm-reservation content=1> to reserve text and data mining rights, 0 to waive them"
+    fix: "Set <meta name=tdm-reservation content=1> to reserve text and data mining rights, 0 to waive them."
     docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
