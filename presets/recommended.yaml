@@ -17,8 +17,16 @@ extends:
   - spiderlint:origin
   - spiderlint:dns:core
   - spiderlint:images
+  - spiderlint:icons
 rules:
   http/consistent-origin: info
+  icons/favicon: warning
+  icons/apple-touch: warning
+  icons/declared-size: warning
+  icons/svg: off
+  icons/mask-icon: off
+  icons/ms-tile: off
+  manifest/parse: error
   origin/www-resolves: off
   http/clock-skew: warning
   http/content-length: warning
