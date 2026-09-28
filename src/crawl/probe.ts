@@ -25,6 +25,8 @@ export interface ProbeInit {
     headers?: Record<string, string>;
     // `follow` walks redirects while they stay on the probed host; `manual` answers the first response.
     redirect?: "follow" | "manual";
+    // Keeps the raw body as `bytes`, for an image the text body would mangle.
+    binary?: true;
 }
 
 export interface Probe {
@@ -34,6 +36,7 @@ export interface Probe {
     body: string;
     redirects: { url: string; status: number }[];
     truncated?: true;
+    bytes?: Buffer;
     ms: number;
 }
 
@@ -56,8 +59,8 @@ export class RobotsDisallowed extends Error {
     }
 }
 
-// Reads at most MAX_BODY bytes of a response as text.
-async function text(response: IncomingMessage): Promise<{ body: string; truncated?: true }> {
+// Reads at most MAX_BODY bytes of a response, as text and as they came.
+async function text(response: IncomingMessage): Promise<{ body: string; raw: Buffer; truncated?: true }> {
     const chunks: Buffer[] = [];
     let bytes = 0;
     for await (const chunk of response as AsyncIterable<Buffer>) {
@@ -65,9 +68,11 @@ async function text(response: IncomingMessage): Promise<{ body: string; truncate
         bytes += chunk.byteLength;
         if (bytes < MAX_BODY) continue;
         response.destroy();
-        return { body: Buffer.concat(chunks).subarray(0, MAX_BODY).toString("utf8"), truncated: true };
+        const raw = Buffer.concat(chunks).subarray(0, MAX_BODY);
+        return { body: raw.toString("utf8"), raw, truncated: true };
     }
-    return { body: Buffer.concat(chunks).toString("utf8") };
+    const raw = Buffer.concat(chunks);
+    return { body: raw.toString("utf8"), raw };
 }
 
 // One request on a guarded socket, never following a redirect.
@@ -82,8 +87,8 @@ async function once(url: URL, init: ProbeInit, options: ProbeOptions): Promise<O
         outgoing.on("error", reject);
         outgoing.end();
     });
-    const { body, truncated } = await text(response);
-    return { url: url.href, status: response.statusCode ?? 0, headers: redactHeaders(response.headers as Record<string, string | string[]>), body, ...(truncated && { truncated }) };
+    const { body, raw, truncated } = await text(response);
+    return { url: url.href, status: response.statusCode ?? 0, headers: redactHeaders(response.headers as Record<string, string | string[]>), body, ...(truncated && { truncated }), ...(init.binary && { bytes: raw }) };
 }
 
 // One request with a retry on a network error, 429 or 503.
