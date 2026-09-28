@@ -12,7 +12,7 @@ import { log } from "../logger.ts";
 import { delay, reason } from "./fetch.ts";
 import { guardedLookup, isPrivate, PrivateAddress } from "./guard.ts";
 import { pace, patient } from "./network.ts";
-import type { RobotsFor } from "./robots.ts";
+import { robotsFactsOf, type RobotsFor } from "./robots.ts";
 
 const ATTEMPTS = 2;
 const TIMEOUT_MS = 10_000;
@@ -46,8 +46,15 @@ export interface ProbeOptions {
     robots?: RobotsFor;
 }
 
-// A probe robots.txt disallows for `spiderlint`, never sent.
-export class RobotsDisallowed extends Error {}
+// A probe robots.txt disallows for `spiderlint`, never sent; `unreachable` when that is only because the file did not answer.
+export class RobotsDisallowed extends Error {
+    readonly unreachable?: string;
+
+    constructor(message: string, unreachable?: string) {
+        super(message);
+        if (unreachable !== undefined) this.unreachable = unreachable;
+    }
+}
 
 // Reads at most MAX_BODY bytes of a response as text.
 async function text(response: IncomingMessage): Promise<{ body: string; truncated?: true }> {
@@ -106,8 +113,10 @@ export async function probe(href: string, init: ProbeInit, options: ProbeOptions
         if (url.hostname !== options.host) throw new Error(`probe ${url.href} leaves host ${options.host}`);
         const robots = await options.robots?.(url.href);
         if (robots && !robots.isAllowed(url.href, "spiderlint")) {
-            log.info({ url: url.href }, "robots.txt disallows the probe; skipped");
-            throw new RobotsDisallowed(`robots.txt disallows ${url.href}`);
+            const facts = robotsFactsOf(robots);
+            const unreachable = facts?.error ?? (facts && facts.status >= 500 ? `robots.txt answers ${facts.status}` : undefined);
+            log.info({ url: url.href, unreachable }, "robots.txt disallows the probe; skipped");
+            throw new RobotsDisallowed(`robots.txt disallows ${url.href}`, unreachable);
         }
         const answer = await retrying(url, init, options);
         const location = answer.headers.location;
