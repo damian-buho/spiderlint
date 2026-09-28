@@ -141,6 +141,8 @@ export interface HttpFacts {
     revalidated?: true;
     // Seconds `Date` runs ahead of the crawler’s clock, halfway through the round trip; absent when served from a cache.
     "date-skew"?: number;
+    // Why no attempt fetched the page; the status is then 0.
+    error?: string;
     // The Content-Security-Policy headers and `<meta>` policies, derived on every lint.
     csp?: CspFacts;
 }

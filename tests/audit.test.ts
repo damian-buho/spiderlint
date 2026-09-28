@@ -684,14 +684,18 @@ describe("content length", () => {
     after(() => framing.close());
 
     it("reports each wrongly framed page host and resource, and leaves a 304 and an overlong body alone", async () => {
-        const rulesets = { framing: { rules: { "http/content-length": "warning" as const } } };
+        const rulesets = { framing: { rules: { "http/content-length": "warning" as const, "links/broken-internal": "error" as const } } };
         const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off" });
         const found = report.findings.map((finding) => [new URL(finding.url).pathname, finding.message.replace(/^127\.0\.0\.1:\d+/, "HOST")]).toSorted(([a = ""], [b = ""]) => a.localeCompare(b));
         assert.deepEqual(found, [
             ["/both", "HOST: it sends Content-Length beside Transfer-Encoding; on 1 pages"],
             ["/chunked.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
             ["/empty", "HOST: a 204 carries Content-Length; on 1 pages"],
+            ["/short", "HOST: its body ended at 12 of the 400 bytes Content-Length declares; on 1 pages"],
+            ["/short", "http.error is Response body length does not match content-length header: body ended at 12 of the 400 bytes Content-Length declares; linked from 1 page"],
             ["/short.js", "script its body ended at 7 of the 40 bytes Content-Length declares; used by 1 pages"],
+            ["/twice", "HOST: its body does not match Content-Length, or Content-Length is sent twice or beside chunked; on 1 pages"],
+            ["/twice", "http.error is Response body length does not match content-length header; linked from 1 page"],
             ["/twice.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
         ]);
     });

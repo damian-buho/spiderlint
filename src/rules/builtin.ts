@@ -16,15 +16,15 @@ import { robotsRules } from "./robots.ts";
 import { urlRules } from "./url.ts";
 import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
-// Every in-scope page answering 4xx or 5xx, with the pages that link to it.
+// Every in-scope page answering 4xx, 5xx or nothing, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({
     meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors", fix: "Fix the page at the link target so it answers 2xx, or point the links to a working URL." },
     check(pages: Facts[]) {
         const findings: Finding[] = [];
         for (const page of pages) {
-            if (page.http.status < 400) continue;
+            if (page.http.status > 0 && page.http.status < 400) continue;
             log.debug({ url: page.url.href, status: page.http.status, referrers: page.crawl.referrers.length }, "broken link");
-            findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `http.status is ${page.http.status}; linked from ${pageCount(page.crawl.referrers.length)}`, value: page.http.status, urls: page.crawl.referrers });
+            findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `${page.http.error ? `http.error is ${page.http.error}` : `http.status is ${page.http.status}`}; linked from ${pageCount(page.crawl.referrers.length)}`, value: page.http.status, urls: page.crawl.referrers });
         }
         return findings;
     },

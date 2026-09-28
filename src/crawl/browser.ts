@@ -19,6 +19,7 @@ import { cookieFacts, dateSkew, redactHeaders } from "../facts/transport.ts";
 import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
+import { reason } from "./fetch.ts";
 import { width } from "./resources.ts";
 import type { CrawlStorage, Frontier, Logged, OnPage } from "./frontier.ts";
 import type { Router } from "./route.ts";
@@ -383,6 +384,10 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
+            },
+            async failedRequestHandler({ request }, error) {
+                const facts = frontier.failed(request, reason(error));
+                if (facts) await onPage(facts, "");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false, purgeOnStart: false }),

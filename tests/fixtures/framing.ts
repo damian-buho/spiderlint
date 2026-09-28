@@ -4,7 +4,7 @@
 
 import { createServer, type AddressInfo, type Server, type Socket } from "node:net";
 
-const HOME = `<!DOCTYPE html><html lang="en"><head><title>Framing</title><script src="/short.js"></script><script src="/twice.js"></script><script src="/chunked.js"></script><script src="/long.js"></script><script src="/fine.js"></script></head><body><a href="/both">Both</a><a href="/empty">Empty</a><a href="/stale">Stale</a></body></html>`;
+const HOME = `<!DOCTYPE html><html lang="en"><head><title>Framing</title><script src="/short.js"></script><script src="/twice.js"></script><script src="/chunked.js"></script><script src="/long.js"></script><script src="/fine.js"></script></head><body><a href="/both">Both</a><a href="/empty">Empty</a><a href="/stale">Stale</a><a href="/short">Short</a><a href="/twice">Twice</a></body></html>`;
 const CODE = "void 0;";
 
 // Raw responses by path, since Node’s own server refuses to frame a body wrongly.
@@ -13,6 +13,8 @@ const RESPONSES: Record<string, string> = {
     "/both": `HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 10\r\nTransfer-Encoding: chunked\r\n\r\na\r\n<p>both</p\r\n0\r\n\r\n`,
     "/empty": `HTTP/1.1 204 No Content\r\nContent-Length: 10\r\n\r\n`,
     "/stale": `HTTP/1.1 304 Not Modified\r\nContent-Length: 10\r\n\r\n`,
+    "/short": `HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 400\r\n\r\n<p>short</p>`,
+    "/twice": `HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 12\r\nContent-Length: 12\r\n\r\n<p>twice</p>`,
     "/short.js": `HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: 40\r\n\r\n${CODE}`,
     "/twice.js": `HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: ${CODE.length}\r\nContent-Length: ${CODE.length}\r\n\r\n${CODE}`,
     "/chunked.js": `HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: ${CODE.length}\r\nTransfer-Encoding: chunked\r\n\r\n${CODE.length.toString(16)}\r\n${CODE}\r\n0\r\n\r\n`,

@@ -13,6 +13,7 @@ import { cookieFacts, dateSkew, earlyHintsHook, redactHeaders, redirectHook, tim
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { CrawlStorage, Earlier, Frontier, OnPage } from "./frontier.ts";
+import { MISMATCH, reason } from "./fetch.ts";
 import { guardUrl } from "./network.ts";
 import { width } from "./resources.ts";
 
@@ -42,13 +43,22 @@ function storedContentType(facts: Facts): string {
 
 // Wire bytes received so far, from got's progress on the original response stream.
 function transferred(source: unknown): number | undefined {
-    return (source as { downloadProgress?: { transferred?: number } }).downloadProgress?.transferred;
+    return (source as { downloadProgress?: { transferred?: number } } | undefined)?.downloadProgress?.transferred;
 }
 
 // The response's own connection, read while it is still attached.
 function socketOf(source: unknown): Transport["socket"] {
     const stream = source as { socket?: Transport["socket"]; request?: { socket?: Transport["socket"] } };
     return stream.socket ?? stream.request?.socket;
+}
+
+// Why a page fetch failed, naming both byte counts when the body ended short of `Content-Length`.
+function failure(error: Error, source: (Transport & { headers?: Record<string, string | string[] | undefined> }) | undefined): string {
+    const declared = Number(first(source?.headers?.["content-length"]));
+    const received = transferred(source);
+    log.debug({ error: error.message, declared, received }, "page failure named");
+    if (received !== undefined && received < declared) return `${MISMATCH}: body ended at ${received} of the ${declared} bytes Content-Length declares`;
+    return /content-length/i.test(error.message) ? MISMATCH : reason(error);
 }
 
 // Hands a request its group renders to the browser before fetching it.
@@ -82,6 +92,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
             maxConcurrency: width(config.concurrency),
             preNavigationHooks: [
                 async ({ request }, gotOptions) => {
+                    bodies.delete(request);
                     Object.assign(gotOptions, { decompress: false, headers: { ...gotOptions.headers, "user-agent": USER_AGENT, "accept-encoding": ACCEPT_ENCODING } });
                     const hints: NonNullable<Facts["http"]["early-hints"]> = [];
                     hinted.set(request, hints);
@@ -155,6 +166,10 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 await onPage(facts, body.toString());
                 if (!isHtml) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");
+            },
+            async failedRequestHandler({ request }, error) {
+                const facts = frontier.failed(request, failure(error, bodies.get(request)?.source));
+                if (facts) await onPage(facts, "");
             },
         },
         storage?.config ?? new Configuration({ persistStorage: false, purgeOnStart: false }),

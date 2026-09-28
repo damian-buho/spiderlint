@@ -24,7 +24,7 @@ const contentLength: Make = (severity) => ({
         const byFault = new Map<string, { message: string; urls: Set<string> }>();
         const note = (key: string, message: string, url: string) => byFault.set(key, { message, urls: (byFault.get(key)?.urls ?? new Set()).add(url) });
         for (const page of pages) {
-            const fault = framingFault(page.http.status, page.http.headers);
+            const fault = framingFault(page.http.status, page.http.headers, page.http.error);
             log.debug({ rule: "http/content-length", url: page.url.href, fault }, "page framing judged");
             if (fault) note(`${page.url.host}\t${fault}`, `${page.url.host}: ${fault}`, page.url.href);
             const resources = page.resources ?? [];

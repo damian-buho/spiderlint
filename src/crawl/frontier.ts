@@ -231,6 +231,14 @@ export class Frontier {
         };
     }
 
+    // A page no attempt fetched, as status 0 and its error so its referrers still see it; undefined past --max-pages.
+    failed(request: Request, error: string): Facts | undefined {
+        const url = new URL(request.url);
+        if (!this.admit(request, url)) return undefined;
+        log.warn({ url: url.href, error, retries: request.retryCount }, "page not fetched");
+        return { ...this.identity(request, url), http: { status: 0, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "", error } };
+    }
+
     // Hands a request to the browser before any fetch when its group renders there; true once handed.
     async handOff(request: Request): Promise<boolean> {
         if (!this.#crawlers.has("browser") || !(await this.#router.handOff(request.url))) return false;
