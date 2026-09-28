@@ -69,6 +69,14 @@ rules:
     message: "the home page links no NLWeb endpoint with rel=nlweb"
     fix: "Add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint."
     docs: https://github.com/nlweb-ai/NLWeb
+  html/fediverse-creator:
+    fact: html.meta.fediverse:creator
+    expect: {type: string, pattern: "^@?[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"}
+    when: {html.property.og:type: article}
+    severity: hint
+    message: "an article names no fediverse:creator account for Mastodon previews, found {got}"
+    fix: "Add <meta name=fediverse:creator content=\"@user@instance.example\"> to the article head."
+    docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
   redirects/by:
     fact: http.redirects
     expect: {type: array, items: {required: [by]}}
