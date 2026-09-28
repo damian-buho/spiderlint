@@ -370,7 +370,7 @@ client does with a wrongly framed body decides what it can see:
 | Response                        | got (pages)                                       | undici (resources)                       | Finding                       |
 | ------------------------------- | ------------------------------------------------- | ---------------------------------------- | ----------------------------- |
 | body shorter than declared      | throws `The server aborted pending request`       | throws; the byte count is added          | page and resource             |
-| body longer than declared       | hangs until the request handler times out         | reads the declared bytes, drops the rest | none                          |
+| body longer than declared       | throws a parse error; the declared bytes are kept | reads the declared bytes, drops the rest | none                          |
 | `Content-Length` beside chunked | passes, chunked wins                              | throws the length mismatch               | page and resource             |
 | two `Content-Length` values     | throws `Duplicate Content-Length`, equal ones too | throws the length mismatch               | page and resource             |
 | `Content-Length` on a 204       | passes, empty body                                | passes, empty body                       | page and resource             |

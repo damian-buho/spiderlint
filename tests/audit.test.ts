@@ -685,7 +685,7 @@ describe("content length", () => {
 
     it("reports each wrongly framed page host and resource, and leaves a 304 and an overlong body alone", async () => {
         const rulesets = { framing: { rules: { "http/content-length": "warning" as const, "links/broken-internal": "error" as const } } };
-        const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off" });
+        const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off", timeout: 10 });
         const found = report.findings.map((finding) => [new URL(finding.url).pathname, finding.message.replace(/^127\.0\.0\.1:\d+/, "HOST")]).toSorted(([a = ""], [b = ""]) => a.localeCompare(b));
         assert.deepEqual(found, [
             ["/both", "HOST: it sends Content-Length beside Transfer-Encoding; on 1 pages"],

@@ -4,6 +4,7 @@
 
 import { PassThrough, type Readable, type Transform } from "node:stream";
 import zlib from "node:zlib";
+import { log } from "../logger.ts";
 
 // Response fields Crawlee reads off the stream it parses.
 const FIELDS = ["statusCode", "statusMessage", "headers", "httpVersion", "rawHeaders", "url", "request", "complete"];
@@ -49,6 +50,12 @@ export function decoder(encoding: string | undefined): Transform | undefined {
     return DECODERS[encoding?.trim().toLowerCase() ?? ""]?.();
 }
 
+// The response got wraps once it read every declared byte, which a parse error on bytes past them leaves intact.
+function completed(source: Readable): Readable | undefined {
+    const response = (source as unknown as { response?: Readable & { complete?: boolean } }).response;
+    return response?.complete ? response : undefined;
+}
+
 // At most `max` decoded bytes of `source`, which is destroyed once the cap is reached.
 export function capped(source: Readable, max: number): Capped {
     const stream = new PassThrough();
@@ -67,15 +74,27 @@ export function capped(source: Readable, max: number): Capped {
         return { stream, isTruncated: () => isCut };
     }
     let seen = 0;
-    body.on("data", (chunk: Buffer) => {
+    const take = (chunk: Buffer) => {
         if (isCut) return;
         const room = max - seen;
         seen += chunk.length;
         stream.write(chunk.subarray(0, room));
         if (seen >= max) cut();
-    });
+    };
+    // A failure after every declared byte arrived ends the body with the bytes got never passed on; any other destroys it.
+    const fail = (error: Error) => {
+        const response = completed(source);
+        log.debug({ error: error.message, isComplete: response !== undefined, seen }, "body stream failed");
+        if (!response) return stream.destroy(error);
+        const rest = (response.read() as Buffer | null) ?? Buffer.alloc(0);
+        if (unzip) return void unzip.end(rest);
+        take(rest);
+        stream.end();
+    };
+    body.on("data", take);
     body.on("end", () => stream.end());
-    body.on("error", (error) => stream.destroy(error));
-    if (unzip) source.on("error", (error) => stream.destroy(error));
+    source.on("error", fail);
+    unzip?.on("error", (error) => stream.destroy(error));
+    if (source.errored) fail(source.errored);
     return { stream, isTruncated: () => isCut };
 }
