@@ -41,9 +41,11 @@ describe("page plugins", () => {
             "feeds/well-formed /bad.xml",
             "link-text/generic /bad",
             "link-text/generic /es/",
+            "manifest/discovery /de",
             "manifest/fields /bad.webmanifest",
             "manifest/icons /bad.webmanifest",
             "manifest/parse /broken.webmanifest",
+            "manifest/served /bad.webmanifest",
             "markup/captions /bad",
             "markup/input-type /bad",
             "markup/lang-switcher /bad",
@@ -78,6 +80,8 @@ describe("page plugins", () => {
         assert.deepEqual(locations("markup/lang-switcher"), [`${site.origin}/es/ declares no lang for es`]);
         assert.deepEqual(locations("markup/input-type"), ["autocomplete=email on type=text"]);
         assert.match(report.findings.find((finding) => finding.rule === "manifest/fields")?.message ?? "", /lacks start_url, display, icons|lacks start_url, display/);
+        assert.match(report.findings.find((finding) => finding.rule === "manifest/served")?.message ?? "", /served as application\/json, not application\/manifest\+json; no id; https:\/\/elsewhere\.example\/ is on another origin; start_url \S+\/bad\.webmanifest is outside scope/);
+        assert.match(report.findings.find((finding) => finding.rule === "manifest/discovery")?.message ?? "", /^1 of \d+ pages link no manifest/);
     });
 
     it("judges structured data against the page, the vocabulary and the rest of the site", () => {

@@ -54,8 +54,8 @@ const FILES: Record<string, [string, string]> = {
     "/noid.xml": [RSS, `<?xml version="1.0"?><rss version="2.0"><channel><title>No ids</title><item><title>One</title><guid>one</guid></item><item><title>Two</title></item></channel></rss>`],
     "/hub.json": [JSON_FEED, `{"version":"https://jsonfeed.org/version/1.1","title":"Hub","hubs":[{"type":"WebSub","url":"https://hub.example/"}],"items":[{"id":"1"}]}`],
     "/elsewhere.xml": ["application/atom+xml", `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>Moved</title><id>urn:moved</id><link rel="self" href="https://feeds.example/atom.xml"/></feed>`],
-    "/good.webmanifest": [MANIFEST, `{"name":"Good","start_url":"/","display":"standalone","icons":[{"src":"/192.png","sizes":"192x192"},{"src":"/512.png","sizes":"512x512","purpose":"any maskable"}]}`],
-    "/bad.webmanifest": [MANIFEST, `{"name":"Bad","icons":[{"src":"/16.png","sizes":"16x16"}]}`],
+    "/good.webmanifest": [MANIFEST, `{"name":"Good","id":"/","start_url":"/","scope":"/","display":"standalone","icons":[{"src":"/192.png","sizes":"192x192"},{"src":"/512.png","sizes":"512x512","purpose":"any maskable"}]}`],
+    "/bad.webmanifest": ["application/json", `{"name":"Bad","scope":"https://elsewhere.example/","icons":[{"src":"/16.png","sizes":"16x16"}]}`],
     "/broken.webmanifest": [MANIFEST, `{"name":`],
 };
 
