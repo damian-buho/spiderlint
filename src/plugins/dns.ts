@@ -352,18 +352,18 @@ const MAIL: Record<string, RuleSpec> = {
     "dns/null-mx": {
         fact: "site.hosts.*.mail.mx",
         expect: { minItems: 1, maxItems: 1, items: { properties: { preference: { const: 0 }, exchange: { const: "." } } } },
-        message: "no null MX, so senders queue mail for a name that takes none (got {got})",
+        message: "no null MX, so senders fall back to the name’s A or AAAA address and retry mail it never takes for days (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7505",
-        fix: "Publish a null MX (`MX 0 .`) so senders know the name takes no mail.",
+        fix: "Add one MX record — Name `{host}`, Mail server `.`, Priority `0`, in a zone file `{host}. MX 0 .` — and delete every other MX of the name.",
     },
     "dns/spf-none": {
         fact: "site.hosts.*.mail.spf",
         expect: { minItems: 1, maxItems: 1, items: { pattern: String.raw`^[vV]=[sS][pP][fF]1\s+-[aA][lL][lL]\s*$` } },
-        message: "SPF is not a lone v=spf1 -all, so mail forged from this name is not refused (got {got})",
+        message: "SPF is not a lone v=spf1 -all, so receivers cannot refuse mail forged from this name (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
-        fix: "Set the sole SPF TXT record to \"v=spf1 -all\".",
+        fix: "Add one TXT record — Name `{host}`, Content `v=spf1 -all` — and delete every other `v=spf1` record of the name, since SPF is not inherited by subdomains.",
     },
     "dns/dmarc-reject": {
         fact: "site.hosts.*.mail.dmarc",
@@ -371,7 +371,7 @@ const MAIL: Record<string, RuleSpec> = {
         message: "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
-        fix: "Publish a DMARC TXT record at _dmarc.<host> with p=reject.",
+        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s` — which covers `{domain}` and every name under it.",
     },
 };
 
@@ -406,7 +406,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "no CAA record on the host or any parent, so any CA may issue for it",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc8659",
-        fix: "Publish a CAA record at the zone apex allowing the CAs you use, e.g. CAA 0 issue \"letsencrypt.org\".",
+        fix: "Add one CAA record per CA you use — Name `{domain}`, Flags `0`, Tag `issue`, CA domain `letsencrypt.org` — which covers every name under it.",
     },
     "dns/caa-issuer": {
         fact: "site.hosts.*.dns.caa.issuer",
