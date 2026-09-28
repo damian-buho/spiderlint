@@ -20,6 +20,7 @@ extends:
 rules:
   http/consistent-origin: info
   http/clock-skew: warning
+  http/content-length: warning
   http/date:
     fact: http.headers.date
     expect: {type: string, pattern: "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d{4} \\d{2}:\\d{2}:\\d{2} GMT$"}

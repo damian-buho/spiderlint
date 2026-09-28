@@ -363,6 +363,22 @@ header carries none. When two or more hosts are off alike (same sign, within
 alone cannot tell, so it is reported. The scan server checks its own clock at
 start against `clock-references` (`rules/clock.ts`, `server/clock.ts`).
 
+It carries `http/content-length` (`scope: site`, `warning`) too, one finding per
+host and fault for pages and per resource URL (`rules/length.ts`). What each
+client does with a wrongly framed body decides what it can see:
+
+| Response                        | got (pages)                                       | undici (resources)                       | Finding                       |
+| ------------------------------- | ------------------------------------------------- | ---------------------------------------- | ----------------------------- |
+| body shorter than declared      | throws `The server aborted pending request`       | throws; the byte count is added          | resource                      |
+| body longer than declared       | throws a parse error on the extra bytes           | reads the declared bytes, drops the rest | none                          |
+| `Content-Length` beside chunked | passes, chunked wins                              | throws the length mismatch               | page and resource             |
+| two `Content-Length` values     | throws `Duplicate Content-Length`, equal ones too | throws the length mismatch               | resource                      |
+| `Content-Length` on a 204       | passes, empty body                                | passes, empty body                       | page and resource             |
+| `Content-Length` on a 304       | passes                                            | passes                                   | none: RFC 9110 §8.6 allows it |
+
+A page got throws on is retried, then dropped from the report with only
+Crawlee’s log line; a missing `Content-Length` is never a finding.
+
 ## Folding
 
 Runs after all page-scope findings exist, per `(group, rule)`:

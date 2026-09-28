@@ -18,6 +18,7 @@ import { formatHuman } from "../src/report/human.ts";
 import { painter } from "../src/color.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 import { serveOrigin, type Origin } from "./fixtures/origin.ts";
+import { serveFraming, type Framing } from "./fixtures/framing.ts";
 import { log } from "../src/logger.ts";
 import { isOwnClock } from "../src/rules/clock.ts";
 
@@ -670,5 +671,28 @@ describe("clock skew", () => {
         assert.equal(isOwnClock([600, -600]), false);
         assert.equal(isOwnClock([600, 30]), false);
         assert.equal(isOwnClock([600, 700]), false);
+    });
+});
+
+describe("content length", () => {
+    let framing: Framing;
+
+    before(async () => {
+        framing = await serveFraming();
+    });
+
+    after(() => framing.close());
+
+    it("reports each wrongly framed page host and resource, and leaves a 304 and an overlong body alone", async () => {
+        const rulesets = { framing: { rules: { "http/content-length": "warning" as const } } };
+        const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off" });
+        const found = report.findings.map((finding) => [new URL(finding.url).pathname, finding.message.replace(/^127\.0\.0\.1:\d+/, "HOST")]).toSorted(([a = ""], [b = ""]) => a.localeCompare(b));
+        assert.deepEqual(found, [
+            ["/both", "HOST: it sends Content-Length beside Transfer-Encoding; on 1 pages"],
+            ["/chunked.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
+            ["/empty", "HOST: a 204 carries Content-Length; on 1 pages"],
+            ["/short.js", "script its body ended at 7 of the 40 bytes Content-Length declares; used by 1 pages"],
+            ["/twice.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
+        ]);
     });
 });
