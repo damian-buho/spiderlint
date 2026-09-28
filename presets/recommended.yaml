@@ -15,7 +15,7 @@ extends:
   - spiderlint:robots
   - spiderlint:resources
   - spiderlint:origin
-  - spiderlint:dns:core
+  - spiderlint:dns:recommended
   - spiderlint:images
   - spiderlint:icons
 rules:

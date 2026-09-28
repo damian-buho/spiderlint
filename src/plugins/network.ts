@@ -8,7 +8,7 @@ import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
-import { isSpecialUse, records, texts, zoneOf } from "./dns.ts";
+import { isSpecialUse, once, records, texts, warnOnce, zoneOf } from "./dns.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
 const RIPESTAT = "https://stat.ripe.net/data/rpki-validation/data.json";
@@ -32,18 +32,6 @@ interface Identity {
     ptr: string[];
     fcrdns: boolean;
     rpki?: string;
-}
-
-// Sources that already warned in a run, keyed by the run client’s `validating`, which every context’s copy shares.
-const warned = new WeakMap<object, Set<string>>();
-
-// Warns the first time `source` fails in a run, and logs every later failure at debug.
-function warnOnce(dns: DnsClient, source: string, fields: Record<string, unknown>): void {
-    const seen = warned.get(dns.validating) ?? new Set<string>();
-    warned.set(dns.validating, seen);
-    if (seen.has(source)) return log.debug({ source, ...fields }, "network lookup failed again");
-    seen.add(source);
-    log.warn({ source, ...fields }, `${source} unreachable; its network facts skipped`);
 }
 
 // The 32 hex nibbles of an IPv6 address.
@@ -110,13 +98,6 @@ async function exchangesOf(host: string, dns: DnsClient): Promise<string[]> {
 async function serversOf(zone: string, dns: DnsClient): Promise<string[]> {
     const reply = await dns.query(zone, "NS");
     return records<string>(reply, "NS").map(({ data }) => data);
-}
-
-// The value `make` yields for `key`, asked once per map.
-function once<K, V>(cache: Map<K, Promise<V>>, key: K, make: () => Promise<V>): Promise<V> {
-    const known = cache.get(key) ?? make();
-    cache.set(key, known);
-    return known;
 }
 
 // Cymru and RIPEstat lookups for one subject, each asked once; a failing source is warned once per run and skipped.

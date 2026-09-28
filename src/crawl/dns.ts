@@ -27,6 +27,8 @@ export interface QueryOptions {
     server?: string;
     // Sets `CD`, so a validating resolver answers what it would reject as bogus.
     checkingDisabled?: boolean;
+    // Sets `RD` on a direct query, to learn whether an authoritative server recurses.
+    recursion?: boolean;
     signal?: AbortSignal;
 }
 
@@ -35,6 +37,7 @@ export interface Reply {
     rcode: string;
     aa: boolean;
     ad: boolean;
+    ra: boolean;
     answers: Answer[];
     authorities: Answer[];
 }
@@ -143,7 +146,7 @@ function overTcp(target: Server, message: Buffer, signal: AbortSignal): Promise<
 // Encodes one question with `DO` set and `RD` unless the server is asked directly.
 function encode(name: string, type: string, options: QueryOptions): { id: number; message: Buffer } {
     const id = randomInt(65_536);
-    const flags = (options.server === undefined ? dnsPacket.RECURSION_DESIRED : 0) | dnsPacket.AUTHENTIC_DATA | (options.checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
+    const flags = (options.server === undefined || options.recursion ? dnsPacket.RECURSION_DESIRED : 0) | dnsPacket.AUTHENTIC_DATA | (options.checkingDisabled ? dnsPacket.CHECKING_DISABLED : 0);
     const message = dnsPacket.encode({ type: "query", id, flags, questions: [{ type: type as "A", name, class: "IN" }], additionals: [{ type: "OPT", name: ".", udpPayloadSize: PAYLOAD, flags: dnsPacket.DNSSEC_OK }] } as Packet);
     return { id, message };
 }
@@ -161,7 +164,7 @@ async function exchange(target: Server, name: string, type: string, options: Que
 // Decodes the wire answer the extractors read.
 function decode(target: string, wire: Buffer): Reply {
     const packet = dnsPacket.decode(wire);
-    return { server: target, rcode: (packet as { rcode?: string }).rcode ?? "NOERROR", aa: packet.flag_aa ?? false, ad: packet.flag_ad ?? false, answers: packet.answers ?? [], authorities: packet.authorities ?? [] };
+    return { server: target, rcode: (packet as { rcode?: string }).rcode ?? "NOERROR", aa: packet.flag_aa ?? false, ad: packet.flag_ad ?? false, ra: packet.flag_ra ?? false, answers: packet.answers ?? [], authorities: packet.authorities ?? [] };
 }
 
 // The smallest TTL in an answer, floored at `floor` seconds.
@@ -195,7 +198,7 @@ export function dnsClient(resolver: string, bucket: Bucket<StoredReply>, canQuer
             if (targets.length === 0) throw new Error("no resolver configured");
             const signal = options.signal ?? new AbortController().signal;
             signal.throwIfAborted();
-            const key = `${targets.map((target) => label(target)).join(",")}\t${name}\t${type}\t${options.checkingDisabled ? "cd" : ""}`;
+            const key = `${targets.map((target) => label(target)).join(",")}\t${name}\t${type}\t${options.checkingDisabled ? "cd" : ""}${options.recursion ? "rd" : ""}`;
             const entry = await bucket.get(key);
             if (entry && Date.parse(entry.value.expires) > Date.now()) return decode(targets[0] ? label(targets[0]) : "", Buffer.from(entry.value.packet, "base64"));
             let failure: unknown;

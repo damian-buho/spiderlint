@@ -8,6 +8,7 @@ import { getDomain } from "tldts";
 import { Bucket } from "../cache/index.ts";
 import { dnsClient, parseResolver, type DnsClient, type Reply, type StoredReply } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
+import { nsName, registration, type Registration } from "../crawl/rdap.ts";
 import { parseSvcb, type Svcb } from "../crawl/svcb.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -39,9 +40,35 @@ const ISSUERS: [RegExp, string[]][] = [
 
 type Data<T> = Answer & { data: T; ttl?: number };
 
-// `org.spiderlint.dns`: public resolvers to compare the configured one with; none by default, so no third party is asked.
+// A name an open resolver answers and a server that only serves its own zones refuses or refers.
+const UNRELATED = "a.root-servers.net";
+
+// Parent servers asked for a delegation before giving up.
+const PARENT_TRIES = 3;
+
+// `org.spiderlint.dns`: public resolvers to compare the configured one with, none by default so no third party is asked; `rdap: false` never asks a registry.
 export interface DnsSettings {
     compare: string[];
+    rdap: boolean;
+}
+
+// Sources that already warned in a run, keyed by the run client’s `validating`, which every context’s copy shares.
+const warned = new WeakMap<object, Set<string>>();
+
+// Warns the first time `source` fails in a run, and logs every later failure at debug.
+export function warnOnce(dns: DnsClient, source: string, fields: Record<string, unknown>): void {
+    const seen = warned.get(dns.validating) ?? new Set<string>();
+    warned.set(dns.validating, seen);
+    if (seen.has(source)) return log.debug({ source, ...fields }, "lookup failed again");
+    seen.add(source);
+    log.warn({ source, ...fields }, `${source} unreachable; its facts skipped`);
+}
+
+// The value `make` yields for `key`, asked once per map.
+export function once<K, V>(cache: Map<K, Promise<V>>, key: K, make: () => Promise<V>): Promise<V> {
+    const known = cache.get(key) ?? make();
+    cache.set(key, known);
+    return known;
 }
 
 // The answers of `type`, in wire order.
@@ -153,7 +180,7 @@ const addresses: SiteExtractor = {
         }
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
-        const [a, aaaa, https, sale, agents] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64")]);
+        const [a, aaaa, https, sale, agents, apex] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64"), context.dns.query(zone, "CNAME")]);
         const v4 = records<string>(a, "A").map(({ data, ttl }) => ({ address: data, ttl }));
         const v6 = records<string>(aaaa, "AAAA").map(({ data, ttl }) => ({ address: data, ttl }));
         const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { "hints-match"?: boolean } => {
@@ -165,7 +192,8 @@ const addresses: SiteExtractor = {
         const authorised = await caa(host, zone, context.dns);
         const allowed = authorised && issuer(host, authorised, context.pages);
         const broken = dangling(host, a);
-        log.debug({ host, zone, a: v4.length, aaaa: v6.length, https: hinted.length, caa: authorised?.at, dangling: broken, forSale: forSale.length, agents: agentServices.length }, "dns records read");
+        const apexAlias = records<string>(apex, "CNAME").find((record) => isSameName(record.name, zone))?.data ?? false;
+        log.debug({ host, zone, apexCname: apexAlias, a: v4.length, aaaa: v6.length, https: hinted.length, caa: authorised?.at, dangling: broken, forSale: forSale.length, agents: agentServices.length }, "dns records read");
         return {
             zone,
             a: v4,
@@ -175,6 +203,7 @@ const addresses: SiteExtractor = {
             ...(hinted.some((record) => record.priority > 0) && { h3: { record: hinted.some((record) => record.alpn?.includes("h3")), "alt-svc": hasAltSvcH3(context.pages) } }),
             ...(authorised && { caa: { ...authorised, ...(allowed && { issuer: allowed }) } }),
             dangling: broken,
+            "apex-cname": apexAlias,
             ...(forSale.length > 0 && { "for-sale": forSale }),
             ...(agentServices.length > 0 && { agents: agentServices }),
         };
@@ -247,7 +276,7 @@ async function hostAnswers(host: string, dns: DnsClient, options: Parameters<Dns
 }
 
 // One name server: its addresses, its own SOA answer and the host’s records when asked directly, IPv4 first.
-async function nameServer(zone: string, host: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; "soa-serial"?: number; authoritative?: boolean; answers?: string[] }> {
+async function nameServer(zone: string, host: string, name: string, dns: DnsClient): Promise<{ name: string; addresses: string[]; "soa-serial"?: number; authoritative?: boolean; answers?: string[]; recursive?: boolean }> {
     const [a, aaaa] = await Promise.all([dns.query(name, "A"), dns.query(name, "AAAA")]);
     const addresses = [...records<string>(a, "A"), ...records<string>(aaaa, "AAAA")].map(({ data }) => data);
     if (!dns.canQueryDirectly) return { name, addresses };
@@ -256,13 +285,50 @@ async function nameServer(zone: string, host: string, name: string, dns: DnsClie
             const reply = await dns.query(zone, "SOA", { server: address });
             const serial = records<SoaData>(reply, "SOA")[0]?.data.serial;
             const { answers } = await hostAnswers(host, dns, { server: address });
-            log.debug({ zone, host, name, address, aa: reply.aa, serial, answers }, "name server asked directly");
-            return { name, addresses, ...(serial !== undefined && { "soa-serial": serial }), authoritative: reply.aa && serial !== undefined, answers };
+            const unrelated = await dns.query(UNRELATED, "A", { server: address, recursion: true });
+            const isRecursive = unrelated.ra && unrelated.rcode === "NOERROR" && records<string>(unrelated, "A").length > 0;
+            log.debug({ zone, host, name, address, aa: reply.aa, serial, answers, isRecursive }, "name server asked directly");
+            return { name, addresses, ...(serial !== undefined && { "soa-serial": serial }), authoritative: reply.aa && serial !== undefined, answers, recursive: isRecursive };
         } catch (error) {
             log.debug({ zone, name, address, error: reason(error) }, "name server unreachable");
         }
     }
     return { name, addresses, authoritative: false };
+}
+
+// The NS set the parent zone delegates `zone` to, asked of a parent server directly; none when no parent server answers.
+async function delegation(zone: string, dns: DnsClient): Promise<string[] | undefined> {
+    const parent = zone.split(".").slice(1).join(".") || ".";
+    const parents = records<string>(await dns.query(parent, "NS"), "NS").map(({ data }) => data);
+    const resolved = await Promise.all(parents.map(async (name) => records<string>(await dns.query(name, "A"), "A").map(({ data }) => data)));
+    const addresses = resolved.flat().slice(0, PARENT_TRIES);
+    for (const address of addresses) {
+        try {
+            const reply = await dns.query(zone, "NS", { server: address });
+            const names = [...reply.answers, ...reply.authorities].filter((record) => record.type === "NS" && isSameName(record.name, zone)).map((record) => nsName(String((record as Data<string>).data)));
+            log.debug({ zone, parent, address, names }, "parent asked for the delegation");
+            if (names.length > 0) return [...new Set(names)].toSorted((a, b) => a.localeCompare(b));
+        } catch (error) {
+            log.debug({ zone, parent, address, error: reason(error) }, "parent server unreachable");
+        }
+    }
+    log.debug({ zone, parent, tried: addresses.length }, "no parent server named the delegation");
+    return undefined;
+}
+
+// The zone SOA’s timers, whether retry stays below refresh, and whether MNAME is one of the NS.
+async function soaOf(zone: string, names: string[], dns: DnsClient): Promise<Record<string, unknown> | undefined> {
+    const data = records<SoaData>(await dns.query(zone, "SOA"), "SOA").find((record) => isSameName(record.name, zone))?.data;
+    log.debug({ zone, soa: data }, "soa read");
+    return data && { mname: nsName(data.mname), refresh: data.refresh, retry: data.retry, expire: data.expire, minimum: data.minimum, "retry-below-refresh": (data.retry ?? 0) < (data.refresh ?? 0), "mname-listed": names.some((name) => isSameName(name, data.mname)) };
+}
+
+// The smallest TTL per record type as `server` serves them, not as a resolver’s cache counts them down.
+async function ttlsOf(zone: string, host: string, server: string, dns: DnsClient): Promise<Record<string, number>> {
+    const asked: [string, string, string][] = [["ns", zone, "NS"], ["a", host, "A"], ["aaaa", host, "AAAA"], ["mx", host, "MX"]];
+    const ttls = await Promise.all(asked.map(async ([key, name, type]) => [key, records<unknown>(await dns.query(name, type, { server }), type).map((record) => record.ttl ?? 0)] as const));
+    log.debug({ zone, host, server, ttls }, "authoritative ttls read");
+    return Object.fromEntries(ttls.flatMap(([key, found]) => (found.length > 0 ? [[key, Math.min(...found)]] : [])));
 }
 
 // The zone’s NS set, each asked directly for the SOA serial and the host’s records, and how many networks their addresses span.
@@ -282,8 +348,12 @@ const nameservers: SiteExtractor = {
         const view = context.dns.canQueryDirectly && sets.length > 0 ? await hostAnswers(host, context.dns) : undefined;
         const resolved = view?.answers;
         const agreement = resolved && { "answer-sets": sets.length, "resolver-agrees": sets.includes(JSON.stringify(resolved)), resolver: resolved };
-        log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"] }, "name servers read");
-        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement };
+        const own = names.map((name) => nsName(name)).toSorted((a, b) => a.localeCompare(b));
+        const parent = context.dns.canQueryDirectly ? await delegation(zone, context.dns) : undefined;
+        const primary = servers.find((server) => server.authoritative)?.addresses[0];
+        const [soa, ttl] = await Promise.all([soaOf(zone, names, context.dns), primary ? ttlsOf(zone, host, primary, context.dns) : undefined]);
+        log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"], delegation: parent, primary }, "name servers read");
+        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement, ...(parent && { delegation: { servers: parent, matches: isSameSet(parent, own) } }), ...(soa && { soa }), ...(ttl && { ttl }) };
     },
 };
 
@@ -345,6 +415,37 @@ const mail: SiteExtractor = {
         const spf = texts(txt).filter((entry) => /^v=spf1(\s|$)/i.test(entry));
         log.debug({ host, zone, mx: exchanges.length, spf: spf.length, dmarc: policy?.policy }, "mail records read");
         return { mx: exchanges, spf, ...(policy && { dmarc: policy }) };
+    },
+};
+
+// Registrations already asked for in a run, keyed as `warned` is.
+const registrations = new WeakMap<object, Map<string, Promise<Registration | undefined>>>();
+
+// The host’s registrable domain as its registry records it over RDAP; skipped under a private suffix, whose owner registers nothing.
+const rdap: SiteExtractor = {
+    id: "rdap",
+    per: "host",
+    resolves: true,
+    async extract(host, context) {
+        const { rdap: isAsked = true } = (context.settings ?? {}) as Partial<DnsSettings>;
+        const domain = isIP(host) === 0 && !isSpecialUse(host) ? getDomain(host) : undefined;
+        const isRegistered = domain !== null && domain !== undefined && getDomain(host, { allowPrivateDomains: true }) === domain;
+        log.debug({ host, domain, isAsked, isRegistered }, "rdap lookup decided");
+        if (!isAsked || !isRegistered) return;
+        const asked = registrations.get(context.dns.validating) ?? new Map<string, Promise<Registration | undefined>>();
+        registrations.set(context.dns.validating, asked);
+        let found: Registration | undefined;
+        try {
+            found = await once(asked, domain, () => registration(domain, context.delegated));
+        } catch (error) {
+            warnOnce(context.dns, "RDAP", { host, domain, error: reason(error) });
+            return;
+        }
+        if (!found) return;
+        const zoned = records<string>(await context.dns.query(domain, "NS"), "NS").map(({ data }) => nsName(data)).toSorted((a, b) => a.localeCompare(b));
+        const daysLeft = found.expires === undefined ? undefined : Math.floor((Date.parse(found.expires) - Date.now()) / 86_400_000);
+        log.debug({ host, domain, daysLeft, status: found.status, registry: found.nameservers, zone: zoned }, "registration read");
+        return { domain, ...found, ...(daysLeft !== undefined && { "days-left": daysLeft }), ...(found.nameservers.length > 0 && zoned.length > 0 && { "ns-matches": isSameSet(found.nameservers, zoned) }) };
     },
 };
 
@@ -556,6 +657,84 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Check the DS at the parent and the DNSKEY set against each resolver’s trust anchors.",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-4.3",
     },
+    "dns/ns-delegation": {
+        fact: "site.hosts.*.nameservers.delegation",
+        expect: { properties: { matches: { const: true } } },
+        when: { "site.hosts.*.nameservers.delegation": { type: "object" } },
+        message: "the parent zone delegates to other name servers than the zone’s own NS records, so resolvers reach a server the zone disowns (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
+        fix: "Make the NS records at Name `{domain}` and the name servers set at the registrar name the same servers.",
+    },
+    "dns/apex-cname": {
+        fact: "site.hosts.*.dns.apex-cname",
+        expect: { const: false },
+        when: { "site.hosts.*.dns.apex-cname": { type: ["string", "boolean"] } },
+        message: "the zone apex is a CNAME to {got}, which cannot sit beside the apex’s SOA and NS records",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
+        fix: "Replace the CNAME at Name `{domain}` with A and AAAA records, or with the provider’s ALIAS or flattened CNAME.",
+    },
+    "dns/soa-timers": {
+        fact: "site.hosts.*.nameservers.soa",
+        expect: { properties: { refresh: { minimum: 1200, maximum: 43_200 }, expire: { minimum: 1_209_600, maximum: 2_419_200 }, minimum: { minimum: 300, maximum: 86_400 }, "retry-below-refresh": { const: true }, "mname-listed": { const: true } } },
+        when: { "site.hosts.*.nameservers.soa": { type: "object" } },
+        message: "the SOA timers or its primary name server fall outside what RFC 1912 recommends (got {got})",
+        severity: "info",
+        docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.2",
+        fix: "Set the SOA of `{domain}` to refresh 7200, retry 3600, expire 1209600 and minimum 3600, with one of its name servers as the primary.",
+    },
+    "dns/ttl": {
+        fact: "site.hosts.*.nameservers.ttl",
+        expect: { properties: { a: { minimum: 300, maximum: 86_400 }, aaaa: { minimum: 300, maximum: 86_400 }, mx: { minimum: 300, maximum: 86_400 }, ns: { minimum: 300, maximum: 172_800 } } },
+        when: { "site.hosts.*.nameservers.ttl": { type: "object" } },
+        message: "a record TTL sits outside 300 seconds to one day, two for NS; fine just before a migration, costly otherwise (got {got})",
+        severity: "hint",
+        docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.2",
+        fix: "Set the TTL of the A, AAAA and MX records of `{host}` between 300 and 86400 seconds, and of its NS records up to 172800.",
+    },
+    "dns/open-recursion": {
+        fact: "site.hosts.*.nameservers.servers",
+        expect: { items: { properties: { recursive: { not: { const: true } } } } },
+        message: "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc5358",
+        fix: "Turn recursion off on the authoritative name servers of `{domain}`, or allow it to your own networks only.",
+    },
+    "domain/expiry": {
+        fact: "site.hosts.*.rdap.days-left",
+        expect: { type: "integer", minimum: 30 },
+        when: { "site.hosts.*.rdap.days-left": { minimum: 7 } },
+        message: "the domain registration expires in {got} days",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
+        fix: "Renew `{domain}` at its registrar and turn on automatic renewal.",
+    },
+    "domain/expiring": {
+        fact: "site.hosts.*.rdap.days-left",
+        expect: { type: "integer", minimum: 7 },
+        message: "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses",
+        severity: "error",
+        docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
+        fix: "Renew `{domain}` at its registrar now and find out why automatic renewal did not run.",
+    },
+    "domain/lock": {
+        fact: "site.hosts.*.rdap.status",
+        expect: { type: "array", contains: { enum: ["client transfer prohibited", "server transfer prohibited"] } },
+        message: "the registration carries no transfer lock, so whoever takes over the registrar account can move the domain away (status {got})",
+        severity: "warning",
+        docs: "https://www.icann.org/resources/pages/epp-status-codes-2014-06-16-en",
+        fix: "Turn on the transfer lock (clientTransferProhibited) for `{domain}` at its registrar.",
+    },
+    "domain/ns-registry": {
+        fact: "site.hosts.*.rdap.ns-matches",
+        expect: { const: true },
+        when: { "site.hosts.*.rdap.ns-matches": { type: "boolean" } },
+        message: "the name servers the registry lists differ from the zone’s own NS records",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
+        fix: "Make the name servers set at the registrar and the NS records at Name `{domain}` name the same servers.",
+    },
     "dns/ns-diversity": {
         fact: "site.hosts.*.nameservers.networks",
         expect: { minimum: 2 },
@@ -567,15 +746,20 @@ const RULES: Record<string, RuleSpec> = {
 };
 
 const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/dangling-cname", "dns/dnssec", "dns/dnssec-bogus"];
+const RECOMMENDED = [...CORE, "domain/expiry", "domain/expiring", "domain/lock", "dns/open-recursion"];
+
+// The `RULES` entries named by `ids`.
+const pick = (ids: string[]): Record<string, RuleSpec> => Object.fromEntries(ids.map((id) => [id, RULES[id] as RuleSpec]));
 
 // Records, CAA, DNSSEC and name servers of every crawled host, asked of the configured resolver.
 export default definePlugin({
     name: "dns",
-    settings: { type: "object", additionalProperties: false, properties: { compare: { type: "array", items: { type: "string", minLength: 1 }, default: [] } } },
-    sites: [addresses, dnssec, nameservers, resolvers, mail],
+    settings: { type: "object", additionalProperties: false, properties: { compare: { type: "array", items: { type: "string", minLength: 1 }, default: [] }, rdap: { type: "boolean", default: true } } },
+    sites: [addresses, dnssec, nameservers, resolvers, mail, rdap],
     presets: {
-        dns: { description: "DNS of every crawled host: HTTPS records, CAA, DNSSEC, name servers, dangling CNAMEs", rules: RULES },
+        dns: { description: "DNS and registration of every crawled host: HTTPS records, CAA, DNSSEC, name servers, zone timers, dangling CNAMEs, RDAP expiry and lock", rules: RULES },
         "dns:mail": { description: "Null MX, a deny-all SPF and a DMARC reject policy, for names that send and take no mail", rules: MAIL },
-        "dns:core": { description: "HTTPS record, CAA, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: Object.fromEntries(CORE.map((id) => [id, RULES[id] as RuleSpec])) },
+        "dns:core": { description: "HTTPS record, CAA, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: pick(CORE) },
+        "dns:recommended": { description: "dns:core, the registration’s expiry and transfer lock, and name servers open to recursion", rules: pick(RECOMMENDED) },
     },
 });

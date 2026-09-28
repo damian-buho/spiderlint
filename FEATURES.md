@@ -30,6 +30,7 @@ SPDX-License-Identifier: MIT
 - DNSSEC is checked end-to-end: an unsigned zone, weak algorithms, stalled re-signing, and a signed zone that validating resolvers reject.
 - Name servers are asked directly and every other query goes only to the resolver you name, so a lame server or a zone out of sync shows, and a link to a subdomain whose CNAME points nowhere is flagged as a takeover risk.
 - A domain that sends and takes no mail can be held to a null MX, a deny-all SPF and a DMARC reject policy, so nobody can send mail in its name.
+- The domain registration is read from its registry, so a renewal that is days away, a missing transfer lock or a registry naming other name servers than the zone shows before the domain lapses or is taken.
 - Every address is traced to the network that routes it, so a route that RPKI-enforcing networks drop, a mail server with no matching reverse DNS, or a site and its name servers all behind one provider come to light.
 
 ### One finding per template, not per page
@@ -99,6 +100,7 @@ SPDX-License-Identifier: MIT
 ### Reports for people, pipelines and coding agents
 
 - Findings come as text, JSON, SARIF, Checkstyle, CSV or an HTML report, and a stored crawl is re-formatted without fetching the site again.
+- Each finding can say how to fix it for the site at hand, the exact record, header or tag with the site’s own names filled in, and code scanning shows the same guidance beside every alert.
 - The agent format turns findings into fix prompts for a coding agent, ordered by severity and by how many pages each fix clears.
 - A CI action audits a site on every push, fails the job at the severity you choose, uploads SARIF to code scanning, and caches the crawl so an unchanged site costs almost nothing to re-audit.
 - Exit codes tell findings apart from a bad configuration and from a site that could not be reached, so a pipeline knows which one failed.

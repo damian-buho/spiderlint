@@ -4,13 +4,17 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Bucket, type BucketName } from "../src/cache/index.ts";
 import { ConfigError } from "../src/config/index.ts";
 import type { Answer } from "dns-packet";
 import { dnsClient, parseResolver, servers, type DnsClient, type Reply, type StoredReply } from "../src/crawl/dns.ts";
+import type { Probe, ProbeInit } from "../src/crawl/probe.ts";
+import { BOOTSTRAP } from "../src/crawl/rdap.ts";
 import { parseSvcb } from "../src/crawl/svcb.ts";
 import { extractSites } from "../src/facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
@@ -28,7 +32,7 @@ function page(host: string, issuer: string, links: string[] = [], altSvc?: strin
 
 // A stub reply carrying `answers`, authoritative when `isAuthoritative`.
 function reply(answers: Answer[], isAuthoritative = false): Reply {
-    return { server: "stub", rcode: "NOERROR", aa: isAuthoritative, ad: false, answers, authorities: [] };
+    return { server: "stub", rcode: "NOERROR", aa: isAuthoritative, ad: false, ra: false, answers, authorities: [] };
 }
 
 function a(name: string, data: string): Answer {
@@ -42,7 +46,7 @@ function off(): Bucket<StoredReply> {
 // Every dns extractor’s facts for `host`, keyed as the site document holds them.
 async function extract(host: string, pages: Facts[], client: DnsClient): Promise<Record<string, unknown>> {
     const signal = new AbortController().signal;
-    const context = { pages, signal, dns: client, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
+    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
     const facts: Record<string, unknown> = {};
     const extractors = dns.sites ?? [];
     for (const extractor of extractors) {
@@ -132,7 +136,37 @@ describe("dns plugin", () => {
     it("finds each fault of a bad zone", async () => {
         const facts = await extract("www.bad.fixture", [page("www.bad.fixture", "Let's Encrypt", ["https://old.bad.fixture/x", "https://elsewhere.example/"])], dnsClient(fixture.server, off(), true, fixture.port));
         assert.equal((facts.dns as { zone: string }).zone, "bad.fixture");
-        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-consistent", "dns/ns-count", "dns/ns-diversity", "dns/nsec3-iterations", "dns/rrsig-expiry"]);
+        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-consistent", "dns/ns-count", "dns/ns-delegation", "dns/ns-diversity", "dns/nsec3-iterations", "dns/rrsig-expiry", "dns/soa-timers"]);
+        assert.deepEqual((facts.nameservers as { delegation: object }).delegation, { servers: ["ns.old-host.fixture", "ns1.bad.fixture"], matches: false });
+        assert.equal((facts.nameservers as { soa: { expire: number } }).soa.expire, 3600);
+    });
+
+    it("reads the delegation, SOA and authoritative TTLs of a good zone", async () => {
+        const facts = await extract("good.fixture", [], dnsClient(fixture.server, off(), true, fixture.port));
+        const servers = facts.nameservers as { delegation: object; soa: object; ttl: object };
+        assert.deepEqual(servers.delegation, { servers: ["ns1.good.fixture", "ns2.good.fixture"], matches: true });
+        assert.deepEqual(servers.soa, { mname: "ns1.good.fixture", refresh: 3600, retry: 600, expire: 1_209_600, minimum: 300, "retry-below-refresh": true, "mname-listed": true });
+        assert.deepEqual(servers.ttl, { ns: 300, a: 300, aaaa: 300 });
+        assert.deepEqual(findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl"), ["dns/ttl"]);
+    });
+
+    it("finds a CNAME at the zone apex", async () => {
+        const facts = await extract("alias.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal((facts.dns as { "apex-cname": string })["apex-cname"], "good.fixture");
+        assert.ok(findings({ "alias.fixture": facts }).includes("dns/apex-cname"));
+        const good = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal((good.dns as { "apex-cname": unknown })["apex-cname"], false);
+    });
+
+    it("finds an authoritative server that answers recursive queries", async () => {
+        const open = await serveDns(true, { "a.root-servers.net|A": { recursive: true, answers: [a("a.root-servers.net", "198.41.0.4")] } });
+        try {
+            const facts = await extract("good.fixture", [page("good.fixture", "Let's Encrypt", [], 'h3=":443"')], dnsClient(open.server, off(), true, open.port));
+            assert.deepEqual((facts.nameservers as { servers: { recursive: boolean }[] }).servers.map((server) => server.recursive), [true, true]);
+            assert.deepEqual(findings({ "good.fixture": facts }), ["dns/open-recursion"]);
+        } finally {
+            await open.close();
+        }
     });
 
     it("judges CAA against the certificate actually served, and h3 against Alt-Svc", async () => {
@@ -223,5 +257,74 @@ describe("dns plugin", () => {
         const facts = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
         assert.deepEqual((facts.nameservers as { servers: object[] }).servers.map((server) => Object.keys(server)), [["name", "addresses"], ["name", "addresses"]]);
         await assert.rejects(dnsClient(fixture.server, off(), false).query("good.fixture", "SOA", { server: "127.0.0.1" }), /refused/);
+    });
+});
+
+// A registry answering one RDAP domain object per fixture domain, and the bootstrap that points `fixture` at it.
+function serveRegistry(requests: string[]): Promise<Server> {
+    const soon = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const far = new Date(Date.now() + 400 * 86_400_000).toISOString();
+    const domains: Record<string, object> = {
+        "expiring.fixture": { status: ["client transfer prohibited"], events: [{ eventAction: "expiration", eventDate: soon }], nameservers: [{ ldhName: "NS1.EXPIRING.FIXTURE." }] },
+        "unlocked.fixture": { status: ["active"], events: [{ eventAction: "expiration", eventDate: far }], nameservers: [{ ldhName: "ns1.unlocked.fixture" }] },
+        "moved.fixture": { status: ["client transfer prohibited"], events: [{ eventAction: "expiration", eventDate: far }], nameservers: [{ ldhName: "ns1.old-host.fixture" }] },
+    };
+    const server = createServer((request, response) => {
+        requests.push(request.url ?? "");
+        const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+        const body = request.url === "/bootstrap" ? { services: [[["fixture"], [`${origin}/rdap/`]]] } : domains[(request.url ?? "").replace("/rdap/domain/", "")];
+        response.writeHead(body ? 200 : 404, { "content-type": "application/rdap+json" }).end(JSON.stringify(body ?? {}));
+    });
+    return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
+}
+
+describe("rdap", () => {
+    const requests: string[] = [];
+    const saved = process.env.XDG_CACHE_HOME;
+    let registry: Server;
+    let directory: string;
+    const rdap = dns.sites?.find((site) => site.id === "rdap");
+    // The run’s probe, with the IANA bootstrap served by the fixture registry.
+    const get = async (url: string, init: ProbeInit = {}): Promise<Probe> => {
+        const target = url === BOOTSTRAP ? `http://127.0.0.1:${(registry.address() as AddressInfo).port}/bootstrap` : url;
+        const response = await fetch(target, { headers: init.headers });
+        return { url: target, status: response.status, headers: {}, body: await response.text(), redirects: [], ms: 0 };
+    };
+    // A zone whose NS set is `ns1.<name>`; each context is a run of its own.
+    const zone: DnsClient = { canQueryDirectly: false, validating: async () => false, query: async (name, type) => reply(type === "NS" ? [{ type: "NS", name, ttl: 300, data: `ns1.${name}` }] : []) };
+    const context = (isAsked = true) => ({ pages: [], signal: new AbortController().signal, dns: { ...zone, validating: async () => false }, delegated: get, settings: { compare: [], rdap: isAsked } }) as unknown as SiteContext;
+
+    before(async () => {
+        directory = await mkdtemp(path.join(tmpdir(), "spiderlint-rdap-"));
+        process.env.XDG_CACHE_HOME = directory;
+        registry = await serveRegistry(requests);
+    });
+
+    after(async () => {
+        process.env.XDG_CACHE_HOME = saved;
+        await new Promise((resolve) => registry.close(resolve));
+        await rm(directory, { recursive: true, force: true });
+    });
+
+    it("sends no RDAP request when rdap is off", async () => {
+        assert.equal(await rdap?.extract("www.expiring.fixture", context(false)), undefined);
+        assert.deepEqual(requests, []);
+    });
+
+    it("finds an expiring, an unlocked and a moved domain, one finding each", async () => {
+        const run = context();
+        const hosts = Object.fromEntries(await Promise.all(["www.expiring.fixture", "unlocked.fixture", "moved.fixture"].map(async (host) => [host, { rdap: await rdap?.extract(host, run) }])));
+        assert.deepEqual(keyed({ sitemaps: [], hosts }, "dns"), [["domain/expiring", "www.expiring.fixture"], ["domain/lock", "unlocked.fixture"], ["domain/ns-registry", "moved.fixture"]]);
+        assert.deepEqual((hosts["www.expiring.fixture"] as { rdap: { nameservers: string[]; "ns-matches": boolean } }).rdap.nameservers, ["ns1.expiring.fixture"]);
+        assert.equal(requests.filter((url) => url === "/bootstrap").length, 1, "the bootstrap is fetched once");
+        const stored = JSON.parse(await readFile(path.join(directory, "spiderlint", "rdap", "dns.json"), "utf8")) as { services: unknown[] };
+        assert.equal(stored.services.length, 1);
+    });
+
+    it("reads a fresh stored bootstrap without fetching it, and skips an unknown TLD", async () => {
+        requests.length = 0;
+        assert.ok(await rdap?.extract("unlocked.fixture", context()));
+        assert.equal(await rdap?.extract("site.elsewhere", context()), undefined);
+        assert.deepEqual(requests, ["/rdap/domain/unlocked.fixture"]);
     });
 });

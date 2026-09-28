@@ -32,6 +32,7 @@ SPDX-License-Identifier: MIT
 - DNSSEC se comprueba de extremo a extremo: una zona sin firmar, algoritmos débiles, firmas que ya no se renuevan y una zona firmada que los resolvedores con validación rechazan.
 - Se pregunta directamente a los servidores de nombres y cualquier otra consulta va solo al resolvedor que indiques, así que un servidor cojo o una zona desincronizada salen a la luz, y un enlace a un subdominio cuyo CNAME no apunta a nada se marca como riesgo de secuestro.
 - A un dominio que no envía ni recibe correo se le puede exigir un MX nulo, un SPF que lo rechaza todo y una política DMARC de rechazo, para que nadie envíe correo en su nombre.
+- El registro del dominio se lee de su registro, así que una renovación a pocos días, un bloqueo de transferencia ausente o un registro que nombra otros servidores de nombres que la zona se ven antes de que el dominio caduque o se lo lleven.
 - Cada dirección se atribuye a la red que la enruta, así que salen a la luz una ruta que las redes que aplican RPKI descartan, un servidor de correo sin DNS inverso que coincida, o un sitio y sus servidores de nombres detrás de un solo proveedor.
 
 ### Un hallazgo por plantilla, no por página
@@ -101,6 +102,7 @@ SPDX-License-Identifier: MIT
 ### Informes para personas, canalizaciones y agentes de código
 
 - Los hallazgos salen en texto, JSON, SARIF, Checkstyle, CSV o un informe HTML, y un rastreo guardado se vuelve a formatear sin pedir de nuevo el sitio.
+- Cada hallazgo puede decir cómo corregirlo en el sitio auditado, con el registro, la cabecera o la etiqueta exactos y los nombres del propio sitio ya puestos, y el análisis de código muestra la misma guía junto a cada alerta.
 - El formato agent convierte los hallazgos en instrucciones de corrección para un agente de código, ordenadas por severidad y por cuántas páginas arregla cada corrección.
 - Una acción de CI audita un sitio en cada push, hace fallar el trabajo en la severidad que elijas, sube el SARIF al análisis de código y guarda el rastreo en caché, así que volver a auditar un sitio sin cambios cuesta casi nada.
 - Los códigos de salida distinguen los hallazgos de una configuración errónea y de un sitio que no se pudo alcanzar, para que una canalización sepa qué falló.

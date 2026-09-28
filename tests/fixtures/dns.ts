@@ -24,6 +24,10 @@ interface Zone {
     truncate?: boolean;
     // Direct queries (no `RD`) answered authoritatively.
     authoritative?: boolean;
+    // Direct queries answered with these records as a referral, in the authority section.
+    referral?: Answer[];
+    // Sets `RA` on an answer to a query carrying `RD`, as an open resolver does.
+    recursive?: boolean;
 }
 
 const FAR = Math.floor(Date.UTC(2099, 0, 1) / 1000);
@@ -51,13 +55,16 @@ function rrsig(name: string, expiration: number): Answer {
     return { type: "RRSIG", name, ttl: 300, data: { typeCovered: "A", algorithm: 13, labels: 2, originalTTL: 300, expiration, inception: expiration - 86_400 * 30, keyTag: 1, signersName: name.split(".").slice(-2).join("."), signature: Buffer.alloc(64) } } as Answer;
 }
 
-export function soa(name: string, serial: number): Answer {
-    return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire: 86_400, minimum: 300 } } as Answer;
+export function soa(name: string, serial: number, expire = 1_209_600): Answer {
+    return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire, minimum: 300 } } as Answer;
 }
 
 // `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `quiet.fixture` passes `dns:mail`; `bogus.fixture` fails validation.
 const ZONES: Record<string, Zone> = {
     ".|SOA": { ad: true, answers: [soa(".", 1)] },
+    "fixture|NS": { answers: [{ type: "NS", name: "fixture", ttl: 300, data: "ns.fixture" }] },
+    "ns.fixture|A": { answers: [{ type: "A", name: "ns.fixture", ttl: 300, data: "127.0.0.1" }] },
+    "alias.fixture|CNAME": { answers: [{ type: "CNAME", name: "alias.fixture", ttl: 300, data: "good.fixture" }] },
     "good.fixture|SOA": { answers: [soa("good.fixture", 7)], authoritative: true },
     "good.fixture|A": { ad: true, answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.1" }, rrsig("good.fixture", FAR)] },
     "good.fixture|AAAA": { answers: [{ type: "AAAA", name: "good.fixture", ttl: 300, data: "2001:db8::1" }] },
@@ -71,12 +78,12 @@ const ZONES: Record<string, Zone> = {
     "ns2.good.fixture|AAAA": { answers: [{ type: "AAAA", name: "ns2.good.fixture", ttl: 300, data: "::1" }] },
     "ns2.good.fixture|A": { answers: [{ type: "A", name: "ns2.good.fixture", ttl: 300, data: "127.0.0.1" }] },
     "big.good.fixture|A": { truncate: true, answers: [{ type: "A", name: "big.good.fixture", ttl: 300, data: "192.0.2.9" }] },
-    "bad.fixture|SOA": { answers: [soa("bad.fixture", 3)] },
+    "bad.fixture|SOA": { answers: [soa("bad.fixture", 3, 3600)] },
     "www.bad.fixture|A": { answers: [{ type: "CNAME", name: "www.bad.fixture", ttl: 300, data: "a.bad.fixture" }, { type: "CNAME", name: "a.bad.fixture", ttl: 300, data: "b.bad.fixture" }, { type: "CNAME", name: "b.bad.fixture", ttl: 300, data: "c.bad.fixture" }, { type: "A", name: "c.bad.fixture", ttl: 300, data: "198.51.100.1" }, rrsig("c.bad.fixture", SOON)] },
     "bad.fixture|DS": { answers: [{ type: "DS", name: "bad.fixture", ttl: 300, data: { keyTag: 2, algorithm: 5, digestType: 1, digest: Buffer.alloc(20) } }] },
     "bad.fixture|DNSKEY": { answers: [{ type: "DNSKEY", name: "bad.fixture", ttl: 300, data: { flags: 257, algorithm: 5, key: Buffer.alloc(64) } }] },
     "bad.fixture|NSEC3PARAM": { answers: [{ type: "NSEC3PARAM", name: "bad.fixture", ttl: 300, data: Buffer.from([1, 0, 0, 10, 4, 1, 2, 3, 4]) } as unknown as Answer] },
-    "bad.fixture|NS": { answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }] },
+    "bad.fixture|NS": { answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }], referral: [{ type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns1.bad.fixture" }, { type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns.old-host.fixture" }] },
     "ns1.bad.fixture|A": { answers: [{ type: "A", name: "ns1.bad.fixture", ttl: 300, data: "127.0.0.1" }] },
     "old.bad.fixture|A": { rcode: "NXDOMAIN", answers: [{ type: "CNAME", name: "old.bad.fixture", ttl: 300, data: "gone.elsewhere.fixture" }] },
     "quiet.fixture|SOA": { answers: [soa("quiet.fixture", 1)] },
@@ -108,8 +115,9 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides:
     const isChecked = ((query.flags ?? 0) & dnsPacket.CHECKING_DISABLED) === 0;
     const isBogus = zone.bogus === true && isValidating && isChecked;
     const isTruncated = zone.truncate === true && !isTcp;
-    const flags = (isBogus || zone.rcode === "SERVFAIL" ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
-    return dnsPacket.encode({ type: "response", id: query.id, flags, questions: query.questions, answers: isBogus || isTruncated ? [] : (zone.answers ?? []) } as Packet);
+    const isReferral = isDirect && zone.referral !== undefined;
+    const flags = (isBogus || zone.rcode === "SERVFAIL" ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (!isDirect && zone.recursive ? dnsPacket.RECURSION_AVAILABLE : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
+    return dnsPacket.encode({ type: "response", id: query.id, flags, questions: query.questions, answers: isBogus || isTruncated || isReferral ? [] : (zone.answers ?? []), ...(isReferral && { authorities: zone.referral }) } as Packet);
 }
 
 // A resolver answering the fixture zones over UDP and TCP on one ephemeral port; `isValidating` sets `AD` where signed.
