@@ -6,7 +6,7 @@ import { parseDictionary, parseItem, parseList, Token, DisplayString, type BareI
 import { log } from "../logger.ts";
 import type { ParsedHeader } from "./types.ts";
 
-type Parser = (text: string, errors: string[]) => unknown;
+type Parser = (text: string, errors: string[], headers?: Record<string, string | string[] | undefined>) => unknown;
 
 // RFC 9110 §5.6.2 token.
 const TOKEN = String.raw`[!#$%&'*+.^_\x60|~0-9A-Za-z-]+`;
@@ -91,6 +91,19 @@ const contentType: Parser = (text, errors) => {
         else errors.push(`“${parameter}” is not a name=value parameter`);
     }
     return { type: media.toLowerCase(), parameters: values };
+};
+
+// RFC 9110 §10.2.3: delay-seconds, or an IMF-fixdate whose weekday and day exist, as its UTC form round-trips.
+const retryAfter: Parser = (text, errors, headers) => {
+    if (/^\d+$/.test(text)) return { seconds: Number(text) };
+    const time = Date.parse(text);
+    if (Number.isNaN(time) || new Date(time).toUTCString() !== text) {
+        errors.push(`“${text}” is neither a number of seconds nor an IMF-fixdate`);
+        return;
+    }
+    const sent = Date.parse([headers?.date ?? []].flat()[0] ?? "");
+    // A date becomes seconds after the response’s own Date, when it has one.
+    return { date: time / 1000, ...(!Number.isNaN(sent) && { seconds: (time - sent) / 1000 }) };
 };
 
 // Referrer Policy §4.1 tokens; the browser applies the last it knows.
@@ -197,6 +210,7 @@ const PARSERS: Record<string, Parser> = {
     vary,
     "content-type": contentType,
     "referrer-policy": referrerPolicy,
+    "retry-after": retryAfter,
     "content-security-policy": csp,
     "permissions-policy": structured("dictionary", allowlist),
     "reporting-endpoints": structured("dictionary", endpoints),
@@ -215,7 +229,7 @@ export function parsedHeaders(url: string, headers: Record<string, string | stri
         const raw = headers[name];
         if (raw === undefined) continue;
         const errors: string[] = [];
-        const value = parse([raw].flat().join(", "), errors);
+        const value = parse([raw].flat().join(", "), errors, headers);
         parsed[name] = value !== undefined && errors.length === 0 ? { value, errors } : { errors };
         if (errors.length > 0) log.debug({ url, header: name, errors }, "header breaks its grammar");
     }

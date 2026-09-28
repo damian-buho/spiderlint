@@ -92,6 +92,8 @@ const FAILS: Record<string, Patch[]> = {
     "http/accept-ch-syntax": [{ headers: { "accept-ch": "Sec-CH-UA;;" } }],
     "http/priority-syntax": [{ headers: { priority: "u=high" } }],
     "http/cache-status-syntax": [{ headers: { "cache-status": "Cache; hit=" } }],
+    "http/retry-after-short": [{ status: 503, headers: { "retry-after": "1" } }, { status: 429, headers: { "retry-after": "Sun, 06 Nov 1994 08:49:30 GMT" } }],
+    "http/retry-after-syntax": [{ headers: { "retry-after": "2m" } }, { headers: { "retry-after": "-5" } }, { headers: { "retry-after": "Mon, 31 Feb 2027 00:00:00 GMT" } }, { headers: { "retry-after": "2027-01-01T00:00:00Z" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
     "url/length": [{ pathname: `/posts/${"very-long-words-".repeat(6)}/` }],
     "url/uppercase": [{ pathname: "/Posts/hello-world/" }],
@@ -175,7 +177,9 @@ const PASSES: Record<string, Patch[]> = {
     "http/compression": [{ decoded: 512, headers: { "content-encoding": "identity" } }, { contentType: "image/png", headers: { "content-encoding": "identity" } }],
     "http/validator": [{ headers: { etag: undefined as unknown as string, "last-modified": "Wed, 01 Jan 2025 00:00:00 GMT" } }],
     "http/no-store-bfcache": [{ contentType: "application/json", headers: { "cache-control": "no-store" } }],
-    "http/retry-after": [{ status: 503, headers: { "retry-after": "120" } }],
+    "http/retry-after": [{ status: 503, headers: { "retry-after": "120" } }, { status: 503, headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } }, { status: 503, headers: { "retry-after": "2m" } }],
+    "http/retry-after-short": [{ status: 503, headers: { "retry-after": "120" } }, { status: 429, headers: { "retry-after": "Sun, 06 Nov 1994 08:59:37 GMT" } }, { status: 301, headers: { "retry-after": "1" } }, { status: 503, headers: { "retry-after": "Sun, 06 Nov 1994 08:49:30 GMT", date: undefined as unknown as string } }],
+    "http/retry-after-syntax": [{ headers: { "retry-after": "0" } }, { headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } }],
     "http/sunset-format": [{ headers: { sunset: "Fri, 01 Jan 2027 00:00:00 GMT" } }],
     "http/deprecation-format": [{ headers: { deprecation: "@1767225600" } }],
     "html/lang": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
@@ -292,6 +296,7 @@ describe("header grammar", () => {
         ["cache-control", "banana", "http/cache-control-syntax"],
         ["strict-transport-security", "max-age=abc", "http/hsts-syntax"],
         ["permissions-policy", "camera=(self", "http/permissions-policy-syntax"],
+        ["retry-after", "2m", "http/retry-after-syntax"],
     ];
     for (const [name, value, id] of cases) {
         it(`${name}: ${value} is one syntax finding and no policy finding`, () => {

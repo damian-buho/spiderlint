@@ -80,9 +80,9 @@ rules:
     fix: "Issue the certificate for an EC P-256 key."
     docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
   http/retry-after:
-    fact: http.headers.retry-after
-    expect: {type: string, minLength: 1}
-    when: {http.status: 503}
+    fact: http.parsed.retry-after.value
+    expect: {type: object}
+    when: {http.status: 503, http.parsed.retry-after.errors: {maxItems: 0}}
     severity: warning
     message: "a 503 should say when to retry with Retry-After"
     fix: "Send Retry-After with a delay, or an HTTP-date for when to try again."
@@ -207,3 +207,19 @@ rules:
     message: "Cache-Status breaks its structured-field grammar: {got}"
     fix: "Send Cache-Status as a list of caches with parameters, as in Cache-Status: ExampleCache; hit."
     docs: https://www.rfc-editor.org/rfc/rfc9211#section-2
+  http/retry-after-short:
+    fact: http.parsed.retry-after.value.seconds
+    expect: {minimum: 10}
+    when: {http.status: {enum: [429, 503]}, http.parsed.retry-after.value: {type: object}}
+    severity: info
+    message: "Retry-After asks clients back in {got} seconds, which brings the load straight back to a server that is shedding it"
+    fix: "Send Retry-After: 120, or as long as the server needs to recover."
+    docs: https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3
+  http/retry-after-syntax:
+    fact: http.parsed.retry-after.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.retry-after: {type: object}}
+    severity: warning
+    message: "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry: {got}"
+    fix: "Send Retry-After as a number of seconds, as in Retry-After: 120, or an IMF-fixdate."
+    docs: https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3
