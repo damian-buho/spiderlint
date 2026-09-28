@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { randomUUID } from "node:crypto";
+import { load } from "cheerio";
 import { reason } from "../crawl/fetch.ts";
 import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import { log } from "../logger.ts";
@@ -149,10 +150,49 @@ const crossDomain: SiteExtractor = {
     },
 };
 
+// Most `rel=me` profiles one origin’s pages name that are asked to link back.
+const REL_ME_MAX = 8;
+
+// A URL without its fragment and trailing slash, so a profile’s link compares with a page.
+function bare(href: string): string {
+    const url = new URL(href);
+    url.hash = "";
+    return url.href.replace(/\/$/, "");
+}
+
+// Each `rel=me` profile on another origin, and whether its page names one of ours back with `rel=me`.
+const meProfiles: SiteExtractor = {
+    id: "rel-me",
+    per: "origin",
+    async extract(origin, context) {
+        const ours = new Set([`${origin}/`, ...context.pages.map((page) => page.url.href)].map((href) => bare(href)));
+        const named = context.pages.flatMap((page) => page.html?.rels.me ?? []).filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol) && new URL(href).origin !== origin);
+        const targets = [...new Set(named)].slice(0, REL_ME_MAX);
+        if (targets.length === 0) return;
+        const unverified: string[] = [];
+        const unreachable: string[] = [];
+        for (const target of targets) {
+            try {
+                const answer = await context.delegated(target, { redirect: "follow" });
+                const $ = load(answer.body);
+                const back = $("a[rel][href], link[rel][href]").filter((_, element) => /(?:^|\s)me(?:\s|$)/i.test(String($(element).attr("rel")))).map((_, element) => String($(element).attr("href"))).get();
+                const isBack = back.some((href) => URL.canParse(href, answer.url) && ours.has(bare(new URL(href, answer.url).href)));
+                log.debug({ origin, target, status: answer.status, links: back.length, isBack }, "rel=me profile probed");
+                if (answer.status < 200 || answer.status > 299) unreachable.push(target);
+                else if (!isBack) unverified.push(target);
+            } catch (error) {
+                log.debug({ origin, target, error: reason(error) }, "rel=me profile unreachable");
+                unreachable.push(target);
+            }
+        }
+        return { targets, unverified, unreachable };
+    },
+};
+
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    sites: [notFound, entry, locale, encodings, favicon, revalidation, crossDomain],
+    sites: [notFound, entry, locale, encodings, favicon, revalidation, crossDomain, meProfiles],
     presets: {
         origin: {
             description: "Once per origin: missing pages, error pages, plain http entry, language redirects, compression, favicon, revalidation, cross-domain policies",

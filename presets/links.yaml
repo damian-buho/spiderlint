@@ -2,8 +2,17 @@
 #
 # SPDX-License-Identifier: MIT
 ---
-description: Links that answer an error, internal links that redirect
+description: Links that answer an error, internal links that redirect or carry nofollow, rel=me profiles that do not link back
 rules:
   links/broken-internal: error
   links/redirected-internal: warning
   links/broken-external: warning
+  links/internal-nofollow: warning
+  links/external-rel: off
+  links/rel-me:
+    fact: site.origins.*.rel-me.unverified
+    expect: {maxItems: 0}
+    severity: info
+    message: "rel=me profiles that do not link back to the site: {got}"
+    fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it."
+    docs: https://microformats.org/wiki/rel-me

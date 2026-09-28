@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 import { after, before, describe, it } from "node:test";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -58,6 +60,36 @@ describe("origin preset", () => {
         const before = site.requested.length;
         await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"], cacheMode: "off" });
         assert.ok(site.requested.slice(before).every((pathname) => !pathname.startsWith("/spiderlint-") && pathname !== "/favicon.ico"));
+    });
+});
+
+describe("rel=me", () => {
+    let profiles: Server;
+    let home: Server;
+    let [profile, origin] = ["", ""];
+
+    // A server answering each path from `pages`, else 404; its origin once listening.
+    async function serve(pages: () => Record<string, string>): Promise<[Server, string]> {
+        const server = createServer((request, response) => {
+            const body = pages()[request.url ?? "/"];
+            response.writeHead(body === undefined ? 404 : 200, { "content-type": "text/html; charset=utf-8" });
+            response.end(body ?? "");
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        return [server, `http://127.0.0.1:${(server.address() as AddressInfo).port}`];
+    }
+
+    before(async () => {
+        [profiles, profile] = await serve(() => ({ "/@me": `<link rel="me" href="${origin}/">`, "/@other": `<a href="${origin}/">Home</a>` }));
+        [home, origin] = await serve(() => ({ "/": `<html><head><link rel="me" href="${profile}/@other"></head><body><a rel="me noopener" href="${profile}/@me">Me</a><a rel="me" href="${profile}/@gone">Gone</a></body></html>` }));
+    });
+
+    after(() => Promise.all([profiles, home].map((server) => new Promise((resolve) => server.close(resolve)))));
+
+    it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode: "off" });
+        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me", [`${profile}/@other`]]]);
+        assert.deepEqual(report.site.origins?.[origin]?.["rel-me"], { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`] });
     });
 });
 

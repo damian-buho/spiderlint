@@ -293,7 +293,7 @@ describe("audit", () => {
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
         assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}299 of 346 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests$/);
+        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}304 of 351 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
 
@@ -325,8 +325,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 346, failed: 47, errored: 6, passed: 299 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8642, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 351, failed: 47, errored: 6, passed: 304 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8661, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });
@@ -397,6 +397,21 @@ describe("audit options", () => {
         const framed = report.findings.filter((finding) => finding.rule === "http/frame-options").map((finding) => new URL(finding.url).pathname);
         assert.equal(framed.length, 15);
         assert.ok(!framed.includes("/about") && !framed.includes("/posts/1"));
+    });
+
+    it("collects rel tokens per link, flags an internal nofollow and an affiliate link a declared policy wants sponsored", async () => {
+        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel": { severity: "warning" as const, expect: { "*.amazon.*": ["sponsored"] } } } } };
+        const report = await audit({ seeds: [`${site.origin}/rel`], maxPages: 1, sitemap: false, fold: false, rulesets, groups: { default: { rules: ["rel"] } } });
+        const links = report.pages[0]?.html?.links;
+        assert.deepEqual(links?.sponsored, ["https://shop.amazon.test/dp/2"]);
+        assert.deepEqual(links?.ugc, ["https://forum.test/t/1"]);
+        assert.deepEqual(links?.rel, { [`${site.origin}/about`]: ["nofollow"], "https://forum.test/t/1": ["ugc", "nofollow"] });
+        const found = report.findings.filter((finding) => finding.rule.startsWith("links/") && finding.rule !== "links/broken-external").map((finding) => [finding.rule, finding.value]);
+        assert.deepEqual(found, [
+            ["links/internal-nofollow", [`${site.origin}/about`]],
+            ["links/external-rel", { href: "https://www.amazon.test/dp/1", missing: ["sponsored"] }],
+            ["links/external-rel", { href: "https://shop.amazon.test/dp/2", missing: ["sponsored"] }],
+        ]);
     });
 
     it("judges a binary by its headers without downloading it", async () => {

@@ -128,6 +128,15 @@ describe("finding value", () => {
     });
 });
 
+describe("external link rel policy", () => {
+    it("reads its expect as host globs to rel tokens, and refuses anything else", () => {
+        assert.equal(compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": "sponsored" } }).meta.id, "links/external-rel");
+        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": [] } }), /must name lower-case rel tokens/);
+        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": ["Sponsored"] } }), /must name lower-case rel tokens/);
+        assert.throws(() => compileRule("links/no-such-rule", { expect: { type: "string" } }), /needs both fact and expect/);
+    });
+});
+
 describe("rule fixes", () => {
     const all = resolveRuleset("spiderlint:all", {});
     const exemptList = new Set(exempt);
@@ -135,7 +144,7 @@ describe("rule fixes", () => {
     for (const [id, spec] of Object.entries(all)) {
         it(`rule ${id} has a fix`, () => {
             if (exemptList.has(id)) return;
-            const rule = compileRule(id, spec) as Rule;
+            const rule = compileRule(id, spec.severity === "off" ? { ...spec, severity: "warning" } : spec) as Rule;
             assert.ok(rule.meta.fix, `rule ${id} is missing a fix`);
             assert.ok(!rule.meta.fix.includes("\n"), `rule ${id} has a multi-line fix`);
             if (!/^(axe|htmlhint|html-validate)\//.test(id)) assert.match(rule.meta.fix, /^[^a-z].*[.?!]$/su, `rule ${id} fix is not a sentence`);

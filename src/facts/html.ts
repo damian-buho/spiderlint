@@ -57,6 +57,17 @@ function resolve(href: string, page: URL): string {
 
 const LINK_KEYS = ["rel", "type", "hreflang", "sizes", "media", "as", "crossorigin"] as const;
 
+// Rel tokens every `<a>` to an href carries, for hrefs whose every anchor carries one.
+function anchorRels($: CheerioAPI, page: URL): Record<string, string[]> {
+    const found = new Map<string, string[]>();
+    for (const element of $("a[href]")) {
+        const href = resolve(String($(element).attr("href")), page);
+        const tokens = String($(element).attr("rel") ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+        found.set(href, (found.get(href) ?? tokens).filter((token) => tokens.includes(token)));
+    }
+    return Object.fromEntries([...found].filter(([href, tokens]) => tokens.length > 0 && /^https?:/.test(href)));
+}
+
 // Every `<link>` in the head with the attributes it carries.
 function headLinks($: CheerioAPI, page: URL): HtmlFacts["head"]["links"] {
     return $("head link[href]")
@@ -128,6 +139,9 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
             internal: [...new Set(anchors.filter((href) => isInScope(new URL(href), page, scope)))],
             external: [...new Set(anchors.filter((href) => !isInScope(new URL(href), page, scope)))],
             nofollow: [...new Set(hrefs($, "a[href][rel~='nofollow']", page).map((url) => url.href))],
+            sponsored: [...new Set(hrefs($, "a[href][rel~='sponsored']", page).map((url) => url.href))],
+            ugc: [...new Set(hrefs($, "a[href][rel~='ugc']", page).map((url) => url.href))],
+            rel: anchorRels($, page),
         },
         images: $("img")
             .map((_, element) => {

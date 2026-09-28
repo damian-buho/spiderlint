@@ -9,6 +9,7 @@ import { log } from "../logger.ts";
 import { deprecatedRules } from "./deprecated.ts";
 import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
+import { relationRules } from "./relations.ts";
 import { robotsRules } from "./robots.ts";
 import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
@@ -372,6 +373,7 @@ export const builtin: Record<string, Make> = {
     ...i18nRules,
     ...disclosureRules,
     ...deprecatedRules,
+    ...relationRules,
     "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",

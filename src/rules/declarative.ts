@@ -175,13 +175,13 @@ function guarded(rule: Rule, when: Record<string, unknown> | undefined): Rule {
     return { ...rule, check: (pages, group, site) => (isSkipped({}, "site", site) ? undefined : rule.check(pages, group, site)) };
 }
 
-// `fact` + `expect` is a page rule, `unique` an aggregate, a bare ID a built-in; else a config error.
+// `fact` + `expect` is a page rule, `unique` an aggregate, an ID without `fact` a built-in handed its `expect`; else a config error.
 export function compileRule(id: string, spec: RuleSpec): Rule {
     if (spec.unique) return compileUnique(id, spec, spec.unique);
-    if (!spec.fact && !spec.expect) {
-        const make = ruleMaker(id);
+    const make = spec.fact ? undefined : ruleMaker(id);
+    if (!spec.fact && (make || !spec.expect)) {
         if (!make) throw new ConfigError(`rule ${id}: needs fact and expect, or unique, or a built-in ID`);
-        const rule = make(severityOf(id, spec, "warning"));
+        const rule = make(severityOf(id, spec, "warning"), spec.expect);
         // A ruleset entry’s `docs` and `fix` win over the built-in’s own.
         Object.assign(rule.meta, spec.docs && { docs: spec.docs }, spec.fix && { fix: spec.fix });
         return guarded(rule, spec.when);
