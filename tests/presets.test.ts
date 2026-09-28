@@ -5,12 +5,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { cspFacts } from "../src/facts/csp.ts";
+import { parsedHeaders } from "../src/facts/headers.ts";
 import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop, Role, TlsFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import { builtin } from "../src/rules/builtin.ts";
-import type { AggregateRule, Finding, PageRule } from "../src/rules/types.ts";
+import { isPageRule, type AggregateRule, type Finding, type PageRule } from "../src/rules/types.ts";
 
 interface Patch {
     role?: Role;
@@ -53,6 +54,8 @@ function page(patch: Patch = {}): Facts {
     facts.robots = robotsFacts(facts);
     const csp = cspFacts(facts);
     if (csp) facts.http.csp = csp;
+    const parsed = parsedHeaders(href, headers);
+    if (parsed) facts.http.parsed = parsed;
     return facts;
 }
 
@@ -74,6 +77,21 @@ const FAILS: Record<string, Patch[]> = {
     "http/csp-base-uri": [{ headers: { "content-security-policy": "default-src 'self'" } }],
     "http/csp-frame-ancestors": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
     "http/reporting-endpoints": [{ headers: { "reporting-endpoints": "" } }],
+    "http/hsts": [{ headers: { "strict-transport-security": undefined as unknown as string } }, { headers: { "strict-transport-security": "max-age=300" } }],
+    "http/hsts-syntax": [{ headers: { "strict-transport-security": "max-age=abc" } }, { headers: { "strict-transport-security": "max-age=31536000, max-age=0" } }, { headers: { "strict-transport-security": "includeSubDomains" } }],
+    "http/csp-syntax": [{ headers: { "content-security-policy": "default-src self" } }, { headers: { "content-security-policy": "scrpit-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none' 'self'" } }],
+    "http/permissions-policy-syntax": [{ headers: { "permissions-policy": "camera=(self" } }, { headers: { "permissions-policy": "camera 'none'" } }, { headers: { "permissions-policy": "camera=none" } }],
+    "http/referrer-policy-syntax": [{ headers: { "referrer-policy": "strict" } }],
+    "http/coop-syntax": [{ headers: { "cross-origin-opener-policy": "same-site" } }],
+    "http/coep-syntax": [{ headers: { "cross-origin-embedder-policy": "require-corp;" } }],
+    "http/reporting-endpoints-syntax": [{ headers: { "reporting-endpoints": "default=/reports" } }],
+    "http/cache-control-syntax": [{ headers: { "cache-control": "banana" } }, { headers: { "cache-control": "max-age=1h" } }, { headers: { "cache-control": "min-fresh=60" } }, { headers: { "cache-control": "no-store=1" } }],
+    "http/vary-syntax": [{ headers: { vary: "Accept Encoding" } }],
+    "http/content-type-syntax": [{ headers: { "content-type": "html" } }, { headers: { "content-type": "text/html; utf-8" } }],
+    "http/use-as-dictionary-syntax": [{ headers: { "use-as-dictionary": "match=/app-*.js" } }],
+    "http/accept-ch-syntax": [{ headers: { "accept-ch": "Sec-CH-UA;;" } }],
+    "http/priority-syntax": [{ headers: { priority: "u=high" } }],
+    "http/cache-status-syntax": [{ headers: { "cache-status": "Cache; hit=" } }],
     "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
     "url/length": [{ pathname: `/posts/${"very-long-words-".repeat(6)}/` }],
     "url/uppercase": [{ pathname: "/Posts/hello-world/" }],
@@ -176,6 +194,11 @@ const PASSES: Record<string, Patch[]> = {
     "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
     "redirects/by": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }] }],
     "http/coep": [{ headers: { "cross-origin-embedder-policy": "require-corp; report-to=\"default\"" } }],
+    "http/permissions-policy-syntax": [{ headers: { "permissions-policy": "geolocation=(self \"https://maps.test\"), fullscreen=*" } }],
+    "http/csp-syntax": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https: *.cdn.test:443/js/; img-src data: 'self'" } }],
+    "http/cache-control-syntax": [{ headers: { "cache-control": "private=\"set-cookie\", no-cache, max-age=\"0\"" } }],
+    "http/priority-syntax": [{ headers: { priority: "u=1, i" } }],
+    "http/cache-status-syntax": [{ headers: { "cache-status": "ExampleCache; hit; ttl=30" } }],
     "http/digest": [{ headers: { "repr-digest": undefined as unknown as string, "content-digest": "sha-256=:x:" } }],
     "http/no-vary-search": [{ search: "?q=1", headers: { "no-vary-search": "params" } }],
     "http/link-format": [{ headers: { link: "<https://site.test/a.css>; rel=preload; as=style, <https://site.test/b.js>; rel=modulepreload" } }],
@@ -258,6 +281,24 @@ describe("url shape across pages", () => {
         assert.deepEqual(paths([finding as Finding]), ["/c"]);
         assert.match(finding?.message ?? "", /2 pages with \/, 1 without \//);
     });
+});
+
+const pageRules = Object.keys(specs).filter((id) => specs[id]?.severity !== "off").map((id) => compileRule(id, specs[id] ?? {})).filter((rule): rule is PageRule => isPageRule(rule));
+// Every page rule that fires on `facts`.
+const fired = (facts: Facts) => pageRules.flatMap((rule) => rule.check(facts, { sitemaps: [], role: "production" }) ?? []).map((finding) => finding.rule);
+
+describe("header grammar", () => {
+    const cases: [string, string, string][] = [
+        ["cache-control", "banana", "http/cache-control-syntax"],
+        ["strict-transport-security", "max-age=abc", "http/hsts-syntax"],
+        ["permissions-policy", "camera=(self", "http/permissions-policy-syntax"],
+    ];
+    for (const [name, value, id] of cases) {
+        it(`${name}: ${value} is one syntax finding and no policy finding`, () => {
+            const clean = new Set(fired(page()));
+            assert.deepEqual(fired(page({ headers: { [name]: value } })).filter((rule) => !clean.has(rule)), [id]);
+        });
+    }
 });
 
 describe("content security policy", () => {

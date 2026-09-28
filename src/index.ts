@@ -19,6 +19,7 @@ import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { bylineFacts } from "./facts/byline.ts";
 import { cspFacts } from "./facts/csp.ts";
+import { parsedHeaders } from "./facts/headers.ts";
 import { inSpan } from "./telemetry.ts";
 import { detectedFacts, loadDetector } from "./facts/language.ts";
 import { co2Facts, loadEstimator } from "./facts/co2.ts";
@@ -347,6 +348,8 @@ function linter(config: Config): Lint {
             page.robots = robotsFacts(page);
             const csp = cspFacts(page);
             if (csp) page.http.csp = csp;
+            const parsed = parsedHeaders(page.url.href, page.http.headers);
+            if (parsed) page.http.parsed = parsed;
             const detected = isDetected && page.html && detectedFacts(page.html);
             if (detected && page.html) page.html.detected = detected;
             if (page.html) Object.assign(page.html, bylineFacts(page.html));

@@ -5,6 +5,7 @@
 import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ResourceFacts, SiteFacts } from "../facts/types.ts";
+import { parseCacheControl } from "../facts/headers.ts";
 import { log } from "../logger.ts";
 import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
@@ -340,9 +341,12 @@ const resourceCacheControl: Verdict = (resource, pages) => {
     const isImmutable = /\bimmutable\b/i.test(policy);
     const isHashed = HASHED.test(new URL(resource.url).pathname);
     if (!isServed(resource) || (!isImmutable && !isHashed)) return;
-    const maxAge = Number(/\bmax-age=(\d+)/i.exec(policy)?.[1] ?? 0);
-    const isLong = maxAge >= YEAR && !/\bno-(?:cache|store)\b/i.test(policy);
-    log.debug({ rule: "resources/cache-control", resource: resource.url, isImmutable, isHashed, maxAge, isLong }, "resource cache policy judged");
+    const { value, errors } = parseCacheControl(policy);
+    const directives = (value ?? {}) as Record<string, unknown>;
+    const maxAge = Number(directives["max-age"] ?? 0);
+    const isLong = maxAge >= YEAR && !directives["no-cache"] && !directives["no-store"];
+    log.debug({ rule: "resources/cache-control", resource: resource.url, isImmutable, isHashed, maxAge, isLong, errors }, "resource cache policy judged");
+    if (errors.length > 0) return `${isHashed ? "fingerprinted" : "immutable"} ${resource.kind} sends a Cache-Control that breaks RFC 9111 (${errors.join("; ")}); used by ${pages} pages`;
     return isLong ? undefined : `${isHashed ? "fingerprinted" : "immutable"} ${resource.kind} is cached for ${maxAge} s (Cache-Control: ${policy || "absent"}); used by ${pages} pages`;
 };
 

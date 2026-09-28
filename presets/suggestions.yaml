@@ -8,8 +8,9 @@ when:
   http.content-type: {pattern: "^text/html"}
 rules:
   http/coep:
-    fact: http.headers.cross-origin-embedder-policy
-    expect: {type: string, pattern: "^\\s*(require-corp|credentialless)\\s*(;|$)"}
+    fact: http.parsed.cross-origin-embedder-policy.value
+    expect: {enum: [require-corp, credentialless]}
+    when: {http.parsed.cross-origin-embedder-policy.errors: {maxItems: 0}}
     severity: hint
     message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless, found {got}"
     fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."

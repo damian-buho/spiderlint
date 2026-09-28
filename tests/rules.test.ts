@@ -84,13 +84,15 @@ describe("resource rules", () => {
             served("https://site.test/_astro/index.Bx1kQ2_9.js", "script", "text/javascript", { "cache-control": "max-age=3600" }),
             served("https://site.test/app-3f2a9c1b.js", "script", "text/javascript", {}),
             served("https://site.test/lib.js", "script", "text/javascript", { "cache-control": "max-age=60, immutable" }),
+            served("https://site.test/vendor.9a8b7c6d.js", "script", "text/javascript", { "cache-control": "max-age=31536000; immutable" }),
             served("https://site.test/main.4e5f6a7b.js", "script", "text/javascript", { "cache-control": "public, max-age=31536000, immutable" }),
             served("https://site.test/analytics-tracking.js", "script", "text/javascript", { "cache-control": "no-cache" }),
         ];
         const rule = builtin["resources/cache-control"]?.("warning") as AggregateRule;
         const findings = rule.check([page("https://site.test/", resources)]) ?? [];
-        assert.deepEqual(findings.map((finding) => finding.url), resources.slice(0, 3).map((resource) => resource.url));
+        assert.deepEqual(findings.map((finding) => finding.url), resources.slice(0, 4).map((resource) => resource.url));
         assert.match(findings[1]?.message ?? "", /^fingerprinted script is cached for 0 s \(Cache-Control: absent\)/);
+        assert.match(findings[3]?.message ?? "", /breaks RFC 9111 \(“max-age=31536000; immutable” is not a directive\)/);
     });
 
     it("wants a text asset over 1 KB compressed, and leaves WOFF2 and small files alone", () => {

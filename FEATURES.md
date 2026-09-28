@@ -138,6 +138,7 @@ SPDX-License-Identifier: MIT
 - HSTS must last long enough and cover subdomains, and responses must not be sniffed, framed by other sites, or leak full URLs through the referrer.
 - Cross-origin isolation, Permissions-Policy and reporting endpoints are checked on every page, not only the front page.
 - An X-XSS-Protection header that still turns the retired filter on is reported, since that filter can itself be abused.
+- A header that breaks its own grammar, such as an HSTS max-age that is not a number or a Cache-Control directive no cache knows, is one finding naming the fault, instead of passing because it is present or failing every check that reads it.
 
 ### Scan server
 

@@ -12,5 +12,6 @@ SPDX-License-Identifier: MIT
 - HSTS debe durar lo suficiente y cubrir los subdominios, y las respuestas no deben poder ser olfateadas, enmarcadas por otros sitios ni filtrar URL completas por el referente.
 - El aislamiento entre orígenes, Permissions-Policy y los puntos de notificación se revisan en cada página, no solo en la portada.
 - Se informa de una cabecera X-XSS-Protection que aún activa el filtro retirado, porque ese filtro también se puede aprovechar.
+- Una cabecera que rompe su propia gramática, como un max-age de HSTS que no es un número o una directiva de Cache-Control que ninguna caché conoce, es un solo hallazgo que nombra el fallo, en lugar de aprobar por estar presente o de fallar en cada comprobación que la lee.
 
 <!-- textlint-enable -->

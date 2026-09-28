@@ -5,9 +5,9 @@
 description: HSTS, CSP, nosniff, Referrer-Policy, framing and cross-origin isolation
 rules:
   http/hsts:
-    fact: http.headers.strict-transport-security
-    expect: {type: string, pattern: "max-age=\\d{7,}"}
-    when: {url.protocol: "https:"}
+    fact: http.parsed.strict-transport-security.value.max-age
+    expect: {type: integer, minimum: 1000000}
+    when: {url.protocol: "https:", http.parsed.strict-transport-security.errors: {maxItems: 0}}
     severity: warning
     message: "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
     fix: "Send Strict-Transport-Security: max-age=63072000; includeSubDomains."
@@ -27,8 +27,9 @@ rules:
     fix: "Send X-Content-Type-Options: nosniff."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
   http/referrer-policy:
-    fact: http.headers.referrer-policy
-    expect: {type: string, minLength: 1, not: {pattern: "(?i:unsafe-url|no-referrer-when-downgrade)\\s*$"}}
+    fact: http.parsed.referrer-policy.value
+    expect: {type: string, not: {enum: [unsafe-url, no-referrer-when-downgrade]}}
+    when: {http.parsed.referrer-policy.errors: {maxItems: 0}}
     severity: warning
     message: "Referrer-Policy should not leak full URLs, found {got}"
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
@@ -36,32 +37,34 @@ rules:
   http/frame-options: info
   http/server-disclosure: warning
   http/hsts-subdomains:
-    fact: http.headers.strict-transport-security
-    expect: {type: string, pattern: "(?i:includeSubDomains)"}
-    when: {url.protocol: "https:", http.headers.strict-transport-security: {type: string}}
+    fact: http.parsed.strict-transport-security.value
+    expect: {required: [includesubdomains]}
+    when: {url.protocol: "https:", http.parsed.strict-transport-security.value: {type: object}}
     severity: info
     message: "Strict-Transport-Security should carry includeSubDomains, found {got}"
     fix: "Add includeSubDomains to the Strict-Transport-Security header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security#includesubdomains
   http/permissions-policy:
-    fact: http.headers.permissions-policy
-    expect: {type: string, minLength: 1}
+    fact: http.parsed.permissions-policy.value
+    expect: {type: object, minProperties: 1}
+    when: {http.parsed.permissions-policy.errors: {maxItems: 0}}
     severity: info
-    message: "no Permissions-Policy header"
+    message: "no Permissions-Policy header naming a feature, found {got}"
     fix: "Send a Permissions-Policy header listing the features the page uses."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
   http/coop:
-    fact: http.headers.cross-origin-opener-policy
-    expect: {type: string, pattern: "^\\s*same-origin(-allow-popups)?\\s*(;|$)"}
+    fact: http.parsed.cross-origin-opener-policy.value
+    expect: {enum: [same-origin, same-origin-allow-popups]}
+    when: {http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}}
     severity: info
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
   http/corp:
     fact: http.headers.cross-origin-resource-policy
-    expect: {type: string, minLength: 1}
+    expect: {enum: [same-origin, same-site, cross-origin]}
     severity: info
-    message: "no Cross-Origin-Resource-Policy header"
+    message: "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin, found {got}"
     fix: "Send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
   http/csp-upgrade-insecure:
@@ -149,10 +152,11 @@ rules:
     fix: "Add frame-ancestors to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
   http/reporting-endpoints:
-    fact: http.headers.reporting-endpoints
-    expect: {type: string, minLength: 1}
+    fact: http.parsed.reporting-endpoints.value
+    expect: {type: object, minProperties: 1}
+    when: {http.parsed.reporting-endpoints.errors: {maxItems: 0}}
     severity: info
-    message: "no Reporting-Endpoints header"
+    message: "no Reporting-Endpoints header naming an endpoint, found {got}"
     fix: "Send a Reporting-Endpoints header naming your reporting endpoints."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Reporting-Endpoints
   http/no-x-xss-protection:
@@ -163,3 +167,59 @@ rules:
     fix: "Remove X-XSS-Protection."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection
   http/deprecated-header: info
+  http/hsts-syntax:
+    fact: http.parsed.strict-transport-security.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.strict-transport-security: {type: object}}
+    severity: warning
+    message: "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it: {got}"
+    fix: "Send Strict-Transport-Security once, as max-age=63072000; includeSubDomains."
+    docs: https://www.rfc-editor.org/rfc/rfc6797#section-6.1
+  http/csp-syntax:
+    fact: http.parsed.content-security-policy.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.content-security-policy: {type: object}}
+    severity: warning
+    message: "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read: {got}"
+    fix: "Spell every directive as CSP 3 names it and quote keywords, as in script-src 'self'."
+    docs: https://www.w3.org/TR/CSP3/#framework-directives
+  http/permissions-policy-syntax:
+    fact: http.parsed.permissions-policy.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.permissions-policy: {type: object}}
+    severity: warning
+    message: "Permissions-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+    fix: "Write Permissions-Policy as a dictionary, as in camera=(), geolocation=(self)."
+    docs: https://www.w3.org/TR/permissions-policy/#permissions-policy-http-header-field
+  http/referrer-policy-syntax:
+    fact: http.parsed.referrer-policy.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.referrer-policy: {type: object}}
+    severity: warning
+    message: "Referrer-Policy breaks the Referrer Policy tokens: {got}"
+    fix: "Send Referrer-Policy: strict-origin-when-cross-origin."
+    docs: https://www.w3.org/TR/referrer-policy/#referrer-policy-header
+  http/coop-syntax:
+    fact: http.parsed.cross-origin-opener-policy.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.cross-origin-opener-policy: {type: object}}
+    severity: warning
+    message: "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+    fix: "Send Cross-Origin-Opener-Policy: same-origin."
+    docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers
+  http/coep-syntax:
+    fact: http.parsed.cross-origin-embedder-policy.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.cross-origin-embedder-policy: {type: object}}
+    severity: warning
+    message: "Cross-Origin-Embedder-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+    fix: "Send Cross-Origin-Embedder-Policy: credentialless."
+    docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coep-headers
+  http/reporting-endpoints-syntax:
+    fact: http.parsed.reporting-endpoints.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.reporting-endpoints: {type: object}}
+    severity: warning
+    message: "Reporting-Endpoints breaks its structured-field grammar, so browsers ignore it: {got}"
+    fix: "Send Reporting-Endpoints: default=\"/reports\"."
+    docs: https://www.w3.org/TR/reporting-1/#header

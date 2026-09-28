@@ -145,6 +145,14 @@ export interface HttpFacts {
     error?: string;
     // The Content-Security-Policy headers and `<meta>` policies, derived on every lint.
     csp?: CspFacts;
+    // Each header spiderlint knows the grammar of, parsed on every lint.
+    parsed?: Record<string, ParsedHeader>;
+}
+
+// `value` only when the header keeps its grammar; `errors` names each break.
+export interface ParsedHeader {
+    value?: unknown;
+    errors: string[];
 }
 
 // Enforced policies combined as the browser enforces them: each directive keeps only the sources every policy governing it allows.

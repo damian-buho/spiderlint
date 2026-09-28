@@ -16,17 +16,17 @@ rules:
     fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
   http/vary-encoding:
-    fact: http.headers.vary
-    expect: {type: string, pattern: "(?i:accept-encoding)|^\\s*\\*\\s*$"}
-    when: {http.headers.content-encoding: {type: string}}
+    fact: http.parsed.vary.value
+    expect: {type: array, contains: {enum: [accept-encoding, "*"]}}
+    when: {http.headers.content-encoding: {type: string}, http.parsed.vary.errors: {maxItems: 0}}
     severity: warning
     message: "a compressed response should carry Vary: Accept-Encoding, found {got}"
     fix: "Add Vary: Accept-Encoding to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Vary
   http/vary-star:
-    fact: http.headers.vary
-    expect: {type: string, not: {pattern: "^\\s*\\*\\s*$"}}
-    when: {http.headers.vary: {type: string}}
+    fact: http.parsed.vary.value
+    expect: {not: {contains: {const: "*"}}}
+    when: {http.parsed.vary.value: {type: array}}
     severity: warning
     message: "Vary: * makes the response uncacheable, found {got}"
     fix: "Replace Vary: * with the specific header names the response varies by."
@@ -40,17 +40,17 @@ rules:
     fix: "Add an ETag or Last-Modified header to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Caching#validation
   http/html-cache-control:
-    fact: http.headers.cache-control
-    expect: {type: string, minLength: 1}
-    when: {http.status: {minimum: 200, maximum: 299}, http.content-type: {pattern: "^text/html"}}
+    fact: http.parsed.cache-control.value
+    expect: {type: object, minProperties: 1}
+    when: {http.status: {minimum: 200, maximum: 299}, http.content-type: {pattern: "^text/html"}, http.parsed.cache-control.errors: {maxItems: 0}}
     severity: info
-    message: "no Cache-Control header on an HTML page"
+    message: "no Cache-Control directive on an HTML page, found {got}"
     fix: "Add a Cache-Control header, e.g. no-cache to revalidate, or public with a max-age."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control
   http/no-store-bfcache:
-    fact: http.headers.cache-control
-    expect: {type: string, not: {pattern: "(?i:no-store)"}}
-    when: {http.content-type: {pattern: "^text/html"}, http.headers.cache-control: {type: string}}
+    fact: http.parsed.cache-control.value
+    expect: {not: {required: [no-store]}}
+    when: {http.content-type: {pattern: "^text/html"}, http.parsed.cache-control.value: {type: object}}
     severity: info
     message: "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
     fix: "Remove no-store from Cache-Control, or replace it with no-cache."
@@ -137,9 +137,9 @@ rules:
     fix: "Write each Link entry as <https://example.com/a>; rel=preload, separated by commas."
     docs: https://www.rfc-editor.org/rfc/rfc8288#section-3
   http/dictionary-format:
-    fact: http.headers.use-as-dictionary
-    expect: {type: string, pattern: "(^|,)\\s*match\\s*=\\s*\""}
-    when: {http.headers.use-as-dictionary: {type: string}}
+    fact: http.parsed.use-as-dictionary.value
+    expect: {required: [match], properties: {match: {type: string}}}
+    when: {http.parsed.use-as-dictionary.value: {type: object}}
     severity: warning
     message: "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
     fix: "Send Use-As-Dictionary: match=\"/assets/app-*.js\"."
@@ -151,3 +151,59 @@ rules:
     message: "more than one stylesheet in <head> blocks rendering: {got}"
     fix: "Inline the critical CSS and load the rest with media=print onload, or merge the stylesheets into one."
     docs: https://web.dev/articles/defer-non-critical-css
+  http/cache-control-syntax:
+    fact: http.parsed.cache-control.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.cache-control: {type: object}}
+    severity: warning
+    message: "Cache-Control breaks RFC 9111 §5.2, and caches ignore what they cannot read: {got}"
+    fix: "Write Cache-Control with registered directives only, as in public, max-age=3600."
+    docs: https://www.rfc-editor.org/rfc/rfc9111#section-5.2
+  http/vary-syntax:
+    fact: http.parsed.vary.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.vary: {type: object}}
+    severity: warning
+    message: "Vary breaks RFC 9110 §12.5.5: {got}"
+    fix: "List the request header names the response varies by, as in Vary: Accept-Encoding."
+    docs: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.5
+  http/content-type-syntax:
+    fact: http.parsed.content-type.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.content-type: {type: object}}
+    severity: warning
+    message: "Content-Type breaks RFC 9110 §8.3.1: {got}"
+    fix: "Send Content-Type as type/subtype with name=value parameters, as in text/html; charset=utf-8."
+    docs: https://www.rfc-editor.org/rfc/rfc9110#section-8.3.1
+  http/use-as-dictionary-syntax:
+    fact: http.parsed.use-as-dictionary.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.use-as-dictionary: {type: object}}
+    severity: warning
+    message: "Use-As-Dictionary breaks its structured-field grammar, so clients ignore it: {got}"
+    fix: "Send Use-As-Dictionary: match=\"/assets/app-*.js\"."
+    docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1
+  http/accept-ch-syntax:
+    fact: http.parsed.accept-ch.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.accept-ch: {type: object}}
+    severity: warning
+    message: "Accept-CH breaks its structured-field grammar, so browsers ignore it: {got}"
+    fix: "Send Accept-CH as a list of hint names, as in Accept-CH: Sec-CH-UA-Platform."
+    docs: https://www.rfc-editor.org/rfc/rfc8942#section-3.1
+  http/priority-syntax:
+    fact: http.parsed.priority.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.priority: {type: object}}
+    severity: warning
+    message: "Priority breaks its structured-field grammar, so clients ignore it: {got}"
+    fix: "Send Priority as a dictionary, as in Priority: u=1, i."
+    docs: https://www.rfc-editor.org/rfc/rfc9218#section-5
+  http/cache-status-syntax:
+    fact: http.parsed.cache-status.errors
+    expect: {maxItems: 0}
+    when: {http.parsed.cache-status: {type: object}}
+    severity: warning
+    message: "Cache-Status breaks its structured-field grammar: {got}"
+    fix: "Send Cache-Status as a list of caches with parameters, as in Cache-Status: ExampleCache; hit."
+    docs: https://www.rfc-editor.org/rfc/rfc9211#section-2
