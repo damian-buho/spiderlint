@@ -576,6 +576,15 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.4",
         fix: "Add a CAA iodef tag pointing at a contact URI or email for issuance incident reports.",
     },
+    "dns/caa-critical": {
+        fact: "site.hosts.*.dns.caa.records",
+        expect: { not: { contains: { properties: { flags: { minimum: 128 }, tag: { not: { enum: ["issue", "issuewild", "iodef"] } } } } } },
+        when: { "site.hosts.*.dns.caa": { type: "object" } },
+        message: "CAA marks a tag outside RFC 8659 critical, so a CA that does not know it refuses to issue at all (got {got})",
+        severity: "error",
+        docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.5",
+        fix: "Set the CAA flags to `0` on the unknown tag, or remove the record.",
+    },
     "dns/aaaa": {
         fact: "site.hosts.*.dns.aaaa",
         expect: { minItems: 1 },
@@ -794,7 +803,7 @@ const RULES: Record<string, RuleSpec> = {
     },
 };
 
-const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/dangling-cname", "dns/dnssec", "dns/dnssec-bogus"];
+const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/caa-iodef", "dns/caa-critical", "dns/dangling-cname", "dns/dnssec", "dns/dnssec-bogus"];
 const RECOMMENDED = [...CORE, "domain/expiry", "domain/expiring", "domain/lock", "dns/open-recursion"];
 
 // The `RULES` entries named by `ids`.
@@ -808,7 +817,7 @@ export default definePlugin({
     presets: {
         dns: { description: "DNS and registration of every crawled host: HTTPS records, CAA, DNSSEC, name servers, zone timers, dangling CNAMEs, RDAP expiry and lock", rules: RULES },
         "dns:mail": { description: "Mail records matched to what each name does: a null MX, a deny-all SPF and a DMARC reject policy where it takes and sends no mail, one closed SPF record and an enforced DMARC policy where it does", rules: MAIL },
-        "dns:core": { description: "HTTPS record, CAA, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: pick(CORE) },
+        "dns:core": { description: "HTTPS record, CAA and its iodef contact, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: pick(CORE) },
         "dns:recommended": { description: "dns:core, the registration’s expiry and transfer lock, and name servers open to recursion", rules: pick(RECOMMENDED) },
     },
 });
