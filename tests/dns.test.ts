@@ -169,6 +169,15 @@ describe("dns plugin", () => {
         }
     });
 
+    it("asks CAA to restrict issuance", async () => {
+        const facts = await extract("good.fixture", [page("good.fixture", "Let's Encrypt", [], 'h3=":443"; ma=86400')], dnsClient(fixture.server, off(), true, fixture.port));
+        const caa = (...records: object[]) => ({ "good.fixture": { ...facts, dns: { ...(facts.dns as object), caa: { at: "good.fixture", records } } } });
+        const iodef = { flags: 0, tag: "iodef", value: "https://rr.good.fixture" };
+        const issue = { flags: 0, tag: "issue", value: "letsencrypt.org" };
+        assert.deepEqual(findings(caa(iodef), "dns:core"), ["dns/caa"]);
+        assert.deepEqual(findings(caa(issue, iodef), "dns:core"), []);
+    });
+
     it("judges CAA against the certificate actually served, and h3 against Alt-Svc", async () => {
         const facts = await extract("good.fixture", [page("good.fixture", "Actalis S.p.A.")], dnsClient(fixture.server, off(), false));
         assert.deepEqual(findings({ "good.fixture": facts }), ["dns/caa-issuer", "dns/https-alpn"]);

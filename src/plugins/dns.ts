@@ -552,8 +552,8 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/caa": {
         fact: "site.hosts.*.dns.caa",
-        expect: { type: "object" },
-        message: "no CAA record on the host or any parent, so any CA may issue for it",
+        expect: { type: "object", properties: { records: { contains: { properties: { tag: { enum: ["issue", "issuewild"] } } } } } },
+        message: "no CAA issue or issuewild record on the host or any parent, so any CA may issue for it",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc8659",
         fix: "Add one CAA record per CA you use — Name `{domain}`, Flags `0`, Tag `issue`, CA domain `letsencrypt.org` — which covers every name under it.",
