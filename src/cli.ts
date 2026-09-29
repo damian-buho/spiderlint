@@ -358,7 +358,7 @@ function program(act: (command: Command) => Promise<void>): Command {
     root.version(VERSION, "-V, --version", "show the version");
     root.helpOption("-h, --help", "show this screen, or a command’s with the command");
     root.helpCommand("help [command]", "show a command’s options and examples");
-    root.addHelpText("before", () => [paint()("bold", `spiderlint ${VERSION}`), DESCRIPTION, paint()("underline", HOMEPAGE), ""].join("\n"));
+    root.addHelpText("before", () => [paint()("bold", "spiderlint"), DESCRIPTION, paint()("underline", HOMEPAGE), ""].join("\n"));
     root.addHelpText("after", () => ["", `Run ${paint()("green", "spiderlint <command> --help")} for a command’s options and examples.`, "", paint()("bold", "Exit codes:"), "  0  clean", "  1  findings at or above --fail-on", "  2  usage or config error", "  3  nothing fetched, or an --offline cache miss", "  4  the run failed"].join("\n"));
     const shared = root.options.filter((option) => !option.hidden && option.long !== "--version").map((option) => option.flags.split(" ", 1)[0]);
     for (const verb of VERBS) {

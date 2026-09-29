@@ -262,7 +262,7 @@ describe("cli", () => {
 
     it("shows grouped commands, tool-wide options and exit codes on the main screen, one command’s sections on its own", async () => {
         const main = await spiderlint(directory, "--help");
-        assert.match(main.stdout, /^spiderlint \S+\n.+\nhttps:\/\/dbuho\.me\/project\/spiderlint\/\n/);
+        assert.match(main.stdout, /^spiderlint\n.+\nhttps:\/\/dbuho\.me\/project\/spiderlint\/\n/);
         assert.match(main.stdout, /\nCheck a site:\n {2}audit \[domain…\]/);
         assert.match(main.stdout, /\nExit codes:\n/);
         assert.doesNotMatch(main.stdout, /--max-pages|Examples:/);
