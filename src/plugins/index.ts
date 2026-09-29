@@ -22,6 +22,7 @@ import { presetNames } from "../rules/rulesets.ts";
 import type { Make, Rule, RulesetConfig } from "../rules/types.ts";
 import axe from "./axe.ts";
 import cookies from "./cookies.ts";
+import css from "./css.ts";
 import dns from "./dns.ts";
 import feeds from "./feeds.ts";
 import htmlValidate from "./html-validate.ts";
@@ -43,7 +44,7 @@ import trackers from "./trackers.ts";
 import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, network, tlsProbe, cookies, images, wellKnown, feeds, structuredData, manifest, icons, linkText, markup, trackers, list];
+const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, network, tlsProbe, cookies, images, css, wellKnown, feeds, structuredData, manifest, icons, linkText, markup, trackers, list];
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));

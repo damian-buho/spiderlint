@@ -23,6 +23,14 @@ SPDX-License-Identifier: MIT
 - Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
 - What a page loses without JavaScript — its title, description, canonical link, heading, internal links or text — is reported, from its raw HTML against its rendered page.
 
+### CSS checked as browsers read it
+
+- Style sheets and inline CSS are parsed for what browsers silently drop: syntax errors that lose a whole rule, misspelled properties and values outside a property’s grammar.
+- Each defect names its line and column, in the style sheet or in the page that holds the inline block.
+- A style sheet every page loads is one finding with the pages that use it, and inline CSS folds per template.
+- Features the project’s declared browsers lack are listed with the browsers that lack them, while code behind `@supports` is left alone.
+- Vendor prefixes and old browser hacks are never reported, and the check needs no Java validator.
+
 ### The DNS behind every crawled host
 
 - Missing HTTPS records are reported, so a first visit can start on HTTP/3 without a round trip to discover it.

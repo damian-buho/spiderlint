@@ -1,0 +1,10 @@
+/*
+SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+
+SPDX-License-Identifier: MIT
+*/
+/* stylelint-disable */
+body { margin: 0; colr: #222; color: var(--ink, #222); }
+h1 { font-size: 12; -webkit-font-smoothing: antialiased; *zoom: 1; _height: 1px; }
+a::before * { content: ""; }
+nav { display: flex; }

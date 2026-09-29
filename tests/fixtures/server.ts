@@ -22,7 +22,7 @@ export interface Fixture {
 const SITE = new URL("site/", import.meta.url);
 // The favicon, SVG icon and Apple touch icon every page’s origin serves.
 const ICONS: Record<string, [string, Buffer | string]> = { "/favicon.ico": ["image/x-icon", await ico([16, 32])], "/favicon.svg": ["image/svg+xml", SVG], "/apple-touch-icon.png": ["image/png", await png(180)] };
-const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", txt: "text/plain", xml: "application/xml", webmanifest: "application/manifest+json" };
+const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css", txt: "text/plain", xml: "application/xml", webmanifest: "application/manifest+json" };
 
 
 // Size of `/big.bin`, a binary no crawl should download.

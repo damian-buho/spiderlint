@@ -20,6 +20,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 
 - Accessibility checked from every side
 - Client-rendered pages audited as visitors see them
+- CSS checked as browsers read it
 - The DNS behind every crawled host
 - One finding per template, not per page
 - Icons fetched and measured

@@ -22,6 +22,7 @@ Linter de sitio completo para etiquetas SEO, cabeceras de seguridad, TLS y enlac
 
 - Accesibilidad revisada desde todos los lados
 - Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
+- CSS revisado como lo leen los navegadores
 - El DNS detrás de cada host rastreado
 - Un hallazgo por plantilla, no por página
 - Iconos descargados y medidos
