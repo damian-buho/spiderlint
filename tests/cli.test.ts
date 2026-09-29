@@ -5,8 +5,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -27,9 +25,15 @@ interface Run {
 function spiderlintWith(extra: NodeJS.ProcessEnv, directory: string, ...flags: string[]): Promise<Run> {
     return new Promise((resolve) => {
         execFile(process.execPath, ["--experimental-strip-types", CLI, ...flags], { cwd: directory, env: { ...ENVIRONMENT, SPIDERLINT_LOG_FORMAT: "json", XDG_CACHE_HOME: path.join(directory, "cache"), ...extra } }, (error, stdout, stderr) => {
-            resolve({ code: typeof error?.code === "number" ? error.code : 0, stdout, stderr });
+            resolve({ code: typeof error?.code === "number" ? error.code : error ? -1 : 0, stdout, stderr: error && typeof error.code !== "number" ? `${stderr}\nchild ended by ${String(error.signal ?? error.code)}` : stderr });
         });
     });
+}
+
+// `run`’s stdout as JSON, failing on its exit code and stderr when it printed nothing.
+function parsed(run: Run) {
+    assert.notEqual(run.stdout.trim(), "", `exit ${run.code}, empty stdout; stderr tail:\n${run.stderr.slice(-4000)}`);
+    return JSON.parse(run.stdout);
 }
 
 function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
@@ -39,7 +43,7 @@ function spiderlint(directory: string, ...flags: string[]): Promise<Run> {
 // The html-validate findings of a JSON audit of `origin`.
 async function findingsOf(directory: string, origin: string, ...flags: string[]): Promise<{ occurrences?: number }[]> {
     const run = await spiderlint(directory, "audit", `${origin}/`, "--format", "json", "--fail-on", "never", "--rules", "html-validate", ...flags);
-    return JSON.parse(run.stdout).findings as { occurrences?: number }[];
+    return parsed(run).findings as { occurrences?: number }[];
 }
 
 // An audit of `origin` under the suggestions preset, failing on info.
@@ -48,7 +52,7 @@ function suggested(directory: string, origin: string, ...flags: string[]): Promi
 }
 
 function ruleIdsOf(run: Run): string[] {
-    return (JSON.parse(run.stdout) as { id: string }[]).map((rule) => rule.id);
+    return (parsed(run) as { id: string }[]).map((rule) => rule.id);
 }
 
 describe("cli", () => {
@@ -66,12 +70,9 @@ describe("cli", () => {
     });
 
     it("exits 3 naming the network error when a seed’s origin is unreachable", async () => {
-        const closed = createServer();
-        await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
-        const { port } = closed.address() as AddressInfo;
-        await new Promise((resolve) => closed.close(resolve));
-        const run = await spiderlint(directory, "audit", `http://127.0.0.1:${port}/`, "--no-cache", "--no-sitemap");
-        assert.equal(run.code, 3);
+        // Port 1023 is privileged and not a Fetch bad port, so no parallel test file can be listening on it.
+        const run = await spiderlint(directory, "audit", "http://127.0.0.1:1023/", "--no-cache", "--no-sitemap");
+        assert.equal(run.code, 3, run.stderr);
         const seed = run.stderr.split("\n").filter(Boolean).map((line) => JSON.parse(line) as { msg: string; error?: string }).find((entry) => entry.msg.startsWith("seed not crawled"));
         assert.match(seed?.error ?? "", /ECONNREFUSED/);
     });
@@ -152,7 +153,7 @@ describe("cli", () => {
         assert.equal(mode & 0o777, 0o700);
         const linted = await spiderlint(directory, "lint", seed, "--format", "json", "--fail-on", "never");
         assert.equal(linted.code, 0);
-        assert.equal((JSON.parse(linted.stdout) as { summary: { pages: number } }).summary.pages, 2);
+        assert.equal((parsed(linted) as { summary: { pages: number } }).summary.pages, 2);
         const unnamed = await spiderlint(directory, "lint");
         assert.equal(unnamed.code, 2);
     });
@@ -161,7 +162,7 @@ describe("cli", () => {
         const seed = `${site.origin}/`;
         const audited = await spiderlint(directory, "audit", seed, "--rules", "sustainability", "--exclude-urls", "/tmp/**", "--format", "json", "--fail-on", "never");
         assert.equal(audited.code, 0, audited.stderr);
-        const { summary } = JSON.parse(audited.stdout) as { summary: { pages: number; stats: Record<string, { median: number; total: number }> } };
+        const { summary } = parsed(audited) as { summary: { pages: number; stats: Record<string, { median: number; total: number }> } };
         assert.ok((summary.stats["co2.grams"]?.total ?? 0) > 0 && (summary.stats["co2.grams"]?.median ?? 0) > 0, JSON.stringify(summary.stats["co2.grams"]));
         assert.equal(Object.keys(summary.stats)[0], "co2.bytes");
         const exported = await spiderlint(directory, "export-facts", seed, "--format", "csv");
@@ -225,7 +226,7 @@ describe("cli", () => {
         await stat(path.join(stores, new URL(other).host));
         const one = await spiderlint(project, "lint", "--config", "projectfile.yaml", "--site", "preview", "--format", "json", "--fail-on", "never");
         assert.equal(one.code, 0, one.stderr);
-        assert.equal((JSON.parse(one.stdout) as { summary: { pages: number } }).summary.pages, 2);
+        assert.equal((parsed(one) as { summary: { pages: number } }).summary.pages, 2);
         const unknown = await spiderlint(project, "lint", "--config", "projectfile.yaml", "--site", "nope");
         assert.equal(unknown.code, 2);
         assert.match(unknown.stderr, /unknown site nope \(declared: (static, preview|preview, static)\)/);
@@ -293,7 +294,7 @@ describe("cli", () => {
 
     it("lists every rule with the severity this configuration runs it at", async () => {
         const run = await spiderlint(directory, "list-rules", "--format", "json", "--error", "http/csp");
-        const rules = new Map((JSON.parse(run.stdout) as { id: string; severity: string; preset: string; rulesets: string[] }[]).map((rule) => [rule.id, rule]));
+        const rules = new Map((parsed(run) as { id: string; severity: string; preset: string; rulesets: string[] }[]).map((rule) => [rule.id, rule]));
         assert.equal(run.code, 0);
         assert.deepEqual(rules.get("http/csp"), { ...rules.get("http/csp"), severity: "error", preset: "warning", rulesets: ["security-headers"] });
         assert.equal(rules.get("browser/console-errors")?.severity, "off");
@@ -301,7 +302,7 @@ describe("cli", () => {
 
     it("lists the shipped presets and which ones the groups use", async () => {
         const run = await spiderlint(directory, "list-presets", "--format", "json");
-        const presets = new Map((JSON.parse(run.stdout) as { name: string; used: boolean; description: string }[]).map((preset) => [preset.name, preset]));
+        const presets = new Map((parsed(run) as { name: string; used: boolean; description: string }[]).map((preset) => [preset.name, preset]));
         assert.equal(presets.get("recommended")?.used, true);
         assert.equal(presets.get("browser")?.used, false);
         assert.ok(presets.values().every((preset) => preset.description.length > 0));
@@ -310,14 +311,14 @@ describe("cli", () => {
     it("explains a declarative, a built-in and a plugin rule, and refuses an unknown one", async () => {
         const declarative = await spiderlint(directory, "explain-rule", "html/theme-color-schemes", "--format", "json");
         assert.equal(declarative.code, 0, declarative.stderr);
-        const rule = JSON.parse(declarative.stdout) as { kind: string; facts: string[]; expect: object; fix: string; docs: string };
+        const rule = parsed(declarative) as { kind: string; facts: string[]; expect: object; fix: string; docs: string };
         assert.deepEqual([rule.kind, rule.facts], ["declarative", ["html.metas"]]);
         assert.ok(rule.expect && rule.fix && rule.docs, declarative.stdout);
         const builtin = await spiderlint(directory, "explain-rule", "links/redirected-internal", "--no-color");
         assert.match(builtin.stdout, /^kind\s+built-in$/m);
         assert.match(builtin.stdout, /^docs\s+https:/m);
         const plugin = await spiderlint(directory, "explain-rule", "axe/color-contrast", "--format", "json");
-        assert.deepEqual((JSON.parse(plugin.stdout) as { rulesets: string[] }).rulesets, ["axe", "axe:wcag"]);
+        assert.deepEqual((parsed(plugin) as { rulesets: string[] }).rulesets, ["axe", "axe:wcag"]);
         const unknown = await spiderlint(directory, "explain-rule", "nope/missing");
         const bare = await spiderlint(directory, "explain-rule");
         assert.deepEqual([unknown.code, bare.code], [2, 2]);
@@ -331,7 +332,7 @@ describe("cli", () => {
 
     it("runs only the rulesets --rules names, in every group", async () => {
         const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", "--rules", "security-headers,links");
-        const rules = new Set((JSON.parse(run.stdout) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
+        const rules = new Set((parsed(run) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
         assert.ok(rules.size > 0, run.stderr);
         assert.ok(rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")), [...rules].join(", "));
     });
@@ -352,7 +353,7 @@ describe("cli", () => {
     it("applies severity flags in argv order", async () => {
         const severity = async (...flags: string[]) => {
             const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", ...flags);
-            const findings = JSON.parse(run.stdout).findings as { rule: string; severity: string }[];
+            const findings = parsed(run).findings as { rule: string; severity: string }[];
             return new Set(findings.filter((finding) => finding.rule === "html/title-length").map((finding) => finding.severity));
         };
         assert.deepEqual(await severity("--error", "html/title-length", "--info", "html/title-length"), new Set(["info"]));
@@ -361,13 +362,13 @@ describe("cli", () => {
 
     it("counts hints apart: no grade, no failing exit, listed with --show-hints", async () => {
         const json = await suggested(directory, site.origin, "--format", "json", "--role", "development");
-        const { findings, summary } = JSON.parse(json.stdout) as { findings: { rule: string; severity: string }[]; summary: { checks: { total: number }; rating?: unknown } };
+        const { findings, summary } = parsed(json) as { findings: { rule: string; severity: string }[]; summary: { checks: { total: number }; rating?: unknown } };
         assert.equal(json.code, 0, json.stderr);
         assert.ok(findings.length > 0 && findings.every((finding) => finding.severity === "hint"));
         assert.ok(findings.some((finding) => finding.rule === "http/server-timing"));
         assert.deepEqual([summary.checks.total, summary.rating], [0, undefined]);
         const production = await suggested(directory, site.origin, "--format", "json");
-        assert.ok((JSON.parse(production.stdout) as { findings: { rule: string }[] }).findings.every((finding) => finding.rule !== "http/server-timing"));
+        assert.ok((parsed(production) as { findings: { rule: string }[] }).findings.every((finding) => finding.rule !== "http/server-timing"));
         const collapsed = await suggested(directory, site.origin);
         assert.match(collapsed.stdout, /^hints \(\d+ hints\)\n {10}--show-hints lists them$/m);
         assert.doesNotMatch(collapsed.stdout, /http\/digest/);
