@@ -302,7 +302,8 @@ const consistentOrigin: Make = (severity) => ({
     },
 });
 
-export type Verdict = (resource: ResourceFacts, pages: number) => string | undefined;
+// A resource’s finding as its message, or with the locations inside it.
+export type Verdict = (resource: ResourceFacts, pages: number) => string | Pick<Finding, "message" | "locations"> | undefined;
 
 // A rule's docs link and one-line fix.
 export type Guide = Pick<RuleMeta, "docs" | "fix">;
@@ -336,9 +337,9 @@ export function resourceRule(id: string, isUsed: (page: Facts, resource: Resourc
             }
             const findings: Finding[] = [];
             for (const [url, { resource, urls }] of usedBy) {
-                const message = verdict(resource, urls.length);
-                log.debug({ rule: id, resource: url, pages: urls.length, isFinding: message !== undefined }, "resource judged");
-                if (message) findings.push({ rule: id, severity, scope: "site", url, message, value: valueOf(resource), urls });
+                const judged = verdict(resource, urls.length);
+                log.debug({ rule: id, resource: url, pages: urls.length, isFinding: judged !== undefined }, "resource judged");
+                if (judged) findings.push({ rule: id, severity, scope: "site", url, ...(typeof judged === "string" ? { message: judged } : judged), value: valueOf(resource), urls });
             }
             return findings;
         },

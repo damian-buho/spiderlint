@@ -88,7 +88,7 @@ function locations(t: Translator, found: string[] | undefined): string {
     return items(t, (found ?? []).map((location) => `<code>${escape(location)}</code>`));
 }
 
-// What a finding covers: a fold’s share and samples, an aggregate’s URLs, or the one page and its locations.
+// What a finding covers: a fold’s share and samples, an aggregate’s URLs, or the one page, each with its locations.
 function detail(t: Translator, same: Finding[], origin: string): string {
     const [first] = same as [Finding];
     if (same.length > 1) return items(t, same.map((finding) => `${link(finding.url, origin)}${locations(t, finding.locations)}`));
@@ -97,7 +97,7 @@ function detail(t: Translator, same: Finding[], origin: string): string {
         const pages = first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share });
         return `<p class="muted">${escape(pages)}</p>${items(t, (first.samples ?? []).map((url) => `${link(url, origin)}${locations(t, first.sampleLocations?.[url])}`))}`;
     }
-    return first.urls ? items(t, first.urls.map((url) => link(url, origin))) : `<div>${link(first.url, origin)}</div>${locations(t, first.locations)}`;
+    return first.urls ? `${items(t, first.urls.map((url) => link(url, origin)))}${locations(t, first.locations)}` : `<div>${link(first.url, origin)}</div>${locations(t, first.locations)}`;
 }
 
 // One table row per bundle of findings.

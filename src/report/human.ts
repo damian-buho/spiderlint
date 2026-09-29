@@ -107,7 +107,7 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
     }
     if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint, limit)];
     const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
-    return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin, limit)}`)];
+    return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin, limit)}`), ...located(finding.locations, DETAIL, paint, limit)];
 }
 
 // The grade and the rulesets it was earned under; a dash when nothing was judged.
