@@ -15,6 +15,7 @@
 .npm/
 .pnpm-store/
 .secrets/
+.worktrees/
 build/
 dist/
 node_modules/
