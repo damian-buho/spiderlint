@@ -95,3 +95,6 @@ repositories:
 technologies:
   - node
   - typescript
+requirements:
+  runtime:
+    node: '>=26'

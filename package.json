@@ -1,6 +1,6 @@
 {
   "name": "dbuho-spiderlint",
-  "version": "1.0.0",
+  "version": "0.133.0",
   "private": true,
   "type": "module",
   "description": "Site-wide linter for SEO tags, security headers, TLS and links",
