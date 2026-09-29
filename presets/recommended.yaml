@@ -28,7 +28,7 @@ rules:
   icons/mask-icon: off
   icons/ms-tile: off
   manifest/parse: error
-  origin/www-resolves: off
+  origin/www-resolves: info
   http/clock-skew: warning
   http/content-length: warning
   http/date:
