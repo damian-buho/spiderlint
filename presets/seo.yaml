@@ -28,6 +28,7 @@ rules:
     message: "no meta theme-color"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
     fix: "Add <meta name=theme-color> with a color value."
+  html/theme-color-syntax: warning
   html/color-scheme:
     fact: html.meta.color-scheme
     expect: {type: string, pattern: "^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { createRequire } from "node:module";
 import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
@@ -213,6 +214,21 @@ const viewportSyntax = pageRule(
     { docs: "https://drafts.csswg.org/css-viewport/#viewport-meta", fix: "Keep meta viewport to known keys, as in width=device-width, initial-scale=1." },
 );
 
+// Each meta theme-color whose content is no CSS <color>, which browsers then ignore; css-tree loads on first use.
+const themeColorSyntax = pageRule(
+    "html/theme-color-syntax",
+    ["html.metas"],
+    (page) => {
+        const colors = page.html?.metas.filter((meta) => meta.name.toLowerCase() === "theme-color");
+        if (!colors?.length) return;
+        const { lexer } = createRequire(import.meta.url)("css-tree") as typeof import("css-tree");
+        const invalid = colors.filter((meta) => !lexer.match("<color>", meta.content.trim()).matched);
+        log.debug({ rule: "html/theme-color-syntax", url: page.url.href, colors: colors.length, invalid: invalid.length }, "theme colors read");
+        return invalid.map((meta) => ({ message: meta.content.trim() === "" ? "meta theme-color is empty, so browsers ignore it" : `meta theme-color “${meta.content}” is not a CSS color, so browsers ignore it`, value: meta.content }));
+    },
+    { docs: "https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color", fix: "Set <meta name=theme-color> content to a CSS color, as in #1a73e8." },
+);
+
 // Cross origins serving a head script without `async`, `defer` or `type=module`, or a style sheet for every medium.
 function blockingOrigins(page: Facts): Map<string, string> {
     const scripts = (page.html?.scripts ?? []).filter((script) => script.head && !script.async && !script.defer && script.type !== "module").map((script) => [originOf(script.src), "script"]);
@@ -411,6 +427,7 @@ export const builtin: Record<string, Make> = {
     "html/preconnect-missing": preconnectMissing,
     "html/preconnect-crossorigin": preconnectCrossorigin,
     "html/viewport-syntax": viewportSyntax,
+    "html/theme-color-syntax": themeColorSyntax,
     "http/consistent-origin": consistentOrigin,
     "sitemap/unreadable": sitemapUnreadable,
     "sitemap/media": sitemapMedia,
