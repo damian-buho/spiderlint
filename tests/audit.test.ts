@@ -454,6 +454,11 @@ describe("audit options", () => {
         assert.ok(report.findings.every((finding) => finding.rule !== "http/compression" || new URL(finding.url).pathname !== "/"));
     });
 
+    it("fetches only the seeds when every rule reads site facts", async () => {
+        const report = await audit({ seeds: [`${site.origin}/`], sitemap: false, rules: ["robots/disallow-all"] });
+        assert.deepEqual(report.pages.map((page) => page.url.pathname), ["/"]);
+    });
+
     it("lints a 403 page instead of retrying it as blocked", async () => {
         const report = await audit({ seeds: [`${site.origin}/forbidden`], maxPages: 1, sitemap: false, rules: ["seo"] });
         assert.equal(report.pages[0]?.http.status, 403);

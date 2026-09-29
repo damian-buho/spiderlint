@@ -255,6 +255,16 @@ describe("presets", () => {
         assert.throws(() => resolveRuleset("http/no-such-rule", {}), /no rule ID matches it/);
     });
 
+    it("derives server from the recommended rules that need no page past the seeds", () => {
+        const server = resolveRuleset("server", {});
+        assert.ok(presetNames().includes("server"));
+        assert.ok(Object.hasOwn(server, "robots/disallow-all"));
+        assert.ok(Object.hasOwn(server, "dns/caa"));
+        assert.ok(!Object.hasOwn(server, "http/compression"), "a page rule");
+        assert.ok(!Object.hasOwn(server, "dns/dangling-cname"), "a linked rule");
+        assert.ok(!Object.hasOwn(server, "links/rel-me"), "its extractor reads every crawled page");
+    });
+
     it("lists performance, and recommended extends it", () => {
         assert.ok(presetNames().includes("performance"));
         assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));

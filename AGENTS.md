@@ -16,7 +16,7 @@ discovery, scope, depth, glob and body-size limits; a fetch mode derived per
 group, both crawlers side by side in one run, and `adaptive` detection per group; sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
-`resources`, `browser`, `parity`, `sustainability`, `insights`, `recommended`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
+`resources`, `browser`, `parity`, `sustainability`, `insights`, `recommended`, `server`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
 `sarif`, `checkstyle`, `csv`, `html`, `agent` with `--output`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `show-report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `show-cache`, `purge-cache`, `warm-cache`, `--no-cache`,
@@ -335,7 +335,7 @@ because facts are always retained even when bodies are not.
 - Rule IDs are `plugin/name`, never numbered — plugins are open-ended.
 - A TypeScript rule is `{ meta: { id, severity, scope, facts, docs, fix }, check(ctx): Finding[] }`; `facts` lists the paths it reads (`['browser.console.*']`), which is what derives its fetch mode. A declarative rule derives it from `fact`. Declarative rules compile to the same interface, so formatters and folding see one kind.
 
-Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `suggestions` (optional headers and head links a site may adopt, all `hint`, outside `recommended`), `tls`,
+Bundled presets (v1): `all` (not a file: every preset that ships or a loaded plugin adds, so it never falls behind; a user ruleset cannot take the name), `server` (not a file either: the `recommended` rules whose facts all sit under `site.*` outside `site.redirects`, none `linked` and none read by a site extractor marked `crawled`; a run whose every rule is such crawls the seeds alone, as `follow: false`, and `crawl start` logs as `followedFor` the rule that keeps a run following links), `recommended`, `seo`, `security-headers`, `performance` (compression, caching, validators, HTTP version — HTTP only, never browser), `suggestions` (optional headers and head links a site may adopt, all `hint`, outside `recommended`), `tls`,
 `links`, `sitemap`, `insights` (in `recommended`), `browser` (console errors and `cookies:browser`; never in `recommended`, which
 would force every run into Chromium), `i18n` (`html.lang` vs `content-language`, hreflang
 reciprocity, hreflang targets answering `2xx`, `i18n/metadata-language`), `cookies` (Secure, HttpOnly,

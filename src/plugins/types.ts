@@ -77,6 +77,8 @@ export interface SiteExtractor {
     cached?: false;
     // Queries DNS or connects directly, which no proxy carries, so a proxied run skips it.
     resolves?: true;
+    // Reads every crawled page, so a run of its rules alone still crawls past the seeds.
+    crawled?: true;
     // Set by the registry to the plugin’s validated settings, which also key the `origins` bucket.
     settings?: unknown;
     extract(subject: string, context: SiteContext): Promise<unknown>;

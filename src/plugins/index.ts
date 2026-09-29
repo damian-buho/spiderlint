@@ -205,6 +205,12 @@ export function siteExtractorsFor(rules: Rule[]): SiteExtractor[] {
     return active;
 }
 
+// The rule, else the site extractor, that reads pages past the seeds; none when `rules` judge only the seeds’ origins and hosts.
+export function pageReader(rules: Rule[]): string | undefined {
+    const offsite = rules.find((rule) => rule.meta.linked || rule.meta.facts.some((fact) => !fact.startsWith("site.") || fact.startsWith("site.redirects")));
+    return offsite?.meta.id ?? siteExtractorsFor(rules).find((extractor) => extractor.crawled)?.id;
+}
+
 // IDs of the `per: host` site extractors a `linked` rule reads, which then also run on linked hosts.
 export function linkedSiteExtractors(rules: Rule[]): Set<string> {
     const ids = new Set(rules.filter((rule) => rule.meta.linked).flatMap((rule) => rule.meta.facts.flatMap((fact) => {

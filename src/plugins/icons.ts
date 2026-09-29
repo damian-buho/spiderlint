@@ -269,6 +269,7 @@ function sizeProblems(declared: DeclaredIcon[], files: Record<string, IconFile>)
 const icons: SiteExtractor = {
     id: ID,
     per: "origin",
+    crawled: true,
     version: "2",
     async extract(origin, context) {
         const pages = context.pages.filter((page) => page.html !== undefined);

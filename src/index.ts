@@ -33,7 +33,7 @@ import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
 import { isProgressOn, progressDone } from "./progress.ts";
-import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
+import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, pageReader, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
@@ -417,10 +417,13 @@ function proxied(active: SiteExtractor[], config: Config): SiteExtractor[] {
 }
 
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
-async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
+async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
     const memory = new MemoryStore();
     const earlier = store ? await store.pages() : [];
-    const rules = enabledRules(config);
+    const rules = enabledRules(given);
+    const reader = pageReader(rules);
+    const isSeeded = given.follow && rules.length > 0 && !reader;
+    const config = isSeeded ? { ...given, follow: false } : given;
     const active = extractorsFor(rules);
     const siteActive = proxied(siteExtractorsFor(rules), config);
     const sample = samplerOf(config);
@@ -433,7 +436,7 @@ async function crawlOpen(config: Config, store: DiskStore | undefined, proxy: st
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     const robots = config.robots ? cache.robots : undefined;
-    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, resumed: earlier.length, store: store?.directory }, "crawl start");
+    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, follow: config.follow, followedFor: config.follow ? reader : undefined, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
     const extractors = extractorCache(config, store, cost);
     const redirects: Record<string, string> = {};

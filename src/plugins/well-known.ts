@@ -439,6 +439,7 @@ function unregistered(origin: string, context: SiteContext): string[] {
 const wellKnown: SiteExtractor = {
     id: "well-known",
     per: "origin",
+    crawled: true,
     async extract(origin, context) {
         const files = await probeAll(origin, WELL_KNOWN, context);
         const required = context.pages.some((page) => page.html?.inputs?.some((input) => input.type === "password"));

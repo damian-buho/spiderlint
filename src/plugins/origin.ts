@@ -298,6 +298,7 @@ function bare(href: string): string {
 const meProfiles: SiteExtractor = {
     id: "rel-me",
     per: "origin",
+    crawled: true,
     async extract(origin, context) {
         const ours = new Set([`${origin}/`, ...context.pages.map((page) => page.url.href)].map((href) => bare(href)));
         const named = context.pages.flatMap((page) => page.html?.rels.me ?? []).filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol) && new URL(href).origin !== origin);

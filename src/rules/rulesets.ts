@@ -7,18 +7,20 @@ import picomatch from "picomatch";
 import { parse } from "yaml";
 import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
-import { pluginPreset, pluginPresetNames, ruleMaker } from "../plugins/index.ts";
+import { pageReader, pluginPreset, pluginPresetNames, ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
 import type { Rule, RuleSpec, RulesetConfig, Severity } from "./types.ts";
 
 const PRESETS = new URL("../../presets/", import.meta.url);
 const PREFIX = "spiderlint:";
 const ALL = "all";
+const SERVER = "server";
 const presetCache = new Map<string, RulesetConfig>();
 
 // A plugin’s preset, else presets/<name>.yaml read once; undefined when no such preset ships.
 function preset(name: string): RulesetConfig | undefined {
-    if (name === ALL) return { description: "Every rule that ships or a loaded plugin adds", extends: presetNames().filter((other) => other !== ALL).map((other) => `${PREFIX}${other}`) };
+    if (name === ALL) return { description: "Every rule that ships or a loaded plugin adds", extends: presetNames().filter((other) => other !== ALL && other !== SERVER).map((other) => `${PREFIX}${other}`) };
+    if (name === SERVER) return serverPreset();
     const plugged = pluginPreset(name);
     if (plugged) return plugged;
     if (!presetCache.has(name)) {
@@ -32,6 +34,18 @@ function preset(name: string): RulesetConfig | undefined {
     return presetCache.get(name);
 }
 
+// The `recommended` rules that judge only the seeds’ origins and hosts, so running them alone fetches no page past a seed.
+function serverPreset(): RulesetConfig {
+    const cached = presetCache.get(SERVER);
+    if (cached) return cached;
+    const specs = Object.entries(resolveRuleset(`${PREFIX}recommended`, {}));
+    const rules = Object.fromEntries(specs.filter(([id, spec]) => spec.severity !== "off" && !pageReader([compileRule(id, spec)])));
+    log.debug({ rules: Object.keys(rules).length, of: specs.length }, "server preset derived");
+    const derived = { description: "The recommended rules about the server, DNS and domain, which fetch only the seed pages", rules };
+    presetCache.set(SERVER, derived);
+    return derived;
+}
+
 // A bare name is the user's ruleset, else the bundled preset; the prefix forces the preset, and `all` is always every preset.
 export function lookup(name: string, rulesets: Record<string, RulesetConfig>): RulesetConfig | undefined {
     if (name === ALL && Object.hasOwn(rulesets, ALL)) throw new ConfigError(`ruleset ${ALL}: reserved for every shipped rule; rename it`);
@@ -41,7 +55,7 @@ export function lookup(name: string, rulesets: Record<string, RulesetConfig>): R
 // Every preset that ships or a plugin adds, by bare name.
 export function presetNames(): string[] {
     const files = readdirSync(PRESETS).filter((file) => file.endsWith(".yaml")).map((file) => file.slice(0, -".yaml".length));
-    return [...files, ALL, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
+    return [...files, ALL, SERVER, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
 }
 
 // Flattens `extends` depth-first; later entries override earlier ones per rule ID, `expect` keyword by keyword.
