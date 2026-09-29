@@ -401,7 +401,10 @@ async function dmarc(host: string, dns: DnsClient): Promise<{ at: string; record
     }
 }
 
-// MX, SPF and DMARC of one host, for the `dns:mail` rules a name that sends no mail passes.
+// Whether an SPF record lets some host send: a mechanism with no `-`, `~` or `?` qualifier, or a `redirect=`.
+const isAuthorizing = (record: string): boolean => record.split(/\s+/).slice(1).some((term) => /^\+?(all$|a\b|mx\b|ptr\b|ip4:|ip6:|include:|exists:)|^redirect=/i.test(term));
+
+// MX, SPF and DMARC of one host, and the `intent` its MX and SPF declare: `none`, `receives`, `sends` or `both`.
 const mail: SiteExtractor = {
     id: "mail",
     per: "host",
@@ -413,8 +416,11 @@ const mail: SiteExtractor = {
         const [mx, txt, policy] = await Promise.all([context.dns.query(host, "MX"), context.dns.query(host, "TXT"), dmarc(host, context.dns)]);
         const exchanges = records<MxData>(mx, "MX").map(({ data }) => ({ preference: data.preference ?? 0, exchange: data.exchange }));
         const spf = texts(txt).filter((entry) => /^v=spf1(\s|$)/i.test(entry));
-        log.debug({ host, zone, mx: exchanges.length, spf: spf.length, dmarc: policy?.policy }, "mail records read");
-        return { mx: exchanges, spf, ...(policy && { dmarc: policy }) };
+        const receives = exchanges.some(({ exchange }) => exchange !== ".");
+        const sends = spf.some((record) => isAuthorizing(record));
+        const intent = sends ? (receives ? "both" : "sends") : receives ? "receives" : "none";
+        log.debug({ host, zone, mx: exchanges.length, spf: spf.length, dmarc: policy?.policy, intent }, "mail records read");
+        return { mx: exchanges, spf, ...(policy && { dmarc: policy }), intent };
     },
 };
 
@@ -449,9 +455,14 @@ const rdap: SiteExtractor = {
     },
 };
 
+// Guards a mail rule to the hosts whose MX and SPF declare no mail, or some.
+const SILENT = { "site.hosts.*.mail.intent": "none" };
+const ACTIVE = { "site.hosts.*.mail.intent": { enum: ["receives", "sends", "both"] } };
+
 const MAIL: Record<string, RuleSpec> = {
     "dns/null-mx": {
         fact: "site.hosts.*.mail.mx",
+        when: SILENT,
         expect: { minItems: 1, maxItems: 1, items: { properties: { preference: { const: 0 }, exchange: { const: "." } } } },
         message: "no null MX, so senders fall back to the name’s A or AAAA address and retry mail it never takes for days (got {got})",
         severity: "warning",
@@ -460,6 +471,7 @@ const MAIL: Record<string, RuleSpec> = {
     },
     "dns/spf-none": {
         fact: "site.hosts.*.mail.spf",
+        when: SILENT,
         expect: { minItems: 1, maxItems: 1, items: { pattern: String.raw`^[vV]=[sS][pP][fF]1\s+-[aA][lL][lL]\s*$` } },
         message: "SPF is not a lone v=spf1 -all, so receivers cannot refuse mail forged from this name (got {got})",
         severity: "warning",
@@ -468,11 +480,48 @@ const MAIL: Record<string, RuleSpec> = {
     },
     "dns/dmarc-reject": {
         fact: "site.hosts.*.mail.dmarc",
+        when: SILENT,
         expect: { type: "object", required: ["policy"], properties: { policy: { const: "reject" } } },
         message: "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})",
         severity: "warning",
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
         fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s` — which covers `{domain}` and every name under it.",
+    },
+    "dns/null-mx-mixed": {
+        fact: "site.hosts.*.mail.mx",
+        when: ACTIVE,
+        expect: { items: { properties: { exchange: { not: { const: "." } } } } },
+        message: "a null MX on a name that takes or sends mail, so senders may drop mail to it and receivers may refuse mail from it (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7505#section-4",
+        fix: "Delete the MX record with Mail server `.` from `{host}`, and keep the MX records of its real mail servers.",
+    },
+    "dns/spf-record": {
+        fact: "site.hosts.*.mail.spf",
+        when: ACTIVE,
+        expect: { minItems: 1, maxItems: 1 },
+        message: "a name that takes or sends mail needs exactly one v=spf1 record, since none lets anyone send as it and two fail every check (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.5",
+        fix: "Keep one TXT record at Name `{host}` naming every server that sends its mail, such as Content `v=spf1 mx -all`, and merge or delete every other `v=spf1` record.",
+    },
+    "dns/spf-all": {
+        fact: "site.hosts.*.mail.spf",
+        when: ACTIVE,
+        expect: { items: { pattern: String.raw`\s([-~][aA][lL][lL]|[rR][eE][dD][iI][rR][eE][cC][tT]=\S+)(\s|$)` } },
+        message: "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
+        fix: "End the `v=spf1` TXT record of `{host}` in `-all`, such as Content `v=spf1 mx -all`, or in `~all` while its senders are still being listed.",
+    },
+    "dns/dmarc-policy": {
+        fact: "site.hosts.*.mail.dmarc",
+        when: ACTIVE,
+        expect: { type: "object", required: ["policy"], properties: { policy: { enum: ["quarantine", "reject"] } } },
+        message: "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})",
+        severity: "warning",
+        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}` — and move to `p=reject` once the reports show only your own servers.",
     },
 };
 
@@ -758,7 +807,7 @@ export default definePlugin({
     sites: [addresses, dnssec, nameservers, resolvers, mail, rdap],
     presets: {
         dns: { description: "DNS and registration of every crawled host: HTTPS records, CAA, DNSSEC, name servers, zone timers, dangling CNAMEs, RDAP expiry and lock", rules: RULES },
-        "dns:mail": { description: "Null MX, a deny-all SPF and a DMARC reject policy, for names that send and take no mail", rules: MAIL },
+        "dns:mail": { description: "Mail records matched to what each name does: a null MX, a deny-all SPF and a DMARC reject policy where it takes and sends no mail, one closed SPF record and an enforced DMARC policy where it does", rules: MAIL },
         "dns:core": { description: "HTTPS record, CAA, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: pick(CORE) },
         "dns:recommended": { description: "dns:core, the registration’s expiry and transfer lock, and name servers open to recursion", rules: pick(RECOMMENDED) },
     },

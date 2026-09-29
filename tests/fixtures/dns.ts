@@ -59,7 +59,7 @@ export function soa(name: string, serial: number, expire = 1_209_600): Answer {
     return { type: "SOA", name, ttl: 300, data: { mname: `ns1.${name}`, rname: `hostmaster.${name}`, serial, refresh: 3600, retry: 600, expire, minimum: 300 } } as Answer;
 }
 
-// `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `quiet.fixture` passes `dns:mail`; `bogus.fixture` fails validation.
+// `good.fixture` passes every dns rule; `www.bad.fixture` fails most; `quiet.fixture` passes `dns:mail`; `mixed.fixture` half sets up mail; `bogus.fixture` fails validation.
 const ZONES: Record<string, Zone> = {
     ".|SOA": { ad: true, answers: [soa(".", 1)] },
     "fixture|NS": { answers: [{ type: "NS", name: "fixture", ttl: 300, data: "ns.fixture" }] },
@@ -95,6 +95,9 @@ const ZONES: Record<string, Zone> = {
     "www.bad.fixture|MX": { answers: [{ type: "MX", name: "www.bad.fixture", ttl: 300, data: { preference: 10, exchange: "mail.bad.fixture" } }] },
     "www.bad.fixture|TXT": { answers: [{ type: "TXT", name: "www.bad.fixture", ttl: 300, data: ["v=spf1 include:mail.bad.fixture ~all"] }] },
     "_dmarc.bad.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.bad.fixture", ttl: 300, data: ["v=DMARC1; p=reject; sp=none"] }] },
+    "mixed.fixture|SOA": { answers: [soa("mixed.fixture", 1)] },
+    "mixed.fixture|MX": { answers: [{ type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mixed.fixture" } }, { type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 0, exchange: "." } }] },
+    "mixed.fixture|TXT": { answers: [{ type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 mx ?all"] }, { type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 -all"] }] },
     "only.fixture|A": { answers: [{ type: "A", name: "only.fixture", ttl: 300, data: "127.0.0.1" }] },
     "bogus.fixture|SOA": { answers: [soa("bogus.fixture", 1)] },
     "bogus.fixture|DS": { answers: [{ type: "DS", name: "bogus.fixture", ttl: 300, data: { keyTag: 3, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },

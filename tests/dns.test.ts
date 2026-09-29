@@ -184,15 +184,20 @@ describe("dns plugin", () => {
         assert.equal((unvalidated.dnssec as { bogus?: boolean }).bogus, undefined);
     });
 
-    it("passes a name that sends no mail and fails each dns:mail rule on one that does", async () => {
+    it("holds each name to the dns:mail rules of the intent its MX and SPF declare", async () => {
         const quiet = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
-        assert.deepEqual(quiet.mail, { mx: [{ preference: 0, exchange: "." }], spf: ["v=spf1 -all"], dmarc: { at: "quiet.fixture", record: "v=DMARC1; p=reject", policy: "reject" } });
+        assert.deepEqual(quiet.mail, { mx: [{ preference: 0, exchange: "." }], spf: ["v=spf1 -all"], dmarc: { at: "quiet.fixture", record: "v=DMARC1; p=reject", policy: "reject" }, intent: "none" });
         assert.deepEqual(findings({ "quiet.fixture": quiet }, "dns:mail"), []);
         const sending = await extract("www.bad.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((sending.mail as { dmarc: { policy: string } }).dmarc.policy, "none", "a subdomain takes the organisational sp= policy");
-        assert.deepEqual(findings({ "www.bad.fixture": sending }, "dns:mail"), ["dns/dmarc-reject", "dns/null-mx", "dns/spf-none"]);
+        assert.equal((sending.mail as { intent: string }).intent, "both");
+        assert.deepEqual(findings({ "www.bad.fixture": sending }, "dns:mail"), ["dns/dmarc-policy"]);
         const silent = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal((silent.mail as { intent: string }).intent, "none");
         assert.deepEqual(findings({ "good.fixture": silent }, "dns:mail"), ["dns/dmarc-reject", "dns/null-mx", "dns/spf-none"]);
+        const mixed = await extract("mixed.fixture", [], dnsClient(fixture.server, off(), false));
+        assert.equal((mixed.mail as { intent: string }).intent, "both");
+        assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc-policy", "dns/null-mx-mixed", "dns/spf-all", "dns/spf-record"]);
     });
 
     it("records _for-sale and _agents as facts only", async () => {
