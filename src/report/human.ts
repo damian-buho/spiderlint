@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
+import { bytes as sized, label, withUnit } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor } from "../rules/fix.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
@@ -16,12 +17,6 @@ const LIST = 5;
 const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
 const LABEL = 11;
-const BYTE_UNITS: [number, string][] = [
-    [1e9, "gigabyte"],
-    [1e6, "megabyte"],
-    [1e3, "kilobyte"],
-    [1, "byte"],
-];
 const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
@@ -35,12 +30,6 @@ function number(value: number, options: Intl.NumberFormatOptions = {}): string {
 // A count and its noun, plural unless it is exactly one.
 function counted(count: number, noun: string): string {
     return `${number(count)} ${count === 1 ? noun : (PLURAL[noun] ?? noun)}`;
-}
-
-// Bytes in the largest unit they reach.
-function size(bytes: number): string {
-    const [scale, unit] = BYTE_UNITS.find(([floor]) => bytes >= floor) ?? [1, "byte"];
-    return number(bytes / scale, { style: "unit", unit });
 }
 
 // One summary row: a padded label, then its value.
@@ -166,7 +155,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
         row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),
-        row("size", size(bytes)),
+        row("size", sized(bytes, number)),
         row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
         row("rules", number(rules)),
         row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
@@ -175,9 +164,9 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     ];
 }
 
-// A measured value: four decimals below 1, one above, never a signed zero.
-export function measure(value: number): string {
-    return number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" });
+// A measured value in the unit `path` carries, if any.
+export function measure(value: number, path = ""): string {
+    return withUnit(path, value, number);
 }
 
 // Rows as aligned columns, the first padded at its end and the rest at their start, the header bold.
@@ -187,9 +176,9 @@ export function aligned(rows: string[][], paint: Paint): string[] {
     return [paint("bold", lines[0] as string), ...lines.slice(1)];
 }
 
-// One aligned row per numeric fact: pages, min, median, p95, max and total, under a header.
+// One aligned row per numeric fact by its label: pages, then min, median, p95, max and total in its unit, under a header.
 export function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
-    const cells = Object.entries(stats).map(([path, stat]) => [printable(path), ...[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => measure(value))]);
+    const cells = Object.entries(stats).map(([path, stat]) => [printable(label(path) ?? path), measure(stat.count), ...[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => measure(value, path))]);
     return cells.length === 0 ? [row("stats", "none")] : aligned([["stats", "pages", "min", "median", "p95", "max", "total"], ...cells], paint);
 }
 

@@ -26,6 +26,30 @@ msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de
 msgid "Checks passed"
 msgstr "Comprobaciones superadas"
 
+msgid "CO₂ rating"
+msgstr "Calificación de CO₂"
+
+msgid "CO₂e per view"
+msgstr "CO₂e por visita"
+
+msgid "Cumulative Layout Shift"
+msgstr "Cumulative Layout Shift"
+
+msgid "Declared size"
+msgstr "Tamaño declarado"
+
+msgid "Decoded size"
+msgstr "Tamaño descomprimido"
+
+msgid "DNS lookup"
+msgstr "Consulta DNS"
+
+msgid "DOM ready"
+msgstr "DOM listo"
+
+msgid "Download"
+msgstr "Descarga"
+
 msgid "Downloads"
 msgstr "Descargas"
 
@@ -41,14 +65,32 @@ msgstr "Dato"
 msgid "Finding"
 msgstr "Hallazgo"
 
+msgid "First Contentful Paint"
+msgstr "First Contentful Paint"
+
+msgid "Font transfer"
+msgstr "Transferencia de fuentes"
+
+msgid "Group"
+msgstr "Grupo"
+
 msgid "Hint"
 msgstr "Sugerencia"
 
 msgid "Hints: {count}"
 msgstr "Sugerencias: {count}"
 
+msgid "HTTP version"
+msgstr "Versión HTTP"
+
+msgid "Image transfer"
+msgstr "Transferencia de imágenes"
+
 msgid "Info"
 msgstr "Info"
+
+msgid "Largest Contentful Paint"
+msgstr "Largest Contentful Paint"
 
 msgid "Maximum"
 msgstr "Máximo"
@@ -68,6 +110,12 @@ msgstr "Sin hallazgos."
 msgid "not scanned"
 msgstr "sin analizar"
 
+msgid "Page load"
+msgstr "Carga de la página"
+
+msgid "Page size"
+msgstr "Tamaño de la página"
+
 msgid "Pages"
 msgstr "Páginas"
 
@@ -85,6 +133,15 @@ msgstr "Calificación"
 
 msgid "Rating badge"
 msgstr "Insignia de calificación"
+
+msgid "Request upload"
+msgstr "Envío de la solicitud"
+
+msgid "Resources"
+msgstr "Recursos"
+
+msgid "Resources weighed"
+msgstr "Recursos contabilizados"
 
 msgid "Rule"
 msgstr "Regla"
@@ -110,6 +167,12 @@ msgstr "Los análisis respetan robots.txt y se identifican como spiderlint. Un i
 msgid "Scans of this site are disabled on this instance."
 msgstr "Los análisis de este sitio están desactivados en esta instancia."
 
+msgid "Script transfer"
+msgstr "Transferencia de scripts"
+
+msgid "Server response time"
+msgstr "Tiempo de respuesta del servidor"
+
 msgid "Severity"
 msgstr "Gravedad"
 
@@ -119,8 +182,14 @@ msgstr "Dirección del sitio"
 msgid "Size"
 msgstr "Tamaño"
 
+msgid "Socket wait"
+msgstr "Espera de conexión"
+
 msgid "Something went wrong. Try again later."
 msgstr "Algo salió mal. Inténtalo más tarde."
+
+msgid "Speed Index"
+msgstr "Speed Index"
 
 msgid "spiderlint report"
 msgstr "Informe de spiderlint"
@@ -133,6 +202,15 @@ msgstr "Iniciar un nuevo análisis"
 
 msgid "Statistics"
 msgstr "Estadísticas"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Style transfer"
+msgstr "Transferencia de estilos"
+
+msgid "TCP connect"
+msgstr "Conexión TCP"
 
 msgid "The form could not be read. Try again."
 msgstr "No se pudo leer el formulario. Inténtalo de nuevo."
@@ -158,11 +236,26 @@ msgstr "Este sitio se analizó hace poco. Inténtalo de nuevo {when}."
 msgid "Time"
 msgstr "Tiempo"
 
+msgid "Time to first byte"
+msgstr "Tiempo hasta el primer byte"
+
+msgid "TLS handshake"
+msgstr "Negociación TLS"
+
 msgid "Too many scans are waiting. Try again {when}."
 msgstr "Hay demasiados análisis en espera. Inténtalo de nuevo {when}."
 
 msgid "Total"
 msgstr "Total"
+
+msgid "Total Blocking Time"
+msgstr "Total Blocking Time"
+
+msgid "Total time"
+msgstr "Tiempo total"
+
+msgid "Transfer size"
+msgstr "Tamaño transferido"
 
 msgid "Waiting in the queue…"
 msgstr "Esperando en la cola…"

@@ -26,6 +26,30 @@ msgstr "Перевіряє кожну сторінку сайту: теги дл
 msgid "Checks passed"
 msgstr "Пройдені перевірки"
 
+msgid "CO₂ rating"
+msgstr "Рейтинг CO₂"
+
+msgid "CO₂e per view"
+msgstr "CO₂e за перегляд"
+
+msgid "Cumulative Layout Shift"
+msgstr "Cumulative Layout Shift"
+
+msgid "Declared size"
+msgstr "Заявлений розмір"
+
+msgid "Decoded size"
+msgstr "Розмір після розпакування"
+
+msgid "DNS lookup"
+msgstr "Запит DNS"
+
+msgid "DOM ready"
+msgstr "DOM готовий"
+
+msgid "Download"
+msgstr "Завантаження"
+
 msgid "Downloads"
 msgstr "Завантаження"
 
@@ -41,14 +65,32 @@ msgstr "Показник"
 msgid "Finding"
 msgstr "Знахідка"
 
+msgid "First Contentful Paint"
+msgstr "First Contentful Paint"
+
+msgid "Font transfer"
+msgstr "Передача шрифтів"
+
+msgid "Group"
+msgstr "Група"
+
 msgid "Hint"
 msgstr "Порада"
 
 msgid "Hints: {count}"
 msgstr "Порад: {count}"
 
+msgid "HTTP version"
+msgstr "Версія HTTP"
+
+msgid "Image transfer"
+msgstr "Передача зображень"
+
 msgid "Info"
 msgstr "Інфо"
+
+msgid "Largest Contentful Paint"
+msgstr "Largest Contentful Paint"
 
 msgid "Maximum"
 msgstr "Максимум"
@@ -68,6 +110,12 @@ msgstr "Знахідок немає."
 msgid "not scanned"
 msgstr "не перевірено"
 
+msgid "Page load"
+msgstr "Завантаження сторінки"
+
+msgid "Page size"
+msgstr "Розмір сторінки"
+
 msgid "Pages"
 msgstr "Сторінки"
 
@@ -85,6 +133,15 @@ msgstr "Оцінка"
 
 msgid "Rating badge"
 msgstr "Значок оцінки"
+
+msgid "Request upload"
+msgstr "Надсилання запиту"
+
+msgid "Resources"
+msgstr "Ресурси"
+
+msgid "Resources weighed"
+msgstr "Враховані ресурси"
 
 msgid "Rule"
 msgstr "Правило"
@@ -110,6 +167,12 @@ msgstr "Перевірки дотримуються robots.txt і називаю
 msgid "Scans of this site are disabled on this instance."
 msgstr "Перевірки цього сайту вимкнено на цьому сервері."
 
+msgid "Script transfer"
+msgstr "Передача скриптів"
+
+msgid "Server response time"
+msgstr "Час відповіді сервера"
+
 msgid "Severity"
 msgstr "Рівень"
 
@@ -119,8 +182,14 @@ msgstr "Адреса сайту"
 msgid "Size"
 msgstr "Розмір"
 
+msgid "Socket wait"
+msgstr "Очікування сокета"
+
 msgid "Something went wrong. Try again later."
 msgstr "Щось пішло не так. Спробуйте пізніше."
+
+msgid "Speed Index"
+msgstr "Speed Index"
 
 msgid "spiderlint report"
 msgstr "Звіт spiderlint"
@@ -133,6 +202,15 @@ msgstr "Почати нову перевірку"
 
 msgid "Statistics"
 msgstr "Статистика"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Style transfer"
+msgstr "Передача стилів"
+
+msgid "TCP connect"
+msgstr "З’єднання TCP"
 
 msgid "The form could not be read. Try again."
 msgstr "Не вдалося прочитати форму. Спробуйте ще раз."
@@ -158,11 +236,26 @@ msgstr "Цей сайт нещодавно перевіряли. Спробуй�
 msgid "Time"
 msgstr "Час"
 
+msgid "Time to first byte"
+msgstr "Час до першого байта"
+
+msgid "TLS handshake"
+msgstr "Рукостискання TLS"
+
 msgid "Too many scans are waiting. Try again {when}."
 msgstr "Забагато перевірок у черзі. Спробуйте ще раз {when}."
 
 msgid "Total"
 msgstr "Сума"
+
+msgid "Total Blocking Time"
+msgstr "Total Blocking Time"
+
+msgid "Total time"
+msgstr "Загальний час"
+
+msgid "Transfer size"
+msgstr "Обсяг передачі"
 
 msgid "Waiting in the queue…"
 msgstr "Очікує в черзі…"

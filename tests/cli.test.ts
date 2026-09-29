@@ -182,12 +182,14 @@ describe("cli", () => {
         assert.match(refused.stderr, /--facts: picks human and csv columns only/);
         const table = await spiderlint(directory, "export-facts", seed);
         assert.equal(table.code, 0, table.stderr);
-        assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\npage +group +http\.status +co2\.grams +http\.size\.body +resources\.length +http\.timing\.total\n/ +default +200 `));
-        assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nco2\.grams +\d+ /);
+        assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\nPage +Group +Status +CO₂e per view +Page size +Resources +Total time\n/ +default +200 +[\d.,]+ g +[\d.,]+ (?:k?B|byte) +\d+ +[\d.,]+ ms\n`));
+        assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nCO₂e per view +\d+ +[\d.,]+ g /);
         const one = await spiderlint(directory, "show-facts", `${seed}about`);
         assert.equal(one.code, 0, one.stderr);
         assert.match(one.stdout, /^url\.href +http:\/\/127\.0\.0\.1:\d+\/about\n/);
-        assert.match(one.stdout, /\nhttp\.status +200\n/);
+        assert.match(one.stdout, /\nStatus +200\n/);
+        const csv = await spiderlint(directory, "export-facts", seed, "--format", "csv", "--facts", "http.timing.total");
+        assert.match(csv.stdout, /^url\.href,group,http\.timing\.total\r\n.+,default,\d+(?:\.\d+)?\r\n/);
     });
 
     it("refuses a severity override naming no known rule before any request", async () => {

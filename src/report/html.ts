@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
+import { bytes, label, withUnit } from "../facts/labels.ts";
 import { environmentLanguage, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
 import type { Finding } from "../rules/types.ts";
@@ -11,12 +12,6 @@ import { bundle } from "./human.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 const LIST = 5;
-const BYTE_UNITS: [number, string][] = [
-    [1e9, "gigabyte"],
-    [1e6, "megabyte"],
-    [1e3, "kilobyte"],
-    [1, "byte"],
-];
 const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 // The one stylesheet of the report and the server pages, inline so a saved report stands alone.
@@ -62,12 +57,6 @@ export function page(t: Translator, title: string, body: string, head = ""): str
 // Translated severity names; the rule ID beside them is never translated.
 function severityName(t: Translator, severity: Finding["severity"]): string {
     return { error: t._("Error"), warning: t._("Warning"), info: t._("Info"), hint: t._("Hint") }[severity];
-}
-
-// Bytes in the largest unit they reach, in the translator’s language.
-function size(t: Translator, bytes: number): string {
-    const [scale, unit] = BYTE_UNITS.find(([floor]) => bytes >= floor) ?? [1, "byte"];
-    return t.number(bytes / scale, { style: "unit", unit });
 }
 
 // A link to a crawled http(s) URL, shown relative to the shared origin; anything else is plain text.
@@ -117,9 +106,15 @@ function table(t: Translator, findings: Finding[], origin: string): string {
     return `<table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin)).join("")}</tbody></table>`;
 }
 
-// Every numeric fact’s pages, min, median, p95, max and total, in a closed disclosure; nothing without statistics.
+// A fact’s translated label with its path on hover, or the path as code when it has none.
+function factName(t: Translator, path: string): string {
+    const english = label(path);
+    return english ? `<span title="${escape(path)}">${escape(t._(english))}</span>` : `<code>${escape(path)}</code>`;
+}
+
+// Every numeric fact’s pages, then min, median, p95, max and total in its unit, in a closed disclosure; nothing without statistics.
 function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): string {
-    const rows = Object.entries(stats).map(([path, stat]) => `<tr><td><code>${escape(path)}</code></td>${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(t.number(value, { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" }))}</td>`).join("")}</tr>`);
+    const rows = Object.entries(stats).map(([path, stat]) => `<tr><td>${factName(t, path)}</td><td>${escape(t.number(stat.count))}</td>${[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(withUnit(path, value, t.number))}</td>`).join("")}</tr>`);
     const head = [t._("Fact"), t._("Pages"), t._("Minimum"), t._("Median"), t._("95th percentile"), t._("Maximum"), t._("Total")].map((label) => `<th>${escape(label)}</th>`).join("");
     return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
 }
@@ -133,7 +128,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
     const head = `<header class="head"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
     const totals = [
         total(t._("Pages"), t.number(summary.pages)),
-        total(t._("Size"), size(t, summary.bytes)),
+        total(t._("Size"), bytes(summary.bytes, t.number)),
         total(t._("Time"), t.number(summary.durationMs / 1000, { style: "unit", unit: "second" })),
         total(t._("Checks passed"), t._("{passed} of {total}", { passed: t.number(summary.checks.passed), total: t.number(summary.checks.total) })),
         ...(Object.keys(ORDER) as Finding["severity"][]).map((severity) => total(severityName(t, severity), t.number(summary.findings[severity] ?? 0), (summary.findings[severity] ?? 0) > 0 ? severity : "")),
