@@ -304,6 +304,24 @@ jobs:
     needs: ["documentation-is-ok", "projectfile-is-ok", "source-is-ok"]
     steps:
       - run: echo inputs-are-ok
+  npm-published:
+    runs-on: docker
+    needs: ["ready-to-publish"]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: npm-publish
+        if: vars.CI_SKIP_NPM_PUBLISHED != 'true' && vars.CI_SKIP_NPM_PUBLISH != 'true'
+        uses: projectfile/actions/run-tool@v1
+        with:
+          image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node-{1}', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch', vars.B19_NODE_SERIES || '26') }}
+          version: ${{ env.M6E_TAG }}
+          run: npm publish
+          env: |-
+            NODE_AUTH_TOKEN
   projectfile-is-ok:
     runs-on: docker
     needs: ["projectfile-is-valid"]
@@ -391,7 +409,7 @@ jobs:
           sink: ${{ matrix.M6E_PUBLISH_SINK }}
   published:
     runs-on: docker
-    needs: ["publish-image", "ready-to-publish"]
+    needs: ["npm-published", "publish-image", "ready-to-publish"]
     steps:
       - run: echo published
   ready-to-publish:
