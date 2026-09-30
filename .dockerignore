@@ -18,6 +18,7 @@
 .npm
 .pnpm-store
 .secrets
+.worktrees
 CITATION.cff
 CODEOWNERS
 LICENSE

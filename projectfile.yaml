@@ -20,6 +20,8 @@ identity:
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
+  - .makefile/container/traits/readme-tool-image.yaml
+  - .makefile/core/traits/github-action.yaml
   - .makefile/library/images/valkey.yaml
   - .makefile/library/languages/node.yaml
   - .makefile/library/vulnerabilities/npm/stream-json.yaml
@@ -55,6 +57,11 @@ org:
   projectfile:
     architecture:
       - amd64
+    artifacts:
+      cli:
+        kind: binary
+        command: ${identity.name}
+        help: ["", audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, show-cache, purge-cache, warm-cache]
     build:
       args:
         B19_NODE_SERIES: 26

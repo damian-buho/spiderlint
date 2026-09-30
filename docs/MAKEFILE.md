@@ -137,6 +137,10 @@ Analyze Docker image layer efficiency with dive
 
 Install the lefthook Git hooks from the committed config (dev machines only)
 
+### `matrix-%`
+
+Run one target in every matrix cell, e.g. make matrix-container-build (no gates, no join)
+
 ### `matrix-sweep`
 
 Run the whole CI pipeline — one DAG pass without a matrix, or once per matrix cell then the join
@@ -869,6 +873,10 @@ Format shell scripts with shfmt
 
 > Image: D9T_GO_TOOLS_IMAGE
 
+### `spiderlint-%`
+
+Crawl and lint one site org.spiderlint.sites names, as spiderlint-SITE
+
 ### `vacuum`
 
 Lint the OpenAPI specification
@@ -1407,7 +1415,7 @@ Show the next minor version
 
 Show the next version the commits since the last tag imply
 
-`svu next --tag.prefix=${org.projectfile.release.tag-prefix}`
+`svu next --v0 --tag.prefix=${org.projectfile.release.tag-prefix}`
 
 > Image: D9T_GO_TOOLS_IMAGE
 

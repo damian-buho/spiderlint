@@ -8,9 +8,9 @@ pf-cli-managed: yes
 
 # Spiderlint
 
-Site-wide linter for SEO tags, security headers, TLS and links
+Spiderlint crawls every page a site serves, collects facts about each request (HTML, headers, TLS, timings, sizes) and lints them against rulesets scoped by URL group, so a template missing a heading is one finding rather than one per page. Built on Node and Crawlee.
 
-[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=MIT&color=1e5913&style=flat-square)](LICENSE) [![Commit style](https://badges.kiota.ch/static/v1?label=commits&message=conventional%20v1.0.0&color=1877aa&style=flat-square)](https://www.conventionalcommits.org/en/v1.0.0/) ![Workflow](https://badges.kiota.ch/static/v1?label=workflow&message=git-flow&color=1877aa&style=flat-square) [![Versioning](https://badges.kiota.ch/static/v1?label=versioning&message=semantic%20v2.0.0&color=1877aa&style=flat-square)](https://semver.org/) [![PRs welcome](https://badges.kiota.ch/static/v1?label=PRs&message=welcome&color=1e5913&style=flat-square)](CONTRIBUTING.md) [![Citation](https://badges.kiota.ch/static/v1?label=citation&message=cff&color=1877aa&style=flat-square)](CITATION.cff)
+[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=MIT&color=1e5913&style=flat-square)](LICENSE) [![Commit style](https://badges.kiota.ch/static/v1?label=commits&message=conventional%20v1.0.0&color=1877aa&style=flat-square)](https://www.conventionalcommits.org/en/v1.0.0/) ![Workflow](https://badges.kiota.ch/static/v1?label=workflow&message=git-flow&color=1877aa&style=flat-square) [![Versioning](https://badges.kiota.ch/static/v1?label=versioning&message=semantic%20v2.0.0&color=1877aa&style=flat-square)](https://semver.org/) [![Citation](https://badges.kiota.ch/static/v1?label=citation&message=cff&color=1877aa&style=flat-square)](CITATION.cff)
 
 ![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
 
@@ -27,6 +27,7 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Image weight measured, not estimated
 - The site measured as a whole
 - Dead links, on the site and off it
+- Mail authentication of every domain it crawls
 - Each origin checked once, beyond its pages
 - Feeds, structured data and markup checked on every page
 - Speed problems found without a browser
@@ -45,37 +46,12 @@ Site-wide linter for SEO tags, security headers, TLS and links
 - Transport checked per page, not per host
 - The files a site publishes beside its pages
 
-### Inherited from B19 / Ubuntu
+It also inherits the features of Inherited from B19 / Ubuntu — see [FEATURES.md](FEATURES.md) for the full list.
 
-- Persistent APT cache across builds
-- Service process management with log routing (b19-exec)
-- Cached artifact downloads with integrity verification
-- Timed command execution with failure reporting (b19-run)
-- Run-once initialization (bootstrap.d)
-- Modular build hooks (build.d)
-- Automatic CPU count detection
-- Declarative dependency management (b19-deps)
-- Pluggable startup system (entrypoint.d)
-- Feature toggles for all subsystems
-- Built-in health monitoring (healthcheck.d)
-- Multilingual shell output (b19-i18n)
-- Image lineage tracking
-- Structured, level-filtered logging (b19-log)
-- Non-root container by default
-- Air-gapped / offline build and runtime support
-- Runtime overlay injection
-- Reproducible base image (pinned by digest)
-- Port validation
-- Unified lifecycle runner family
-- Docker secrets auto-loading
-- Interactive shell hooks
-- Graceful signal handling
-- Jinja2 configuration templates (minijinja-cli)
-- Built-in test framework (test.d)
-- Pre-installed utility tools
-- XDG Base Directory paths
+## What this provides
 
-See [FEATURES.md](FEATURES.md) for the full list.
+- **Executable** `spiderlint`
+- **Container image** `kiota.ch/damian-buho/spiderlint:latest`
 
 ## Supported platforms
 
@@ -83,13 +59,105 @@ See [FEATURES.md](FEATURES.md) for the full list.
 
 ## Installation
 
-If the registries above are unreachable, pull from the origin instead:
+Pull the published container image:
 
 ```sh
 docker pull kiota.ch/damian-buho/spiderlint:latest
 ```
 
+Stable releases also publish `X.Y.Z`, `X.Y` and `X` tags — pull the precision you want to pin.
+
+## Usage
+
+Alias the command to the image, so every example runs as written against the current directory:
+
+```sh
+alias spiderlint='docker run --rm --user "$(id -u):$(id -g)" --group-add 0 --volume "$PWD:/app/ws" --workdir /app/ws kiota.ch/damian-buho/spiderlint:latest spiderlint'
+```
+
+Then run it as if it were installed:
+
+```sh
+spiderlint --help
+```
+
+### spiderlint
+
+```console
+$ spiderlint --help
+spiderlint
+Site-wide linter for SEO tags, security headers, TLS and links
+https://dbuho.me/project/spiderlint/
+
+Usage: spiderlint <command> [domain…] [options]
+A domain is example.com or a URL to start from; without a scheme, https:// is
+assumed.
+
+Check a site:
+  audit [domain…]                 crawl a site, then lint it
+  crawl [domain…]                 fetch pages into the store, lint nothing
+  lint [domain…]                  lint the stored pages, with no network
+  show-report [domain…]           print the stored report again, in any format
+
+Inspect:
+  show-facts <url>                fetch one page and print its facts
+  export-facts [domain…]          print every stored page’s facts, no network
+  list-groups [domain…]           count the pages in each URL group
+
+Rules:
+  list-rules [ruleset|id…]        list rules at the severity this config gives
+  list-presets                    list shipped rulesets and the groups using
+                                  them
+  explain-rule <rule>             show what a rule reads and expects, and its
+                                  fix
+
+Cache:
+  show-cache [domain…]            show the entries, bytes and age of each bucket
+  purge-cache [bucket] [domain…]  delete a site’s cached entries
+  warm-cache [domain…]            fetch robots.txt and sitemaps without crawling
+
+Commands:
+  help [command]                  show a command’s options and examples
+
+Options:
+  --config <path>                 settings file (default: projectfile.yaml, env:
+                                  SPIDERLINT_CONFIG)
+  --site <names>                  only these org.spiderlint.sites, repeatable
+                                  (default: all)
+  --[no-]color                    force or disable color (default: auto, env:
+                                  NO_COLOR, FORCE_COLOR)
+  --[no-]progress                 status line on an interactive stderr (default:
+                                  auto)
+  --log-level <level>             trace, debug, info, warn, error or silent
+                                  (default: info, env: SPIDERLINT_LOG_LEVEL)
+  -V, --version                   show the version
+  -h, --help                      show this screen, or a command’s with the
+                                  command
+
+Run spiderlint <command> --help for a command’s options and examples.
+
+Exit codes:
+  0  clean
+  1  findings at or above --fail-on
+  2  usage or config error
+  3  nothing fetched, or an --offline cache miss
+  4  the run failed
+```
+
+### Audit a site
+
+`audit` crawls the site into the local store, then lints it; `show-report` prints the stored result again in another format, with no network.
+
+```sh
+spiderlint audit example.org
+spiderlint show-report example.org --format sarif > spiderlint.sarif
+```
+
+Every command and more examples are in [USAGE.md](USAGE.md).
+
 ## Building
+
+- [Makefile reference](docs/how-to/MAKEFILE.md)
 
 Run `make` with no arguments for the default target; run `make help` to list every target.
 

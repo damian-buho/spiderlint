@@ -76,6 +76,14 @@ SPDX-License-Identifier: MIT
 - Feeds a page advertises in its head are crawled and checked too, even when no link points to them.
 - Internal links marked nofollow are found, links to paid or user content can be held to a rel policy the owner declares, and a profile the site claims as its own that does not link back, as Mastodon verification requires, is reported.
 
+### Mail authentication of every domain it crawls
+
+- A domain that takes or sends mail is found on its own, and one that does neither keeps the no-mail checks, so nobody has to say which kind it is.
+- SPF is walked through every include the way receivers walk it, so a record that silently fails on too many lookups or a missing include shows before mail bounces.
+- DMARC, DKIM and MX are checked for the faults receivers punish: several policies, report addresses that refuse the reports, short keys, keys left in testing, and mail servers behind a CNAME.
+- MTA-STS, TLS reporting and BIMI are read end-to-end, so a policy that leaves a mail server out or a logo no mail client will show is caught.
+- DANE and a live STARTTLS check of each mail server are there when you turn them on.
+
 ### Each origin checked once, beyond its pages
 
 - A missing page is requested on purpose, so a soft 404, or an error page that leaks a stack trace or a server version, is a finding.

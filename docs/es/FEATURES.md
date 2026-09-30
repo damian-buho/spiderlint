@@ -78,6 +78,14 @@ SPDX-License-Identifier: MIT
 - Los feeds que una página anuncia en su cabecera también se rastrean y comprueban, aunque ningún enlace apunte a ellos.
 - Se detectan los enlaces internos marcados nofollow, los enlaces a contenido pagado o de usuarios pueden sujetarse a una política rel que declara el propietario, y se informa de un perfil que el sitio reclama como propio pero que no enlaza de vuelta, como exige la verificación de Mastodon.
 
+### Autenticación del correo de cada dominio que recorre
+
+- Detecta por sí solo si un dominio recibe o envía correo, y al que no hace ninguna de las dos cosas le mantiene las revisiones sin correo, así que nadie tiene que decir de qué tipo es.
+- Recorre SPF a través de cada include igual que los receptores, así que un registro que falla en silencio por demasiadas consultas o un include que no existe sale a la luz antes de que el correo rebote.
+- Revisa DMARC, DKIM y MX en busca de los fallos que castigan los receptores: varias políticas, direcciones de informes que los rechazan, claves cortas, claves que siguen en prueba y servidores de correo detrás de un CNAME.
+- Lee MTA-STS, los informes de TLS y BIMI de principio a fin, así que detecta una política que deja fuera a un servidor de correo o un logotipo que ningún cliente de correo va a mostrar.
+- DANE y una prueba STARTTLS en vivo de cada servidor de correo están disponibles cuando los activas.
+
 ### Cada origen comprobado una vez, más allá de sus páginas
 
 - Se pide a propósito una página inexistente, así que un falso 404, o una página de error que filtra una traza de pila o la versión del servidor, es un hallazgo.
