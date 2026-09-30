@@ -58,8 +58,7 @@ org:
     architecture:
       - amd64
     artifacts:
-      cli:
-        kind: binary
+      npm-package:
         command: ${identity.name}
         help: ["", audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, show-cache, purge-cache, warm-cache]
     build:
