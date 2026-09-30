@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node-26:latest
+ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node:26
 ARG PF_CLI_IMAGE=registry.invalid/projectfile/cli:latest
 
 FROM ${PF_CLI_IMAGE} AS pf-cli
