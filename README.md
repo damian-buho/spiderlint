@@ -14,8 +14,6 @@ Spiderlint crawls every page a site serves, collects facts about each request (H
 
 ![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
 
-[![npm version](https://badges.kiota.ch/npm/v/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![npm downloads per month](https://badges.kiota.ch/npm/dm/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![Dependency freshness](https://badges.kiota.ch/librariesio/release/npm/spiderlint?style=flat-square)](https://libraries.io/npm/spiderlint)
-
 [![Publish pipeline on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/published.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Vulnerability audit on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/audited.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Dependency freshness on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Analysis sweep on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/analyze.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions)
 
 ## Features
@@ -53,15 +51,13 @@ It also inherits the features of B19 / Ubuntu — see [Features](docs/FEATURES.m
 ## What this provides
 
 - **Container image** `kiota.ch/damian-buho/spiderlint:latest`
-- **npm package** `spiderlint` — command `spiderlint`
+- `spiderlint` — command `spiderlint`
 
 ## Supported platforms
 
 - `linux/amd64`
 
 ## Installation
-
-### Container image
 
 Pull the published container image:
 
@@ -77,16 +73,6 @@ Then run it as if it were installed — the alias runs every example as written 
 ```sh
 spiderlint --help
 ```
-
-### npm package
-
-Install the command globally:
-
-```sh
-npm install --global spiderlint
-```
-
-Needs Node.js >=26.
 
 ## Usage
 
