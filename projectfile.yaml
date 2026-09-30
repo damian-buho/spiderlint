@@ -26,6 +26,7 @@ includes:
   - .makefile/library/languages/node.yaml
   - .makefile/library/vulnerabilities/npm/stream-json.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 keywords:
   - spiderlint
   - linter
@@ -80,15 +81,6 @@ org:
       git:
         include:
           - storage/
-    image:
-      org: damian-buho
-      flatpath: ${name}
-    forge:
-      org: damian-buho
-      flatpath: ${name}
-    sinks:
-      ghcr:
-        selfref: ghcr.io/damian-buho/${name}:${tag}
     operating-system:
       - linux
     status: experimental
