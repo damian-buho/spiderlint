@@ -30,7 +30,7 @@ const BIG = 50_000_000;
 
 // Response headers a page sends beyond content-type.
 const HEADERS: Record<string, Record<string, string | string[]>> = {
-    "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'", "x-robots-tag": "nofollow" },
+    "/about": { "content-security-policy": "default-src 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'", "x-robots-tag": "nofollow" },
     "/posts/1": { "x-frame-options": "DENY" },
     "/orphan": { "set-cookie": ["session=s3cr3t; Path=/; HttpOnly; SameSite=Lax", "__Host-id=1; Secure; Path=/; HttpOnly; SameSite=Strict"] },
 };

@@ -316,6 +316,8 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
         {
             ...frontier.options("browser", storage, proxy),
             headless: true,
+            // Snapshot with `page.content()`; crawlee’s shadow-root expansion writes `innerHTML` into the live page.
+            ignoreShadowRoots: true,
             maxConcurrency: openPages,
             launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? [...chromiumArguments(), ...(proxy ? [] : [DIRECT])] : [] } },
             browserPoolOptions: {
