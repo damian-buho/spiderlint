@@ -3,11 +3,9 @@ SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 SPDX-License-Identifier: MIT
 -->
 
-<!-- textlint-disable terminology,common-misspellings -->
+[Español](es/USAGE.md) · [Українська](uk/USAGE.md)
 
-[English](../USAGE.md) · [Українська](../uk/USAGE.md)
-
-# Uso
+# Usage
 
 ## spiderlint
 
@@ -72,18 +70,18 @@ Exit codes:
   4  the run failed
 ```
 
-## Auditar un sitio
+## Audit a site
 
-`audit` rastrea el sitio en el almacén local y luego lo revisa; `show-report` vuelve a imprimir el resultado guardado en otro formato, sin red.
+`audit` crawls the site into the local store, then lints it; `show-report` prints the stored result again in another format, with no network.
 
 ```sh
 spiderlint audit example.org
 spiderlint show-report example.org --format sarif > spiderlint.sarif
 ```
 
-## Explicar una regla
+## Explain a rule
 
-`explain-rule` muestra qué lee una regla, qué espera y cómo corregir un hallazgo, sin red.
+`explain-rule` prints what a rule reads, what it expects and how to fix a finding, with no network.
 
 ```console
 $ spiderlint explain-rule cookies/host-prefix
@@ -744,4 +742,3 @@ Examples:
   Prefetch robots.txt and sitemaps before an --offline run:
     spiderlint warm-cache example.com
 ```
-<!-- textlint-enable -->
