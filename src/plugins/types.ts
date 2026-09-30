@@ -69,6 +69,8 @@ export interface SiteExtractor {
     id: string;
     // `origin`: scheme, host and port; `host`: a DNS name.
     per: "origin" | "host";
+    // With `per: host`, also each crawled host’s registrable domain, holding every page under it.
+    domains?: true;
     // Keys the `origins` bucket, as a page extractor’s keys the `extractors` bucket.
     version?: string;
     // Milliseconds before the run gives up on one subject; 60 s when unset.

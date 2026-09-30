@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { isIP } from "node:net";
-import type { Answer, CaaData, DnskeyData, DsData, MxData, RrsigData, SoaData } from "dns-packet";
+import type { Answer, CaaData, DnskeyData, DsData, RrsigData, SoaData } from "dns-packet";
 import { getDomain } from "tldts";
 import { Bucket } from "../cache/index.ts";
 import { dnsClient, parseResolver, type DnsClient, type Reply, type StoredReply } from "../crawl/dns.ts";
@@ -388,42 +388,6 @@ const resolvers: SiteExtractor = {
     },
 };
 
-// The DMARC record at the host, else at its organisational domain, with the policy that applies to the host (RFC 7489 §6.6.3).
-async function dmarc(host: string, dns: DnsClient): Promise<{ at: string; record: string; policy?: string } | undefined> {
-    const names = new Set([host, getDomain(host, { allowPrivateDomains: true }) ?? host]);
-    for (const name of names) {
-        const record = texts(await dns.query(`_dmarc.${name}`, "TXT")).find((entry) => /^v=DMARC1\s*(;|$)/i.test(entry));
-        log.debug({ host, name, found: record !== undefined }, "dmarc looked up");
-        if (!record) continue;
-        const tags = new Map(record.split(";").map((tag) => tag.split("=", 2).map((part) => part.trim().toLowerCase()) as [string, string]));
-        const policy = name === host ? tags.get("p") : (tags.get("sp") ?? tags.get("p"));
-        return { at: name, record, ...(policy && { policy }) };
-    }
-}
-
-// Whether an SPF record lets some host send: a mechanism with no `-`, `~` or `?` qualifier, or a `redirect=`.
-const isAuthorizing = (record: string): boolean => record.split(/\s+/).slice(1).some((term) => /^\+?(all$|a\b|mx\b|ptr\b|ip4:|ip6:|include:|exists:)|^redirect=/i.test(term));
-
-// MX, SPF and DMARC of one host, and the `intent` its MX and SPF declare: `none`, `receives`, `sends` or `both`.
-const mail: SiteExtractor = {
-    id: "mail",
-    per: "host",
-    cached: false,
-    resolves: true,
-    async extract(host, context) {
-        const zone = await zoneOf(host, context.dns);
-        if (!zone) return;
-        const [mx, txt, policy] = await Promise.all([context.dns.query(host, "MX"), context.dns.query(host, "TXT"), dmarc(host, context.dns)]);
-        const exchanges = records<MxData>(mx, "MX").map(({ data }) => ({ preference: data.preference ?? 0, exchange: data.exchange }));
-        const spf = texts(txt).filter((entry) => /^v=spf1(\s|$)/i.test(entry));
-        const receives = exchanges.some(({ exchange }) => exchange !== ".");
-        const sends = spf.some((record) => isAuthorizing(record));
-        const intent = sends ? (receives ? "both" : "sends") : receives ? "receives" : "none";
-        log.debug({ host, zone, mx: exchanges.length, spf: spf.length, dmarc: policy?.policy, intent }, "mail records read");
-        return { mx: exchanges, spf, ...(policy && { dmarc: policy }), intent };
-    },
-};
-
 // Registrations already asked for in a run, keyed as `warned` is.
 const registrations = new WeakMap<object, Map<string, Promise<Registration | undefined>>>();
 
@@ -455,11 +419,11 @@ const rdap: SiteExtractor = {
     },
 };
 
-// Guards a mail rule to the hosts whose MX and SPF declare no mail, or some.
-const SILENT = { "site.hosts.*.mail.intent": "none" };
-const ACTIVE = { "site.hosts.*.mail.intent": { enum: ["receives", "sends", "both"] } };
+// Guards a mail rule to the names judged as taking and sending no mail, or as mail names.
+const SILENT = { "site.hosts.*.mail.mode": "none" };
+const ACTIVE = { "site.hosts.*.mail.mode": "mail" };
 
-const MAIL: Record<string, RuleSpec> = {
+export const MAIL_RULES: Record<string, RuleSpec> = {
     "dns/null-mx": {
         fact: "site.hosts.*.mail.mx",
         when: SILENT,
@@ -813,10 +777,10 @@ const pick = (ids: string[]): Record<string, RuleSpec> => Object.fromEntries(ids
 export default definePlugin({
     name: "dns",
     settings: { type: "object", additionalProperties: false, properties: { compare: { type: "array", items: { type: "string", minLength: 1 }, default: [] }, rdap: { type: "boolean", default: true } } },
-    sites: [addresses, dnssec, nameservers, resolvers, mail, rdap],
+    sites: [addresses, dnssec, nameservers, resolvers, rdap],
     presets: {
         dns: { description: "DNS and registration of every crawled host: HTTPS records, CAA, DNSSEC, name servers, zone timers, dangling CNAMEs, RDAP expiry and lock", rules: RULES },
-        "dns:mail": { description: "Mail records matched to what each name does: a null MX, a deny-all SPF and a DMARC reject policy where it takes and sends no mail, one closed SPF record and an enforced DMARC policy where it does", rules: MAIL },
+        "dns:mail": { description: "Mail records matched to what each name does: a null MX, a deny-all SPF and a DMARC reject policy where it takes and sends no mail, one closed SPF record and an enforced DMARC policy where it does", rules: MAIL_RULES },
         "dns:core": { description: "HTTPS record, CAA and its iodef contact, DNSSEC state and dangling CNAMEs, a handful of queries per host", rules: pick(CORE) },
         "dns:recommended": { description: "dns:core, the registration’s expiry and transfer lock, and name servers open to recursion", rules: pick(RECOMMENDED) },
     },

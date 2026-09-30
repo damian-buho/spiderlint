@@ -16,6 +16,7 @@ extends:
   - spiderlint:resources
   - spiderlint:origin
   - spiderlint:dns:recommended
+  - spiderlint:mail:recommended
   - spiderlint:images
   - spiderlint:icons
   - spiderlint:insights

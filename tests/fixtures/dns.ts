@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { generateKeyPairSync } from "node:crypto";
 import { createSocket } from "node:dgram";
 import { createServer } from "node:net";
 import type { AddressInfo } from "node:net";
@@ -104,6 +105,64 @@ const ZONES: Record<string, Zone> = {
     "bogus.fixture|A": { bogus: true, answers: [{ type: "A", name: "bogus.fixture", ttl: 300, data: "192.0.2.3" }] },
 };
 
+// A TXT answer, split into 255-byte character-strings.
+function txt(name: string, text: string): Zone {
+    return { answers: [{ type: "TXT", name, ttl: 300, data: text.match(/.{1,255}/g) ?? [] }] };
+}
+
+// A DKIM key record carrying a fresh RSA key of `bits`.
+function dkim(bits: number): string {
+    const { publicKey } = generateKeyPairSync("rsa", { modulusLength: bits });
+    return `v=DKIM1; k=rsa; p=${publicKey.export({ type: "spki", format: "der" }).toString("base64")}`;
+}
+
+// The `name|TYPE` entries of a mail domain passing every mail rule, `changes` replacing some.
+function mailZones(domain: string, changes: Record<string, Zone> = {}): Record<string, Zone> {
+    const mx = `mx.${domain}`;
+    return {
+        [`${domain}|SOA`]: { answers: [soa(domain, 1)] },
+        [`${domain}|MX`]: { answers: [{ type: "MX", name: domain, ttl: 300, data: { preference: 10, exchange: mx } }] },
+        [`${mx}|A`]: { answers: [{ type: "A", name: mx, ttl: 300, data: "192.0.2.25" }] },
+        [`${domain}|TXT`]: txt(domain, `v=spf1 mx include:spf.${domain} -all`),
+        [`spf.${domain}|TXT`]: txt(`spf.${domain}`, "v=spf1 ip4:192.0.2.0/24 -all"),
+        [`_dmarc.${domain}|TXT`]: txt(`_dmarc.${domain}`, `v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@${domain}`),
+        [`selector1._domainkey.${domain}|TXT`]: txt(`selector1._domainkey.${domain}`, dkim(2048)),
+        [`_mta-sts.${domain}|TXT`]: txt(`_mta-sts.${domain}`, "v=STSv1; id=20260101"),
+        [`_smtp._tls.${domain}|TXT`]: txt(`_smtp._tls.${domain}`, `v=TLSRPTv1; rua=mailto:tls@${domain}`),
+        ...changes,
+    };
+}
+
+// `clean.fixture` passes the `mail` preset; each other mail domain breaks it once, `messy.fixture` many times.
+const MAIL_ZONES: Record<string, Zone> = {
+    ...mailZones("clean.fixture"),
+    ...mailZones("lookups.fixture", {
+        "lookups.fixture|TXT": txt("lookups.fixture", `v=spf1 mx ${Array.from({ length: 10 }, (_, index) => `a:h${index}.lookups.fixture`).join(" ")} -all`),
+        ...Object.fromEntries(Array.from({ length: 10 }, (_, index) => [`h${index}.lookups.fixture|A`, { answers: [{ type: "A", name: `h${index}.lookups.fixture`, ttl: 300, data: "192.0.2.26" }] }])),
+    }),
+    ...mailZones("plusall.fixture", { "plusall.fixture|TXT": txt("plusall.fixture", "v=spf1 mx include:spf.plusall.fixture +all") }),
+    ...mailZones("twospf.fixture", { "twospf.fixture|TXT": { answers: [...(txt("twospf.fixture", "v=spf1 mx -all").answers ?? []), ...(txt("twospf.fixture", "v=spf1 include:spf.twospf.fixture -all").answers ?? [])] } }),
+    ...mailZones("dmarcnone.fixture", { "_dmarc.dmarcnone.fixture|TXT": txt("_dmarc.dmarcnone.fixture", "v=DMARC1; p=none; rua=mailto:dmarc@reports.fixture") }),
+    ...mailZones("weakdkim.fixture", { "selector1._domainkey.weakdkim.fixture|TXT": txt("selector1._domainkey.weakdkim.fixture", dkim(512)) }),
+    ...mailZones("cnamemx.fixture", { "mx.cnamemx.fixture|A": { answers: [{ type: "CNAME", name: "mx.cnamemx.fixture", ttl: 300, data: "real.cnamemx.fixture" }, { type: "A", name: "real.cnamemx.fixture", ttl: 300, data: "192.0.2.25" }] } }),
+    ...mailZones("mtasts.fixture", { "mtasts.fixture|MX": { answers: [{ type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mtasts.fixture" } }, { type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 20, exchange: "backup.mtasts.fixture" } }] }, "backup.mtasts.fixture|A": { answers: [{ type: "A", name: "backup.mtasts.fixture", ttl: 300, data: "192.0.2.27" }] } }),
+    ...mailZones("messy.fixture", {
+        "messy.fixture|TXT": txt("messy.fixture", "v=spf1 ptr mx mx include:gone.messy.fixture -all a"),
+        "_dmarc.messy.fixture|TXT": txt("_dmarc.messy.fixture", "v=DMARC1; p=reject; pct=50; adkim=x; rua=https://reports.messy.fixture/"),
+        "selector1._domainkey.messy.fixture|TXT": txt("selector1._domainkey.messy.fixture", `${dkim(2048)}; t=y`),
+        "selector2._domainkey.messy.fixture|TXT": txt("selector2._domainkey.messy.fixture", "v=DKIM1; p="),
+        "_smtp._tls.messy.fixture|TXT": txt("_smtp._tls.messy.fixture", "v=TLSRPTv1; rua=ftp://messy.fixture/"),
+        "default._bimi.messy.fixture|TXT": txt("default._bimi.messy.fixture", "v=BIMI1; l=https://messy.fixture/logo.svg"),
+    }),
+};
+
+// Files by URL, each mail domain’s MTA-STS policy and a BIMI logo, served by the tests’ `delegated` stub.
+export const FILES: Record<string, string> = {
+    ...Object.fromEntries(["clean", "lookups", "plusall", "twospf", "dmarcnone", "weakdkim", "cnamemx", "mtasts"].map((name) => [`https://mta-sts.${name}.fixture/.well-known/mta-sts.txt`, `version: STSv1\r\nmode: enforce\r\nmx: mx.${name}.fixture\r\nmax_age: 604800\r\n`])),
+    "https://mta-sts.messy.fixture/.well-known/mta-sts.txt": "version: STSv1\nmode: testing\nmx: *.messy.fixture\nmax_age: 3600\n",
+    "https://messy.fixture/logo.svg": '<svg xmlns="http://www.w3.org/2000/svg" version="1.1"><script>alert(1)</script><image href="https://elsewhere.fixture/x.png"/></svg>',
+};
+
 // Adds or replaces one `name|TYPE` entry, for a record naming a port only known at run time.
 export function setZone(key: string, zone: Zone): void {
     ZONES[key] = zone;
@@ -113,7 +172,7 @@ export function setZone(key: string, zone: Zone): void {
 function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides: Record<string, Zone>): Buffer {
     const question = query.questions?.[0];
     const key = `${question?.name || "."}|${question?.type}`;
-    const zone = overrides[key] ?? ZONES[key] ?? {};
+    const zone = overrides[key] ?? ZONES[key] ?? MAIL_ZONES[key] ?? {};
     const isDirect = ((query.flags ?? 0) & dnsPacket.RECURSION_DESIRED) === 0;
     const isChecked = ((query.flags ?? 0) & dnsPacket.CHECKING_DISABLED) === 0;
     const isBogus = zone.bogus === true && isValidating && isChecked;

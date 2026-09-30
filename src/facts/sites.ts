@@ -31,9 +31,14 @@ export function subjectPath(fact: string): { kind: "origins" | "hosts"; id: stri
     return match ? { kind: match[1] as "origins" | "hosts", id: match[3] as string, path: match[2] as string } : undefined;
 }
 
-// Every origin, or every hostname, the crawl kept pages on, with those pages.
-function subjects(pages: Facts[], per: SiteExtractor["per"]): Map<string, Facts[]> {
-    return Map.groupBy(pages, (page) => (per === "origin" ? page.url.origin : new URL(page.url.href).hostname));
+// Every origin, or every hostname, the crawl kept pages on, with those pages; with `domains`, each registrable domain too, with every page under it.
+function subjects(pages: Facts[], { per, domains }: SiteExtractor): Map<string, Facts[]> {
+    const found = Map.groupBy(pages, (page) => (per === "origin" ? page.url.origin : new URL(page.url.href).hostname));
+    if (per !== "host" || !domains) return found;
+    const byDomain = Map.groupBy(pages, (page) => registrable(new URL(page.url.href).hostname));
+    for (const [domain, members] of byDomain) if (domain) found.set(domain, members);
+    log.debug({ hosts: found.size, domains: byDomain.keys().toArray() }, "registrable domains added as subjects");
+    return found;
 }
 
 function registrable(host: string): string {
@@ -71,7 +76,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
 export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "timeout">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket, robots?: RobotsFor, linked: ReadonlySet<string> = new Set()): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
-        ...[...subjects(pages, extractor.per)].map(([subject, members]) => ({ extractor, subject, members, isLinked: false })),
+        ...[...subjects(pages, extractor)].map(([subject, members]) => ({ extractor, subject, members, isLinked: false })),
         ...(extractor.per === "host" && linked.has(extractor.id) ? [...extra].map(([subject, members]) => ({ extractor, subject, members, isLinked: true })) : []),
     ]);
     if (extra.size > 0) site.linked = extra.keys().toArray();

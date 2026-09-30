@@ -19,10 +19,11 @@ import { parseSvcb } from "../src/crawl/svcb.ts";
 import { extractSites } from "../src/facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
 import dns, { isSpecialUse } from "../src/plugins/dns.ts";
+import mail from "../src/plugins/mail.ts";
 import { compileRulesets } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
 import type { SiteContext } from "../src/plugins/types.ts";
-import { serveDns, soa, svcb, type DnsFixture } from "./fixtures/dns.ts";
+import { FILES, serveDns, soa, svcb, type DnsFixture } from "./fixtures/dns.ts";
 
 // A page on `host` served by `issuer`, linking `links` and advertising `altSvc`.
 function page(host: string, issuer: string, links: string[] = [], altSvc?: string): Facts {
@@ -43,14 +44,21 @@ function off(): Bucket<StoredReply> {
     return new Bucket<StoredReply>("dns", undefined, 60, "off");
 }
 
-// Every dns extractor’s facts for `host`, keyed as the site document holds them.
-async function extract(host: string, pages: Facts[], client: DnsClient): Promise<Record<string, unknown>> {
+// A file from the fixture table, or a refusal for any other URL.
+async function delegated(url: string): Promise<Probe> {
+    const body = FILES[url];
+    if (body === undefined) throw new Error(`no http here: ${url}`);
+    return { url, status: 200, headers: { "content-type": url.endsWith(".svg") ? "image/svg+xml" : "text/plain" }, body, redirects: [], ms: 1 };
+}
+
+// Every dns and mail extractor’s facts for `host`, keyed as the site document holds them; `mailSettings` as `org.spiderlint.mail`.
+async function extract(host: string, pages: Facts[], client: DnsClient, mailSettings: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     const signal = new AbortController().signal;
-    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
+    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated, link: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
     const facts: Record<string, unknown> = {};
-    const extractors = dns.sites ?? [];
+    const extractors = [...(dns.sites ?? []), ...(mail.sites ?? [])];
     for (const extractor of extractors) {
-        const value = await extractor.extract(host, context);
+        const value = await extractor.extract(host, mail.sites?.includes(extractor) ? { ...context, settings: mailSettings } : context);
         if (value !== undefined) facts[extractor.id] = value;
     }
     return facts;
@@ -197,7 +205,7 @@ describe("dns plugin", () => {
 
     it("holds each name to the dns:mail rules of the intent its MX and SPF declare", async () => {
         const quiet = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
-        assert.deepEqual(quiet.mail, { mx: [{ preference: 0, exchange: "." }], spf: ["v=spf1 -all"], dmarc: { at: "quiet.fixture", record: "v=DMARC1; p=reject", policy: "reject" }, intent: "none" });
+        assert.deepEqual(quiet.mail, { mx: [{ preference: 0, exchange: "." }], spf: ["v=spf1 -all"], dmarc: { at: "quiet.fixture", record: "v=DMARC1; p=reject", policy: "reject" }, intent: "none", mode: "none" });
         assert.deepEqual(findings({ "quiet.fixture": quiet }, "dns:mail"), []);
         const sending = await extract("www.bad.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((sending.mail as { dmarc: { policy: string } }).dmarc.policy, "none", "a subdomain takes the organisational sp= policy");
@@ -209,6 +217,54 @@ describe("dns plugin", () => {
         const mixed = await extract("mixed.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((mixed.mail as { intent: string }).intent, "both");
         assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc-policy", "dns/null-mx-mixed", "dns/spf-all", "dns/spf-record"]);
+    });
+
+    it("finds nothing in a clean mail domain, and one finding per fault in each broken one", async () => {
+        const client = dnsClient(fixture.server, off(), false);
+        const clean = await extract("clean.fixture", [], client);
+        assert.equal((clean.mail as { mode: string }).mode, "mail");
+        assert.deepEqual((clean.mail as { "spf-walk": object })["spf-walk"], { errors: [], lookups: 2, "void-lookups": 0, ptr: false, "after-all": [], redundant: [], "missing-includes": [] });
+        assert.deepEqual(findings({ "clean.fixture": clean }, "mail"), []);
+        const faults: [string, string[]][] = [
+            ["lookups.fixture", ["mail/spf-lookups"]],
+            ["plusall.fixture", ["dns/spf-all"]],
+            ["twospf.fixture", ["dns/spf-record"]],
+            ["dmarcnone.fixture", ["dns/dmarc-policy", "mail/dmarc-external"]],
+            ["weakdkim.fixture", ["mail/dkim-key"]],
+            ["cnamemx.fixture", ["mail/mx-cname"]],
+            ["mtasts.fixture", ["mail/mta-sts-mx"]],
+        ];
+        for (const [domain, expected] of faults) assert.deepEqual(findings({ [domain]: await extract(domain, [], client) }, "mail"), expected, domain);
+    });
+
+    it("tells each SPF, DMARC, DKIM, MTA-STS, TLS-RPT and BIMI weakness apart", async () => {
+        const facts = await extract("messy.fixture", [], dnsClient(fixture.server, off(), false));
+        const messy = facts.mail as Record<string, Record<string, unknown>>;
+        assert.deepEqual(messy["spf-walk"], { errors: [], lookups: 4, "void-lookups": 1, ptr: true, "after-all": ["a"], redundant: ["mx"], "missing-includes": ["gone.messy.fixture"] });
+        assert.deepEqual([messy.dmarc?.errors, messy.dmarc?.testing, messy.dmarc?.["not-mailto"]], [["bad adkim=x"], true, ["https://reports.messy.fixture/"]]);
+        assert.deepEqual((messy.dkim?.found as { selector: string; testing: boolean; revoked: boolean }[]).map(({ selector, testing, revoked }) => [selector, testing, revoked]), [["selector1", true, false], ["selector2", false, true]]);
+        assert.deepEqual(messy["tls-rpt"]?.errors, ["rua ftp://messy.fixture/ is neither mailto: nor https:"]);
+        assert.deepEqual([(messy["mta-sts"]?.policy as Record<string, unknown>).mode, (messy["mta-sts"]?.policy as Record<string, unknown>).unmatched], ["testing", []]);
+        assert.deepEqual((messy.bimi?.logo as { errors: string[] }).errors, ["<script> is not allowed", "href https://elsewhere.fixture/x.png is an external reference", "version is 1.1, not 1.2", "baseProfile is missing, not tiny-ps", "no <title>"]);
+        assert.deepEqual(findings({ "messy.fixture": { mail: messy } }, "mail"), ["mail/bimi-dmarc", "mail/bimi-logo", "mail/dkim-revoked", "mail/dkim-testing", "mail/dmarc-syntax", "mail/mta-sts-max-age", "mail/mta-sts-mode", "mail/spf-after-all", "mail/spf-include", "mail/spf-ptr", "mail/spf-redundant", "mail/tls-rpt-syntax"]);
+    });
+
+    it("keeps a name without mail to the no-mail rules, and follows a configured mode", async () => {
+        const client = dnsClient(fixture.server, off(), false);
+        assert.deepEqual(findings({ "quiet.fixture": await extract("quiet.fixture", [], client) }, "mail"), []);
+        const forced = await extract("quiet.fixture", [], client, { mode: "mail" });
+        assert.equal((forced.mail as { mode: string }).mode, "mail");
+        assert.ok(findings({ "quiet.fixture": forced }, "mail").includes("dns/null-mx-mixed"));
+        const silenced = await extract("clean.fixture", [], client, { mode: "none" });
+        assert.deepEqual(Object.keys(silenced.mail as object), ["mx", "spf", "dmarc", "intent", "mode"]);
+    });
+
+    it("runs a domains extractor on each crawled host’s registrable domain too", async () => {
+        const seen: string[] = [];
+        const probe = { id: "probe", per: "host" as const, domains: true as const, cached: false as const, extract: async (subject: string, context: SiteContext) => { seen.push(`${subject}:${context.pages.length}`); return { subject }; } };
+        const site: SiteFacts = { sitemaps: [] };
+        await extractSites([page("www.clean.fixture", "Let's Encrypt"), page("blog.clean.fixture", "Let's Encrypt")], site, [probe], { allowPrivate: true, concurrency: 1, linkExclude: [], timeout: 60 }, new Bucket("origins", undefined, 60, "off"), dnsClient(fixture.server, off(), false), new Bucket<LinkFacts>("probes", undefined, 60, "off"));
+        assert.deepEqual(seen.toSorted((a, b) => a.localeCompare(b)), ["blog.clean.fixture:1", "clean.fixture:2", "www.clean.fixture:1"]);
     });
 
     it("records _for-sale and _agents as facts only", async () => {
