@@ -36,7 +36,7 @@
     "caniuse-lite": "1.0.30001813",
     "cheerio": "1.2.0",
     "commander": "15.0.0",
-    "crawlee": "3.18.1",
+    "crawlee": "3.18.2",
     "css-tree": "3.2.1",
     "csstree-validator": "4.0.1",
     "dns-packet": "5.6.1",
