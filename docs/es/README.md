@@ -16,6 +16,8 @@ Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petici�
 
 ![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
 
+[![npm version](https://badges.kiota.ch/npm/v/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![npm downloads per month](https://badges.kiota.ch/npm/dm/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![Dependency freshness](https://badges.kiota.ch/librariesio/release/npm/spiderlint?style=flat-square)](https://libraries.io/npm/spiderlint)
+
 [![Publish pipeline on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/published.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Vulnerability audit on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/audited.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Dependency freshness on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Analysis sweep on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/analyze.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions)
 
 ## Características
@@ -52,14 +54,16 @@ También hereda las características de Heredado de B19 / Ubuntu; consulta [FEAT
 
 ## Qué entrega este proyecto
 
-- **Ejecutable** `spiderlint`
 - **Imagen de contenedor** `kiota.ch/damian-buho/spiderlint:latest`
+- **Paquete npm** `spiderlint` — comando `spiderlint`
 
 ## Plataformas admitidas
 
 - `linux/amd64`
 
 ## Instalación
+
+### Imagen de contenedor
 
 Descarga la imagen de contenedor publicada:
 
@@ -68,8 +72,6 @@ docker pull kiota.ch/damian-buho/spiderlint:latest
 ```
 
 Las versiones estables también publican las etiquetas `X.Y.Z`, `X.Y` y `X`: descarga el nivel de precisión que quieras fijar.
-
-## Uso
 
 Crea un alias del comando a la imagen para que cada ejemplo funcione tal cual sobre el directorio actual:
 
@@ -82,6 +84,18 @@ Después, ejecútalo como si estuviera instalado:
 ```sh
 spiderlint --help
 ```
+
+### Paquete npm
+
+Instala el comando de forma global:
+
+```sh
+npm install --global spiderlint
+```
+
+Requiere Node.js >=26.
+
+## Uso
 
 ### spiderlint
 
@@ -146,18 +160,15 @@ Exit codes:
   4  the run failed
 ```
 
-### Auditar un sitio
-
-`audit` rastrea el sitio en el almacén local y luego lo revisa; `show-report` vuelve a imprimir el resultado guardado en otro formato, sin red.
-
-```sh
-spiderlint audit example.org
-spiderlint show-report example.org --format sarif > spiderlint.sarif
-```
-
-Todos los comandos y más ejemplos están en [USAGE.md](USAGE.md).
+Los ejemplos y la ayuda de cada comando están en [USAGE.md](USAGE.md).
 
 ## Compilación
+
+Construye la imagen de contenedor en local:
+
+```sh
+make container-build
+```
 
 - [Referencia del Makefile](../how-to/MAKEFILE.md)
 

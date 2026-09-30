@@ -16,6 +16,8 @@ Spiderlint обходить кожну сторінку сайту, збирає
 
 ![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
 
+[![npm version](https://badges.kiota.ch/npm/v/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![npm downloads per month](https://badges.kiota.ch/npm/dm/spiderlint?style=flat-square)](https://www.npmjs.com/package/spiderlint) [![Dependency freshness](https://badges.kiota.ch/librariesio/release/npm/spiderlint?style=flat-square)](https://libraries.io/npm/spiderlint)
+
 [![Publish pipeline on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/published.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Vulnerability audit on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/audited.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Dependency freshness on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Analysis sweep on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/analyze.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions)
 
 ## Можливості
@@ -52,14 +54,16 @@ Spiderlint обходить кожну сторінку сайту, збирає
 
 ## Що надає цей проєкт
 
-- **Виконуваний файл** `spiderlint`
 - **Образ контейнера** `kiota.ch/damian-buho/spiderlint:latest`
+- **Пакунок npm** `spiderlint` — команда `spiderlint`
 
 ## Підтримувані платформи
 
 - `linux/amd64`
 
 ## Встановлення
+
+### Образ контейнера
 
 Завантажте опублікований образ контейнера:
 
@@ -68,8 +72,6 @@ docker pull kiota.ch/damian-buho/spiderlint:latest
 ```
 
 Стабільні випуски також публікують теґи `X.Y.Z`, `X.Y` і `X` — завантажте той рівень точності, який хочете зафіксувати.
-
-## Використання
 
 Створіть псевдонім команди на образ, щоб кожен приклад працював як написано в поточному каталозі:
 
@@ -82,6 +84,18 @@ alias spiderlint='docker run --rm --user "$(id -u):$(id -g)" --group-add 0 --vol
 ```sh
 spiderlint --help
 ```
+
+### Пакунок npm
+
+Встановіть команду глобально:
+
+```sh
+npm install --global spiderlint
+```
+
+Потребує Node.js >=26.
+
+## Використання
 
 ### spiderlint
 
@@ -146,18 +160,15 @@ Exit codes:
   4  the run failed
 ```
 
-### Перевірте сайт
-
-`audit` обходить сайт у локальне сховище, а потім перевіряє його; `show-report` знову друкує збережений результат в іншому форматі, без мережі.
-
-```sh
-spiderlint audit example.org
-spiderlint show-report example.org --format sarif > spiderlint.sarif
-```
-
-Усі команди й більше прикладів — у [USAGE.md](USAGE.md).
+Приклади й довідка кожної команди — у [USAGE.md](USAGE.md).
 
 ## Збирання
+
+Зберіть образ контейнера локально:
+
+```sh
+make container-build
+```
 
 - [Довідник із Makefile](../how-to/MAKEFILE.md)
 
