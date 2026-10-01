@@ -42,7 +42,7 @@ SPDX-License-Identifier: MIT
 - Cada nombre se juzga por lo que sus registros dicen que hace con el correo: al que no lo usa se le exige un MX nulo, un SPF que lo rechaza todo y una política DMARC de rechazo, y al que sí, un único registro SPF cerrado y una política DMARC aplicada, así que una configuración a medias sale a la luz en ambos casos.
 - El registro del dominio se lee de su registro, así que una renovación a pocos días, un bloqueo de transferencia ausente o un registro que nombra otros servidores de nombres que la zona se ven antes de que el dominio caduque o se lo lleven.
 - Cada dirección se atribuye a la red que la enruta, así que salen a la luz una ruta que las redes que aplican RPKI descartan, un servidor de correo sin DNS inverso que coincida, o un sitio y sus servidores de nombres detrás de un solo proveedor.
-- Las huellas de claves de host SSH publicadas en el DNS se comparan con las claves que el servidor demuestra tener, así que un registro que quedó obsoleto tras rotar una clave se detecta antes de que los clientes se nieguen a conectar, y se señala el que ningún cliente puede creer sin DNSSEC.
+- Las huellas de claves de host SSH publicadas en el DNS se comparan con las claves que el servidor SSH presenta de verdad, así que un registro que quedó obsoleto tras rotar una clave se detecta antes de que los clientes se nieguen a conectar, y se señala el que ningún cliente puede creer sin DNSSEC.
 
 ### Un hallazgo por plantilla, no por página
 
