@@ -13,6 +13,9 @@ import { CAPPED, type Policy, type ServerSettings } from "./settings.ts";
 // `org.spiderlint` keys a request may set; the rest read files, load code, leave the address guard or skip robots.txt.
 const REQUEST_KEYS = new Set(["canonical-origin", "rules", "exclude-rules", "override", "groups", "fetch", "browser", "scope", "concurrency", "rate", "timeout", "max-pages", "max-depth", "max-body-size", "keepalive", "include-urls", "exclude-urls", "resources", "links", "sitemap", "fold"]);
 
+// Rules whose extractors connect to ports a stranger’s URL must never aim the server at.
+export const NEVER_SERVED = ["sshfp", "sshfp/*"];
+
 // A request the server turns down, with a stable code a client can translate.
 export class Refusal extends Error {
     readonly status: 400 | 403 | 404 | 409 | 429 | 503;
@@ -66,7 +69,7 @@ function namedRules(settings: Record<string, unknown>): string[] {
 
 // Each named rule must match an `allow` entry and no `deny` entry.
 function checkRules(settings: Record<string, unknown>, policy: Policy): void {
-    const isDenied = picomatch(policy.rules.deny.length > 0 ? policy.rules.deny : ["\0"]);
+    const isDenied = picomatch([...policy.rules.deny, ...NEVER_SERVED]);
     const isAllowed = policy.rules.allow ? picomatch(policy.rules.allow) : () => true;
     for (const id of namedRules(settings)) {
         log.debug({ id, policy: policy.name }, "requested rule checked");

@@ -13,6 +13,7 @@ import { log } from "../logger.ts";
 import { onProgress } from "../progress.ts";
 import { formatJson } from "../report/json.ts";
 import { inSpan, startTelemetry, withTraceCarrier } from "../telemetry.ts";
+import { NEVER_SERVED } from "./policy.ts";
 import { PROGRESS_FD } from "./queue.ts";
 
 // Exit codes: 0 the report is on stdout, 2 the settings are invalid, 3 no page was fetched, 4 the run failed.
@@ -21,7 +22,7 @@ async function main(): Promise<number> {
     onProgress((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
     const telemetry = await startTelemetry("spiderlint");
     try {
-        const report = await withTraceCarrier(trace, async () => inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), seeds: [url], cacheMode: "off", denyRules: deny })));
+        const report = await withTraceCarrier(trace, async () => inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), seeds: [url], cacheMode: "off", denyRules: [...deny, ...NEVER_SERVED] })));
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;
         process.stdout.write(formatJson(report));
