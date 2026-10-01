@@ -257,6 +257,9 @@ msgstr "Tiempo total"
 msgid "Transfer size"
 msgstr "Tamaño transferido"
 
+msgid "Vendor: {name}"
+msgstr "Proveedor: {name}"
+
 msgid "Waiting in the queue…"
 msgstr "Esperando en la cola…"
 

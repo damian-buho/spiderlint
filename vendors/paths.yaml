@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+# Paths an edge or host serves on the site’s own origin; the first entry whose glob matches the path wins.
+- vendor: Cloudflare
+  feature: cloudflare/email-obfuscation
+  match: /cdn-cgi/l/email-protection
+  kind: [page]
+  docs: https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
+- vendor: Cloudflare
+  feature: cloudflare/email-obfuscation
+  match: /cdn-cgi/scripts/*/cloudflare-static/email-decode.min.js
+  kind: [resource]
+  docs: https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
+- vendor: Cloudflare
+  feature: cloudflare/bot-challenge
+  match: /cdn-cgi/challenge-platform/**
+  kind: [page, resource]
+  docs: https://developers.cloudflare.com/bots/additional-configurations/javascript-detections/
+- vendor: Cloudflare
+  feature: cloudflare/web-analytics
+  match: /cdn-cgi/rum
+  kind: [resource]
+  docs: https://developers.cloudflare.com/web-analytics/get-started/#sites-proxied-through-cloudflare
+- vendor: Cloudflare
+  match: /cdn-cgi/trace
+  kind: [page]
+  docs: https://developers.cloudflare.com/support/troubleshooting/general-troubleshooting/gathering-information-for-troubleshooting-sites/
+- vendor: Cloudflare
+  match: /cdn-cgi/image/**
+  kind: [page]
+  docs: https://developers.cloudflare.com/images/optimization/transformations/overview/
+- vendor: Cloudflare
+  match: /cdn-cgi/**
+  kind: [page, resource]
+  docs: https://developers.cloudflare.com/fundamentals/reference/cdn-cgi-endpoint/
+- vendor: Netlify
+  match: /.netlify/images
+  kind: [page]
+  docs: https://docs.netlify.com/build/image-cdn/overview/
+- vendor: Vercel
+  feature: vercel/web-analytics
+  match: /_vercel/insights/**
+  kind: [page, resource]
+  docs: https://vercel.com/docs/analytics/quickstart
+- vendor: Vercel
+  feature: vercel/speed-insights
+  match: /_vercel/speed-insights/**
+  kind: [page, resource]
+  docs: https://vercel.com/docs/speed-insights/quickstart
+- vendor: Vercel
+  match: /_vercel/image
+  kind: [page]
+  docs: https://vercel.com/docs/image-optimization

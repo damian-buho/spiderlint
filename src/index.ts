@@ -28,6 +28,7 @@ import { linkGraph } from "./facts/graph.ts";
 import { dnsClient, PROXIED_DNS } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
+import { attributeVendors, vendorFacts } from "./facts/vendors.ts";
 import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
@@ -294,9 +295,9 @@ function groupModes(config: Config): Record<string, GroupMode> {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
     const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
-    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
+    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, ...(!vendorPaths && { vendorPaths }), robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -326,7 +327,7 @@ function capped(run: RuleRun, rulesByGroup: Map<string, Rule[]>): void {
     log.debug({ rules: [...readers], findings: partial.length }, "graph findings marked partial");
 }
 
-// Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, byline, CO2, the detected language when asked, referrers, twins, role and the link graph.
+// Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, byline, CO2, the detected language when asked, referrers, twins, role, vendor paths and the link graph.
 function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: ReturnType<typeof compileGroups>, isDetected: boolean): void {
     for (const page of pages) {
         page.group = assignGroup(page, matchers);
@@ -344,6 +345,7 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
     referrers(pages, site.redirects);
     twins(pages, config.canonicalOrigin);
     site.role = config.role;
+    vendorFacts(pages, site, config.vendorPaths);
     site.graph = linkGraph(pages, site.redirects, isCapped(config, pages));
 }
 
@@ -366,6 +368,7 @@ function linter(config: Config): Lint {
         if (site.graph?.capped) capped(run, rulesByGroup);
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
+        attributeVendors(findings, config.vendorPaths);
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
         log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");

@@ -55,6 +55,8 @@ export interface Config {
     linkExclude: string[];
     includeUrls: string[];
     excludeUrls: string[];
+    // Whether the shipped `vendors/paths.yaml` keeps vendor-owned paths out of the crawl and its findings apart.
+    vendorPaths: boolean;
     robots: boolean;
     sitemap: boolean;
     fold: FoldConfig | false;
@@ -108,6 +110,7 @@ export function defaults(): Config {
         linkExclude: [],
         includeUrls: [],
         excludeUrls: [],
+        vendorPaths: true,
         robots: true,
         sitemap: true,
         fold: { threshold: 0.8, min: 3 },

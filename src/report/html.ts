@@ -119,7 +119,7 @@ function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): stri
     return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
 }
 
-// The rating, the totals and every finding grouped by group, site-wide ones last; findings keep their English message.
+// The rating, the totals and every finding grouped by group, site-wide ones next, each vendor’s last; findings keep their English message.
 export function reportBody(report: Pick<Report, "summary" | "findings"> & { pages?: Report["pages"] }, t: Translator, title: string): string {
     const { summary } = report;
     const origin = singleOrigin([...(report.pages ?? []).map((facts) => facts.url.href), ...report.findings.map((finding) => finding.url)]);
@@ -134,17 +134,22 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
         ...(Object.keys(ORDER) as Finding["severity"][]).map((severity) => total(severityName(t, severity), t.number(summary.findings[severity] ?? 0), (summary.findings[severity] ?? 0) > 0 ? severity : "")),
     ];
     const groups = new Map<string, Finding[]>();
+    const vendors = new Map<string, Finding[]>();
     const hints = report.findings.filter((finding) => finding.severity === "hint");
     for (const finding of report.findings) {
         if (finding.severity === "hint") continue;
-        const key = finding.scope === "site" ? "" : (finding.group as string);
-        groups.set(key, [...(groups.get(key) ?? []), finding]);
+        const [sections, key] = finding.vendor ? [vendors, finding.vendor] : [groups, finding.scope === "site" ? "" : (finding.group as string)];
+        sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
-    const sections = [...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => {
+    const section = (heading: string, findings: Finding[]) => {
         findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
-        const heading = group === "" ? escape(t._("Whole site")) : `<code>${escape(group)}</code> <small>${escape(t._("Pages: {count}", { count: t.number(summary.groups[group] ?? 0) }))}</small>`;
         return `<section><h2>${heading}</h2>${table(t, findings, origin)}</section>`;
-    });
+    };
+    const groupHeading = (group: string) => (group === "" ? escape(t._("Whole site")) : `<code>${escape(group)}</code> <small>${escape(t._("Pages: {count}", { count: t.number(summary.groups[group] ?? 0) }))}</small>`);
+    const sections = [
+        ...[...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => section(groupHeading(group), findings)),
+        ...[...vendors].map(([vendor, findings]) => section(escape(t._("Vendor: {name}", { name: vendor })), findings)),
+    ];
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
     if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${table(t, hints.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url)), origin)}</details></section>`);
     return `${head}<dl class="totals">${totals.join("")}</dl>${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${statistics(t, summary.stats)}`;

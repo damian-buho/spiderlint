@@ -257,6 +257,9 @@ msgstr "Загальний час"
 msgid "Transfer size"
 msgstr "Обсяг передачі"
 
+msgid "Vendor: {name}"
+msgstr "Постачальник: {name}"
+
 msgid "Waiting in the queue…"
 msgstr "Очікує в черзі…"
 

@@ -200,6 +200,12 @@ SPDX-License-Identifier: MIT
 - Timings, redirect chains and cookie flags are recorded for every page, and cookie values never leave the crawler.
 - A cookie browsers would silently reject or cut short, and a preload an early hint promises that the page then drops, are reported.
 
+### What the CDN or host adds, kept apart
+
+- Pages a CDN or host serves on the site, such as Cloudflare’s email protection page, are not judged as the site’s own, so they cannot lower its grade.
+- Scripts the CDN or host injects are still checked, and their findings are listed under the vendor that serves them.
+- A feature switched on in the CDN dashboard that costs visitors something, such as email addresses hidden from anyone without JavaScript, is named with the setting that turns it off.
+
 ### The files a site publishes beside its pages
 
 - A missing or expired `security.txt` is reported, so security researchers always have a way to reach you.

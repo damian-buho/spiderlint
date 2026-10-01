@@ -202,6 +202,12 @@ SPDX-License-Identifier: MIT
 - Los tiempos, las cadenas de redirección y los atributos de las cookies se registran para cada página, y los valores de las cookies nunca salen del rastreador.
 - Se informa de una cookie que los navegadores rechazarían o acortarían sin avisar y de una precarga que una pista temprana promete y la página luego abandona.
 
+### Lo que añade la CDN o el alojamiento, por separado
+
+- Las páginas que una CDN o un alojamiento sirve en el sitio, como la página de protección de correo de Cloudflare, no se juzgan como propias del sitio, así que no bajan su nota.
+- Los scripts que inyecta la CDN o el alojamiento se siguen comprobando, y sus hallazgos aparecen bajo el proveedor que los sirve.
+- Una función activada en el panel de la CDN que cuesta algo a los visitantes, como direcciones de correo ocultas para quien no tiene JavaScript, se nombra junto con el ajuste que la desactiva.
+
 ### Los archivos que un sitio publica junto a sus páginas
 
 - Se informa de un `security.txt` ausente o caducado, para que quien investiga la seguridad siempre tenga cómo contactarte.

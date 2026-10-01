@@ -25,6 +25,8 @@ export interface Finding {
     samples?: string[];
     // The locations each sample page reported, keyed by its URL.
     sampleLocations?: Record<string, string[]>;
+    // The edge or host owning the resource the finding is about.
+    vendor?: string;
 }
 
 export interface RuleMeta {

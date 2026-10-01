@@ -53,6 +53,7 @@ COPY --chown=${B19_UID}:${B19_GID} .container/user/ /
 COPY --chown=${B19_UID}:${B19_GID} package.json package-lock.json tsconfig.json ${B19_HOME}/
 COPY --chown=${B19_UID}:${B19_GID} src/                                       ${B19_HOME}/src/
 COPY --chown=${B19_UID}:${B19_GID} presets/                                   ${B19_HOME}/presets/
+COPY --chown=${B19_UID}:${B19_GID} vendors/                                   ${B19_HOME}/vendors/
 COPY --chown=${B19_UID}:${B19_GID} locales/                                   ${B19_HOME}/locales/
 COPY --chown=${B19_UID}:${B19_GID} tests/fixtures/                            ${B19_HOME}/tests/fixtures/
 

@@ -5,6 +5,7 @@
 import type { Bucket } from "../cache/index.ts";
 import type { Config } from "../config/index.ts";
 import type { LinkFacts } from "../facts/types.ts";
+import { vendorPath } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import { PrivateAddress } from "./guard.ts";
@@ -34,9 +35,9 @@ async function probeOne(href: string, config: Pick<Config, "allowPrivate">, sign
     }
 }
 
-// Whether an answer says anything about its link: not excluded, refused, walled or rate limited.
+// Whether an answer says anything about its link: not excluded, a vendor’s, refused, walled or rate limited.
 export function isJudged(answer: LinkFacts): boolean {
-    return !answer.excluded && !answer.refused && !answer.walled && answer.status !== 429;
+    return !answer.excluded && !answer.vendor && !answer.refused && !answer.walled && answer.status !== 429;
 }
 
 // A healthy or walled answer: the only kind worth keeping.
@@ -44,8 +45,11 @@ function isKept(answer: LinkFacts): boolean {
     return answer.status > 0 && (answer.status < 400 || answer.walled === true);
 }
 
-// One link’s answer, from `bucket` while fresh and still worth keeping; an excluded host is never asked, and only a healthy or walled answer is stored.
-export async function answerOf(href: string, config: Pick<Config, "allowPrivate" | "linkExclude">, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
+// One link’s answer, from `bucket` while fresh and still worth keeping; an excluded host or a vendor path is never asked, and only a healthy or walled answer is stored.
+export async function answerOf(href: string, config: Pick<Config, "allowPrivate" | "linkExclude"> & Partial<Pick<Config, "vendorPaths">>, bucket: ProbeBucket, signal: AbortSignal): Promise<LinkFacts & { cached?: true }> {
+    const vendor = config.vendorPaths ? vendorPath(href, "page")?.vendor : undefined;
+    log.debug({ url: href, vendor }, "external link vendor");
+    if (vendor) return { status: 0, vendor };
     const host = new URL(href).hostname;
     const isExcluded = config.linkExclude.some((entry) => host === entry || host.endsWith(`.${entry}`));
     log.debug({ url: href, host, isExcluded }, "external link scoped");
@@ -62,7 +66,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
 }
 
 // Probes every distinct http(s) link once, one request at a time per host, hosts in parallel.
-export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
+export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
     const hrefs = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.info({ links: hrefs.length }, "external links found");

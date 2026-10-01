@@ -16,7 +16,7 @@ discovery, scope, depth, glob and body-size limits; a fetch mode derived per
 group, both crawlers side by side in one run, and `adaptive` detection per group; sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
-`resources`, `browser`, `parity`, `sustainability`, `insights`, `recommended`, `server`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
+`resources`, `browser`, `parity`, `sustainability`, `insights`, `vendor`, `recommended`, `server`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
 `sarif`, `checkstyle`, `csv`, `html`, `agent` with `--output`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `show-report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `show-cache`, `purge-cache`, `warm-cache`, `--no-cache`,
@@ -97,6 +97,7 @@ links ─┘   (robots)   (http|browser)  (facts)        (first match)          
 - Off-scope LINKS (`<a href>`) are recorded as facts and, when `links/broken-external` is enabled, probed for existence only: `HEAD`, `GET` on a `405`, one request at a time per host, each answer in `site.links`. A host `links.exclude` names, or a subdomain of one, is never asked. A `429`, a bot wall (`cf-mitigated: challenge`, LinkedIn’s `999`) or a guard-refused address is not judged, and only a healthy or walled answer is cached or reused, so a fixed link clears on the next run and a broken entry an older build cached is asked again.
 - RESOURCES are different: a script, style sheet, image, font or iframe a page loads is our dependency whatever its origin. A CDN script with a bad `Cache-Control`, no `integrity`, or an expiring certificate is our finding. Resources are fetched with `GET` once per URL (see the `resources` bucket), never parsed for links, and their facts hang off the page that loads them.
 - Limits: `--max-pages` (`maxRequestsPerCrawl`), `--max-depth` (`maxCrawlDepth`), `--include-urls` / `--exclude-urls` globs applied before enqueue.
+- Vendor paths: `vendors/paths.yaml` lists paths an edge or host serves on the site (`/cdn-cgi/`, `/_vercel/`, `/.netlify/images`); a `page` entry is never crawled or probed but named in `html.links.vendor`, a `resource` entry’s findings carry `vendor`, features land in `site.origins.*.vendor`, and `vendor-paths: false` turns it off.
 - Bodies: HTML, XML and JSON are read up to `--max-body-size` (10 MB); any other type is judged by its headers and its download aborted once they arrive — one round trip, where `HEAD` then `GET` would cost two. `http.size.truncated` marks both.
 - Head feeds (`rel=alternate` of an RSS, Atom or JSON Feed type) are queued with the anchors under the same scope and globs, and crawled as pages; `rel=manifest` is a resource of kind `manifest`.
 - `rel=nofollow` and `<meta name=robots content=nofollow>` are facts, not crawl barriers — the owner audits their own site.
@@ -689,6 +690,7 @@ src/
 ├── server/             # API, pages, badge, worker, scan runner, policy, client buckets, settings file
 └── plugins/            # contract, registry, bundled html-validate, htmlhint, axe, keyboard, live, lighthouse, origin, dns, mail, network, tls-probe, images, css, well-known, feeds, structured-data, manifest, icons, link-text, markup, trackers and list
 presets/                # recommended.yaml, seo.yaml, security-headers.yaml, …
+vendors/                # paths.yaml: paths an edge or host owns
 tests/                  # node:test; fixtures/site/ is a static multi-template site served locally
 locales/                # es/ and uk/ gettext catalogs
 docs/                   # features.d/, es/, uk/, server.md
@@ -711,7 +713,7 @@ projectfile.yaml
 ## Testing
 
 - `node --test --experimental-strip-types tests/**/*.test.ts`, no other runner.
-- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a head-only Atom feed and a web manifest, a `/private/` robots disallow, a `/tmp/` path for `--exclude-urls` and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
+- `tests/fixtures/site/` is a static site with three templates (post, tag, app), `robots.txt`, `sitemap.xml` naming an unlinked `/orphan`, an XML feed, a head-only Atom feed and a web manifest, a `/private/` robots disallow, a `/tmp/` path for `--exclude-urls`, an unlinked `/contact` with a Cloudflare-obfuscated address and its mock `/cdn-cgi/l/email-protection`, and a dead `/missing` link, served by `tests/fixtures/server.ts` on an ephemeral port with an HTML 404 for anything else. Every rule has a passing and a failing page there; the post template is missing `<h1>` on every page so folding is exercised end-to-end. Site rules fail on `tests/fixtures/origin.ts`, a `soft` and a `trace` origin. Fixture files carry inline SPDX comments, no `.license` sidecars.
 - Every formatter is tested for its shape; SARIF against the full SARIF 2.1.0 schema, `tests/fixtures/sarif-2.1.0.schema.json`, vendored from `microsoft/sarif-sdk` at a pinned commit under its MIT licence, since the OASIS original carries no SPDX licence; `format` keywords are not checked, which would need `ajv-formats`.
 - No test reaches the network. External-link probes point at the same local server.
 - `tests/fixtures/tls-scripted.ts` answers each ClientHello with chosen bytes, for SSLv2, SSLv3, RC4 and export suites Node cannot serve; `tests/fixtures/rfc8448.ts` holds RFC 8448’s TLS 1.3 trace under its BSD-2-Clause licence. testssl.sh is a manual cross-check, never part of the suite.

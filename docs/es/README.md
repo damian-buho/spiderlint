@@ -46,6 +46,7 @@ Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petici�
 - La huella de cada visita a una página
 - Configuración TLS analizada en casa
 - Transporte comprobado por página, no por host
+- Lo que añade la CDN o el alojamiento, por separado
 - Los archivos que un sitio publica junto a sus páginas
 
 También hereda las características de B19 / Ubuntu; consulta [Características](FEATURES.md) para ver la lista completa.

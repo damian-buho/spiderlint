@@ -40,7 +40,7 @@ export interface SitemapFileFacts {
     error?: string;
 }
 
-// One off-scope link’s probe answer; status 0 is no answer, `refused` a private address the guard kept closed, `walled` a bot wall answering instead of the page, `excluded` a host `links.exclude` names.
+// One off-scope link’s probe answer; status 0 is no answer, `refused` a private address the guard kept closed, `walled` a bot wall answering instead of the page, `excluded` a host `links.exclude` names, `vendor` the edge owning its path.
 export interface LinkFacts {
     status: number;
     method?: "HEAD" | "GET";
@@ -48,6 +48,7 @@ export interface LinkFacts {
     refused?: true;
     walled?: true;
     excluded?: true;
+    vendor?: string;
 }
 
 // One `robots.txt` group: the agents it names and the rules it gives them.
@@ -186,8 +187,8 @@ export interface HtmlFacts {
     hreflang: { lang: string; href: string }[];
     jsonld: unknown[];
     scripts: { src?: string; type?: string; async: boolean; defer: boolean; head: boolean }[];
-    // `rel`: the tokens every anchor to an href carries; absent on facts stored before it.
-    links: { internal: string[]; external: string[]; nofollow: string[]; sponsored?: string[]; ugc?: string[]; rel?: Record<string, string[]>; regions?: Record<string, Record<string, string[]>> };
+    // `rel`: the tokens every anchor to an href carries; absent on facts stored before it; `vendor`: the edge owning each href, derived on every lint.
+    links: { internal: string[]; external: string[]; nofollow: string[]; sponsored?: string[]; ugc?: string[]; rel?: Record<string, string[]>; regions?: Record<string, Record<string, string[]>>; vendor?: Record<string, string> };
     images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; loading?: string; noscript?: true }[];
     rels: Record<string, string[]>;
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];

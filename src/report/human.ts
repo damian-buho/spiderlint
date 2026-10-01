@@ -123,24 +123,26 @@ function listed(findings: Finding[], origin: string, paint: Paint, limit: number
     });
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones next, hints last and only counted unless `isHintListed`, the fact statistics with `isStats`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
+// The shared origin once on top, findings grouped by group then rule, site-wide ones next, then each vendor’s, hints last and only counted unless `isHintListed`, the fact statistics with `isStats`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
 export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false, isStats = false): string {
     const limit = isFull ? Infinity : LIST;
     const guides = isExplained ? (report.rules ?? {}) : undefined;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
     const groups = new Map<string, Finding[]>();
+    const vendors = new Map<string, Finding[]>();
     const findings = report.findings.map((finding) => printableFinding(finding));
     const hints = findings.filter((finding) => finding.severity === "hint");
     for (const finding of findings) {
         if (finding.severity === "hint") continue;
-        const key = finding.scope === "site" ? "site" : (finding.group as string);
-        groups.set(key, [...(groups.get(key) ?? []), finding]);
+        const [sections, key] = finding.vendor ? [vendors, finding.vendor] : [groups, finding.scope === "site" ? "site" : (finding.group as string)];
+        sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
         out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, guides));
     }
+    for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, guides));
     if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
     if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));

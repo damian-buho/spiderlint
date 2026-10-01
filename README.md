@@ -44,6 +44,7 @@ Spiderlint crawls every page a site serves, collects facts about each request (H
 - The footprint of every page view
 - TLS configuration scanned in-house
 - Transport checked per page, not per host
+- What the CDN or host adds, kept apart
 - The files a site publishes beside its pages
 
 It also inherits the features of B19 / Ubuntu — see [Features](docs/FEATURES.md) for the full list.

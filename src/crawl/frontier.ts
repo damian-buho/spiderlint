@@ -7,6 +7,7 @@ import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
 import type { Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
+import { vendorPath, type VendorPath } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
 import { crawlDelayOf, robotsFactsOf, type RobotsFor } from "./robots.ts";
 import type { CrawlerMode, GroupMode, Router } from "./route.ts";
@@ -90,6 +91,8 @@ export class Frontier {
     readonly #seeds: Set<string>;
     readonly #sitemap: Sitemaps["index"];
     readonly #skipped = new Map<string, string>();
+    // Vendor entries that kept a page out of the crawl, with the pages and the links they took.
+    readonly #vendors = new Map<VendorPath, { pages: Set<string>; links: number }>();
     readonly #visited = new Set<string>();
     readonly #globs: Globs;
     #robots: RobotsFileFacts[] = [];
@@ -100,8 +103,17 @@ export class Frontier {
     #hasStraggled = false;
     readonly files: SitemapFileFacts[];
 
-    // Include and exclude globs run on `pathname + search`, as group matchers do.
+    // A vendor-owned path is no page of the site; include and exclude globs then run on `pathname + search`, as group matchers do.
     readonly transformRequestFunction: RequestTransform = (request) => {
+        const vendor = this.#vendorOf(request.url);
+        if (vendor) {
+            const tally = this.#vendors.get(vendor) ?? { pages: new Set<string>(), links: 0 };
+            tally.pages.add(request.url);
+            tally.links += 1;
+            this.#vendors.set(vendor, tally);
+            log.debug({ url: request.url, vendor: vendor.vendor, match: vendor.match }, "link skipped, vendor path");
+            return false;
+        }
         const { include, exclude } = this.#globs;
         const url = new URL(request.url);
         const path = url.pathname + url.search;
@@ -121,6 +133,11 @@ export class Frontier {
         this.files = sitemaps.files;
     }
 
+    // The shipped vendor entry owning `href` as a page, unless `vendor-paths` is off.
+    #vendorOf(href: string): VendorPath | undefined {
+        return this.#config.vendorPaths ? vendorPath(href, "page") : undefined;
+    }
+
     // A sitemap URL still unvisited once the link crawl settles joins the frontier as its own root.
     #stragglers(): string[] {
         if (this.#sitemap.size === 0 || this.#config.seeds.length === 0 || !this.#config.follow) return [];
@@ -129,7 +146,7 @@ export class Frontier {
         const extra = this.#sitemap
             .keys()
             .filter((href) => {
-                if (this.#visited.has(href)) return false;
+                if (this.#visited.has(href) || this.#vendorOf(href)) return false;
                 const url = new URL(href);
                 if (!isInScope(url, reference, this.#config.scope)) return false;
                 const path = url.pathname + url.search;
@@ -301,5 +318,7 @@ export class Frontier {
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
         if (this.#skipped.size > 0) log.info({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
         for (const seed of this.#seeds) this.#explainSkippedSeed(seed);
+        const vendors = this.#vendors.entries().map(([entry, tally]) => ({ vendor: entry.vendor, match: entry.match, pages: tally.pages.size, links: tally.links })).toArray();
+        if (vendors.length > 0) log.info({ vendors }, "vendor paths kept out of the crawl");
     }
 }
