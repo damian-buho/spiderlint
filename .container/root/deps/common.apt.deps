@@ -25,3 +25,4 @@ libxfixes3                               # X11 miscellaneous fixes extension lib
 libxkbcommon0                            # XKB keymap library
 libxrandr2                               # X11 RandR extension library
 openssl                                  # s_client for the tls-probe plugin
+openssh-client                           # ssh-keyscan for the sshfp plugin

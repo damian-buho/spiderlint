@@ -2,24 +2,26 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { setTimeout as sleep } from "node:timers/promises";
-import { delay, reason } from "../crawl/fetch.ts";
-import { Fields, HOST_KEY_ALGORITHMS, hostKey, Unreachable, type HostKey } from "../crawl/ssh.ts";
+import { promisify } from "node:util";
+import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { records, warnOnce, zoneOf } from "./dns.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
-const ATTEMPTS = 2;
-// Milliseconds one handshake may take, connect included.
-const SSH_MS = 8000;
+const run = promisify(execFile);
+// Seconds ssh-keyscan waits on each connection it opens.
+const KEYSCAN_SECONDS = 8;
+// Milliseconds before the whole ssh-keyscan run is killed, one connection per key type.
+const KEYSCAN_MS = 4 * KEYSCAN_SECONDS * 1000;
 // https://www.iana.org/assignments/dns-sshfp-rr-parameters: public key algorithm numbers by key type; 5 is unassigned.
 const ALGORITHMS = new Map([["ssh-rsa", 1], ["ssh-dss", 2], ["ecdsa-sha2-nistp256", 3], ["ecdsa-sha2-nistp384", 3], ["ecdsa-sha2-nistp521", 3], ["ssh-ed25519", 4], ["ssh-ed448", 6]]);
-// Signature algorithm names a server lists for each key type it holds.
-const SIGNERS: Record<string, string> = { "rsa-sha2-512": "ssh-rsa", "rsa-sha2-256": "ssh-rsa", "ssh-rsa": "ssh-rsa" };
 // Fingerprint types of the same registry: 1 SHA-1, 2 SHA-256.
 const DIGESTS: Record<number, string> = { 1: "sha1", 2: "sha256" };
+// DSA, which OpenSSH no longer reads, so its records are never compared.
+const UNREADABLE = 2;
 
 export interface SshfpSettings {
     port: number;
@@ -31,63 +33,50 @@ interface SshfpRecord {
     fingerprint: string;
 }
 
-// The key type behind a host key algorithm name.
-function keyType(name: string): string {
-    return SIGNERS[name] ?? name;
-}
-
 // The SSHFP fingerprint of a key blob under `hash`, upper-case hex as dns-packet decodes it.
 export function fingerprint(blob: Buffer, hash: number): string {
     return createHash(DIGESTS[hash] ?? "sha256").update(blob).digest("hex").toUpperCase();
 }
 
-// One handshake retried once with backoff and jitter; a port that refuses or never accepts is no SSH and is not retried.
-async function attempt(address: string, port: number, algorithms: string[], signal: AbortSignal): Promise<HostKey> {
-    for (let tries = 0; ; tries += 1) {
-        try {
-            return await hostKey(address, port, algorithms, AbortSignal.any([signal, AbortSignal.timeout(SSH_MS)]));
-        } catch (error) {
-            const isLast = tries === ATTEMPTS - 1 || error instanceof Unreachable || signal.aborted;
-            log.debug({ address, port, tries, isLast, error: reason(error) }, "SSH handshake failed");
-            if (isLast) throw error;
-            await sleep(delay(tries), undefined, { signal });
-        }
+// Each `host type base64` line of ssh-keyscan output as its key type and RFC 4253 blob.
+export function parseKeyscan(output: string): { type: string; blob: Buffer }[] {
+    return output.split("\n").flatMap((line) => {
+        const [, type, key] = line.trim().split(/\s+/, 3);
+        return !type || !key || line.startsWith("#") ? [] : [{ type, blob: Buffer.from(key, "base64") }];
+    });
+}
+
+// The host keys OpenSSH’s ssh-keyscan reads off `address`; none when the port is closed or silent, which it reports as exit 1.
+async function keyscan(address: string, port: number, signal: AbortSignal): Promise<{ type: string; blob: Buffer }[]> {
+    try {
+        const { stdout } = await run("ssh-keyscan", ["-q", "-T", String(KEYSCAN_SECONDS), "-p", String(port), address], { signal, timeout: KEYSCAN_MS });
+        return parseKeyscan(stdout);
+    } catch (error) {
+        const { code, stdout } = error as NodeJS.ErrnoException & { stdout?: string };
+        if (code === "ENOENT" || typeof stdout !== "string" || signal.aborted) throw error;
+        log.debug({ address, port, code, error: reason(error) }, "ssh-keyscan exited with an error");
+        return parseKeyscan(stdout);
     }
 }
 
-// Every key the server presents that this client can verify, one handshake per key type, and the types it lists but cannot be checked.
-async function servedKeys(address: string, port: number, signal: AbortSignal): Promise<{ banner: string; keys: { type: string; blob: Buffer }[]; unchecked: string[] }> {
-    const first = await attempt(address, port, HOST_KEY_ALGORITHMS, signal);
-    const keys = first.blob ? [{ type: new Fields(first.blob).text(), blob: first.blob }] : [];
-    const others = Map.groupBy(first.offered.filter((name) => HOST_KEY_ALGORITHMS.includes(name)), (name) => keyType(name));
-    for (const [type, names] of others) {
-        if (keys.some((key) => key.type === type)) continue;
-        const { blob } = await attempt(address, port, names, signal);
-        log.debug({ address, port, type, isRead: blob !== undefined }, "SSH host key read");
-        if (blob) keys.push({ type, blob });
-    }
-    const unchecked = [...new Set(first.offered.map((name) => keyType(name)))].filter((type) => keys.every((key) => key.type !== type));
-    return { banner: first.banner, keys, unchecked };
-}
-
-// Each record whose key the server does not present, or presents with another digest, with what it served instead.
-function mismatches(found: SshfpRecord[], served: { algorithm: number; sha1: string; sha256: string }[], unchecked: number[]): Record<string, unknown>[] {
+// Each comparable record whose key the server does not present, or presents with another digest, with what it served instead.
+function mismatches(found: SshfpRecord[], served: { algorithm: number; sha1: string; sha256: string }[]): Record<string, unknown>[] {
     return found.flatMap((record) => {
-        const digest = DIGESTS[record.hash];
-        if (!digest || unchecked.includes(record.algorithm)) return [];
+        const digest = DIGESTS[record.hash] as "sha1" | "sha256" | undefined;
+        if (!digest || record.algorithm === UNREADABLE) return [];
         const same = served.filter((key) => key.algorithm === record.algorithm);
-        const isMatched = same.some((key) => key[digest as "sha1" | "sha256"] === record.fingerprint);
+        const isMatched = same.some((key) => key[digest] === record.fingerprint);
         log.debug({ algorithm: record.algorithm, hash: record.hash, served: same.length, isMatched }, "SSHFP record compared");
-        return isMatched ? [] : [{ ...record, served: same.map((key) => key[digest as "sha1" | "sha256"]) }];
+        return isMatched ? [] : [{ ...record, served: same.map((key) => key[digest]) }];
     });
 }
 
 // Records naming DSA, and SHA-1 records with no SHA-256 record for the same algorithm.
 function deprecated(found: SshfpRecord[]): SshfpRecord[] {
-    return found.filter((record) => record.algorithm === 2 || (record.hash === 1 && found.every((other) => other.algorithm !== record.algorithm || other.hash !== 2)));
+    return found.filter((record) => record.algorithm === UNREADABLE || (record.hash === 1 && found.every((other) => other.algorithm !== record.algorithm || other.hash !== 2)));
 }
 
-// The host’s SSHFP records beside the host keys its SSH server proves it holds; nothing when the port does not answer.
+// The host’s SSHFP records beside the host keys its SSH server presents; nothing when no SSH server answers.
 const sshfp: SiteExtractor = {
     id: "sshfp",
     per: "host",
@@ -99,25 +88,23 @@ const sshfp: SiteExtractor = {
         if (!zone) return;
         const reply = await context.dns.query(host, "SSHFP");
         const found = records<SshfpRecord>(reply, "SSHFP").map(({ data }) => ({ algorithm: data.algorithm, hash: data.hash, fingerprint: data.fingerprint }));
-        let probed: Awaited<ReturnType<typeof servedKeys>>;
+        let keys: { type: string; blob: Buffer }[];
         try {
-            probed = await servedKeys(await context.address(host), port, context.signal);
+            keys = await keyscan(await context.address(host), port, context.signal);
         } catch (error) {
-            const fields = { host, port, records: found.length, error: reason(error) };
-            return error instanceof Unreachable ? log.debug(fields, "no SSH server, sshfp skipped") : warnOnce(context.dns, `SSH port ${port}`, fields);
+            const isMissing = (error as NodeJS.ErrnoException).code === "ENOENT";
+            return warnOnce(context.dns, isMissing ? "ssh-keyscan" : `SSH port ${port}`, { host, port, records: found.length, error: reason(error) });
         }
-        const served = probed.keys.map(({ type, blob }) => ({ type, algorithm: ALGORITHMS.get(type) ?? 0, sha1: fingerprint(blob, 1), sha256: fingerprint(blob, 2) }));
-        const unchecked = probed.unchecked.map((type) => ALGORITHMS.get(type)).filter((algorithm) => algorithm !== undefined);
-        const mismatched = mismatches(found, served, unchecked);
-        log.debug({ host, zone, port, records: found.length, served: served.length, unchecked, mismatched: mismatched.length, ad: reply.ad }, "sshfp read");
+        if (keys.length === 0) return log.debug({ host, port, records: found.length }, "no SSH server, sshfp skipped");
+        const served = keys.flatMap(({ type, blob }) => (ALGORITHMS.has(type) ? [{ type, algorithm: ALGORITHMS.get(type) as number, sha1: fingerprint(blob, 1), sha256: fingerprint(blob, 2) }] : []));
+        const mismatched = mismatches(found, served);
+        log.debug({ host, zone, port, records: found.length, served: served.length, mismatched: mismatched.length, ad: reply.ad }, "sshfp read");
         return {
             zone,
             port,
-            banner: probed.banner,
             authenticated: reply.ad,
             records: found,
             served,
-            ...(unchecked.length > 0 && { unchecked }),
             ...((reply.ad || mismatched.length > 0) && { mismatched }),
             deprecated: deprecated(found),
         };
@@ -164,7 +151,7 @@ const RULES: Record<string, RuleSpec> = {
     },
 };
 
-// SSHFP records of every crawled host compared with the host keys its SSH server proves it holds.
+// SSHFP records of every crawled host compared with the host keys its SSH server presents.
 export default definePlugin({
     name: "sshfp",
     settings: { type: "object", additionalProperties: false, properties: { port: { type: "integer", minimum: 1, maximum: 65_535, default: 22 } } },
