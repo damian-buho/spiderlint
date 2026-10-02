@@ -26,7 +26,7 @@ describe("page plugins", () => {
 
     before(async () => {
         site = await serveSpec();
-        report = await audit({ seeds: [`${site.origin}/good`], rules: ["feeds", "structured-data", "manifest", "link-text", "markup"], sitemap: false, robots: false, cacheMode: "off" });
+        report = await audit({ seeds: [`${site.origin}/good`], rules: ["feeds/well-formed", "feeds/self", "feeds/item-id", "feeds/websub", "structured-data", "manifest", "link-text", "markup"], sitemap: false, robots: false, cacheMode: "off" });
     });
 
     after(() => site.close());
@@ -68,7 +68,10 @@ describe("page plugins", () => {
     });
 
     it("reads the self URL, hubs and item identifiers of each feed format", () => {
-        const feed = (path: string) => report.pages.find((page) => page.url.href === `${site.origin}${path}`)?.feed;
+        const feed = (path: string) => {
+            const { format, self, hubs, items, unidentified } = report.pages.find((page) => page.url.href === `${site.origin}${path}`)?.feed as Record<string, unknown>;
+            return { format, ...(self !== undefined && { self }), hubs, items, unidentified };
+        };
         assert.deepEqual(feed("/feed.xml"), { format: "rss", self: `${site.origin}/feed.xml`, hubs: ["https://hub.example/"], items: 1, unidentified: [] });
         assert.deepEqual(feed("/atom.xml"), { format: "atom", self: `${site.origin}/atom.xml`, hubs: [], items: 1, unidentified: [] });
         assert.deepEqual(feed("/noid.xml"), { format: "rss", hubs: [], items: 2, unidentified: [2] });

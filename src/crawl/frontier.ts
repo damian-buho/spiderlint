@@ -17,6 +17,12 @@ import { loadSitemap, type SitemapBucket, type Sitemaps } from "./sitemap.ts";
 // Feed media types a head `rel=alternate` names; such a feed is crawled as a page.
 const FEED_TYPES = new Set(["application/rss+xml", "application/atom+xml", "application/feed+json"]);
 
+// Item links, the stylesheet and the archive pages a feed names, which its rules judge against the crawl.
+function feedTargets(facts: Facts): string[] {
+    const feed = facts.feed as { entries?: { link?: string }[]; stylesheet?: string; archives?: Record<string, string> } | undefined;
+    return [...(feed?.entries ?? []).flatMap((entry) => (entry.link ? [entry.link] : [])), ...(feed?.stylesheet ? [feed.stylesheet] : []), ...Object.values(feed?.archives ?? {})];
+}
+
 type EnqueueLinks = (options: EnqueueLinksOptions) => Promise<{ processedRequests: { wasAlreadyPresent: boolean }[] }>;
 
 export type OnPage = (facts: Facts, body: string, live?: Page) => Promise<void> | void;
@@ -263,7 +269,7 @@ export class Frontier {
         return true;
     }
 
-    // The page’s anchors, then its head feeds, queued under the scope and globs on the crawler their group needs, unless the seeds are the whole frontier; returns how many were new.
+    // The page’s anchors and head feeds, or a feed’s targets, queued under the scope and globs on the crawler their group needs, unless the seeds are the whole frontier; returns how many anchors and head feeds were new.
     async enqueue(enqueueLinks: EnqueueLinks, facts: Facts, mode: CrawlerMode): Promise<number> {
         if (!this.#config.follow) return 0;
         const routed: string[] = [];
@@ -278,8 +284,10 @@ export class Frontier {
         const heads = facts.html?.head.links ?? [];
         const feeds = heads.filter((link) => /\balternate\b/i.test(link.rel ?? "") && FEED_TYPES.has(link.type?.toLowerCase() ?? "")).flatMap((link) => (link.href ? [link.href] : []));
         log.debug({ url: facts.url.href, feeds }, "head feeds found");
-        const batches = [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])];
-        await this.#add(routed.map((url) => ({ url, crawlDepth: facts.crawl.depth + 1 })));
+        const batches = facts.html ? [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])] : [];
+        const targets = feedTargets(facts).filter((url) => URL.canParse(url) && isInScope(new URL(url), new URL(facts.url.href), this.#config.scope) && this.transformRequestFunction({ url } as Parameters<RequestTransform>[0]) !== false);
+        log.debug({ url: facts.url.href, targets: targets.length }, "feed targets queued");
+        await this.#add([...routed, ...targets].map((url) => ({ url, crawlDepth: facts.crawl.depth + 1 })));
         return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length + routed.length;
     }
 

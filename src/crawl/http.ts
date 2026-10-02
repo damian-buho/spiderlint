@@ -164,7 +164,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 pages += 1;
                 log.debug({ url: url.href, status: facts.http.status, type: facts.http["content-type"], bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
                 await onPage(facts, body.toString());
-                if (!isHtml) return;
+                if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");
             },
             async failedRequestHandler({ request }, error) {

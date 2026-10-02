@@ -384,7 +384,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const port = browserController.launchContext.launchOptions?.args?.findLast((argument) => argument.startsWith(PORT_ARGUMENT))?.slice(PORT_ARGUMENT.length);
                 if (port) ports.set(page, Number(port));
                 await onPage(facts, body, isHtml ? page : undefined);
-                if (!isHtml) return;
+                if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
             },
             async failedRequestHandler({ request }, error) {
