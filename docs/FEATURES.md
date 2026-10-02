@@ -42,6 +42,14 @@ SPDX-License-Identifier: MIT
 - Every address is traced to the network that routes it, so a route that RPKI-enforcing networks drop, a mail server with no matching reverse DNS, or a site and its name servers all behind one provider come to light.
 - SSH host key fingerprints published in DNS are compared with the keys the SSH server actually presents, so a record left stale by a key rotation is caught before it makes clients refuse to connect, and one no client may trust without DNSSEC is named.
 
+### Feeds checked the way readers see them
+
+- RSS, Atom and JSON feeds are checked against their own specifications: required fields, dates readers can parse, identifiers that never repeat or change, so subscribers never see an old post as new.
+- Item content is read as a reader renders it: unrendered Markdown or MDX, template placeholders, relative links and images, double escaping and markup readers strip are each named with the item they sit in.
+- Every item is compared with the page it links: a link that fails or redirects, a title, date or language that disagrees, a canonical URL the feed bypasses.
+- How the feed is served for polling is judged too: its type and encoding, conditional requests, caching, size, and an XSL style sheet Chrome no longer applies.
+- Podcast feeds can be checked for what directories require, as an opt-in.
+
 ### One finding per template, not per page
 
 - Pages are grouped by URL pattern, so a defect every post shares is reported once for the post template, with sample pages; costly checks such as accessibility run on only a few pages of each template.
@@ -92,9 +100,8 @@ SPDX-License-Identifier: MIT
 - Cross-domain policy files that let any other site read pages with the visitor’s session are reported.
 - Plugins add their own once-per-origin or once-per-host checks; their results are reused between runs, and their requests never leave the host they check.
 
-### Feeds, structured data and markup checked on every page
+### Structured data and markup checked on every page
 
-- RSS, Atom and JSON feeds are checked for what feed readers rely on: they parse, name their own URL, and give every item an identifier that never changes, so subscribers never see an old post as new.
 - Structured data in JSON-LD, Microdata or RDFa is reported when it does not parse, lacks what its rich result needs, contradicts the page or the rest of the site, uses retired schema.org terms or malformed or contradictory dates, or has breadcrumbs leading to missing or moved pages.
 - The web app manifest is checked for what installing the site needs: a name, a start page, a display mode and icons in the sizes phones ask for.
 - Vague link text such as “click here” is found in the page’s own language, and a language without a reviewed list is skipped rather than judged in English.
@@ -384,7 +391,7 @@ See [use-healthcheck.d](../how-to/use-healthcheck.d.md) for the check list, slot
 
 - Tests run inside the running container via `make test` or `docker exec`.
 - Automatically waits for healthchecks to pass before executing.
-- No test framework dependency — tests are plain shell scripts with exit codes.
+- No test framework dependency — tests are plain shell scripts with exit codes, and a failed check names what it expected and what it found.
 - Supports Jinja2 templates in tests, useful for asserting build-time values at runtime.
 - Continues on failure and reports the total count; never hides partial results.
 

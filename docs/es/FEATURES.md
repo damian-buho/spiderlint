@@ -44,6 +44,14 @@ SPDX-License-Identifier: MIT
 - Cada dirección se atribuye a la red que la enruta, así que salen a la luz una ruta que las redes que aplican RPKI descartan, un servidor de correo sin DNS inverso que coincida, o un sitio y sus servidores de nombres detrás de un solo proveedor.
 - Las huellas de claves de host SSH publicadas en el DNS se comparan con las claves que el servidor SSH presenta de verdad, así que un registro que quedó obsoleto tras rotar una clave se detecta antes de que los clientes se nieguen a conectar, y se señala el que ningún cliente puede creer sin DNSSEC.
 
+### Feeds revisados tal como los ven los lectores
+
+- Los feeds RSS, Atom y JSON se revisan según su propia especificación: campos obligatorios, fechas que los lectores puedan leer e identificadores que nunca se repiten ni cambian, para que nadie vea una entrada antigua como nueva.
+- El contenido de cada entrada se lee como lo muestra un lector: Markdown o MDX sin convertir, marcadores de plantilla, enlaces e imágenes relativos, doble escapado y marcado que los lectores eliminan, cada uno con la entrada en la que aparece.
+- Cada entrada se compara con la página a la que enlaza: un enlace que falla o redirige, un título, una fecha o un idioma que no coinciden, o una URL canónica que el feed esquiva.
+- También se juzga cómo se sirve el feed para su consulta periódica: su tipo y codificación, las peticiones condicionales, la caché, el tamaño y una hoja XSL que Chrome ya no aplica.
+- Los feeds de pódcast pueden revisarse, de forma opcional, en lo que exigen los directorios.
+
 ### Un hallazgo por plantilla, no por página
 
 - Las páginas se agrupan por patrón de URL, así que un defecto que comparten todas las entradas se informa una sola vez para su plantilla, con páginas de ejemplo; las comprobaciones costosas, como la accesibilidad, se ejecutan solo en unas pocas páginas de cada plantilla.
@@ -94,9 +102,8 @@ SPDX-License-Identifier: MIT
 - Se informa de los archivos de política entre dominios que permiten a cualquier otro sitio leer páginas con la sesión del visitante.
 - Los plugins añaden sus propias comprobaciones por origen o por host; sus resultados se reutilizan entre ejecuciones y sus peticiones nunca salen del host que comprueban.
 
-### Feeds, datos estructurados y marcado revisados en cada página
+### Datos estructurados y marcado revisados en cada página
 
-- Los feeds RSS, Atom y JSON se revisan en lo que necesitan los lectores de feeds: que se puedan leer, que nombren su propia URL y que cada entrada tenga un identificador que nunca cambie, para que nadie vea una entrada antigua como nueva.
 - Se informa de los datos estructurados en JSON-LD, Microdata o RDFa que no se pueden leer, carecen de lo que exige su resultado enriquecido, contradicen a la página o al resto del sitio, usan términos retirados de schema.org o fechas mal escritas o contradictorias, o cuyas migas de pan llevan a páginas inexistentes o movidas.
 - El manifiesto de la aplicación web se revisa en lo que hace falta para instalar el sitio: un nombre, una página de inicio, un modo de visualización e iconos de los tamaños que piden los teléfonos.
 - Los textos de enlace vagos como «haz clic aquí» se buscan en el idioma de la propia página, y un idioma sin lista revisada se omite en vez de juzgarse en inglés.
@@ -387,7 +394,7 @@ Consulte [use-healthcheck.d](../how-to/use-healthcheck.d.md) para la lista de co
 
 - Los tests se ejecutan dentro del contenedor en marcha vía `make test` o `docker exec`.
 - Espera automáticamente a que pasen los healthchecks antes de ejecutar.
-- Sin dependencia de ningún framework de tests: los tests son scripts de shell simples con códigos de salida.
+- Sin dependencia de ningún framework de tests: los tests son scripts de shell simples con códigos de salida, y una comprobación fallida indica qué esperaba y qué encontró.
 - Admite plantillas Jinja2 en los tests, útil para afirmar en runtime valores fijados en compilación.
 - Continúa ante fallos e informa del recuento total; nunca oculta resultados parciales.
 
