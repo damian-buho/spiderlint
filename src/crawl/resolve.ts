@@ -96,7 +96,7 @@ async function chromiumRules(pins: readonly Pin[], seeds: readonly string[], cli
                 log.debug({ host, address: first?.address }, "seed host resolved for the browser");
                 if (first) mapped.set(host, first.address);
             } catch (error) {
-                log.warn({ host, error: reason(error) }, "seed host unresolved for the browser; Chromium asks the system");
+                log.warn({ host, error: reason(error) }, `${host} unresolved for the browser, which asks the system instead:`);
             }
         }
     }
@@ -122,7 +122,7 @@ export async function openResolution(pins: readonly Pin[], resolver: string, see
     dns.lookup = (isPrivateAllowed ? lookup : guarding(lookup)) as typeof dns.lookup;
     syncBuiltinESMExports();
     browser.hostRules = await chromiumRules(pins, seeds, client);
-    log.info({ pins: pins.map((pin) => pin.host), resolver, isPrivateAllowed, browserRules: browser.hostRules }, "crawl resolves names through the configured resolution");
+    log.debug({ pins: pins.map((pin) => pin.host), resolver, isPrivateAllowed, browserRules: browser.hostRules }, "crawl resolves names through the configured resolution");
     return () => {
         dns.lookup = system;
         syncBuiltinESMExports();

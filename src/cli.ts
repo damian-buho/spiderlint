@@ -511,7 +511,7 @@ async function execute(verb: Command): Promise<number> {
         if (chosen.length > 1 && (isFacts || config.format !== "human")) throw new ConfigError(`${isFacts ? command : `--format ${config.format}`}: one document per run, pick a site with --site (declared: ${Object.keys(sites).join(", ")})`);
         let worst = 0;
         for (const [name, site] of chosen) {
-            if (name) log.info({ site: name }, "site selected");
+            if (name) log.debug({ site: name }, "site selected");
             if (name && chosen.length > 1) console.log(`\n${name}`);
             worst = Math.max(worst, await run(verb, targets, bucket, configFor(site), values));
         }

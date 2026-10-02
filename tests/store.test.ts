@@ -107,7 +107,7 @@ describe("store", () => {
         const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", interruptedStore, "--no-progress"], { stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
         child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
-            if (!stderr.includes("store opened") && (stderr + chunk).includes("store opened")) child.kill("SIGINT");
+            if (!stderr.includes("pages stored in") && (stderr + chunk).includes("pages stored in")) child.kill("SIGINT");
             stderr += chunk;
         });
         const [code] = (await once(child, "exit")) as [number];

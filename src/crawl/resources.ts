@@ -100,7 +100,7 @@ async function extractBody(url: string, status: number, contentType: string, byt
             const value = await cache.run(extractor, url, contentType, body, () => extractor.extract(url, contentType, body));
             if (value !== undefined) facts[extractor.id] = value;
         } catch (error) {
-            log.warn({ url, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, "resource extractor failed");
+            log.warn({ url, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, `${extractor.id} checks skipped on`);
         }
     }
     const ms = Math.round(performance.now() - started);
@@ -213,7 +213,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
     const images = new Set(entries.filter((entry) => entry.kind === "image").map((entry) => entry.url));
-    log.info({ resources: urls.length, references: entries.length, images: images.size, fetch: config.fetchResources }, "resources found");
+    log.debug({ resources: urls.length, references: entries.length, images: images.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
     const results = new Map<string, ResourceResults[string]>();
     const failures = new Bucket<Failure>(bucket.name, bucket.directory, bucket.ttlSeconds, bucket.mode);
@@ -229,6 +229,6 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const all = results.values().toArray();
     const [failed, cached, revalidated, fromBrowser] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length, all.filter((result) => result.logged).length];
     const failedCached = all.filter((result) => result.cached && isFailure(result.status)).length;
-    log.info({ resources: urls.length, failed, cached, failedCached, revalidated, logged: fromBrowser }, "resources fetched");
+    log.debug({ resources: urls.length, failed, cached, failedCached, revalidated, logged: fromBrowser }, "resources fetched");
     return Object.fromEntries(results);
 }

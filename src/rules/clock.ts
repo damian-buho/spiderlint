@@ -33,7 +33,7 @@ const clockSkew: Make = (severity) => ({
         const skews = hosts.map((entry) => entry.skew);
         log.debug({ rule: "http/clock-skew", hosts: hosts.length, skews }, "host clocks compared");
         if (isOwnClock(skews)) {
-            log.warn({ offset: -(skews[0] as number), hosts: hosts.length }, "the local clock is off; clock skew findings suppressed");
+            log.warn({ offset: -(skews[0] as number), hosts: hosts.length }, `the local clock is off by ${-(skews[0] as number)} s; clock skew findings suppressed`);
             return [];
         }
         const findings: Finding[] = [];

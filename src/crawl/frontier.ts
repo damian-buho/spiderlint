@@ -191,7 +191,7 @@ export class Frontier {
         const origins = this.#origins();
         const delays = await Promise.all(origins.map(async (origin) => crawlDelayOf(await robots(origin))));
         const delay = Math.max(0, ...delays);
-        if (delay > 0) log.info({ delay, origins: origins.length }, "robots.txt crawl-delay honoured, seconds between requests per domain");
+        if (delay > 0) log.info({ delay, origins: origins.length }, `robots.txt asks for ${delay} s between requests, honoured`);
         return delay;
     }
 
@@ -201,7 +201,7 @@ export class Frontier {
         if (reason === undefined) return;
         const error = this.#robots.find((facts) => facts.url === `${new URL(seed).origin}/robots.txt`)?.error;
         if (error) log.error({ url: seed, error }, "seed not crawled: its robots.txt is unreachable, which disallows the whole origin (RFC 9309)");
-        else log.warn({ url: seed, reason }, "seed not crawled");
+        else log.warn({ url: seed, reason }, `seed not crawled, skipped by its ${reason} check:`);
     }
 
     // Crawler options every adapter passes through unchanged; crawlers running side by side split the rate.
@@ -316,9 +316,9 @@ export class Frontier {
         this.#robots = files.filter((facts) => facts !== undefined);
         log.debug({ isRead, files: this.#robots.length }, "robots.txt facts collected");
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
-        if (this.#skipped.size > 0) log.info({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
+        if (this.#skipped.size > 0) log.debug({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
         for (const seed of this.#seeds) this.#explainSkippedSeed(seed);
         const vendors = this.#vendors.entries().map(([entry, tally]) => ({ vendor: entry.vendor, match: entry.match, pages: tally.pages.size, links: tally.links })).toArray();
-        if (vendors.length > 0) log.info({ vendors }, "vendor paths kept out of the crawl");
+        if (vendors.length > 0) log.debug({ vendors }, "vendor paths kept out of the crawl");
     }
 }

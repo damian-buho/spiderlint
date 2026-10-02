@@ -147,7 +147,7 @@ const variants: SiteExtractor = {
         const seed = context.pages.find((page) => page.crawl["discovered-via"] === "seed") ?? context.pages[0];
         const deep = `${seed?.url.pathname ?? "/"}?spiderlint=${randomUUID()}`;
         const urls = [...new Set(["/", deep].flatMap((path) => hosts.flatMap((host) => schemes.map((scheme) => `${scheme}//${host}${port ? `:${port}` : ""}${path}`))))];
-        log.info({ origin, urls }, "entry variants probed");
+        log.info({ origin, urls }, `${urls.length} entry variants of ${origin} probed`);
         const settled = await Promise.all(urls.map(async (url) => {
             try {
                 return await walk(url, context);

@@ -85,7 +85,7 @@ export async function openNetwork(config: Pick<Config, "proxy" | "rate" | "timeo
     await bridge?.listen();
     const proxy = bridge ? `http://127.0.0.1:${bridge.port}` : config.proxy;
     const restore = setGlobalProxyFromEnv({ HTTP_PROXY: proxy, HTTPS_PROXY: proxy });
-    log.info({ proxy: `${upstream.protocol}//${upstream.host}`, isBridged: bridge !== undefined }, "requests go through the proxy");
+    log.debug({ proxy: `${upstream.protocol}//${upstream.host}`, isBridged: bridge !== undefined }, "requests go through the proxy");
     return {
         proxy,
         async close() {

@@ -68,8 +68,13 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
     const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: config.allowPrivate, signal, robots }), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }), ...(extractor.settings !== undefined && { settings: extractor.settings }) };
-    const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error(`timed out after ${timeout} ms`)), { once: true }));
-    return Promise.race([extractor.extract(subject, context), expired]);
+    const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true }));
+    try {
+        return await Promise.race([extractor.extract(subject, context), expired]);
+    } catch (error) {
+        // Whichever gave up first, the extractor’s own probe or the race, a timeout reads as one.
+        throw signal.aborted ? new Error(`no answer within ${Math.round(timeout / 1000)} s, a longer --timeout gives it more`) : error;
+    }
 }
 
 // Runs each active extractor once per subject, and on linked hosts too for the IDs in `linked`, from `bucket` while fresh; returns the IDs of every real run.
@@ -80,7 +85,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
         ...(extractor.per === "host" && linked.has(extractor.id) ? [...extra].map(([subject, members]) => ({ extractor, subject, members, isLinked: true })) : []),
     ]);
     if (extra.size > 0) site.linked = extra.keys().toArray();
-    log.info({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length, linked: extra.size }, "site extractors start");
+    log.debug({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length, linked: extra.size }, "site extractors start");
     const ran: string[] = [];
     const queue = jobs.values();
     const worker = async () => {
@@ -96,7 +101,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
                     if (value !== undefined && extractor.cached !== false) await bucket.set(key, value);
                 } catch (error) {
                     if (error instanceof RobotsDisallowed) log.debug({ extractor: extractor.id, subject, error: reason(error) }, "site extractor withheld by robots.txt");
-                    else log.warn({ extractor: extractor.id, subject, error: reason(error) }, "site extractor failed");
+                    else log.warn({ extractor: extractor.id, subject, error: reason(error) }, `${extractor.id} checks of ${subject} skipped:`);
                 }
             }
             if (value === undefined) continue;
@@ -106,7 +111,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), jobs.length) }, worker);
     await Promise.all(workers);
-    log.info({ runs: ran.length, jobs: jobs.length }, "site extractors done");
+    log.debug({ runs: ran.length, jobs: jobs.length }, "site extractors done");
     return ran;
 }
 
@@ -114,5 +119,5 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
 export function warnUnserved(site: SiteFacts, active: SiteExtractor[]): void {
     const unserved = active.filter((extractor) => Object.values(site[KIND[extractor.per]] ?? {}).every((facts) => facts[extractor.id] === undefined));
     log.debug({ active: active.length, unserved: unserved.length }, "stored site facts checked");
-    if (unserved.length > 0) log.warn({ extractors: unserved.map((extractor) => extractor.id) }, "stored site facts lack what only a crawl probes; re-crawl to add them");
+    if (unserved.length > 0) log.warn({ extractors: unserved.map((extractor) => extractor.id) }, `stored site facts lack what ${unserved.map((extractor) => extractor.id).join(", ")} probe; re-crawl to add it`);
 }

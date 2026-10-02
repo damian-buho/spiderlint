@@ -31,7 +31,7 @@ function catalog(lang: string): Map<string, string> {
         for (const [msgid, entry] of translations) if (msgid && entry.msgstr[0]) entries.set(msgid, entry.msgstr[0]);
         log.debug({ lang, entries: entries.size }, "catalog loaded");
     } catch (error) {
-        log.warn({ lang, error: String(error) }, "catalog not loaded; strings stay English");
+        log.warn({ lang, error: String(error) }, `${lang} catalog not loaded, strings stay English:`);
     }
     catalogs.set(lang, entries);
     return entries;

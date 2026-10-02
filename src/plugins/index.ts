@@ -163,7 +163,7 @@ export async function loadPlugins(names: string[], raw: Record<string, unknown> 
         if (typeof module.default?.name !== "string") throw new ConfigError(`plugin ${name}: its default export has no name`);
         if (!loaded.has(module.default.name)) register(module.default);
         loaded.add(name).add(module.default.name);
-        log.info({ plugin: module.default.name, specifier }, "plugin loaded");
+        log.debug({ plugin: module.default.name, specifier }, "plugin loaded");
     }
     configure(raw);
 }
@@ -184,7 +184,7 @@ export async function withSources(config: Config): Promise<Config> {
         }
         seeds = [...seeds, ...urls];
         follow &&= source.follow !== false;
-        log.info({ source: id, argument, urls: urls.length, follow }, "source read");
+        log.debug({ source: id, argument, urls: urls.length, follow }, "source read");
     }
     return { ...config, seeds: [...new Set(seeds)], follow };
 }
@@ -267,7 +267,7 @@ export async function extract(page: Facts, body: string, active: Extractor[], ca
             page[extractor.id] = value;
             added.push(extractor.id);
         } catch (error) {
-            log.warn({ url: page.url.href, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, "extractor failed");
+            log.warn({ url: page.url.href, extractor: extractor.id, error: error instanceof Error ? error.message : String(error) }, `${extractor.id} checks skipped on`);
         }
     }
     return added;

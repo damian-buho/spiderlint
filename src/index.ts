@@ -270,7 +270,7 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
         if (body === undefined) continue;
         sample.release(page, runnable, await extract(page, body, runnable, cache));
     }
-    if (unserved.size > 0) log.warn({ extractors: [...unserved] }, "stored pages lack facts only a rendered page gives; re-crawl to add them");
+    if (unserved.size > 0) log.warn({ extractors: [...unserved] }, `stored pages lack what ${[...unserved].join(", ")} read from a rendered page; re-crawl to add it`);
 }
 
 // Each group’s mode: a run pin wins, else the group’s own, else the run’s; a `browser` pin or a rule reading a rendered-only fact renders, an `http` pin refuses both.
@@ -362,7 +362,7 @@ function linter(config: Config): Lint {
     return ({ pages, site, cost, fetch }, started) => {
         stopIfInterrupted("lint");
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
-        if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, "parity rules skipped on pages crawled over http");
+        if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, `${parity.join(", ")} skipped on ${unrendered} pages crawled over http; --fetch browser renders them`);
         derive(pages, site, config, matchers, isDetected);
         const run = runRules(pages, rulesByGroup, site);
         if (site.graph?.capped) capped(run, rulesByGroup);
@@ -371,7 +371,7 @@ function linter(config: Config): Lint {
         attributeVendors(findings, config.vendorPaths);
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
-        log.info({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
+        log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
         return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup) };
     };
 }
@@ -392,7 +392,7 @@ async function earlierPage(store: DiskStore, href: string): Promise<Earlier | un
 
 // `--offline` lints what the store holds and fetches nothing; an empty store is a miss.
 async function servedOffline(pages: Facts[], store: DiskStore | undefined, active: Extractor[], siteActive: SiteExtractor[], sample: Sampler, config: Config): Promise<Crawled> {
-    log.info({ pages: pages.length, store: store?.directory }, "serving pages offline");
+    log.debug({ pages: pages.length, store: store?.directory }, "serving pages offline");
     if (!store || pages.length === 0) throw new OfflineMiss(`--offline: the pages bucket${store ? ` in ${store.directory}` : ""} is empty; crawl with --store first`);
     const cost: Cost = { extractors: {} };
     await backfill(pages, store, active, extractorCache(config, store, cost), sample);
@@ -415,7 +415,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
 // Site extractors a proxied run can serve: none that queries DNS past the proxy.
 function proxied(active: SiteExtractor[], config: Config): SiteExtractor[] {
     const skipped = config.proxy ? active.filter((extractor) => extractor.resolves) : [];
-    if (skipped.length > 0) log.warn({ extractors: skipped.map((extractor) => extractor.id) }, "DNS queries bypass the proxy; skipped");
+    if (skipped.length > 0) log.warn({ extractors: skipped.map((extractor) => extractor.id) }, `${skipped.map((extractor) => extractor.id).join(", ")} skipped: their DNS queries would bypass the proxy`);
     return active.filter((extractor) => !skipped.includes(extractor));
 }
 
@@ -439,7 +439,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     logRelativeTo(config.seeds);
     const cache = { robots: robotsLoader(openBucket("robots", config, store?.directory)), sitemaps: openBucket<Stored<string>>("sitemaps", config, store?.directory) };
     const robots = config.robots ? cache.robots : undefined;
-    log.info({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, follow: config.follow, followedFor: config.follow ? reader : undefined, resumed: earlier.length, store: store?.directory }, "crawl start");
+    log.debug({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, follow: config.follow, followedFor: config.follow ? reader : undefined, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
     const extractors = extractorCache(config, store, cost);
     const redirects: Record<string, string> = {};
@@ -575,7 +575,7 @@ export async function factsStore(overrides: Partial<Config>, directory: string):
         attachResources(pages, await store.resources());
         const site = await store.site();
         derive(pages, site, config, compileGroups(groupsOf(config)), true);
-        log.info({ pages: pages.length, store: directory }, "stored facts read");
+        log.debug({ pages: pages.length, store: directory }, "stored facts read");
         return { pages, site, cost: { extractors: {} } };
     });
 }
@@ -590,7 +590,7 @@ export async function warmCache(overrides: Partial<Config>, directory: string): 
         const robots = robotsLoader(openBucket("robots", config, directory));
         const { index, files } = await loadSitemap(config.seeds, robots, openBucket("sitemaps", config, directory), config.canonicalOrigin);
         const warmed = { origins: new Set(config.seeds.map((seed) => new URL(seed).origin)).size, sitemaps: files.length, urls: index.size };
-        log.info(warmed, "cache warmed");
+        log.debug(warmed, "cache warmed");
         return warmed;
     } finally {
         await network.close();

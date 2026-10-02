@@ -177,11 +177,11 @@ function lifetime(reply: Reply, floor: number): number {
 async function isValidating(client: DnsClient, resolver: string): Promise<boolean> {
     try {
         const { ad } = await client.query(".", "SOA");
-        log.info({ resolver, validating: ad }, "resolver validation checked");
-        if (!ad) log.warn({ resolver }, "resolver does not validate DNSSEC; dns/dnssec-bogus skipped");
+        log.debug({ resolver, validating: ad }, "resolver validation checked");
+        if (!ad) log.warn({ resolver }, `resolver ${resolver} does not validate DNSSEC; dns/dnssec-bogus skipped`);
         return ad;
     } catch (error) {
-        log.warn({ resolver, error: reason(error) }, "resolver unreachable; dns/dnssec-bogus skipped");
+        log.warn({ resolver, error: reason(error) }, `resolver ${resolver} unreachable, dns/dnssec-bogus skipped:`);
         return false;
     }
 }

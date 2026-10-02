@@ -69,7 +69,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
 export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
     const hrefs = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
-    log.info({ links: hrefs.length }, "external links found");
+    log.debug({ links: hrefs.length }, "external links found");
     const answers: Record<string, LinkFacts> = {};
     const signal = new AbortController().signal;
     let cached = 0;
@@ -87,6 +87,6 @@ export async function probeLinks(links: string[], config: Pick<Config, "allowPri
     const all = Object.values(answers);
     const skipped = all.filter((answer) => !isJudged(answer)).length;
     const failed = all.filter((answer) => isJudged(answer) && (answer.status === 0 || answer.status >= 400)).length;
-    log.info({ links: hrefs.length, cached, failed, skipped }, "external links probed");
+    log.debug({ links: hrefs.length, cached, failed, skipped }, "external links probed");
     return answers;
 }

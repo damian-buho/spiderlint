@@ -56,7 +56,7 @@ export async function purgeCache(root: string | undefined, bucket: string | unde
             const directory = bucketDirectory(name as BucketName, hasStore ? root : undefined);
             if (name === "pages") purged[name] = hasStore ? await purgePages(root as string, olderThanSeconds) : 0;
             else purged[name] = directory === undefined ? 0 : await purgeFiles(directory, olderThanSeconds);
-            log.info({ bucket: name, purged: purged[name], olderThanSeconds }, "bucket purged");
+            log.info({ bucket: name, purged: purged[name], olderThanSeconds }, `${purged[name]} entries purged from the ${name} cache`);
         }
     } finally {
         await release?.();

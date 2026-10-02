@@ -87,7 +87,7 @@ function services(host: string, reply: Reply, type: string): Svcb[] {
         try {
             return [parseSvcb(data)];
         } catch (error) {
-            log.warn({ host, type, error: reason(error) }, "SVCB record unparsable");
+            log.warn({ host, type, error: reason(error) }, `${type} record of ${host} unparsable:`);
             return [];
         }
     });

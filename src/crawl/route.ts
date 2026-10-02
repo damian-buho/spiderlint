@@ -57,7 +57,7 @@ export class Router {
     #settle(group: string, mode: CrawlerMode, agreed: number): void {
         this.#modes.set(group, mode);
         this.#verdict(group).resolve();
-        log.info({ group, fetch: mode, agreed }, "adaptive group settled");
+        log.debug({ group, fetch: mode, agreed }, "adaptive group settled");
     }
 
     // Crawlers the run needs: an adaptive group needs both.

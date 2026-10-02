@@ -21,7 +21,7 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     const frontier = await Frontier.open(config, cache, router);
     const http = modes.includes("http") ? httpCrawler(config, onPage, frontier, storage, proxy) : undefined;
     const browser = modes.includes("browser") ? browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
-    log.info({ crawlers: modes, groups: router.modes }, "crawlers chosen");
+    log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
     const halt = () => {
@@ -35,7 +35,7 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
         stop();
     }
     const [fetched, rendered] = [http?.stats(), browser?.stats()];
-    if (fetched?.revalidated) log.info({ revalidated: fetched.revalidated }, "pages revalidated");
+    if (fetched?.revalidated) log.debug({ revalidated: fetched.revalidated }, "pages revalidated");
     return {
         site: frontier.site(),
         pages: { ...(fetched && { http: fetched.pages }), ...(rendered && { browser: rendered.pages }) },

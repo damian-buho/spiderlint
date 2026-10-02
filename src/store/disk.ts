@@ -96,7 +96,7 @@ export async function lockStore(directory: string): Promise<() => Promise<void>>
         const isDead = isGone(holder);
         log.debug({ directory, holder, isDead }, "store lock held");
         if (!isDead) throw new ConfigError(`store ${directory} is in use by ${holder ? `process ${holder.pid} on ${holder.host}` : "another process"}`);
-        log.warn({ directory, holder: holder?.pid, staleSeconds: STALE_MS / 1000 }, "store lock left by a process that is gone, waiting for it to go stale");
+        log.warn({ directory, holder: holder?.pid, staleSeconds: STALE_MS / 1000 }, `store ${directory} locked by process ${holder?.pid}, which is gone; waiting ${STALE_MS / 1000} s for the lock to go stale`);
         try {
             release = await lockfile.lock(directory, { ...options, retries: { retries: STALE_MS / 1000 + 5, factor: 1, minTimeout: 1000, maxTimeout: 1000 } });
         } catch (error_) {
@@ -135,7 +135,7 @@ export class DiskStore {
         const manifest: Manifest = fresh || !previous ? { version: VERSION, seeds, configHash: configHash ?? "", started: new Date().toISOString() } : previous;
         const store = new DiskStore(directory, config, storages, release, manifest, earlier, last ?? undefined);
         await store.#writeManifest();
-        log.info({ directory, fresh: mode.fresh, started: manifest.started, earlier: earlier.size }, "store opened");
+        log.info({ directory, fresh: mode.fresh, started: manifest.started, earlier: earlier.size }, earlier.size > 0 ? `resuming ${earlier.size} pages stored in ${directory}` : `pages stored in ${directory}`);
         logRelativeTo(manifest.seeds);
         return store;
     }
@@ -240,6 +240,6 @@ export class DiskStore {
         if (isFinished) this.manifest.finished = new Date().toISOString();
         await this.#writeManifest();
         await this.#release();
-        log.info({ directory: this.directory, finished: this.manifest.finished }, "store closed");
+        log.debug({ directory: this.directory, finished: this.manifest.finished }, "store closed");
     }
 }

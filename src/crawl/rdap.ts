@@ -54,7 +54,7 @@ async function refresh(get: Get): Promise<Services> {
     if (answer.status !== 200) throw new Error(`the IANA RDAP bootstrap answered ${answer.status}`);
     const services = (JSON.parse(answer.body) as { services?: Services }).services ?? [];
     await writeAtomic(bootstrapFile(), JSON.stringify({ fetched: new Date().toISOString(), services }));
-    log.info({ url: BOOTSTRAP, services: services.length }, "rdap bootstrap refreshed");
+    log.debug({ url: BOOTSTRAP, services: services.length }, "rdap bootstrap refreshed");
     return services;
 }
 

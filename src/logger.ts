@@ -37,13 +37,23 @@ function text(value: unknown): string {
     return value instanceof Error ? value.message : JSON.stringify(value);
 }
 
-// Message, url and error on one line; other fields only when neither is there, or at debug.
+// True when the message already spells `value` out as a word of its own.
+function isSaid(message: string, value: unknown): boolean {
+    const said = text(value);
+    for (let at = message.indexOf(said); said !== "" && at !== -1; at = message.indexOf(said, at + 1)) {
+        if (!/\w/.test(message[at - 1] ?? "") && !/\w/.test(message[at + said.length] ?? "")) return true;
+    }
+    return false;
+}
+
+// Message, url and error on one line; other fields only when neither is there and the message does not say them, or at debug.
 export function oneLine(entry: Record<string, unknown>, messageKey: string): string {
     const { paint } = terminal;
-    const message = text(entry[messageKey] ?? "").replaceAll(URL_IN_TEXT, (url) => paint("cyan", url));
-    const fields = Object.entries(entry).filter(([key]) => key !== messageKey && !RESERVED.has(key));
-    const hasSubject = entry.url !== undefined || entry.error !== undefined;
+    const raw = text(entry[messageKey] ?? "");
+    const message = raw.replaceAll(URL_IN_TEXT, (url) => paint("cyan", url));
     const isVerbose = log.isLevelEnabled("debug");
+    const fields = Object.entries(entry).filter(([key, value]) => key !== messageKey && !RESERVED.has(key) && (isVerbose || !isSaid(raw, value)));
+    const hasSubject = entry.url !== undefined || entry.error !== undefined;
     return [
         message,
         entry.url !== undefined && paint("cyan", text(entry.url)),
@@ -93,5 +103,6 @@ export function logRelativeTo(seeds: string[]): void {
     const next = singleOrigin(seeds);
     if (next === base.origin) return;
     base.origin = next;
-    log.info({ origin: next, seeds: seeds.length }, next ? "urls logged relative to origin" : "urls logged absolute");
+    if (next) log.info({ origin: next, seeds: seeds.length }, `paths below are relative to ${next}`);
+    else log.debug({ seeds: seeds.length }, "urls logged absolute");
 }

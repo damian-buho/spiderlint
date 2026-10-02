@@ -178,7 +178,7 @@ export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket:
     const index: SitemapIndex = new Map();
     const fetch = fetchOnce(bucket);
     const queue = await discover(seeds, robotsFor, bucket, fetch, canonical);
-    log.info({ seeds, files: queue }, queue.length > 0 ? "sitemap discovered" : "no sitemap discovered");
+    log.debug({ seeds, files: queue }, queue.length > 0 ? "sitemap discovered" : "no sitemap discovered");
     const seen = new Set<string>();
     const files: SitemapFileFacts[] = [];
     for (const url of queue) {
@@ -186,6 +186,6 @@ export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket:
         seen.add(url);
         files.push(await readSitemap(url, index, queue, fetch, canonical));
     }
-    log.info({ files: files.length, failed: files.filter((file) => file.error).length, urls: index.size }, "sitemap parsed");
+    log.debug({ files: files.length, failed: files.filter((file) => file.error).length, urls: index.size }, "sitemap parsed");
     return { index, files };
 }

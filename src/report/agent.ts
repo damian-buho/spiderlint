@@ -110,5 +110,5 @@ export async function writeAgentFiles(directory: string, report: Report, isHintL
     const files = agentFiles(report, isHintListed);
     const entries = [...files];
     for (const [name, content] of entries) await writeAtomic(path.join(directory, name), content);
-    log.info({ directory, files: files.size }, "agent prompts written");
+    log.info({ directory, files: files.size }, `${files.size} agent prompts written to ${directory}`);
 }

@@ -329,7 +329,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                           async (pageId, launchContext) => {
                               const port = await freePort();
                               launchContext.launchOptions = { ...launchContext.launchOptions, args: [...(launchContext.launchOptions?.args ?? []), `${PORT_ARGUMENT}${port}`] };
-                              log.info({ pageId, port }, "browser DevTools port opened on loopback");
+                              log.debug({ pageId, port }, "browser DevTools port opened on loopback");
                           },
                       ]
                     : [],
@@ -395,6 +395,6 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
         storage?.config ?? new Configuration({ persistStorage: false, purgeOnStart: false }),
         observations,
     );
-    if (storage?.earlier) log.info({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
+    if (storage?.earlier) log.debug({ fetch: "browser" }, "browser pages are re-rendered, never revalidated");
     return { crawler, stats: () => ({ pages, launches, responses, tlsProbes: prober?.probes ?? 0 }) };
 }

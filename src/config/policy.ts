@@ -153,6 +153,6 @@ export function loadSettings(explicit: string | undefined): { settings: Settings
         return { ...resolve(readPlainYaml(document)), document };
     }
     if (pfResult.error !== undefined) throw new ConfigError(`pf-cli: cannot read ${SUBTREE} from ${document}: ${pfResult.error}`);
-    log.info({ document }, "config subtree loaded via pf-cli");
+    log.debug({ document }, "config subtree loaded via pf-cli");
     return { ...resolve(pfResult.raw), document };
 }

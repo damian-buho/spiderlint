@@ -76,7 +76,7 @@ export class Bucket<T> {
         try {
             entry = JSON.parse(await readFile(this.#file(key), "utf8")) as Entry<T>;
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "ENOENT") log.warn({ bucket: this.name, key, error: error instanceof Error ? error.message : String(error) }, "cache entry unreadable");
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") log.warn({ bucket: this.name, key, error: error instanceof Error ? error.message : String(error) }, `${this.name} cache entry unreadable and ignored:`);
             log.debug({ bucket: this.name, key }, "cache miss");
             return undefined;
         }
