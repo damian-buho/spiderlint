@@ -79,6 +79,37 @@ export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, con
     return store(bucket, url, request, response, value, ms);
 }
 
+// A HEAD with `sent` headers answered from `bucket` while fresh, revalidated once stale, stored when RFC 9111 allows; the value keeps headers only, never a body.
+export async function fetchHeadCached(bucket: Bucket<Stored<{ bytes: number; head?: true }>>, url: string, sent: Record<string, string> = {}): Promise<Served<{ bytes: number; head?: true }>> {
+    const found = await bucket.get(url);
+    const entry = found && (found.value.value as { head?: true }).head === true ? found : undefined;
+    if (found && !entry) log.debug({ bucket: bucket.name, url, stored: found.stored }, "cache entry holds a body, not a HEAD answer");
+    if (!entry) bucket.missed(url);
+    const request = REQUEST(url, sent);
+    const policy = entry && CachePolicy.fromObject(entry.value.policy);
+    if (entry && policy && isFresh(bucket, entry, policy, false, request)) {
+        log.debug({ bucket: bucket.name, url, stored: entry.stored }, "served from cache");
+        return { ...entry.value, cached: true };
+    }
+    const conditional = policy ? (policy.revalidationHeaders(request) as Record<string, string>) : {};
+    const { response, ms } = await fetchRetrying(url, async (answer) => {
+        await answer.body?.cancel();
+        return {};
+    }, { ...sent, ...conditional }, "HEAD");
+    const headers = Object.fromEntries(response.headers);
+    if (entry && policy && response.status === 304) {
+        const { policy: updated, modified } = policy.revalidatedPolicy(request, { status: 304, headers });
+        log.debug({ bucket: bucket.name, url, modified }, "revalidated");
+        if (!modified) {
+            const next = toStored(updated, entry.value.status, { ...entry.value.headers, ...headers }, entry.value.value, ms);
+            await bucket.set(url, next);
+            return { ...next, revalidated: true };
+        }
+    }
+    const value = { bytes: 0, head: true as const };
+    return store(bucket, url, request, response, value, ms);
+}
+
 // A full response, kept when its policy is storable.
 async function store<T>(bucket: Bucket<Stored<T>>, url: string, request: CachePolicy.HttpRequest, response: Response, value: T, ms: number): Promise<Served<T>> {
     const headers = Object.fromEntries(response.headers);

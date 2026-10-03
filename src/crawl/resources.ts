@@ -5,7 +5,7 @@
 import { availableParallelism } from "node:os";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { Bucket, OfflineMiss } from "../cache/index.ts";
-import { fetchCached, type Stored } from "../cache/http.ts";
+import { fetchCached, fetchHeadCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
 import type { Logged } from "./frontier.ts";
 import { attemptsFor, MISMATCH, reason } from "./fetch.ts";
@@ -61,6 +61,8 @@ async function drain(response: Response, max: number, isKept = false): Promise<{
 // What the bucket keeps per URL: body bytes, the IDs of the extractors that read it, their facts and time.
 export interface Consumed {
     bytes: number;
+    // A HEAD answer, holding headers only and no body.
+    head?: true;
     read?: string[];
     facts?: Record<string, unknown>;
     ms?: number;
@@ -167,6 +169,24 @@ async function fetchRemembered(url: string, config: Config, bucket: ResourceBuck
     return result;
 }
 
+// One HEAD through the stored failure first; a fresh 5xx or unreachable answer is served, a new one stored.
+async function headRemembered(url: string, bucket: ResourceBucket, failures: FailureBucket, ttl: number, sent: Record<string, string>): Promise<ResourceResults[string]> {
+    const stored = await storedFailure(url, failures);
+    if (stored) return stored;
+    try {
+        const { status, headers, ms, cached, revalidated } = await fetchHeadCached(bucket, url, sent);
+        log.debug({ url, status, cached, revalidated }, "enclosure checked");
+        const contentType = mediaType(headers["content-type"]);
+        const cookies = cookieFacts(headers["set-cookie"], headers.date);
+        const result: ResourceResults[string] = { status, headers: redactHeaders(headers), ...(contentType && { "content-type": contentType }), size: { body: 0 }, timing: { total: ms }, ...(cookies.length > 0 && { cookies }), ...(cached && { cached }), ...(revalidated && { revalidated }) };
+        if (isFailure(result.status)) await storeFailure(url, result, failures, ttl);
+        return result;
+    } catch (error) {
+        if (error instanceof OfflineMiss) throw error;
+        return { status: 0, headers: {}, size: { body: 0 }, timing: {}, error: reason(error) };
+    }
+}
+
 // One cached or retried GET with `sent` headers; a final failure is status 0 with its error.
 async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache, sent: Record<string, string>): Promise<ResourceResults[string]> {
     try {
@@ -212,8 +232,10 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
 export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined)): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const urls = [...new Set(entries.map((entry) => entry.url))];
+    const gotten = new Set(entries.filter((entry) => entry.kind !== "enclosure").map((entry) => entry.url));
+    const headed = new Set(entries.filter((entry) => entry.kind === "enclosure" && !gotten.has(entry.url)).map((entry) => entry.url));
     const images = new Set(entries.filter((entry) => entry.kind === "image").map((entry) => entry.url));
-    log.debug({ resources: urls.length, references: entries.length, images: images.size, fetch: config.fetchResources }, "resources found");
+    log.debug({ resources: urls.length, references: entries.length, images: images.size, headed: headed.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
     const results = new Map<string, ResourceResults[string]>();
     const failures = new Bucket<Failure>(bucket.name, bucket.directory, bucket.ttlSeconds, bucket.mode);
@@ -221,7 +243,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }));
+            results.set(url, headed.has(url) && !isUsable(answer) ? await headRemembered(url, bucket, failures, config.cacheFailureTtl, ACCEPT_ENCODING) : isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }));
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);

@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import type { Facts, SiteFacts } from "../facts/types.ts";
+import sharp from "sharp";
+import { reason } from "../crawl/fetch.ts";
+import { RobotsDisallowed } from "../crawl/probe.ts";
+import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { header, linkTargets, pageRule, resolve } from "../rules/builtin.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { judgeContent, judgeTitle } from "./feed-content.ts";
 import { NS, readJson, readXml, type Dated, type Format, type Model } from "./feed-model.ts";
-import { definePlugin } from "./types.ts";
+import { definePlugin, type SiteExtractor } from "./types.ts";
 
 const ID = "feed";
 const FEED_TYPES = new Set(["application/rss+xml", "application/atom+xml", "application/rdf+xml", "application/feed+json"]);
@@ -37,6 +40,14 @@ export interface FeedEntry {
     published?: string;
 }
 
+// One enclosure the feed declares, its URL resolved and its `length` and `type` as written.
+export interface FeedEnclosure {
+    url: string;
+    length?: string;
+    type?: string;
+    position: number;
+}
+
 export interface FeedFacts {
     format: Format;
     error?: string;
@@ -52,6 +63,11 @@ export interface FeedFacts {
     archives?: Record<string, string>;
     podcast?: true;
     entries?: FeedEntry[];
+    // Every enclosure the feed declares, its URL resolved.
+    enclosures?: FeedEnclosure[];
+    // The channel `itunes:image`, resolved; the `<podcast:locked>` value, when named.
+    itunesImage?: string;
+    locked?: string;
     // Spec and content problems by rule name, each one location line.
     problems?: Record<string, string[]>;
 }
@@ -59,6 +75,7 @@ export interface FeedFacts {
 interface FeedsSettings {
     "stale-days": number;
     "max-bytes": number;
+    websub: boolean;
 }
 
 // A URL with its tracking query parameters removed; anything unparsable stays as written.
@@ -216,7 +233,23 @@ async function extract(page: Facts, body: string): Promise<FeedFacts | undefined
         return { position: item.position, ...(item.id && { id: item.id }), ...(item.link && { link: untracked(item.link, page.url.href) }), ...(item.title && { title: item.title }), ...(published && { published }) };
     });
     const updated = model.updated && isoOf(model.format, model.updated);
+    const enclosures = model.items.flatMap((item): FeedEnclosure[] => item.enclosures.flatMap((enclosure) => {
+        if (!enclosure.url || !URL.canParse(enclosure.url, page.url.href)) return [];
+        const url = new URL(enclosure.url, page.url.href);
+        url.hash = "";
+        return /^https?:$/.test(url.protocol) ? [{ url: url.href, ...(enclosure.length !== undefined && { length: enclosure.length }), ...(enclosure.type !== undefined && { type: enclosure.type }), position: item.position }] : [];
+    }));
+    const image = model.itunes.image ? resolve(model.itunes.image, page.url.href) : undefined;
+    const itunesImage = image && URL.canParse(image) && /^https?:$/.test(new URL(image).protocol) ? new URL(image).href : undefined;
     log.debug({ url: page.url.href, format, self, hubs: hubs.length, items: model.items.length, isPodcast, problems: Object.keys(problems.lists).length }, "feed read");
+    const seen = new Set((page.resources ?? []).map((resource) => `${resource.kind} ${resource.url}`));
+    for (const enclosure of enclosures) {
+        const key = `enclosure ${enclosure.url}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const url = new URL(enclosure.url);
+        (page.resources ??= []).push({ url: enclosure.url, kind: "enclosure", origin: url.origin === page.url.origin ? "same" : "cross" } satisfies ResourceFacts);
+    }
     return {
         format: model.format,
         ...(self && { self }),
@@ -230,6 +263,9 @@ async function extract(page: Facts, body: string): Promise<FeedFacts | undefined
         ...(Object.keys(model.archives).length > 0 && { archives: model.archives }),
         ...(isPodcast && { podcast: true as const }),
         entries,
+        ...(enclosures.length > 0 && { enclosures }),
+        ...(itunesImage && { itunesImage }),
+        ...(model.locked !== undefined && { locked: model.locked }),
         problems: problems.lists,
     };
 }
@@ -247,6 +283,7 @@ const DOCS = {
     xslt: "https://chromestatus.com/feature/4709671889534976",
     itunes: "https://podcasters.apple.com/support/823-podcast-requirements",
     podcast: "https://podcasting2.org/docs/podcast-namespace/tags/guid",
+    locked: "https://podcasting2.org/docs/podcast-namespace/tags/locked",
     discovery: "https://www.rssboard.org/rss-autodiscovery",
 };
 
@@ -275,6 +312,39 @@ const websub = pageRule("feeds/websub", [`${ID}.hubs`, `${ID}.self`], (page) => 
     if (!feed) return;
     return feed.hubs.length === 0 || feed.self ? [] : [{ message: `${feed.format} feed names WebSub hub ${feed.hubs.join(", ")} but no self URL to subscribe to`, value: feed.hubs }];
 }, { docs: DOCS.websub, fix: "Declare `rel=\"self\"` beside `rel=\"hub\"`, in the feed or its `Link` header." });
+
+// The first value of a header that may repeat.
+const firstHeader = (value: string | string[] | undefined): string | undefined => (Array.isArray(value) ? value[0] : value);
+
+// An enclosure HEAD answer judged against its declaration: reachability, byte and type agreement, range support.
+const enclosure = pageRule("feeds/enclosure", [`${ID}.enclosures`, "resources"], (page) => {
+    const feed = parsed(page);
+    if (!feed?.enclosures || !feed.podcast) return;
+    const answers = new Map((page.resources ?? []).filter((resource) => resource.kind === "enclosure").map((resource) => [resource.url, resource.http]));
+    const locations = feed.enclosures.flatMap(({ url, length: declaredLength, type: declaredType, position }) => {
+        const answer = answers.get(url);
+        if (!answer) return [];
+        if (answer.status < 200 || answer.status > 299) return [`item ${position} ${url} answers ${answer.status}`];
+        const faults = [];
+        const length = firstHeader(answer.headers["content-length"]);
+        if (length !== undefined && declaredLength !== undefined && length !== declaredLength) faults.push(`serves ${length} bytes, the feed declares ${declaredLength}`);
+        const type = firstHeader(answer.headers["content-type"])?.split(";", 1)[0]?.trim().toLowerCase();
+        if (type !== undefined && declaredType !== undefined && type !== declaredType.toLowerCase()) faults.push(`serves ${type}, the feed declares ${declaredType}`);
+        const ranges = [answer.headers["accept-ranges"] ?? []].flat().join(",").toLowerCase();
+        if (!ranges.split(",").map((token) => token.trim()).includes("bytes")) faults.push("sends no Accept-Ranges: bytes");
+        return faults.map((fault) => `item ${position} ${url} ${fault}`);
+    });
+    log.debug({ rule: "feeds/enclosure", url: page.url.href, enclosures: feed.enclosures.length, locations: locations.length }, "enclosures judged");
+    return locations.length === 0 ? [] : [{ message: `${feed.format} feed enclosures disagree with their host: ${locations[0]}${locations.length > 1 ? ` and ${locations.length - 1} more` : ""}`, value: locations.length, locations }];
+}, { docs: DOCS.itunes, fix: "Serve every enclosure with its declared Content-Type and Content-Length over a host answering HEAD and byte ranges." });
+
+// A podcast feed without `<podcast:locked>`, which leaves the feed importable anywhere.
+const podcastLocked = pageRule("feeds/podcast-locked", [`${ID}.locked`], (page) => {
+    const feed = parsed(page);
+    if (!feed?.podcast) return;
+    if (feed.locked === undefined) return [{ message: `${feed.format} podcast feed sets no podcast:locked, so any platform may import it` }];
+    return feed.locked === "yes" || feed.locked === "no" ? [] : [{ message: `${feed.format} podcast feed locks with “${feed.locked}”, which is neither yes nor no`, value: feed.locked }];
+}, { docs: DOCS.locked, fix: "Add `<podcast:locked>yes</podcast:locked>` to keep the feed where it is, or `no` to let platforms import it." });
 
 // A rule reporting one problem list the extractor filled, one finding per feed with each problem as a location; `podcast` rules skip other feeds.
 function problemRule(name: string, label: string, reference: string, fix: string, isPodcast = false): [string, Make] {
@@ -480,9 +550,115 @@ const archive = siteRule("feeds/archive", [`${ID}.archives`, `${ID}.problems.arc
     }),
 ], { docs: DOCS.archive, fix: "Point `prev-archive`, `next-archive` and `current` at feed documents that answer 200, and drop them from a complete feed." });
 
+const ARTWORK_MIN = 1400;
+const ARTWORK_MAX = 3000;
+const ARTWORK_TYPES = new Map([["jpeg", "JPEG"], ["png", "PNG"]]);
+
+// What a `itunes:image` URL answered: its served type, format and pixel sizes.
+export interface FeedImageFile {
+    status: number;
+    type?: string;
+    format?: string;
+    width?: number;
+    height?: number;
+    error?: string;
+}
+
+export interface FeedImagesFacts {
+    declared: string[];
+    files: Record<string, FeedImageFile>;
+    "itunes-image": string[];
+}
+
+// The pixel sizes of an image body; an unrecognised body has no format.
+async function measureImage(url: string, bytes: Buffer): Promise<Pick<FeedImageFile, "format" | "width" | "height">> {
+    try {
+        const metadata = await sharp(bytes, { limitInputPixels: 50_000_000 }).metadata();
+        return { format: metadata.format, width: metadata.width, height: metadata.height };
+    } catch (error) {
+        log.debug({ url, error: reason(error) }, "podcast artwork is no image");
+        return {};
+    }
+}
+
+// Every channel artwork the origin’s podcast feeds name, fetched once, measured and judged.
+const feedImages: SiteExtractor = {
+    id: "feed-images",
+    per: "origin",
+    crawled: true,
+    async extract(origin, context) {
+        const declared = [...new Set(context.pages.flatMap((page) => {
+            const feed = page.feed as FeedFacts | undefined;
+            return feed?.podcast && feed.itunesImage ? [feed.itunesImage] : [];
+        }))];
+        if (declared.length === 0) return;
+        const fetchOne = async (url: string): Promise<FeedImageFile> => {
+            try {
+                const answer = await (new URL(url).origin === origin ? context.fetch : context.delegated)(url, { redirect: "follow", binary: true });
+                const isOk = answer.status >= 200 && answer.status <= 299;
+                const measured = isOk && answer.bytes ? await measureImage(url, answer.bytes) : {};
+                log.debug({ url, status: answer.status, ...measured }, "podcast artwork fetched");
+                const type = answer.headers["content-type"];
+                return { status: answer.status, ...(typeof type === "string" && { type }), ...measured };
+            } catch (error) {
+                log.debug({ url, error: reason(error) }, "podcast artwork unreachable");
+                return { status: 0, error: error instanceof RobotsDisallowed ? "robots.txt disallows it" : reason(error) };
+            }
+        };
+        const files = Object.fromEntries(await Promise.all(declared.map(async (url) => [url, await fetchOne(url)] as const)));
+        const problems = declared.flatMap((url) => {
+            const file = files[url] as FeedImageFile;
+            if (file.error) return [`${url} does not answer (${file.error})`];
+            if (file.status < 200 || file.status > 299) return [`${url} answers ${file.status}`];
+            if (!file.format) return [`${url} is not an image (${file.type || "no type"})`];
+            if (!ARTWORK_TYPES.has(file.format)) return [`${url} is ${file.format}, not JPEG or PNG`];
+            if (file.width !== file.height) return [`${url} is ${file.width}x${file.height}, not square`];
+            const width = file.width ?? 0;
+            return width < ARTWORK_MIN || width > ARTWORK_MAX ? [`${url} is ${file.width} px wide, Apple wants ${ARTWORK_MIN}–${ARTWORK_MAX}`] : [];
+        });
+        log.debug({ origin, declared: declared.length, problems: problems.length }, "podcast artwork measured");
+        return { declared, files, "itunes-image": problems } satisfies FeedImagesFacts;
+    },
+};
+
+export interface FeedHubsFacts {
+    hubs: string[];
+    problems: string[];
+}
+
+// Every WebSub hub the origin’s feeds declare, asked once whether it answers a discovery request.
+const feedHubs: SiteExtractor = {
+    id: "feed-hubs",
+    per: "origin",
+    crawled: true,
+    async extract(origin, context) {
+        const hubs = [...new Set(context.pages.flatMap((page) => {
+            const feed = page.feed as FeedFacts | undefined;
+            return feed && !feed.error ? feed.hubs : [];
+        }))];
+        if (hubs.length === 0) return;
+        if (!(context.settings as FeedsSettings | undefined)?.websub) {
+            log.info({ origin, hubs: hubs.length }, "feeds/websub-hub skipped: opt in with org.spiderlint.feeds.websub");
+            return;
+        }
+        const problems: string[] = [];
+        for (const hub of hubs) {
+            try {
+                const answer = await (new URL(hub).origin === origin ? context.fetch : context.delegated)(hub, { redirect: "follow" });
+                log.debug({ hub, status: answer.status }, "websub hub probed");
+                if (answer.status < 200 || answer.status > 299) problems.push(`${hub} answers ${answer.status}`);
+            } catch (error) {
+                log.debug({ hub, error: reason(error) }, "websub hub unreachable");
+                if (!(error instanceof RobotsDisallowed)) problems.push(`${hub} does not answer (${reason(error)})`);
+            }
+        }
+        log.debug({ origin, hubs: hubs.length, problems: problems.length }, "websub hubs probed");
+        return { hubs, problems } satisfies FeedHubsFacts;
+    },
+};
+
 // Head links announcing a feed type the target is not, or a target that is no feed at all; one finding per target.
-const discoveryType: Make = (severity) => ({
-    meta: { id: "feeds/discovery-type", severity, scope: "site", facts: ["html.head.links", ID], docs: DOCS.discovery, fix: "Give each `rel=alternate` the type the feed is served as, and point it at the feed itself." },
+const discoveryType: Make = (severity) => ({    meta: { id: "feeds/discovery-type", severity, scope: "site", facts: ["html.head.links", ID], docs: DOCS.discovery, fix: "Give each `rel=alternate` the type the feed is served as, and point it at the feed itself." },
     check(pages: Facts[]) {
         const index = indexOf(pages);
         const findings: Finding[] = [];
@@ -534,6 +710,8 @@ const RULES: Record<string, Make> = {
     "feeds/archive": archive,
     "feeds/discovery-type": discoveryType,
     "feeds/discovery": discovery,
+    "feeds/enclosure": enclosure,
+    "feeds/podcast-locked": podcastLocked,
 };
 
 export default definePlugin({
@@ -541,10 +719,11 @@ export default definePlugin({
     settings: {
         type: "object",
         additionalProperties: false,
-        properties: { "stale-days": { type: "integer", minimum: 1, default: 365 }, "max-bytes": { type: "integer", minimum: 1, default: 1_048_576 } },
+        properties: { "stale-days": { type: "integer", minimum: 1, default: 365 }, "max-bytes": { type: "integer", minimum: 1, default: 1_048_576 }, websub: { type: "boolean", default: false } },
     },
     extractors: [{ id: ID, inputs: ["headers.link"], extract }],
     rules: RULES,
+    sites: [feedImages, feedHubs],
     presets: {
         feeds: {
             description: "RSS, Atom and JSON Feed as readers need them: valid to their specification, content rendered, served for polling, and in step with the pages they describe",
@@ -590,8 +769,21 @@ export default definePlugin({
             },
         },
         podcasts: {
-            description: "Podcast feeds as directories require them: iTunes channel and episode tags, and a stable Podcasting 2.0 GUID",
-            rules: { "feeds/itunes-required": "warning", "feeds/podcast-guid": "warning" },
+            description: "Podcast feeds as directories require them: iTunes channel and episode tags, a stable Podcasting 2.0 GUID, reachable enclosures and directory-ready artwork",
+            rules: {
+                "feeds/itunes-required": "warning",
+                "feeds/podcast-guid": "warning",
+                "feeds/enclosure": "warning",
+                "feeds/itunes-image": { fact: "site.origins.*.feed-images.itunes-image", expect: { maxItems: 0 }, message: "podcast artwork is missing or unfit: {got}", severity: "warning", docs: DOCS.itunes, fix: "Serve the channel itunes:image as a square JPEG or PNG between 1400 and 3000 px on each side." },
+                "feeds/podcast-locked": "info",
+            },
+        },
+        websub: {
+            description: "WebSub as subscribers need it: every feed naming its self URL beside its hub, each hub probed once; probing opts in with org.spiderlint.feeds.websub",
+            rules: {
+                "feeds/websub": "warning",
+                "feeds/websub-hub": { fact: "site.origins.*.feed-hubs.problems", expect: { maxItems: 0 }, message: "declared WebSub hub does not answer: {got}", severity: "warning", docs: DOCS.websub, fix: "Point each rel=hub link at a hub that answers 200, or remove it." },
+            },
         },
     },
 });

@@ -4,6 +4,8 @@
 
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import sharp from "sharp";
+import { podcastGuid } from "../../src/plugins/feeds.ts";
 
 export interface FeedSite {
     origin: string;
@@ -31,8 +33,8 @@ const QUOTED = `<p>MDX looks like this:</p><pre><code>import Callout from './Cal
 const escape = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 // Each path with its status, headers and body, `ORIGIN` standing for the served origin.
-const FILES: Record<string, [number, Record<string, string>, string]> = {
-    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a>`)],
+const FILES: Record<string, [number, Record<string, string>, string | Buffer]> = {
+    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a> <a href="/cast.xml">Cast</a> <a href="/cast-bad.xml">Bad cast</a>`)],
     "/about": [200, { "content-type": HTML }, page("en", "About", `<link rel="alternate" type="application/atom+xml" href="/feed.xml"><link rel="alternate" type="application/rss+xml" href="/posts/1">`, "")],
     "/posts/1": [200, { "content-type": HTML }, page("en", "First post", `${HEAD}<link rel="canonical" href="/posts/1"><meta property="article:published_time" content="2026-09-01T10:00:00Z">`, "")],
     "/posts/2": [200, { "content-type": HTML }, page("en", "Another name", `${HEAD}<link rel="canonical" href="/posts/two"><meta property="article:published_time" content="2026-09-20T10:00:00Z"><link rel="alternate" type="application/rss+xml" href="/joins.xml">`, "")],
@@ -86,16 +88,65 @@ const FILES: Record<string, [number, Record<string, string>, string]> = {
 <item><title>Gone</title><link>ORIGIN/missing</link><guid isPermaLink="false">j2</guid></item>
 <item><title>Second</title><link>ORIGIN/posts/2</link><guid isPermaLink="false">j3</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate></item>
 </channel></rss>`],
+    "/cast.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel>
+<title>Cast</title><link>ORIGIN/</link><description>Cast</description><language>en</language><ttl>60</ttl>
+<managingEditor>ana@example.org (Ana Silva)</managingEditor><lastBuildDate>Tue, 15 Sep 2026 10:00:00 +0000</lastBuildDate>
+<atom:link rel="self" href="ORIGIN/cast.xml"/><atom:link rel="hub" href="ORIGIN/hub"/>
+<itunes:image href="ORIGIN/cover-good.jpg"/><itunes:category text="Technology"/><itunes:explicit>false</itunes:explicit><itunes:author>Ana</itunes:author>
+<podcast:guid>CASTGUID</podcast:guid><podcast:locked>yes</podcast:locked>
+<item><title>First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">cast-1</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>Rendered</p>]]></description>
+<enclosure url="ORIGIN/ep-good.mp3" length="128" type="audio/mpeg"/>
+<itunes:duration>3600</itunes:duration></item>
+</channel></rss>`],
+    "/cast-bad.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel>
+<title>Cast bad</title><link>ORIGIN/</link><description>Bad</description><language>en</language><ttl>60</ttl>
+<managingEditor>ana@example.org (Ana Silva)</managingEditor><lastBuildDate>Tue, 15 Sep 2026 10:00:00 +0000</lastBuildDate>
+<atom:link rel="self" href="ORIGIN/cast-bad.xml"/><atom:link rel="hub" href="ORIGIN/dead-hub"/>
+<itunes:image href="ORIGIN/cover.jpg"/><itunes:category text="Technology"/><itunes:explicit>false</itunes:explicit><itunes:author>Ana</itunes:author>
+<podcast:guid>CASTBADGUID</podcast:guid>
+<item><title>First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">cb-1</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>Rendered</p>]]></description>
+<enclosure url="ORIGIN/ep-length.mp3" length="999999" type="audio/mpeg"/>
+<itunes:duration>3600</itunes:duration></item>
+<item><title>First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">cb-2</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>Rendered</p>]]></description>
+<enclosure url="ORIGIN/ep-text.mp3" length="9" type="audio/mpeg"/>
+<itunes:duration>3600</itunes:duration></item>
+<item><title>First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">cb-3</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>Rendered</p>]]></description>
+<enclosure url="ORIGIN/ep-plain.mp3" length="32" type="audio/mpeg"/>
+<itunes:duration>3600</itunes:duration></item>
+<item><title>First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">cb-4</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>Rendered</p>]]></description>
+<enclosure url="ORIGIN/ep-gone.mp3" length="10" type="audio/mpeg"/>
+<itunes:duration>3600</itunes:duration></item>
+</channel></rss>`],
+    "/ep-good.mp3": [200, { "content-type": "audio/mpeg", "content-length": "128", "accept-ranges": "bytes" }, `ID3${"x".repeat(125)}`],
+    "/ep-length.mp3": [200, { "content-type": "audio/mpeg", "content-length": "64", "accept-ranges": "bytes" }, "y".repeat(64)],
+    "/ep-text.mp3": [200, { "content-type": "text/plain", "content-length": "9", "accept-ranges": "bytes" }, "not audio"],
+    "/ep-plain.mp3": [200, { "content-type": "audio/mpeg", "content-length": "32" }, "z".repeat(32)],
+    "/hub": [200, { "content-type": "text/plain" }, "hub"],
 };
 
 // Serves FILES, anything else as an HTML 404.
 export async function serveFeeds(): Promise<FeedSite> {
     let origin = "";
+    const good = await sharp({ create: { width: 1400, height: 1400, channels: 3, background: { r: 10, g: 20, b: 30 } } }).jpeg().toBuffer();
+    const bad = await sharp({ create: { width: 100, height: 50, channels: 3, background: { r: 200, g: 0, b: 0 } } }).png().toBuffer();
+    const images: Record<string, [number, Record<string, string>, Buffer]> = {
+        "/cover-good.jpg": [200, { "content-type": "image/jpeg" }, good],
+        "/cover.jpg": [200, { "content-type": "image/png" }, bad],
+    };
     const server: Server = createServer((request, response) => {
         const pathname = new URL(request.url ?? "/", "http://feeds").pathname;
-        const [status, headers, body] = FILES[pathname] ?? [404, { "content-type": HTML }, page("en", "Not found", "", "")];
+        const [status, headers, body] = images[pathname] ?? FILES[pathname] ?? [404, { "content-type": HTML } as Record<string, string>, page("en", "Not found", "", "")];
+        const text = typeof body === "string" ? body.replaceAll("ORIGIN", () => origin).replaceAll("CASTBADGUID", () => podcastGuid(`${origin}/cast-bad.xml`)).replaceAll("CASTGUID", () => podcastGuid(`${origin}/cast.xml`)) : body;
         if (headers.etag && request.headers["if-none-match"] === headers.etag) response.writeHead(304, headers).end();
-        else response.writeHead(status, { date: "Fri, 02 Oct 2026 12:00:00 GMT", ...headers }).end(body.replaceAll("ORIGIN", () => origin));
+        else if (request.method === "HEAD") response.writeHead(status, { date: "Fri, 02 Oct 2026 12:00:00 GMT", ...headers }).end();
+        else response.writeHead(status, { date: "Fri, 02 Oct 2026 12:00:00 GMT", ...headers }).end(text);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -92,6 +92,8 @@ export interface Model {
     namespaces: Set<string>;
     itunes: Record<string, string>;
     podcastGuid?: string;
+    // The `<podcast:locked>` value, when the channel names one.
+    locked?: string;
     items: Item[];
 }
 
@@ -215,6 +217,7 @@ function readRss(root: Node, namespaces: Set<string>, base: string): Model {
     const links = atomLinks(channel, base);
     const missing = [...(channel ? ["title", "link", "description"].filter((name) => !childOf(channel, name, ns)) : ["channel"]), ...(!isRdf && !root.attributes.version ? ["version attribute"] : [])];
     const podcastGuid = textOf(childOf(channel, "guid", NS.podcast));
+    const locked = textOf(childOf(channel, "locked", NS.podcast));
     return {
         format: "rss",
         ...(root.attributes.version && { version: root.attributes.version }),
@@ -234,6 +237,7 @@ function readRss(root: Node, namespaces: Set<string>, base: string): Model {
         namespaces,
         itunes: itunesOf(channel),
         ...(podcastGuid && { podcastGuid }),
+        ...(locked !== undefined && { locked }),
         items: items.map((node, index) => rssItem(node, index + 1, isRdf)),
     };
 }

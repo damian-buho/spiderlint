@@ -48,7 +48,10 @@ SPDX-License-Identifier: MIT
 - Item content is read as a reader renders it: unrendered Markdown or MDX, template placeholders, relative links and images, double escaping and markup readers strip are each named with the item they sit in.
 - Every item is compared with the page it links: a link that fails or redirects, a title, date or language that disagrees, a canonical URL the feed bypasses.
 - How the feed is served for polling is judged too: its type and encoding, conditional requests, caching, size, and an XSL style sheet Chrome no longer applies.
-- Podcast feeds can be checked for what directories require, as an opt-in.
+- Podcast feeds can be checked for what directories require, as an opt-in: the iTunes channel and episode tags, a stable Podcasting 2.0 GUID, a `podcast:locked` policy, and artwork Apple accepts — square JPEG or PNG, 1400–3000 px per side.
+- Every enclosure is answered once with HEAD and judged against its declaration: reachability, byte and type agreement, and byte-range support, which Apple requires of episode hosts.
+- A declared WebSub hub can be probed with a discovery request, opt-in only.
+- A podcast directory requires RSS 2.0 with the iTunes and content namespaces declared, a unique enclosure with URL, length and type per episode, a GUID per episode that never changes, and RFC 2822 dates.
 
 ### One finding per template, not per page
 

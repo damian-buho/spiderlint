@@ -219,7 +219,7 @@ export interface RobotsFacts {
 
 export interface ResourceFacts {
     url: string;
-    kind: "script" | "style" | "image" | "font" | "iframe" | "preload" | "manifest";
+    kind: "script" | "style" | "image" | "font" | "iframe" | "preload" | "manifest" | "enclosure";
     origin: "same" | "cross";
     integrity?: string;
     crossorigin?: string;

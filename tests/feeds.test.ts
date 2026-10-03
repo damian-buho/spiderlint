@@ -41,6 +41,8 @@ describe("feeds", () => {
             "feeds/double-escaped /spec.xml",
             "feeds/duplicate-id /spec.xml",
             "feeds/email /spec.xml",
+            "feeds/enclosure /cast-bad.xml",
+            "feeds/enclosure /podcast.xml",
             "feeds/id-tracking /spec.xml",
             "feeds/item-canonical /joins.xml",
             "feeds/item-date /joins.xml",
@@ -48,6 +50,7 @@ describe("feeds", () => {
             "feeds/item-status /joins.xml",
             "feeds/item-title /joins.xml",
             "feeds/item-title /spec.xml",
+            "feeds/itunes-image ",
             "feeds/itunes-required /podcast.xml",
             "feeds/json-version /old.json",
             "feeds/language /spec.xml",
@@ -55,6 +58,8 @@ describe("feeds", () => {
             "feeds/page-language /joins.xml",
             "feeds/permalink /spec.xml",
             "feeds/podcast-guid /podcast.xml",
+            "feeds/podcast-locked /cast-bad.xml",
+            "feeds/podcast-locked /podcast.xml",
             "feeds/raw-markup /mdx.xml",
             "feeds/relative-url /spec.xml",
             "feeds/required /atom-bad.xml",
@@ -94,6 +99,38 @@ describe("feeds", () => {
         const feed = report.pages.find((page) => page.url.pathname === "/feed.xml")?.feed as { entries: { link: string }[] };
         assert.deepEqual(feed.entries.map((entry) => entry.link), [`${site.origin}/posts/1`]);
         assert.ok(report.pages.every((page) => !page.url.search.includes("utm_")));
+    });
+
+    it("passes a conforming podcast feed and faults every enclosure of a bad one", () => {
+        assert.deepEqual(report.findings.filter((finding) => finding.url === `${site.origin}/cast.xml`).map((finding) => finding.rule), []);
+        assert.deepEqual(locations("feeds/enclosure", "/cast-bad.xml"), [
+            "item 1 /ep-length.mp3 serves 64 bytes, the feed declares 999999",
+            "item 2 /ep-text.mp3 serves text/plain, the feed declares audio/mpeg",
+            "item 3 /ep-plain.mp3 sends no Accept-Ranges: bytes",
+            "item 4 /ep-gone.mp3 answers 404",
+        ]);
+        assert.deepEqual(locations("feeds/enclosure", "/podcast.xml"), ["item 1 /ep1.mp3 answers 404"]);
+    });
+
+    it("gives a feed with no enclosure no podcasts finding", () => {
+        const podcasts = new Set(["feeds/enclosure", "feeds/itunes-required", "feeds/podcast-guid", "feeds/podcast-locked"]);
+        assert.deepEqual(report.findings.filter((finding) => finding.url === `${site.origin}/feed.xml` && podcasts.has(finding.rule)), []);
+    });
+
+    it("names an unlocked podcast feed and spares a locked one", () => {
+        const locked = report.findings.filter((finding) => finding.rule === "feeds/podcast-locked").map((finding) => `${finding.url.replace(site.origin, "")} ${finding.message}`);
+        assert.deepEqual(locked, [
+            "/cast-bad.xml rss podcast feed sets no podcast:locked, so any platform may import it",
+            "/podcast.xml rss podcast feed sets no podcast:locked, so any platform may import it",
+        ]);
+    });
+
+    it("probes a declared hub only when the websub opt-in is on", async () => {
+        const off = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], sitemap: false, robots: false, cacheMode: "off" });
+        assert.deepEqual(off.findings, []);
+        const on = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], pluginSettings: { feeds: { websub: true } }, sitemap: false, robots: false, cacheMode: "off" });
+        assert.deepEqual(on.findings.map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`), ["feeds/websub-hub "]);
+        assert.match(on.findings[0]?.message ?? "", /dead-hub answers 404/);
     });
 });
 

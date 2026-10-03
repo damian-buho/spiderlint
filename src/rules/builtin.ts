@@ -365,8 +365,7 @@ export function resourceRule(id: string, isUsed: (page: Facts, resource: Resourc
 const isAnyUse = () => true;
 
 // A fetched resource answering outside 2xx, or not at all.
-const resourceStatus: Verdict = (resource, pages) => {
-    const http = resource.http;
+const resourceStatus: Verdict = (resource, pages) => {    const http = resource.http;
     if (!http || (http.status >= 200 && http.status < 300)) return;
     return http.status === 0 ? `${resource.kind} could not be fetched (${http.error}); used by ${pages} pages` : `${resource.kind} answers ${http.status}; used by ${pages} pages`;
 };
@@ -440,7 +439,7 @@ export const builtin: Record<string, Make> = {
     ...insightRules,
     ...lengthRules,
     ...relationRules,
-    "resources/status": resourceRule("resources/status", isAnyUse, resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
+    "resources/status": resourceRule("resources/status", (_page, resource) => resource.kind !== "enclosure", resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
