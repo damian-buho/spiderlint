@@ -22,6 +22,7 @@ Spiderlint crawls every page a site serves, collects facts about each request (H
 - Client-rendered pages audited as visitors see them
 - CSS checked as browsers read it
 - The DNS behind every crawled host
+- Feeds checked the way readers see them
 - One finding per template, not per page
 - Icons fetched and measured
 - Image weight measured, not estimated
@@ -29,7 +30,7 @@ Spiderlint crawls every page a site serves, collects facts about each request (H
 - Dead links, on the site and off it
 - Mail authentication of every domain it crawls
 - Each origin checked once, beyond its pages
-- Feeds, structured data and markup checked on every page
+- Structured data and markup checked on every page
 - Speed problems found without a browser
 - Privacy before consent
 - Sites on any network, crawled politely
@@ -158,7 +159,7 @@ For the local dev loop, `make dev-container` brings up the dev-container.
 
 Pipeline entry points:
 
-- `make analyze` — Run the heavy analysis sweep (mutation testing, benchmarks)
+- `make analyzed` — Run the heavy analysis sweep (mutation testing, benchmarks)
 - `make audited` — Re-scan the pinned dependencies and published artifacts for new vulnerabilities
 - `make check-outdated` — Report every pinned dependency that lags upstream
 - `make ready-to-publish` — Run the pseudo-CI pipeline locally — build, test and scan, without publishing

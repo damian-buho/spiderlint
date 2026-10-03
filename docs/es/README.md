@@ -24,6 +24,7 @@ Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petici�
 - Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
 - CSS revisado como lo leen los navegadores
 - El DNS detrás de cada host rastreado
+- Feeds revisados tal como los ven los lectores
 - Un hallazgo por plantilla, no por página
 - Iconos descargados y medidos
 - Peso de imágenes medido, no estimado
@@ -31,7 +32,7 @@ Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petici�
 - Enlaces rotos, dentro y fuera del sitio
 - Autenticación del correo de cada dominio que recorre
 - Cada origen comprobado una vez, más allá de sus páginas
-- Feeds, datos estructurados y marcado revisados en cada página
+- Datos estructurados y marcado revisados en cada página
 - Problemas de velocidad encontrados sin navegador
 - Privacidad antes del consentimiento
 - Sitios en cualquier red, rastreados con cortesía
@@ -160,7 +161,7 @@ Para el bucle de desarrollo local, `make dev-container` levanta el dev-container
 
 Puntos de entrada de la canalización:
 
-- `make analyze` — Ejecuta el análisis pesado (pruebas de mutación, benchmarks)
+- `make analyzed` — Ejecuta el análisis pesado (pruebas de mutación, benchmarks)
 - `make audited` — Vuelve a escanear las dependencias fijadas y los artefactos publicados en busca de vulnerabilidades nuevas
 - `make check-outdated` — Informa de cada dependencia fijada que va por detrás de su versión upstream
 - `make ready-to-publish` — Ejecuta localmente el pipeline pseudo-CI — compila, prueba y escanea, sin publicar
