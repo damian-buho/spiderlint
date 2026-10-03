@@ -20,6 +20,7 @@ describe("terminal log line", () => {
     it("drops the fields its message already says", () => {
         logColor(false);
         assert.equal(oneLine({ level: 30, msg: "109 external links probed, 13 skipped", links: 109, skipped: 13, failed: 2 }, "msg"), "109 external links probed, 13 skipped failed=2");
+        assert.equal(oneLine({ level: 40, msg: "dns, mail skipped", extractors: ["dns", "mail"] }, "msg"), "dns, mail skipped");
     });
 
     it("colors urls, in the url field and inside the message", () => {

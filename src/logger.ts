@@ -39,6 +39,7 @@ function text(value: unknown): string {
 
 // True when the message already spells `value` out as a word of its own.
 function isSaid(message: string, value: unknown): boolean {
+    if (Array.isArray(value)) return value.length > 0 && value.every((item) => isSaid(message, item));
     const said = text(value);
     for (let at = message.indexOf(said); said !== "" && at !== -1; at = message.indexOf(said, at + 1)) {
         if (!/\w/.test(message[at - 1] ?? "") && !/\w/.test(message[at + said.length] ?? "")) return true;
