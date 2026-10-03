@@ -1029,7 +1029,7 @@ Autofix stylelint findings
 
 Check for outdated npm dependencies
 
-`npm outdated || true`
+`.makefile/core/scripts/check-outdated.sh '^Package +Current' npm outdated`
 
 > Image: NODE_TOOL_IMAGE
 
