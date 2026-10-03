@@ -20,11 +20,29 @@ export interface VendorPath {
     feature?: string;
 }
 
+// A managed DNS provider, as `vendors/dns.yaml` lists it; `soa-editable` absent when unverified.
+export interface DnsProvider {
+    provider: string;
+    match: string[];
+    docs: string;
+    "soa-editable"?: boolean;
+}
+
 const FILE = new URL("../../vendors/paths.yaml", import.meta.url);
+const PROVIDERS = new URL("../../vendors/dns.yaml", import.meta.url);
 
 type Compiled = VendorPath & { isMatch: picomatch.Matcher };
 
-const cache: { paths?: Compiled[] } = {};
+const cache: { paths?: Compiled[]; providers?: (DnsProvider & { isMatch: picomatch.Matcher })[] } = {};
+
+// The provider every one of `names` belongs to; none when they span providers, or one serves none of them.
+export function dnsProvider(names: string[]): DnsProvider | undefined {
+    cache.providers ??= (parse(readFileSync(PROVIDERS, "utf8")) as DnsProvider[]).map((entry) => ({ ...entry, isMatch: picomatch(entry.match) }));
+    const found = new Set(names.map((name) => cache.providers?.find((entry) => entry.isMatch(name.toLowerCase().replace(/\.$/, "")))));
+    const [entry] = found;
+    log.debug({ names, providers: [...found].map((candidate) => candidate?.provider) }, "dns provider matched");
+    return found.size === 1 ? entry : undefined;
+}
 
 // The shipped list, read and compiled once.
 export function vendorPaths(): Compiled[] {

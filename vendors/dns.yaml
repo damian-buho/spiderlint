@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+# Managed DNS providers; a zone is theirs when every one of its name servers matches one entry’s globs.
+- provider: Cloudflare
+  match: ["*.ns.cloudflare.com"]
+  # SOA values are editable on Enterprise plans only.
+  soa-editable: false
+  docs: https://developers.cloudflare.com/dns/manage-dns-records/reference/dns-record-types/#soa
+- provider: Amazon Route 53
+  match: ["ns-*.awsdns-*.{com,net,org,co.uk}"]
+  soa-editable: true
+  docs: https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/SOA-NSrecords.html
+- provider: Azure DNS
+  match: ["ns*-*.azure-dns.{com,net,org,info}"]
+  soa-editable: true
+  docs: https://learn.microsoft.com/en-us/azure/dns/dns-zones-records#soa-records
+- provider: Google Cloud DNS
+  match: ["ns-cloud-*.googledomains.com"]
+  docs: https://docs.cloud.google.com/dns/docs/records

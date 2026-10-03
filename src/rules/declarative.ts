@@ -42,10 +42,11 @@ export function describe(value: unknown): string {
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
 }
 
-// The rule’s own sentence with `{got}` filled in, else AJV’s wording against the fact path.
+// The rule’s own sentence with `{got}` and `{field}` filled in, else AJV’s wording against the fact path.
 function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): string {
     const got = value === undefined ? "none" : describe(at(value, error.instancePath));
-    if (text) return text.replaceAll("{got}", () => got);
+    const field = error.instancePath.slice(1).replaceAll("/", ".") || fact.split(".").at(-1) as string;
+    if (text) return text.replaceAll("{got}", () => got).replaceAll("{field}", () => field);
     return value === undefined ? `${fact} is absent` : `${fact}${error.instancePath} ${error.message} (got ${got})`;
 }
 

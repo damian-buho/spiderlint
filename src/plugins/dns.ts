@@ -11,6 +11,7 @@ import { reason } from "../crawl/fetch.ts";
 import { nsName, registration, type Registration } from "../crawl/rdap.ts";
 import { parseSvcb, type Svcb } from "../crawl/svcb.ts";
 import type { Facts } from "../facts/types.ts";
+import { dnsProvider } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
@@ -352,8 +353,10 @@ const nameservers: SiteExtractor = {
         const parent = context.dns.canQueryDirectly ? await delegation(zone, context.dns) : undefined;
         const primary = servers.find((server) => server.authoritative)?.addresses[0];
         const [soa, ttl] = await Promise.all([soaOf(zone, names, context.dns), primary ? ttlsOf(zone, host, primary, context.dns) : undefined]);
-        log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"], delegation: parent, primary }, "name servers read");
-        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement, ...(parent && { delegation: { servers: parent, matches: isSameSet(parent, own) } }), ...(soa && { soa }), ...(ttl && { ttl }) };
+        const managed = own.length > 0 ? dnsProvider(own) : undefined;
+        const provider = managed && { name: managed.provider, ...(managed["soa-editable"] !== undefined && { "soa-editable": managed["soa-editable"] }), docs: managed.docs };
+        log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"], delegation: parent, primary, provider: provider?.name }, "name servers read");
+        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement, ...(parent && { delegation: { servers: parent, matches: isSameSet(parent, own) } }), ...(soa && { soa }), ...(ttl && { ttl }), ...(provider && { provider }) };
     },
 };
 
@@ -700,8 +703,8 @@ const RULES: Record<string, RuleSpec> = {
     "dns/soa-timers": {
         fact: "site.hosts.*.nameservers.soa",
         expect: { properties: { refresh: { minimum: 1200, maximum: 43_200 }, expire: { minimum: 1_209_600, maximum: 2_419_200 }, minimum: { minimum: 300, maximum: 86_400 }, "retry-below-refresh": { const: true }, "mname-listed": { const: true } } },
-        when: { "site.hosts.*.nameservers.soa": { type: "object" } },
-        message: "the SOA timers or its primary name server fall outside what RFC 1912 recommends (got {got})",
+        when: { "site.hosts.*.nameservers.soa": { type: "object" }, "site.hosts.*.nameservers.provider.soa-editable": { not: { const: false } } },
+        message: "the SOA {field} is {got}, outside what RFC 1912 §2.2 recommends: refresh 1200–43200 s, retry below refresh, expire 1209600–2419200 s, minimum 300–86400 s, a listed name server as primary",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.2",
         fix: "Set the SOA of `{domain}` to refresh 7200, retry 3600, expire 1209600 and minimum 3600, with one of its name servers as the primary.",

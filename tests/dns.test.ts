@@ -18,6 +18,7 @@ import { BOOTSTRAP } from "../src/crawl/rdap.ts";
 import { parseSvcb } from "../src/crawl/svcb.ts";
 import { extractSites } from "../src/facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "../src/facts/types.ts";
+import { dnsProvider } from "../src/facts/vendors.ts";
 import dns, { isSpecialUse } from "../src/plugins/dns.ts";
 import mail from "../src/plugins/mail.ts";
 import { compileRulesets } from "../src/rules/rulesets.ts";
@@ -156,6 +157,17 @@ describe("dns plugin", () => {
         assert.deepEqual(servers.soa, { mname: "ns1.good.fixture", refresh: 3600, retry: 600, expire: 1_209_600, minimum: 300, "retry-below-refresh": true, "mname-listed": true });
         assert.deepEqual(servers.ttl, { ns: 300, a: 300, aaaa: 300 });
         assert.deepEqual(findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl"), ["dns/ttl"]);
+    });
+
+    it("names the SOA field out of range and spares a zone whose provider fixes the SOA", () => {
+        const timers = { mname: "adam.ns.cloudflare.com", refresh: 10_000, retry: 2400, expire: 604_800, minimum: 1800, "retry-below-refresh": true, "mname-listed": true };
+        const run = runRules([], new Map([["default", compileRulesets(["dns/soa-timers"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers: { soa: timers } } } });
+        assert.match(run.findings[0]?.message ?? "", /^the SOA expire is 604800, outside/);
+        assert.deepEqual(dnsProvider(["adam.ns.cloudflare.com", "Lucy.NS.Cloudflare.com."])?.provider, "Cloudflare");
+        assert.deepEqual(dnsProvider(["ns-1.awsdns-01.co.uk", "ns-2.awsdns-02.org"])?.["soa-editable"], true);
+        assert.equal(dnsProvider(["adam.ns.cloudflare.com", "ns1.own.fixture"]), undefined);
+        const managed = (isEditable: boolean) => findings({ "a.fixture": { nameservers: { soa: timers, provider: { name: "X", "soa-editable": isEditable, docs: "" } } } }).filter((rule) => rule === "dns/soa-timers");
+        assert.deepEqual([managed(false), managed(true)], [[], ["dns/soa-timers"]]);
     });
 
     it("finds a CNAME at the zone apex", async () => {
