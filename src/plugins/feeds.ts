@@ -109,8 +109,9 @@ function isoOf(format: Format, date: Dated): string | undefined {
     return RFC3339.test(date.raw) && !Number.isNaN(Date.parse(date.raw)) ? new Date(date.raw).toISOString() : undefined;
 }
 
-// Whether a value is a well-formed BCP 47 tag.
+// Whether a value is a well-formed BCP 47 tag; `Intl` alone accepts bare names like `English`.
 function isLanguage(tag: string): boolean {
+    if (!/^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i.test(tag)) return false;
     try {
         return Intl.getCanonicalLocales(tag).length === 1;
     } catch {

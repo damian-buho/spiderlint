@@ -218,13 +218,15 @@ function readRss(root: Node, namespaces: Set<string>, base: string): Model {
     const missing = [...(channel ? ["title", "link", "description"].filter((name) => !childOf(channel, name, ns)) : ["channel"]), ...(!isRdf && !root.attributes.version ? ["version attribute"] : [])];
     const podcastGuid = textOf(childOf(channel, "guid", NS.podcast));
     const locked = textOf(childOf(channel, "locked", NS.podcast));
+    // RSS 2.0 names the channel date `lastBuildDate`, and `pubDate` where it means the content date.
+    const updated = dated(childOf(channel, "lastBuildDate"), "lastBuildDate") ?? dated(childOf(channel, "pubDate"), "pubDate");
     return {
         format: "rss",
         ...(root.attributes.version && { version: root.attributes.version }),
         ...(textOf(childOf(channel, "title", ns)) && { title: textOf(childOf(channel, "title", ns)) }),
         ...(textOf(childOf(channel, "link", ns)) && { link: textOf(childOf(channel, "link", ns)) }),
         ...((textOf(childOf(channel, "language")) ?? textOf(childOf(channel, "language", NS.dc))) && { language: textOf(childOf(channel, "language")) ?? textOf(childOf(channel, "language", NS.dc)) }),
-        ...(dated(childOf(channel, "lastBuildDate"), "lastBuildDate") && { updated: dated(childOf(channel, "lastBuildDate"), "lastBuildDate") }),
+        ...(updated && { updated }),
         ...(textOf(childOf(channel, "ttl")) && { ttl: textOf(childOf(channel, "ttl")) }),
         ...(links.self?.[0] && { self: links.self[0] }),
         hubs: links.hub ?? [],
