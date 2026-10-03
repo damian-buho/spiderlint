@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { X509Certificate } from "node:crypto";
 import type { TLSSocket } from "node:tls";
-import { cookieFacts, dateSkew, redactHeaders, timingFacts, tlsFacts } from "../src/facts/transport.ts";
+import { cookieFacts, dateSkew, redactHeaders, servedVersions, timingFacts, tlsFacts } from "../src/facts/transport.ts";
 import { compileRule } from "../src/rules/declarative.ts";
 import { resolveRuleset } from "../src/rules/rulesets.ts";
 import type { Facts } from "../src/facts/types.ts";
@@ -86,5 +86,24 @@ describe("transport facts", () => {
         assert.deepEqual(small?.cert.key, { type: "RSA", bits: 1024 });
         assert.deepEqual(tlsFindings(small), ["tls/key-strength"]);
         assert.deepEqual(tlsFindings(selfSigned(["-newkey", "rsa:2048", "-sha1"])), ["tls/signature"]);
+    });
+});
+
+// A page on https://a.test served over `version`, advertising h3 at `altSvc` when given.
+function page(path: string, version: string, altSvc?: string): Facts {
+    return { url: { href: `https://a.test${path}`, origin: "https://a.test" }, http: { version, ...(altSvc && { parsed: { "alt-svc": { value: [{ protocol: "h3", authority: altSvc }], errors: [] } } }) } } as unknown as Facts;
+}
+
+describe("served HTTP version", () => {
+    it("raises a page a cold connection carried when it advertises h3 on an origin QUIC served", () => {
+        const pages = [page("/", "2.0", ":443"), page("/a", "3.0", ":443"), page("/old", "2.0")];
+        servedVersions(pages);
+        assert.deepEqual(pages.map((entry) => entry.http.version), ["3.0", "3.0", "2.0"]);
+    });
+
+    it("keeps HTTP/2 where QUIC never answered or h3 points elsewhere", () => {
+        const pages = [page("/", "2.0", ":443"), page("/b", "2.0", "cdn.test:443")];
+        servedVersions(pages);
+        assert.deepEqual(pages.map((entry) => entry.http.version), ["2.0", "2.0"]);
     });
 });

@@ -7,7 +7,7 @@ import type { EventEmitter } from "node:events";
 import type { IncomingHttpHeaders } from "node:http";
 import type { DetailedPeerCertificate, TLSSocket } from "node:tls";
 import { log } from "../logger.ts";
-import type { CookieFacts, HttpFacts, RedirectHop, TlsFacts } from "./types.ts";
+import type { CookieFacts, Facts, HttpFacts, RedirectHop, TlsFacts } from "./types.ts";
 
 const DAY = 86_400_000;
 // OpenSSL curve names to the NIST ones a certificate policy speaks.
@@ -199,4 +199,18 @@ export function tlsFacts(socket: TLSSocket | undefined, now = Date.now()): TlsFa
             ...(cert.raw?.length && { signatures: signatureFacts(cert) }),
         },
     };
+}
+
+// Raises to HTTP/3 a page a cold TCP connection carried while it advertises h3 for its own authority on an origin QUIC already served.
+export function servedVersions(pages: Facts[]): void {
+    const quic = new Set(pages.filter((page) => page.http.version === "3.0").map((page) => page.url.origin));
+    for (const page of pages) {
+        if (page.http.version === undefined || page.http.version === "3.0" || !quic.has(page.url.origin)) continue;
+        const { hostname, port } = new URL(page.url.href);
+        const own = new Set([`:${port || "443"}`, `${hostname}:${port || "443"}`]);
+        const offers = page.http.parsed?.["alt-svc"]?.value;
+        const isAdvertised = Array.isArray(offers) && offers.some((offer: { protocol?: string; authority?: string }) => offer.protocol === "h3" && own.has(offer.authority ?? ""));
+        log.debug({ url: page.url.href, observed: page.http.version, isAdvertised }, "http version of a page carried over tcp");
+        if (isAdvertised) page.http.version = "3.0";
+    }
 }

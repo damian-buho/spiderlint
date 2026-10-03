@@ -28,6 +28,7 @@ import { linkGraph } from "./facts/graph.ts";
 import { dnsClient, PROXIED_DNS } from "./crawl/dns.ts";
 import { extractSites, warnUnserved } from "./facts/sites.ts";
 import type { Facts, LinkFacts, SiteFacts } from "./facts/types.ts";
+import { servedVersions } from "./facts/transport.ts";
 import { attributeVendors, vendorFacts } from "./facts/vendors.ts";
 import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
@@ -342,6 +343,7 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
         const co2 = page.html ? co2Facts(page) : undefined;
         if (co2) page.co2 = co2;
     }
+    servedVersions(pages);
     referrers(pages, site.redirects);
     twins(pages, config.canonicalOrigin);
     site.role = config.role;

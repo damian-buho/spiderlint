@@ -153,7 +153,7 @@ Browser mode reads less of the connection than http mode: no `http.early-hints`.
 Chromium reports the TLS protocol, subject, issuer and validity; one Node handshake per
 host and address it connected to adds cipher, ALPN, fingerprint, SAN and the verdict
 when it meets the same certificate, and `http.version` follows from its ALPN (`3.0`
-over QUIC, `1.1` on plain text). A proxied run sends no handshake. It never sends conditional requests; a stored page is
+over QUIC, `1.1` on plain text). `http.version` is what the origin serves a page over, not what one connection happened to carry: a page a cold TCP connection carried reads `3.0` when its `Alt-Svc` offers h3 on its own authority and QUIC served another page of its origin. A proxied run sends no handshake. It never sends conditional requests; a stored page is
 re-rendered. A navigation Chromium turns into a download becomes a page judged
 by its headers, as http mode judges any unparsed type.
 
