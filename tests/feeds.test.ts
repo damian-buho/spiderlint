@@ -68,6 +68,7 @@ describe("feeds", () => {
             "feeds/required /spec.xml",
             "feeds/stale /atom-bad.xml",
             "feeds/stylesheet /spec.xml",
+            "feeds/summary-only /summary.xml",
             "feeds/template-leak /spec.xml",
             "feeds/title-markup /spec.xml",
             "feeds/unknown-element /spec.xml",
@@ -124,6 +125,13 @@ describe("feeds", () => {
             "/podcast.xml rss podcast feed sets no podcast:locked, so any platform may import it",
         ]);
     });
+
+    it("names a feed of teasers and spares a feed of full posts", () => {
+        const summary = report.findings.filter((finding) => finding.rule === "feeds/summary-only").map((finding) => finding.url.replace(site.origin, ""));
+        assert.deepEqual(summary, ["/summary.xml"]);
+        assert.match(report.findings.find((finding) => finding.rule === "feeds/summary-only")?.message ?? "", /7 words against 301/);
+    });
+
 
     it("probes a declared hub only when the websub opt-in is on", async () => {
         const off = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], sitemap: false, robots: false, cacheMode: "off" });

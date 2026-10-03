@@ -10,7 +10,7 @@ import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { header, linkTargets, pageRule, resolve } from "../rules/builtin.ts";
 import type { Finding, Make } from "../rules/types.ts";
-import { judgeContent, judgeTitle } from "./feed-content.ts";
+import { judgeContent, judgeTitle, wordsOf } from "./feed-content.ts";
 import { NS, readJson, readXml, type Dated, type Format, type Model } from "./feed-model.ts";
 import { definePlugin, type SiteExtractor } from "./types.ts";
 
@@ -38,6 +38,8 @@ export interface FeedEntry {
     link?: string;
     title?: string;
     published?: string;
+    // Visible words across the item’s content fields.
+    words?: number;
 }
 
 // One enclosure the feed declares, its URL resolved and its `length` and `type` as written.
@@ -230,7 +232,8 @@ async function extract(page: Facts, body: string): Promise<FeedFacts | undefined
     if (isPodcast) judgePodcast(model, problems, self ?? page.url.href);
     const entries = model.items.map((item): FeedEntry => {
         const published = (item.published ?? item.updated) && isoOf(model.format, (item.published ?? item.updated) as Dated);
-        return { position: item.position, ...(item.id && { id: item.id }), ...(item.link && { link: untracked(item.link, page.url.href) }), ...(item.title && { title: item.title }), ...(published && { published }) };
+        const words = item.contents.reduce((total, content) => total + wordsOf(content), 0);
+        return { position: item.position, ...(item.id && { id: item.id }), ...(item.link && { link: untracked(item.link, page.url.href) }), ...(item.title && { title: item.title }), ...(published && { published }), ...(words > 0 && { words }) };
     });
     const updated = model.updated && isoOf(model.format, model.updated);
     const enclosures = model.items.flatMap((item): FeedEnclosure[] => item.enclosures.flatMap((enclosure) => {
@@ -507,6 +510,17 @@ const itemDate = siteRule("feeds/item-date", [`${ID}.entries`, "html.published"]
     return Math.abs(Date.parse(published) - Date.parse(entry.published)) > DAY_MS ? [`item ${entry.position} ${entry.published}, the page says ${published}`] : [];
 }), { docs: DOCS.rss, fix: "Take the item date from the same field the page’s `article:published_time` or `datePublished` comes from." });
 
+// A feed carrying summaries where readers expect full posts: every linked page far longer than its item.
+const summaryOnly = siteRule("feeds/summary-only", [`${ID}.entries`, "html.text"], "carries summaries while the linked pages say far more", (feed, _page, index, site) => {
+    const judged = (feed.entries ?? []).flatMap((entry) => {
+        const { page, landing } = target(entry, index, site);
+        const pageWords = page?.html?.text;
+        return landing || !page || !pageWords || entry.words === undefined || !isOk(page) || pageWords < 150 ? [] : [{ entry, words: entry.words, pageWords }];
+    });
+    const short = judged.filter(({ words, pageWords }) => words < pageWords * 0.3);
+    return short.length === judged.length && judged.length > 0 ? short.map(({ entry, words, pageWords }) => `item ${entry.position}: ${words} words against ${pageWords} on the page`) : [];
+}, { docs: DOCS.rss, fix: "Put the full post text into each item’s `content:encoded`, `content` or `content_html`, not a summary." });
+
 // Pages advertising a feed through a head link, by the feed’s URL.
 function advertisers(pages: Facts[]): Map<string, { page: Facts; type: string }[]> {
     const byFeed = new Map<string, { page: Facts; type: string }[]>();
@@ -705,6 +719,7 @@ const RULES: Record<string, Make> = {
     "feeds/item-canonical": itemCanonical,
     "feeds/item-title": itemTitle,
     "feeds/item-date": itemDate,
+    "feeds/summary-only": summaryOnly,
     "feeds/page-language": pageLanguage,
     "feeds/stylesheet": stylesheet,
     "feeds/archive": archive,
@@ -764,6 +779,7 @@ export default definePlugin({
                 "feeds/discovery-type": "warning",
                 "feeds/discovery": "warning",
                 "feeds/item-title": "info",
+                "feeds/summary-only": "info",
                 "feeds/stale": "info",
                 "feeds/xslt": "info",
             },

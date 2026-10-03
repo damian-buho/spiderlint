@@ -130,6 +130,13 @@ function charsetOf(body: string): HtmlFacts["charset"] {
     return match?.[1] ? { declared: match[1], offset: Buffer.byteLength(body.slice(0, match.index + match[0].length)) } : undefined;
 }
 
+// Visible words in `<main>`, else `<body>`, scripts and styles excluded.
+function mainWords($: CheerioAPI): number {
+    const root = $($("main").length > 0 ? "main" : "body").first().clone();
+    root.find("script, style, template, noscript").remove();
+    return root.text().split(/\s+/).filter(Boolean).length;
+}
+
 // Static HTML facts from the parsed document and its source; the http fetch mode is enough.
 export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope): HtmlFacts {
     const anchors = hrefs($, "a[href]", page).map((url) => url.href);
@@ -178,5 +185,6 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
                 return { type: String($(element).attr("type") ?? "text").toLowerCase(), ...(autocomplete !== undefined && { autocomplete }), ...(inputmode !== undefined && { inputmode }) };
             })
             .get(),
+        text: mainWords($),
     };
 }

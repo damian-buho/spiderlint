@@ -32,12 +32,17 @@ const QUOTED = `<p>MDX looks like this:</p><pre><code>import Callout from './Cal
 
 const escape = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
+// A long article body, over 150 visible words, so summary-only has a page to judge against.
+const LONG = `<p>${"Resilient systems keep working when networks fail and power flickers. ".repeat(30)}</p>`;
+
 // Each path with its status, headers and body, `ORIGIN` standing for the served origin.
 const FILES: Record<string, [number, Record<string, string>, string | Buffer]> = {
-    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a> <a href="/cast.xml">Cast</a> <a href="/cast-bad.xml">Bad cast</a>`)],
+    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a> <a href="/cast.xml">Cast</a> <a href="/cast-bad.xml">Bad cast</a> <a href="/long-1">Long one</a> <a href="/long-2">Long two</a> <a href="/summary.xml">Summary</a> <a href="/full.xml">Full</a>`)],
     "/about": [200, { "content-type": HTML }, page("en", "About", `<link rel="alternate" type="application/atom+xml" href="/feed.xml"><link rel="alternate" type="application/rss+xml" href="/posts/1">`, "")],
     "/posts/1": [200, { "content-type": HTML }, page("en", "First post", `${HEAD}<link rel="canonical" href="/posts/1"><meta property="article:published_time" content="2026-09-01T10:00:00Z">`, "")],
     "/posts/2": [200, { "content-type": HTML }, page("en", "Another name", `${HEAD}<link rel="canonical" href="/posts/two"><meta property="article:published_time" content="2026-09-20T10:00:00Z"><link rel="alternate" type="application/rss+xml" href="/joins.xml">`, "")],
+    "/long-1": [200, { "content-type": HTML }, page("en", "Long one", HEAD, LONG)],
+    "/long-2": [200, { "content-type": HTML }, page("en", "Long two", HEAD, LONG)],
     "/old": [301, { location: "/posts/1" }, ""],
     "/feed.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>
@@ -129,6 +134,25 @@ const FILES: Record<string, [number, Record<string, string>, string | Buffer]> =
     "/ep-text.mp3": [200, { "content-type": "text/plain", "content-length": "9", "accept-ranges": "bytes" }, "not audio"],
     "/ep-plain.mp3": [200, { "content-type": "audio/mpeg", "content-length": "32" }, "z".repeat(32)],
     "/hub": [200, { "content-type": "text/plain" }, "hub"],
+    "/summary.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
+<title>Summary</title><link>ORIGIN/</link><description>Teasers only</description><language>en</language><ttl>60</ttl>
+<atom:link rel="self" href="ORIGIN/summary.xml"/>
+<item><title>Long one</title><link>ORIGIN/long-1</link><guid isPermaLink="false">sum-1</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description>A short teaser of the long article.</description></item>
+<item><title>Long two</title><link>ORIGIN/long-2</link><guid isPermaLink="false">sum-2</guid><pubDate>Wed, 02 Sep 2026 10:00:00 GMT</pubDate>
+<description>Another short teaser of the other article.</description></item>
+</channel></rss>`],
+    "/full.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>
+<title>Full</title><link>ORIGIN/</link><description>Everything</description><language>en</language><ttl>60</ttl>
+<atom:link rel="self" href="ORIGIN/full.xml"/>
+<item><title>Long one</title><link>ORIGIN/long-1</link><guid isPermaLink="false">full-1</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>${"Resilient systems keep working when networks fail and power flickers. ".repeat(30)}</p>]]></description></item>
+<item><title>Long two</title><link>ORIGIN/long-2</link><guid isPermaLink="false">full-2</guid><pubDate>Wed, 02 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>${"Resilient systems keep working when networks fail and power flickers. ".repeat(30)}</p>]]></description></item>
+</channel></rss>`],
+
 };
 
 // Serves FILES, anything else as an HTML 404.

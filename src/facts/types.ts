@@ -192,6 +192,8 @@ export interface HtmlFacts {
     images: { src: string; alt?: string; width?: string; height?: string; srcset?: string; loading?: string; noscript?: true }[];
     rels: Record<string, string[]>;
     inputs: { type: string; autocomplete?: string; inputmode?: string }[];
+    // Visible words in `<main>`, else `<body>`, scripts and styles excluded.
+    text?: number;
     // The language of the title and description, derived on every lint that reads it.
     detected?: DetectedFacts;
     // Author and publication date, resolved from JSON-LD then the head on every lint.
