@@ -87,6 +87,7 @@ aplica a este proyecto):
 | CVE-2026-102276 | bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102278 | bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix |
 | GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
+| CVE-2026-93748 | cache semantics |
 | GHSA-ch52-4w7c-c8xp | cache semantics |
 
 <!-- textlint-enable -->
