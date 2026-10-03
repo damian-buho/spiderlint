@@ -37,7 +37,7 @@ const LONG = `<p>${"Resilient systems keep working when networks fail and power 
 
 // Each path with its status, headers and body, `ORIGIN` standing for the served origin.
 const FILES: Record<string, [number, Record<string, string>, string | Buffer]> = {
-    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a> <a href="/cast.xml">Cast</a> <a href="/cast-bad.xml">Bad cast</a> <a href="/long-1">Long one</a> <a href="/long-2">Long two</a> <a href="/summary.xml">Summary</a> <a href="/full.xml">Full</a>`)],
+    "/": [200, { "content-type": HTML }, page("en", "Home", HEAD, `<a href="/about">About</a> <a href="/mdx.xml">MDX</a> <a href="/spec.xml">Spec</a> <a href="/atom-bad.xml">Atom</a> <a href="/old.json">JSON</a> <a href="/plain.xml">Plain</a> <a href="/podcast.xml">Podcast</a> <a href="/joins.xml">Joins</a> <a href="/cast.xml">Cast</a> <a href="/cast-bad.xml">Bad cast</a> <a href="/long-1">Long one</a> <a href="/long-2">Long two</a> <a href="/summary.xml">Summary</a> <a href="/full.xml">Full</a> <a href="/frozen.xml">Frozen</a>`)],
     "/about": [200, { "content-type": HTML }, page("en", "About", `<link rel="alternate" type="application/atom+xml" href="/feed.xml"><link rel="alternate" type="application/rss+xml" href="/posts/1">`, "")],
     "/posts/1": [200, { "content-type": HTML }, page("en", "First post", `${HEAD}<link rel="canonical" href="/posts/1"><meta property="article:published_time" content="2026-09-01T10:00:00Z">`, "")],
     "/posts/2": [200, { "content-type": HTML }, page("en", "Another name", `${HEAD}<link rel="canonical" href="/posts/two"><meta property="article:published_time" content="2026-09-20T10:00:00Z"><link rel="alternate" type="application/rss+xml" href="/joins.xml">`, "")],
@@ -152,7 +152,13 @@ const FILES: Record<string, [number, Record<string, string>, string | Buffer]> =
 <item><title>Long two</title><link>ORIGIN/long-2</link><guid isPermaLink="false">full-2</guid><pubDate>Wed, 02 Sep 2026 10:00:00 GMT</pubDate>
 <description><![CDATA[<p>${"Resilient systems keep working when networks fail and power flickers. ".repeat(30)}</p>]]></description></item>
 </channel></rss>`],
-
+    "/frozen.xml": [200, { "content-type": RSS, ...POLLED }, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
+<title>Frozen</title><link>ORIGIN/</link><description>Frozen</description><language>en</language><ttl>60</ttl>
+<atom:link rel="self" href="ORIGIN/frozen.xml"/>
+<item><title>Long one</title><link>ORIGIN/long-1</link><guid isPermaLink="false">frozen-1</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>
+<description><![CDATA[<p>${"Resilient systems keep working when networks fail and power flickers. ".repeat(30)}</p>]]></description></item>
+</channel></rss>`],
 };
 
 // Serves FILES, anything else as an HTML 404.
@@ -168,7 +174,8 @@ export async function serveFeeds(): Promise<FeedSite> {
         const pathname = new URL(request.url ?? "/", "http://feeds").pathname;
         const [status, headers, body] = images[pathname] ?? FILES[pathname] ?? [404, { "content-type": HTML } as Record<string, string>, page("en", "Not found", "", "")];
         const text = typeof body === "string" ? body.replaceAll("ORIGIN", () => origin).replaceAll("CASTBADGUID", () => podcastGuid(`${origin}/cast-bad.xml`)).replaceAll("CASTGUID", () => podcastGuid(`${origin}/cast.xml`)) : body;
-        if (headers.etag && request.headers["if-none-match"] === headers.etag) response.writeHead(304, headers).end();
+        // Frozen answers 200 with the same body to a conditional request, ignoring its validators.
+        if (pathname !== "/frozen.xml" && headers.etag && request.headers["if-none-match"] === headers.etag) response.writeHead(304, headers).end();
         else if (request.method === "HEAD") response.writeHead(status, { date: "Fri, 02 Oct 2026 12:00:00 GMT", ...headers }).end();
         else response.writeHead(status, { date: "Fri, 02 Oct 2026 12:00:00 GMT", ...headers }).end(text);
     });

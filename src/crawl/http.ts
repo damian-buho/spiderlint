@@ -129,7 +129,10 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
             async requestHandler({ request, response, body, $, contentType, enqueueLinks }) {
                 const url = new URL(request.loadedUrl ?? request.url);
                 if (!frontier.admit(request, url)) return;
-                const earlier = response.statusCode === 304 ? revalidating.get(request) : undefined;
+                const pending = revalidating.get(request);
+                const earlier = response.statusCode === 304 ? pending : undefined;
+                // A validator answered 200 with the stored body still byte-identical.
+                const isUnmodified = response.statusCode === 200 && pending !== undefined && body.toString() === pending.body;
                 const isHtml = HTML_TYPES.has(contentType.type);
                 const cap = bodies.get(request);
                 const decoded = Buffer.byteLength(body);
@@ -155,6 +158,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                         "content-type": contentType.type,
                         ...(contentType.encoding && { charset: contentType.encoding }),
                         ...(skew !== undefined && { "date-skew": skew }),
+                        ...(isUnmodified && { unmodified: true as const }),
                     },
                     ...(cap?.tls && { tls: cap.tls }),
                     ...(isHtml && { html: extractHtml($, body.toString(), url, config.scope), resources: extractResources($, url, config.maxResourcesPerPage) }),
@@ -162,7 +166,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 if (earlier) facts.http = revalidated(earlier.facts, facts);
                 revalidatedPages += earlier ? 1 : 0;
                 pages += 1;
-                log.debug({ url: url.href, status: facts.http.status, type: facts.http["content-type"], bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated }, "page fetched");
+                log.debug({ url: url.href, status: facts.http.status, type: facts.http["content-type"], bytes: facts.http.size.body, depth: facts.crawl.depth, revalidated: facts.http.revalidated, unmodified: facts.http.unmodified }, "page fetched");
                 await onPage(facts, body.toString());
                 if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");

@@ -4,6 +4,9 @@
 
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { audit, type Report } from "../src/index.ts";
 import { judgeContent } from "../src/plugins/feed-content.ts";
 import { podcastGuid } from "../src/plugins/feeds.ts";
@@ -132,7 +135,17 @@ describe("feeds", () => {
         assert.match(report.findings.find((finding) => finding.rule === "feeds/summary-only")?.message ?? "", /7 words against 301/);
     });
 
-
+    it("judges a revalidation answered 200 with an unchanged body", async () => {
+        const directory = await mkdtemp(path.join(tmpdir(), "spiderlint-frozen-"));
+        try {
+            await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
+            const second = await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
+            assert.deepEqual(second.findings.map((finding) => finding.url.replace(site.origin, "")).toSorted((a, b) => a.localeCompare(b)), ["/frozen.xml", "/spec.xml"]);
+            assert.match(second.findings.find((finding) => finding.url.endsWith("/frozen.xml"))?.message ?? "", /unchanged body/);
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
     it("probes a declared hub only when the websub opt-in is on", async () => {
         const off = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(off.findings, []);

@@ -407,9 +407,10 @@ const stale: Make = (severity, settings) => pageRule("feeds/stale", [`${ID}.entr
 }, { docs: DOCS.rss, fix: "Publish the feed with every new post, and set `lastBuildDate` or `updated` when it is rebuilt." })(severity);
 
 // A feed readers must download in full on every poll.
-const conditionalGet = pageRule("feeds/conditional-get", [`${ID}.format`, "http.headers.etag", "http.headers.last-modified"], (page) => {
+const conditionalGet = pageRule("feeds/conditional-get", [`${ID}.format`, "http.headers.etag", "http.headers.last-modified", "http.unmodified"], (page) => {
     const feed = parsed(page);
     if (!feed) return;
+    if (page.http.unmodified) return [{ message: `${feed.format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll` }];
     const isValidated = header(page, "etag") !== "" || header(page, "last-modified") !== "";
     return isValidated ? [] : [{ message: `${feed.format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll` }];
 }, { docs: "https://www.rfc-editor.org/rfc/rfc9110#section-13.1", fix: "Send `ETag` or `Last-Modified` with the feed and answer conditional requests with 304." });
