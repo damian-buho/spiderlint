@@ -164,6 +164,10 @@ Pipeline entry points:
 - `make check-outdated` — Report every pinned dependency that lags upstream
 - `make ready-to-publish` — Run the pseudo-CI pipeline locally — build, test and scan, without publishing
 
+## Documentation
+
+- [Run spiderlint from a checkout](docs/how-to/RUN-FROM-A-CHECKOUT.md)
+
 ## Policies
 
 - [How to contribute](CONTRIBUTING.md)

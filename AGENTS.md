@@ -28,7 +28,8 @@ recorded so the v1 shape does not block them.
 
 ## Key facts
 
-- Base: `b19/node:n26`, TypeScript run directly by Node (`--experimental-strip-types`), no build step — same as [textlint-server](../textlint-server/AGENTS.md)
+- Base: `b19/node:n26`, TypeScript run directly by Node (it strips types itself), no build step in the image — same as [textlint-server](../textlint-server/AGENTS.md)
+- `bin/spiderlint.js` is the `spiderlint` command: `dist/cli.js` when present, else `src/cli.ts`. `prepack` builds `dist/` with `tsconfig.build.json` (Node refuses to strip types under `node_modules`) and `postpack` deletes it; `npm link` runs the sources, see [Run from a checkout](docs/how-to/RUN-FROM-A-CHECKOUT.md)
 - Crawler: [Crawlee](https://crawlee.dev/js/docs/quick-start) 3.18 — `HttpCrawler` (cheerio) by default, `PlaywrightCrawler` on demand, both side by side when groups need both
 - Image: `damian-buho/spiderlint` with the Chromium headless shell baked in (`PLAYWRIGHT_BROWSERS_PATH`, as [d9t/mcphub](../../d9t/mcphub/AGENTS.md) does); amd64 only, because `b19/node` is
 - Config: the `org.spiderlint` projectfile subtree, read through `pf-cli get -f document org.spiderlint` — never parsed by spiderlint itself, exactly as [ignorelint](../ignorelint/docs/cli.md#configuration) reads `org.ignorelint`
