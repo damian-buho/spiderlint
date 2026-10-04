@@ -100,6 +100,7 @@ describe("carbon.txt extractor", () => {
             fetch: async (url) => ({ url, status: 404, headers: {}, body: "", redirects: [], ms: 0 }),
             delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: true, signal }),
             link: async () => ({ status: 200 }),
+            cached: () => Promise.reject(new Error("no http here")),
             address: async () => "127.0.0.1",
         };
     }

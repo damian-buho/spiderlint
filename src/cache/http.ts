@@ -26,6 +26,8 @@ export interface Served<T> {
     ms: number;
     cached?: true;
     revalidated?: true;
+    // When the answer was last confirmed by the origin: stored, revalidated or fetched, as an ISO time.
+    at?: string;
 }
 
 // A private cache, and no heuristic freshness: an origin that says nothing gets the bucket TTL instead.
@@ -60,7 +62,7 @@ export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, con
     const policy = entry && CachePolicy.fromObject(entry.value.policy);
     if (entry && policy && isFresh(bucket, entry, policy, isCapped, request)) {
         log.debug({ bucket: bucket.name, url, stored: entry.stored }, "served from cache");
-        return { ...entry.value, cached: true };
+        return { ...entry.value, cached: true, at: entry.stored };
     }
     const conditional = policy ? (policy.revalidationHeaders(request) as Record<string, string>) : {};
     const { response, value, ms } = await fetchRetrying(url, consume, { ...sent, ...conditional });
@@ -71,7 +73,7 @@ export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, con
         if (!modified) {
             const next = toStored(updated, entry.value.status, { ...entry.value.headers, ...headers }, entry.value.value, ms);
             await bucket.set(url, next);
-            return { ...next, revalidated: true };
+            return { ...next, revalidated: true, at: new Date().toISOString() };
         }
         const again = await fetchRetrying(url, consume, sent);
         return store(bucket, url, request, again.response, again.value, again.ms);
@@ -89,7 +91,7 @@ export async function fetchHeadCached(bucket: Bucket<Stored<{ bytes: number; hea
     const policy = entry && CachePolicy.fromObject(entry.value.policy);
     if (entry && policy && isFresh(bucket, entry, policy, false, request)) {
         log.debug({ bucket: bucket.name, url, stored: entry.stored }, "served from cache");
-        return { ...entry.value, cached: true };
+        return { ...entry.value, cached: true, at: entry.stored };
     }
     const conditional = policy ? (policy.revalidationHeaders(request) as Record<string, string>) : {};
     const { response, ms } = await fetchRetrying(url, async (answer) => {
@@ -103,7 +105,7 @@ export async function fetchHeadCached(bucket: Bucket<Stored<{ bytes: number; hea
         if (!modified) {
             const next = toStored(updated, entry.value.status, { ...entry.value.headers, ...headers }, entry.value.value, ms);
             await bucket.set(url, next);
-            return { ...next, revalidated: true };
+            return { ...next, revalidated: true, at: new Date().toISOString() };
         }
     }
     const value = { bytes: 0, head: true as const };
@@ -118,5 +120,5 @@ async function store<T>(bucket: Bucket<Stored<T>>, url: string, request: CachePo
     const isStorable = policy.storable();
     log.debug({ bucket: bucket.name, url, status: response.status, isStorable }, "response judged for cache");
     if (isStorable) await bucket.set(url, stored);
-    return stored;
+    return { ...stored, at: new Date().toISOString() };
 }

@@ -55,7 +55,7 @@ async function delegated(url: string): Promise<Probe> {
 // Every dns and mail extractor’s facts for `host`, keyed as the site document holds them; `mailSettings` as `org.spiderlint.mail`.
 async function extract(host: string, pages: Facts[], client: DnsClient, mailSettings: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     const signal = new AbortController().signal;
-    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated, link: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
+    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated, link: () => Promise.reject(new Error("no http here")), cached: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
     const facts: Record<string, unknown> = {};
     const extractors = [...(dns.sites ?? []), ...(mail.sites ?? [])];
     for (const extractor of extractors) {

@@ -111,8 +111,58 @@ describe("rel=me", () => {
     it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode: "off" });
         assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me", `${profile}/@other`]]);
-        assert.deepEqual(report.site.origins?.[origin]?.["rel-me"], { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`], declared: { [`${profile}/@other`]: [`${origin}/`], [`${profile}/@me`]: [`${origin}/`], [`${profile}/@gone`]: [`${origin}/`] } });
+        const { fetched, ...facts } = report.site.origins?.[origin]?.["rel-me"] as { fetched: Record<string, { status: number; at: string; cached?: true }> };
+        assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), { [`${profile}/@other`]: [200, false, undefined], [`${profile}/@me`]: [200, false, undefined], [`${profile}/@gone`]: [404, false, undefined] });
+        assert.match(report.findings[0]?.message ?? "", /\(read \d{4}-\d\d-\d\d \d\d:\d\d UTC; --refresh reads it again\)$/);
+        assert.deepEqual(facts, { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`], declared: { [`${profile}/@other`]: [`${origin}/`], [`${profile}/@me`]: [`${origin}/`], [`${profile}/@gone`]: [`${origin}/`] } });
         assert.equal(report.findings[0]?.url, `${origin}/`);
+    });
+});
+
+describe("rel=me profile cache", () => {
+    let profiles: Server;
+    let home: Server;
+    let [profile, origin] = ["", ""];
+    let isLinked = false;
+    let directory = "";
+    let previous: string | undefined;
+
+    before(async () => {
+        directory = await mkdtemp(path.join(tmpdir(), "spiderlint-profiles-"));
+        previous = process.env.XDG_CACHE_HOME;
+        process.env.XDG_CACHE_HOME = directory;
+        profiles = createServer((_request, response) => {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(isLinked ? `<a rel="me" href="${origin}/">Home</a>` : "<p>nothing</p>");
+        });
+        await new Promise<void>((resolve) => profiles.listen(0, "127.0.0.1", resolve));
+        profile = `http://127.0.0.1:${(profiles.address() as AddressInfo).port}`;
+        home = createServer((_request, response) => {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(`<html><body><a rel="me" href="${profile}/@me">Me</a></body></html>`);
+        });
+        await new Promise<void>((resolve) => home.listen(0, "127.0.0.1", resolve));
+        origin = `http://127.0.0.1:${(home.address() as AddressInfo).port}`;
+    });
+
+    after(async () => {
+        await Promise.all([profiles, home].map((server) => new Promise((resolve) => server.close(resolve))));
+        if (previous === undefined) delete process.env.XDG_CACHE_HOME;
+        else process.env.XDG_CACHE_HOME = previous;
+        await rm(directory, { recursive: true, force: true });
+    });
+
+    const seen = async (cacheMode: "use" | "refresh") => {
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode, sitemap: false });
+        const facts = report.site.origins?.[origin]?.["rel-me"] as { unverified: string[]; fetched: Record<string, { cached?: true }> };
+        return [facts.unverified.length, facts.fetched[`${profile}/@me`]?.cached];
+    };
+
+    it("answers a repeat run from the cache, and --refresh reads the profile again", async () => {
+        assert.deepEqual(await seen("use"), [1, undefined]);
+        isLinked = true;
+        assert.deepEqual(await seen("use"), [1, true], "a fresh entry is reused");
+        assert.deepEqual(await seen("refresh"), [0, undefined], "--refresh sees the new back-link");
     });
 });
 

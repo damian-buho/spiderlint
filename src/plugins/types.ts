@@ -6,6 +6,7 @@ import type { Page } from "playwright";
 import type { Paint } from "../color.ts";
 import type { DnsClient } from "../crawl/dns.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
+import type { Cached } from "../crawl/profile.ts";
 import type { Facts, LinkFacts } from "../facts/types.ts";
 import type { Report } from "../index.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
@@ -31,6 +32,8 @@ export interface Extractor {
 // What a page extractor may touch while crawling: GET or HEAD probes that stay on the page’s host; absent when a stored page is backfilled.
 export interface PageContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
+    // Whether robots.txt lets spiderlint load `url`, on any host; true when the run ignores robots.txt.
+    allowed(url: string): Promise<boolean>;
     signal: AbortSignal;
 }
 
@@ -50,6 +53,8 @@ export interface SiteContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
     // A GET or HEAD on the host `url` names, for a file the subject delegates there; the address guard and robots.txt apply.
     delegated(url: string, init?: ProbeInit): Promise<Probe>;
+    // A GET on another host answered from the `profiles` bucket while fresh, else revalidated; robots.txt applies, and the answer says when it was last confirmed.
+    cached(url: string): Promise<Cached>;
     // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;

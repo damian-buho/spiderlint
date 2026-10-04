@@ -7,7 +7,7 @@ import type { Facts } from "../facts/types.ts";
 import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import { pageRule } from "../rules/builtin.ts";
-import { definePlugin } from "./types.ts";
+import { definePlugin, type PageContext } from "./types.ts";
 import { visit, withPage } from "./visit.ts";
 
 const ID = "rel-me-live";
@@ -48,7 +48,7 @@ export function judged(pages: readonly Facts[]): Map<string, boolean> {
 }
 
 // Each external `rel=me` profile of a rendered page, loaded in a browser, and whether the page it renders names this one back with `rel=me`.
-const extract = async (page: Facts, _body: string, live?: Page): Promise<unknown> => {
+const extract = async (page: Facts, _body: string, live?: Page, context?: PageContext): Promise<unknown> => {
     if (!live) return;
     const ours = new Set([bare(`${page.url.origin}/`), bare(page.url.href)]);
     const hrefs = (await live.evaluate(ME_LINKS)) as string[];
@@ -58,6 +58,11 @@ const extract = async (page: Facts, _body: string, live?: Page): Promise<unknown
     if (targets.length === 0) return;
     const profiles: LiveProfile[] = [];
     for (const target of targets) {
+        if (context && !(await context.allowed(target))) {
+            log.info({ url: page.url.href, target }, "robots.txt disallows the profile; skipped");
+            profiles.push({ url: target, back: false, error: "robots.txt disallows it" });
+            continue;
+        }
         profiles.push(await withPage(live, async (fresh) => {
             let status: number | undefined;
             fresh.on("response", (response) => {

@@ -10,6 +10,7 @@ import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Make } from "../rules/types.ts";
+import { OfflineMiss } from "../cache/index.ts";
 import { judged } from "./profile-links.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
@@ -300,6 +301,7 @@ const meProfiles: SiteExtractor = {
     id: "rel-me",
     per: "origin",
     crawled: true,
+    cached: false,
     async extract(origin, context) {
         const ours = new Set([`${origin}/`, ...context.pages.map((page) => page.url.href)].map((href) => bare(href)));
         const declared: Record<string, string[]> = {};
@@ -315,9 +317,11 @@ const meProfiles: SiteExtractor = {
         if (targets.length === 0) return;
         const unverified: string[] = [];
         const unreachable: string[] = [];
+        const fetched: Record<string, { status: number; at: string; cached?: true; revalidated?: true }> = {};
         for (const target of targets) {
             try {
-                const answer = await context.delegated(target, { redirect: "follow" });
+                const answer = await context.cached(target);
+                fetched[target] = { status: answer.status, at: answer.at, ...(answer.cached && { cached: answer.cached }), ...(answer.revalidated && { revalidated: answer.revalidated }) };
                 const $ = load(answer.body);
                 const back = $("a[rel][href], link[rel][href]").filter((_, element) => /(?:^|\s)me(?:\s|$)/i.test(String($(element).attr("rel")))).map((_, element) => String($(element).attr("href"))).get();
                 const isBack = back.some((href) => URL.canParse(href, answer.url) && ours.has(bare(new URL(href, answer.url).href)));
@@ -325,11 +329,12 @@ const meProfiles: SiteExtractor = {
                 if (answer.status < 200 || answer.status > 299) unreachable.push(target);
                 else if (!isBack) unverified.push(target);
             } catch (error) {
+                if (error instanceof OfflineMiss) throw error;
                 log.debug({ origin, target, error: reason(error) }, "rel=me profile unreachable");
                 unreachable.push(target);
             }
         }
-        return { targets, unverified, unreachable, declared: Object.fromEntries(targets.map((target) => [target, declared[target]])) };
+        return { targets, unverified, unreachable, declared: Object.fromEntries(targets.map((target) => [target, declared[target]])), fetched };
     },
 };
 
@@ -341,11 +346,13 @@ const meBackLink: Make = (severity) => ({
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts["rel-me"] !== undefined);
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
-            const { unverified, declared } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]> };
+            const { unverified, declared, fetched } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]>; fetched?: Record<string, { at: string; cached?: true; revalidated?: true }> };
             log.debug({ rule: "links/rel-me", subject, unverified: unverified.length }, "rel=me profiles judged");
             return unverified.filter((profile) => !verdicts.has(bare(profile))).map((profile) => {
                 const pages = declared?.[profile] ?? [subject];
-                return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts`, value: profile, ...(pages.length > 1 && { urls: pages }) };
+                const seen = fetched?.[profile];
+                const when = seen ? ` (read ${seen.at.slice(0, 16).replace("T", " ")} UTC${seen.cached ? ", from the cache" : seen.revalidated ? ", confirmed unchanged" : ""}; --refresh reads it again)` : "";
+                return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts${when}`, value: profile, ...(pages.length > 1 && { urls: pages }) };
             });
         });
     },

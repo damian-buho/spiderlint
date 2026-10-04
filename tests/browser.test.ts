@@ -315,11 +315,13 @@ describe("rendered extractor cache", { skip }, () => {
 
 describe("rel=me in a browser", { skip }, () => {
     const servers: Server[] = [];
+    const requested: string[] = [];
     let [profile, origin] = ["", ""];
 
     // A server answering each path from `pages`, else 404; its origin once listening.
     async function serve(pages: () => Record<string, string>): Promise<string> {
         const server = createServer((request, response) => {
+            requested.push(request.url ?? "/");
             const body = pages()[request.url ?? "/"];
             response.writeHead(body === undefined ? 404 : 200, { "content-type": "text/html; charset=utf-8" });
             response.end(body ?? "");
@@ -330,8 +332,8 @@ describe("rel=me in a browser", { skip }, () => {
     }
 
     before(async () => {
-        profile = await serve(() => ({ "/@script": `<html><body><script>document.body.innerHTML = '<a rel="me" href="${origin}/">Home</a>'</script></body></html>`, "/@none": "<html><body>nothing</body></html>" }));
-        origin = await serve(() => ({ "/": `<html><body><a rel="me" href="${profile}/@script">Script</a><a rel="me" href="${profile}/@none">None</a></body></html>` }));
+        profile = await serve(() => ({ "/@script": `<html><body><script>document.body.innerHTML = '<a rel="me" href="${origin}/">Home</a>'</script></body></html>`, "/@none": "<html><body>nothing</body></html>", "/@blocked": "<html><body>nothing</body></html>", "/robots.txt": "User-agent: *\nDisallow: /@blocked\n" }));
+        origin = await serve(() => ({ "/": `<html><body><a rel="me" href="${profile}/@script">Script</a><a rel="me" href="${profile}/@none">None</a><a rel="me" href="${profile}/@blocked">Blocked</a></body></html>` }));
     });
 
     after(() => Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve)))));
@@ -339,5 +341,8 @@ describe("rel=me in a browser", { skip }, () => {
     it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me", "links/rel-me-rendered"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me", "links/rel-me-rendered"], sample: "all" } } });
         assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me-rendered", `${profile}/@none`]]);
+        assert.ok(!requested.includes("/@blocked"), "robots.txt keeps the browser off a disallowed profile");
+        const live = report.pages[0]?.["rel-me-live"] as { profiles: { url: string; error?: string }[] };
+        assert.equal(live.profiles.find((entry) => entry.url === `${profile}/@blocked`)?.error, "robots.txt disallows it");
     });
 });

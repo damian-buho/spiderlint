@@ -41,7 +41,7 @@ function record(name: string, algorithm: number, hash: number, digest: string): 
 // The sshfp facts of `host` with SSH on `port`, `signal` bounding the run.
 async function extract(host: string, client: DnsClient, port: number, signal = new AbortController().signal): Promise<unknown> {
     const reject = () => Promise.reject(new Error("no http here"));
-    const context: SiteContext = { pages: [], signal, dns: client, settings: { port }, fetch: reject, delegated: reject, link: reject, address: async () => "127.0.0.1" };
+    const context: SiteContext = { pages: [], signal, dns: client, settings: { port }, fetch: reject, delegated: reject, link: reject, cached: reject, address: async () => "127.0.0.1" };
     return sshfp.sites?.[0]?.extract(host, context);
 }
 

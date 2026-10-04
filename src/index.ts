@@ -458,7 +458,10 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
-            const context = { signal, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
+            const context = { signal, allowed: async (url: string) => {
+                const file = await robots?.(url);
+                return file?.isAllowed(url, "spiderlint") ?? true;
+            }, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
             const extracting = performance.now();
             const added = await extract(facts, body, chosen, extractors, live, context);
             sample.release(facts, chosen, added);
@@ -489,7 +492,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
     stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules)));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory)));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };

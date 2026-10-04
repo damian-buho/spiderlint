@@ -79,7 +79,7 @@ describe("probed browser TLS", () => {
 async function probed(origin: string, settings?: unknown): Promise<Record<string, unknown> | undefined> {
     const [extractor] = tlsProbe.sites ?? [];
     const signal = AbortSignal.timeout(60_000);
-    return extractor?.extract(origin, { pages: [], signal, settings: settings ?? { scan: true }, dns: undefined as unknown as DnsClient, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), address: async () => "127.0.0.1" }) as Promise<Record<string, unknown> | undefined>;
+    return extractor?.extract(origin, { pages: [], signal, settings: settings ?? { scan: true }, dns: undefined as unknown as DnsClient, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), cached: () => Promise.reject(new Error("no http here")), address: async () => "127.0.0.1" }) as Promise<Record<string, unknown> | undefined>;
 }
 
 // `[rule, severity]` of each `tls-probe` finding over one origin’s facts, sorted.
