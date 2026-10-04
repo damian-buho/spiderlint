@@ -52,7 +52,7 @@ b19-log info "SPIDERLINT" "$(_p "known dead-link finding: %s" "${BROKEN_LINK}")"
 [ -n "${BROKEN_LINK}" ]
 
 printf 'org:\n  spiderlint:\n    groups:\n      default:\n        rules: [recommended, browser]\n' > "${CONFIG_FILE}"
-SPIDERLINT_LOG_FORMAT=json spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}" 2> "${CONFIG_LOG}"
+SPIDERLINT_LOG_FORMAT=json SPIDERLINT_LOG_LEVEL=debug spiderlint audit "${ORIGIN}/" --config "${CONFIG_FILE}" --format json --fail-on never > "${REPORT_FILE}" 2> "${CONFIG_LOG}"
 
 CONFIG_READ="$(node -e '
 const lines = require("node:fs").readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean);
