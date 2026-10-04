@@ -8,6 +8,7 @@ rules:
     fact: site.origins.*.vendor.features
     expect: {not: {contains: {const: cloudflare/email-obfuscation}}}
     severity: info
+    score: 2.4
     message: "Cloudflare’s Email Address Obfuscation rewrites every address into a link only JavaScript decodes, so a visitor without JavaScript sees no address"
     fix: "Turn off Email Address Obfuscation in the Cloudflare dashboard under Security › Settings, or accept that visitors without JavaScript see no address."
     docs: https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
