@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Facts } from "../facts/types.ts";
+import { translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { median } from "../report/stats.ts";
 import { get } from "./declarative.ts";
@@ -53,10 +55,16 @@ function category(page: Facts, path: string): string | undefined {
     return ["string", "number", "boolean"].includes(typeof value) ? String(value) : undefined;
 }
 
-// Three significant digits, enough to tell an outlier from the median.
-function shown(value: number): string {
-    return String(Number(value.toPrecision(3)));
-}
+// The message sentences, one template each with its values passed in, so a translation can replace the template alone.
+const SENTENCES = {
+    outlier: "{label} is far above the median {median} of {count} pages: {listed}{dominates}",
+    dominates: "; {url} alone outweighs the next {count} pages combined",
+    minority: "{label} is {common} on {count} of {total} pages, but {listed}",
+};
+const english = translator("en");
+
+// Numbers as English writes them, one decimal.
+const format: NumberFormat = (value, options) => english.number(value, options);
 
 // The pages whose `path` lies far above the rest by modified z-score and by `ratio` times the median.
 function outliers(pages: Facts[], path: string, settings: NumericSettings, severity: Finding["severity"]): Finding | undefined {
@@ -75,9 +83,9 @@ function outliers(pages: Facts[], path: string, settings: NumericSettings, sever
     const [top] = far;
     if (!top) return undefined;
     const next = sorted.slice(-NEXT - 1, -1).reduce((sum, value) => sum + value, 0);
-    const dominates = sorted.length > NEXT && top.value > next ? `; ${top.url} alone outweighs the next ${NEXT} pages combined` : "";
-    const listed = far.map((entry) => `${entry.url} ${shown(entry.value)}${middle > 0 ? ` (${shown(entry.value / middle)}×)` : ""}`).join(", ");
-    return { rule: "insight/numeric-outlier", severity, scope: "site", url: top.url, message: `${path} stands far above the median ${shown(middle)} of ${measured.length} pages: ${listed}${dominates}`, value: { median: middle, ...Object.fromEntries(far.map((entry) => [entry.url, entry.value])) }, urls: far.map((entry) => entry.url) };
+    const dominates = sorted.length > NEXT && top.value > next ? english._(SENTENCES.dominates, { url: top.url, count: NEXT }) : "";
+    const listed = far.map((entry) => `${entry.url} ${withUnit(path, entry.value, format)}${middle > 0 ? ` (${format(entry.value / middle)}×)` : ""}`).join(", ");
+    return { rule: "insight/numeric-outlier", severity, scope: "site", url: top.url, message: english._(SENTENCES.outlier, { label: label(path) ?? path, median: withUnit(path, middle, format), count: measured.length, listed, dominates }), value: { median: middle, ...Object.fromEntries(far.map((entry) => [entry.url, entry.value])) }, urls: far.map((entry) => entry.url) };
 }
 
 // The pages holding a rare value of `path` while most pages share one other value.
@@ -91,7 +99,7 @@ function minority(pages: Facts[], path: string, settings: MinoritySettings, seve
     if (!top || !isDominant || total < settings["min-pages"] || rare.length === 0) return undefined;
     const urls = rare.flatMap(([, members]) => members.map((page) => page.url.href));
     const listed = rare.map(([value, members]) => `${value} on ${members.map((page) => page.url.href).join(", ")}`).join("; ");
-    return { rule: "insight/minority-value", severity, scope: "site", url: urls[0] as string, message: `${path} is ${top[0]} on ${top[1].length} of ${total} pages, but ${listed}`, value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
+    return { rule: "insight/minority-value", severity, scope: "site", url: urls[0] as string, message: english._(SENTENCES.minority, { label: label(path) ?? path, common: top[0], count: top[1].length, total, listed }), value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
 }
 
 // One finding per numeric fact whose pages hold robust outliers above the median.

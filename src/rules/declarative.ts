@@ -4,6 +4,7 @@
 
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
 import { ConfigError } from "../config/index.ts";
+import { label } from "../facts/labels.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -48,7 +49,8 @@ function message(fact: string, value: unknown, error: ErrorObject, text: string 
     const got = value === undefined ? "none" : describe(at(value, error.instancePath));
     const field = error.instancePath.slice(1).replaceAll("/", ".") || fact.split(".").at(-1) as string;
     if (text) return text.replaceAll("{got}", () => got).replaceAll("{field}", () => field);
-    return value === undefined ? `${fact} is absent` : `${fact}${error.instancePath} ${error.message} (got ${got})`;
+    const name = label(fact) ?? fact;
+    return value === undefined ? `${name} is absent` : `${name}${error.instancePath} ${error.message} (got ${got})`;
 }
 
 function severityOf(id: string, spec: RuleSpec, fallback: Severity): Exclude<Severity, "off"> {
@@ -127,7 +129,7 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
             for (const [value, urls] of byValue) {
                 if (urls.length < 2) continue;
                 log.debug({ rule: id, group, value, pages: urls.length }, "duplicate value");
-                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, message: spec.message?.replaceAll("{got}", () => describe(value)) ?? `${fact} is shared by ${urls.length} pages (${describe(value)})`, value, urls });
+                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, message: spec.message?.replaceAll("{got}", () => describe(value)) ?? `${label(fact) ?? fact} is shared by ${urls.length} pages (${describe(value)})`, value, urls });
             }
             return findings;
         },

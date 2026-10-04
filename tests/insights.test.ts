@@ -33,8 +33,16 @@ describe("insights", () => {
             ["insight/numeric-outlier", "info", ["https://site.test/p/2"]],
             ["insight/minority-value", "info", ["https://site.test/p/1"]],
         ]);
-        assert.match(found[0]?.message ?? "", /^http\.timing\.total stands far above the median 101 of 25 pages: https:\/\/site\.test\/p\/2 2000 \(19\.8×\); .* alone outweighs the next 10 pages combined$/);
-        assert.equal(found[1]?.message, "http.version is 3.0 on 24 of 25 pages, but 2.0 on https://site.test/p/1");
+        assert.match(found[0]?.message ?? "", /^Total time is far above the median 101 ms of 25 pages: https:\/\/site\.test\/p\/2 2,000 ms \(19\.8×\); .* alone outweighs the next 10 pages combined$/);
+        assert.equal(found[1]?.message, "HTTP version is 3.0 on 24 of 25 pages, but 2.0 on https://site.test/p/1");
+    });
+
+    it("writes a size in kilobytes with its ratio to the median, and keeps the raw numbers in the value", () => {
+        const rule = compileRulesets(["custom"], { custom: { rules: { "insight/numeric-outlier": { expect: { facts: ["http.size.body"] } } } } })[0] as AggregateRule;
+        const pages = Array.from({ length: 20 }, (_, index) => page(index, "3.0", 100, index === 0 ? 86_700 : 10_900 + index));
+        const [finding] = rule.check(pages) ?? [];
+        assert.match(finding?.message ?? "", /^Page size is far above the median 10\.9 kB of 20 pages: https:\/\/site\.test\/p\/0 86\.7 kB \(7\.9×\)/);
+        assert.equal((finding?.value as Record<string, number>)["https://site.test/p/0"], 86_700);
     });
 
     it("stays quiet on a site of 5 pages", () => {
