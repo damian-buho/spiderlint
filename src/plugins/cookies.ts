@@ -23,6 +23,7 @@ interface Check {
     name: string;
     item: Record<string, unknown>;
     severity: Exclude<Severity, "off">;
+    score: number;
     message: string;
     docs: string;
     fix?: string;
@@ -33,35 +34,37 @@ interface Check {
 }
 
 const CHECKS: Check[] = [
-    { name: "secure", item: { properties: { secure: { const: true } } }, isHttpsOnly: true, severity: "warning", message: "a cookie is set without the Secure flag", fix: "Add Secure to every cookie set over https:.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
-    { name: "http-only", item: { properties: { "http-only": { const: true } } }, isHeaderOnly: true, severity: "info", message: "a cookie is set without the HttpOnly flag", fix: "Add HttpOnly to cookies scripts do not need to read.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
-    { name: "same-site", item: { required: ["same-site"] }, severity: "info", message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
+    { name: "secure", item: { properties: { secure: { const: true } } }, isHttpsOnly: true, severity: "warning", score: 6.5, message: "a cookie is set without the Secure flag", fix: "Add Secure to every cookie set over https:.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
+    { name: "http-only", item: { properties: { "http-only": { const: true } } }, isHeaderOnly: true, severity: "info", score: 2.8, message: "a cookie is set without the HttpOnly flag", fix: "Add HttpOnly to cookies scripts do not need to read.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
+    { name: "same-site", item: { required: ["same-site"] }, severity: "info", score: 2.4, message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
     {
         name: "host-prefix",
         // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
         item: { if: { properties: { name: { pattern: "^(?i:__Host-)" } } }, then: { properties: { secure: { const: true }, path: { const: "/" } }, required: ["path"], not: { required: ["domain"] } } },
         severity: "warning",
+        score: 6,
         message: "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes",
         fix: "Add Secure and Path=/, and omit Domain, from every __Host- cookie.",
     },
     // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
-    { name: "secure-prefix", item: { if: { properties: { name: { pattern: "^(?i:__Secure-)" } } }, then: { properties: { secure: { const: true } } } }, severity: "warning", message: "a __Secure- cookie lacks Secure, so browsers reject it", fix: "Add Secure to every __Secure- cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes" },
+    { name: "secure-prefix", item: { if: { properties: { name: { pattern: "^(?i:__Secure-)" } } }, then: { properties: { secure: { const: true } } } }, severity: "warning", score: 5.8, message: "a __Secure- cookie lacks Secure, so browsers reject it", fix: "Add Secure to every __Secure- cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes" },
     {
         name: "same-site-none",
         // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
         item: { if: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] }, then: { properties: { secure: { const: true } } } },
         severity: "warning",
+        score: 6.3,
         message: "a SameSite=None cookie lacks Secure, so browsers reject it",
         fix: "Add Secure to every SameSite=None cookie.",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#none",
     },
-    { name: "lifetime", item: { properties: { "max-age": { maximum: 34_560_000 } } }, severity: "info", message: "a cookie outlives 400 days, which browsers cap", fix: "Set Max-Age to 34560000 seconds (400 days) or less.", docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute" },
+    { name: "lifetime", item: { properties: { "max-age": { maximum: 34_560_000 } } }, severity: "info", score: 1.8, message: "a cookie outlives 400 days, which browsers cap", fix: "Set Max-Age to 34560000 seconds (400 days) or less.", docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute" },
 ];
 
 // The check over every cookie of `fact`, a page rule that folds by group.
 function over(fact: string, check: Check): RuleSpec {
-    return { fact, expect: { type: "array", items: check.item }, ...(check.isHttpsOnly && { when: { "url.protocol": "https:" } }), severity: check.severity, message: check.message, docs: check.docs, ...(check.fix && { fix: check.fix }) };
+    return { fact, expect: { type: "array", items: check.item }, ...(check.isHttpsOnly && { when: { "url.protocol": "https:" } }), severity: check.severity, score: check.score, message: check.message, docs: check.docs, ...(check.fix && { fix: check.fix }) };
 }
 
 // The check over each resource’s own Set-Cookie, keyed by resource URL with the pages that load it.
@@ -124,6 +127,7 @@ const BEFORE_CONSENT: RuleSpec = {
     fact: "consent.cookies",
     expect: { type: "array", items: { not: { anyOf: [{ properties: { party: { const: "third" } }, required: ["party"] }, { properties: { name: { pattern: TRACKING } }, required: ["name"] }] } } },
     severity: "info",
+    score: 2.6,
     message: "a third-party or tracking cookie is set on first load, before any interaction ({got})",
     fix: "Set analytics and advertising cookies only after the visitor agrees, or drop them.",
     docs: "https://eur-lex.europa.eu/eli/dir/2002/58/art_5/oj",
@@ -133,6 +137,7 @@ const STORAGE_BEFORE_CONSENT: RuleSpec = {
     fact: "consent.storage",
     expect: { type: "array", maxItems: 0 },
     severity: "info",
+    score: 2.2,
     message: "scripts write localStorage or sessionStorage on first load, before any interaction ({got})",
     fix: "Write only what the page strictly needs before the visitor agrees, such as a theme or a cart, and nothing that identifies them.",
     docs: "https://eur-lex.europa.eu/eli/dir/2002/58/art_5/oj",
@@ -144,7 +149,7 @@ export default definePlugin({
     extractors: [consent],
     rules: RESOURCES,
     presets: {
-        cookies: { description: "Secure, HttpOnly and SameSite on every cookie a page or resource sets, valid __Host- and __Secure- prefixes, and a lifetime browsers keep", rules: { ...PAGE, ...Object.fromEntries(CHECKS.map((check) => [`cookies/resource-${check.name}`, check.severity])) } },
+        cookies: { description: "Secure, HttpOnly and SameSite on every cookie a page or resource sets, valid __Host- and __Secure- prefixes, and a lifetime browsers keep", rules: { ...PAGE, ...Object.fromEntries(CHECKS.map((check) => [`cookies/resource-${check.name}`, { severity: check.severity, score: check.score }])) } },
         "cookies:browser": { description: "The cookie expectations over what scripts write through document.cookie", rules: SCRIPTS },
         privacy: { description: "Tracking vendors, and third-party or tracking cookies and web storage set before any interaction", extends: ["spiderlint:trackers"], when: { "http.status": { minimum: 200, maximum: 299 } }, rules: { "cookies/before-consent": BEFORE_CONSENT, "cookies/storage-before-consent": STORAGE_BEFORE_CONSENT } },
     },
