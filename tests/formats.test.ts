@@ -183,10 +183,11 @@ describe("formatHtml", () => {
         assert.ok(!formatAgent(report).includes(`✓`));
     });
 
-    it("names each statistic by its translated label with the path on hover, an unlabelled one by its path", () => {
-        const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 } };
+    it("names each labelled statistic by its translated label with the path on hover, leaves an unlabelled one out and shows a duration without a total", () => {
+        const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 }, "http.parsed.strict-transport-security.value.max-age": { count: 2, min: 300, median: 300, p95: 31_536_000, max: 31_536_000 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");
         assert.ok(html.includes('<td><span title="http.size.body">Tamaño de la página</span></td><td>2</td><td>1,5 kB</td>'), html);
-        assert.ok(html.includes("<td><code>html.text</code></td>"));
+        assert.ok(!html.includes("html.text"));
+        assert.ok(html.includes("max-age de HSTS") && html.includes("<td>–</td></tr>"), "no total for a configured limit");
     });
 });

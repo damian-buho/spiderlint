@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
-import { bytes as sized, label, withUnit } from "../facts/labels.ts";
+import { environmentLocale } from "../i18n.ts";
+import { bytes as sized, isLabelled, label, withUnit } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor } from "../rules/fix.ts";
 import { byImportance, scoreOf } from "../rules/score.ts";
@@ -25,7 +26,7 @@ const MINUS = "\u{2212}";
 
 // The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
 function number(value: number, options: Intl.NumberFormatOptions = {}): string {
-    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1, ...options }).formatToParts(value).map((part) => (part.type === "group" ? "\u{202F}" : part.value)).join("");
+    return new Intl.NumberFormat(environmentLocale(), { maximumFractionDigits: 1, ...options }).formatToParts(value).map((part) => (part.type === "group" ? "\u{202F}" : part.value)).join("");
 }
 
 // A count and its noun, plural unless it is exactly one.
@@ -162,7 +163,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
     const shown = (Object.keys(ORDER) as Finding["severity"][]).filter((severity) => severity !== "hint" || (findings.hint ?? 0) > 0);
     const severities = shown.map((severity) => `${(findings[severity] ?? 0) > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
-    const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}`) : "";
+    const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(environmentLocale(), { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
         row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),
         row("size", sized(bytes, number)),
@@ -186,9 +187,9 @@ export function aligned(rows: string[][], paint: Paint): string[] {
     return [paint("bold", lines[0] as string), ...lines.slice(1)];
 }
 
-// One aligned row per numeric fact by its label: pages, then min, median, p95, max and total in its unit, under a header.
+// One aligned row per labelled numeric fact by its label: pages, then min, median, p95, max and total in its unit, under a header.
 export function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
-    const cells = Object.entries(stats).map(([path, stat]) => [printable(label(path) ?? path), measure(stat.count), ...[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => measure(value, path))]);
+    const cells = Object.entries(stats).filter(([path]) => isLabelled(path)).map(([path, stat]) => [printable(label(path) ?? path), measure(stat.count), ...[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => (value === undefined ? "–" : measure(value, path)))]);
     return cells.length === 0 ? [row("stats", "none")] : aligned([["stats", "pages", "min", "median", "p95", "max", "total"], ...cells], paint);
 }
 

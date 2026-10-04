@@ -12,11 +12,20 @@ export interface Stat {
     median: number;
     p95: number;
     max: number;
-    total: number;
+    // Absent where a sum means nothing: a configured limit, a depth.
+    total?: number;
 }
 
 // Numbers that name something rather than measure it.
 const NOMINAL = new Set(["http.status", "co2.version"]);
+
+// Numbers a total of means nothing: a header’s configured limit, a position in the graph.
+const UNSUMMED = new Set(["crawl.depth", "graph.depth", "graph.rank"]);
+
+// Whether `path` measures something a total of is meaningful for.
+function isSummable(path: string): boolean {
+    return !UNSUMMED.has(path) && !path.endsWith(".max-age");
+}
 
 // Four decimals, enough for grams of CO2e and fractions of a millisecond.
 function rounded(value: number): number {
@@ -46,6 +55,6 @@ export function factStats(pages: Facts[]): Record<string, Stat> {
     return Object.fromEntries(paths.map((path) => {
         const sorted = (values.get(path) as number[]).toSorted((a, b) => a - b);
         const total = sorted.reduce((sum, value) => sum + value, 0);
-        return [path, { count: sorted.length, min: sorted[0] as number, median: rounded(median(sorted)), p95: quantile(sorted, 0.95), max: sorted.at(-1) as number, total: rounded(total) }];
+        return [path, { count: sorted.length, min: sorted[0] as number, median: rounded(median(sorted)), p95: quantile(sorted, 0.95), max: sorted.at(-1) as number, ...(isSummable(path) && { total: rounded(total) }) }];
     }));
 }

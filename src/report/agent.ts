@@ -81,7 +81,7 @@ function actionable(report: Report, isHintListed: boolean): Finding[] {
 
 // CO2, bytes, requests and timings as one Markdown table, so an agent weighs a fix against the site; nothing without statistics.
 function statistics(stats: Report["summary"]["stats"] = {}): string[] {
-    const rows = Object.entries(stats).filter(([path]) => isRanked(path)).map(([path, stat]) => `| \`${printable(path).replaceAll("|", String.raw`\|`)}\` | ${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total].join(" | ")} |`);
+    const rows = Object.entries(stats).filter(([path]) => isRanked(path)).map(([path, stat]) => `| \`${printable(path).replaceAll("|", String.raw`\|`)}\` | ${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total ?? "–"].join(" | ")} |`);
     return rows.length === 0 ? [] : [["# Site statistics", "", "| Fact | Pages | Min | Median | p95 | Max | Total |", "| --- | --: | --: | --: | --: | --: | --: |", ...rows].join("\n")];
 }
 

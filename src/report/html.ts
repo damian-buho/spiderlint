@@ -4,8 +4,8 @@
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { fixFor } from "../rules/fix.ts";
-import { bytes, label, withUnit } from "../facts/labels.ts";
-import { environmentLanguage, translator, type Translator } from "../i18n.ts";
+import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
+import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
 import { scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
@@ -123,9 +123,9 @@ function factName(t: Translator, path: string): string {
     return english ? `<span title="${escape(path)}">${escape(t._(english))}</span>` : `<code>${escape(path)}</code>`;
 }
 
-// Every numeric fact’s pages, then min, median, p95, max and total in its unit, in a closed disclosure; nothing without statistics.
+// Every labelled numeric fact’s pages, then min, median, p95, max and total in its unit, in a closed disclosure; nothing without statistics.
 function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): string {
-    const rows = Object.entries(stats).map(([path, stat]) => `<tr><td>${factName(t, path)}</td><td>${escape(t.number(stat.count))}</td>${[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(withUnit(path, value, t.number))}</td>`).join("")}</tr>`);
+    const rows = Object.entries(stats).filter(([path]) => isLabelled(path)).map(([path, stat]) => `<tr><td>${factName(t, path)}</td><td>${escape(t.number(stat.count))}</td>${[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(value === undefined ? "–" : withUnit(path, value, t.number))}</td>`).join("")}</tr>`);
     const head = [t._("Fact"), t._("Pages"), t._("Minimum"), t._("Median"), t._("95th percentile"), t._("Maximum"), t._("Total")].map((label) => `<th>${escape(label)}</th>`).join("");
     return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
 }
@@ -144,7 +144,7 @@ function passed(t: Translator, report: Pick<Report, "summary" | "rules">): strin
 export function reportBody(report: Pick<Report, "summary" | "findings" | "rules">, t: Translator, title: string, origin: string): string {
     const { summary } = report;
     const { rating } = summary;
-    const started = new Intl.DateTimeFormat(t.lang, { dateStyle: "medium", timeStyle: "short" }).format(new Date(summary.started));
+    const started = new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(summary.started));
     const head = `<header class="head"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
     const measured = [
         `${t._("Pages")}: ${t.number(summary.pages)}`,
@@ -178,8 +178,8 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.
-export function formatHtml(report: Report, _paint?: Paint, _isFull?: boolean, lang = environmentLanguage()): string {
-    const t = translator(lang);
+export function formatHtml(report: Report, _paint?: Paint, _isFull?: boolean, lang?: string): string {
+    const t = lang === undefined ? translator(environmentLanguage(), environmentLocale()) : translator(lang);
     const origin = singleOrigin(report.pages.map((facts) => facts.url.href));
     const title = origin || t._("spiderlint report");
     return page(t, title, `<main>${reportBody(report, t, title, origin)}</main>`);

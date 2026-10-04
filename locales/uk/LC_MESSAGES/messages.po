@@ -26,11 +26,20 @@ msgstr "Перевіряє кожну сторінку сайту: теги дл
 msgid "Checks passed"
 msgstr "Пройдені перевірки"
 
+msgid "Click depth"
+msgstr "Глибина в кліках"
+
+msgid "Cookies"
+msgstr "Cookie"
+
 msgid "CO₂ rating"
 msgstr "Рейтинг CO₂"
 
 msgid "CO₂e per view"
 msgstr "CO₂e за перегляд"
+
+msgid "Crawl depth"
+msgstr "Глибина обходу"
 
 msgid "Cumulative Layout Shift"
 msgstr "Cumulative Layout Shift"
@@ -62,6 +71,9 @@ msgstr "Введіть вебадресу, наприклад example.com."
 msgid "Error"
 msgstr "Помилка"
 
+msgid "External links"
+msgstr "Зовнішні посилання"
+
 msgid "Fact"
 msgstr "Показник"
 
@@ -89,17 +101,35 @@ msgstr "Порада"
 msgid "Hints: {count}"
 msgstr "Порад: {count}"
 
+msgid "HSTS max-age"
+msgstr "HSTS max-age"
+
 msgid "HTTP version"
 msgstr "Версія HTTP"
 
 msgid "Image transfer"
 msgstr "Передача зображень"
 
+msgid "Images"
+msgstr "Зображення"
+
 msgid "Info"
 msgstr "Інфо"
 
+msgid "Internal links"
+msgstr "Внутрішні посилання"
+
 msgid "Largest Contentful Paint"
 msgstr "Largest Contentful Paint"
+
+msgid "Link rank"
+msgstr "Ранг посилань"
+
+msgid "Links in"
+msgstr "Вхідні посилання"
+
+msgid "Links out"
+msgstr "Вихідні посилання"
 
 msgid "Maximum"
 msgstr "Максимум"
@@ -146,6 +176,9 @@ msgstr "Оцінка"
 msgid "Rating badge"
 msgstr "Значок оцінки"
 
+msgid "Redirects"
+msgstr "Перенаправлення"
+
 msgid "Request upload"
 msgstr "Надсилання запиту"
 
@@ -181,6 +214,9 @@ msgstr "Перевірки цього сайту вимкнено на цьом�
 
 msgid "Script transfer"
 msgstr "Передача скриптів"
+
+msgid "Scripts"
+msgstr "Скрипти"
 
 msgid "Server response time"
 msgstr "Час відповіді сервера"
@@ -289,4 +325,3 @@ msgstr "ще {count}"
 
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
-

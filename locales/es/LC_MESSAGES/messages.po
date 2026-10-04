@@ -26,11 +26,20 @@ msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de
 msgid "Checks passed"
 msgstr "Comprobaciones superadas"
 
+msgid "Click depth"
+msgstr "Profundidad en clics"
+
+msgid "Cookies"
+msgstr "Cookies"
+
 msgid "CO₂ rating"
 msgstr "Calificación de CO₂"
 
 msgid "CO₂e per view"
 msgstr "CO₂e por visita"
+
+msgid "Crawl depth"
+msgstr "Profundidad de rastreo"
 
 msgid "Cumulative Layout Shift"
 msgstr "Cumulative Layout Shift"
@@ -62,6 +71,9 @@ msgstr "Escribe una dirección web, como example.com."
 msgid "Error"
 msgstr "Error"
 
+msgid "External links"
+msgstr "Enlaces externos"
+
 msgid "Fact"
 msgstr "Dato"
 
@@ -89,17 +101,35 @@ msgstr "Sugerencia"
 msgid "Hints: {count}"
 msgstr "Sugerencias: {count}"
 
+msgid "HSTS max-age"
+msgstr "max-age de HSTS"
+
 msgid "HTTP version"
 msgstr "Versión HTTP"
 
 msgid "Image transfer"
 msgstr "Transferencia de imágenes"
 
+msgid "Images"
+msgstr "Imágenes"
+
 msgid "Info"
 msgstr "Info"
 
+msgid "Internal links"
+msgstr "Enlaces internos"
+
 msgid "Largest Contentful Paint"
 msgstr "Largest Contentful Paint"
+
+msgid "Link rank"
+msgstr "Rango de enlaces"
+
+msgid "Links in"
+msgstr "Enlaces entrantes"
+
+msgid "Links out"
+msgstr "Enlaces salientes"
 
 msgid "Maximum"
 msgstr "Máximo"
@@ -146,6 +176,9 @@ msgstr "Calificación"
 msgid "Rating badge"
 msgstr "Insignia de calificación"
 
+msgid "Redirects"
+msgstr "Redirecciones"
+
 msgid "Request upload"
 msgstr "Envío de la solicitud"
 
@@ -181,6 +214,9 @@ msgstr "Los análisis de este sitio están desactivados en esta instancia."
 
 msgid "Script transfer"
 msgstr "Transferencia de scripts"
+
+msgid "Scripts"
+msgstr "Scripts"
 
 msgid "Server response time"
 msgstr "Tiempo de respuesta del servidor"
@@ -289,4 +325,3 @@ msgstr "{count} más"
 
 msgid "{passed} of {total}"
 msgstr "{passed} de {total}"
-

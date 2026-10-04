@@ -7,7 +7,7 @@ import { domainToUnicode } from "node:url";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { negotiate, translator, type Translator } from "../i18n.ts";
+import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
 import type { Grade } from "../report/rating.ts";
@@ -25,7 +25,7 @@ const GRADE_COLOR: Record<Grade | "none", string> = { S: "#1e7a34", A: "#1e7a34"
 const SCRIPT = String.raw`
 const status = document.querySelector("[data-events]");
 if (status && "EventSource" in window) {
-    const lang = document.documentElement.lang;
+    const lang = status.dataset.locale;
     const numbers = new Intl.NumberFormat(lang);
     const seconds = new Intl.NumberFormat(lang, { style: "unit", unit: "second" });
     const fill = (template, values) => template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
@@ -108,10 +108,10 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
     const { done, total, eta } = (typeof job.progress === "object" ? job.progress : {}) as { done?: number; total?: number; eta?: [number, number] };
     const count = t._("Pages: {done} of {total}", { done: "{done}", total: "{total}" });
     const etaText = t._("About {range} left", { range: "{range}" });
-    const seconds = new Intl.NumberFormat(t.lang, { style: "unit", unit: "second" });
+    const seconds = new Intl.NumberFormat(t.locale, { style: "unit", unit: "second" });
     const state = status === "running" ? t._("Scanning…") : t._("Waiting in the queue…");
     const values = total === undefined ? "" : ` max="${total}" value="${done ?? 0}"`;
-    return `<div data-events="/v1/jobs/${escape(job.id)}/events" data-running="${escape(t._("Scanning…"))}" data-count="${escape(count)}" data-eta="${escape(etaText)}"><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${eta ? escape(t._("About {range} left", { range: seconds.formatRange(eta[0], eta[1]) })) : ""}</span></p></div>`;
+    return `<div data-events="/v1/jobs/${escape(job.id)}/events" data-locale="${escape(t.locale)}" data-running="${escape(t._("Scanning…"))}" data-count="${escape(count)}" data-eta="${escape(etaText)}"><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${eta ? escape(t._("About {range} left", { range: seconds.formatRange(eta[0], eta[1]) })) : ""}</span></p></div>`;
 }
 
 // The report with its downloads and badge.
@@ -126,9 +126,10 @@ function width(text: string): number {
     return 12 + [...text].length * 7;
 }
 
-// The reader’s strings, from the request’s Accept-Language.
+// The reader’s strings from the request’s Accept-Language, and its numbers in the first locale it names.
 function translate(c: Context): Translator {
-    return translator(negotiate(c.req.header("accept-language")));
+    const accept = c.req.header("accept-language");
+    return translator(negotiate(accept), readerLocale(accept));
 }
 
 // The form fields, or none when the body cannot be read.

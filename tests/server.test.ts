@@ -9,7 +9,7 @@ import { BlockList } from "node:net";
 import type { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { ConfigError } from "../src/config/index.ts";
-import { negotiate } from "../src/i18n.ts";
+import { negotiate, readerLocale, translator } from "../src/i18n.ts";
 import { api } from "../src/server/api.ts";
 import { Buckets, clientOf } from "../src/server/clients.ts";
 import { admit, policyFor, Refusal, resolveRules } from "../src/server/policy.ts";
@@ -106,6 +106,19 @@ describe("server language", () => {
         assert.equal(negotiate("uk_UA.UTF-8"), "uk");
         assert.equal(negotiate(undefined), "en");
     });
+
+    it("writes numbers in the reader’s first locale, with or without a catalog", () => {
+        assert.equal(readerLocale("de-DE,de;q=0.9,en;q=0.8"), "de-DE");
+        assert.equal(readerLocale("fr;q=0.2, es-CL;q=0.9"), "es-CL");
+        assert.equal(readerLocale("de_DE.UTF-8"), "de-DE");
+        assert.equal(readerLocale("C"), undefined);
+        assert.equal(readerLocale("*"), undefined);
+        const t = translator(negotiate("de-DE"), readerLocale("de-DE"));
+        assert.equal(t.lang, "en");
+        assert.equal(t.number(31_536_000), "31.536.000");
+        assert.equal(translator("es").number(31_536_000), "31.536.000");
+        assert.equal(translator("en").number(31_536_000), "31,536,000");
+    });
 });
 
 describe("server pages without Redis", () => {
@@ -126,6 +139,18 @@ describe("server pages without Redis", () => {
         assert.equal(response.status, 403);
         assert.ok(html.includes("Перевірки цього сайту вимкнено"));
         assert.ok(html.includes('value="https://кремль.рф/"'));
+    });
+
+    it("renders a finished report in English with the numbers of a de-DE reader, labelled statistics only", async () => {
+        const stat = { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 31_536_000 };
+        const summary = { started: "2026-10-03T00:00:00Z", durationMs: 1000, pages: 2, bytes: 10, groups: { default: 2 }, statuses: {}, findings: { total: 0, error: 0, warning: 0, info: 0, hint: 0 }, rules: 0, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, byRule: {}, cost: {}, stats: { "resources.length": stat, "html.text": stat } };
+        const job = { id: "j1", data: { url: "https://a.test/", host: "a.test" }, returnvalue: { summary, findings: [] }, getState: async () => "completed" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j1", { headers: { "accept-language": "de-DE,de;q=0.9" } });
+        const html = await response.text();
+        assert.match(html, /<html lang="en" dir="ltr">/);
+        assert.ok(html.includes("31.536.000"), "German digits");
+        assert.ok(html.includes("<h2>Statistics</h2>") && html.includes("Resources"), "English strings");
+        assert.ok(!html.includes("html.text"), "unlabelled fact left to json");
     });
 
     it("refuses a form sent from another site", async () => {
