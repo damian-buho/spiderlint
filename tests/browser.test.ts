@@ -5,7 +5,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -310,5 +310,34 @@ describe("rendered extractor cache", { skip }, () => {
             await new Promise<void>((resolve) => server.close(() => resolve()));
             await rm(store, { recursive: true, force: true });
         }
+    });
+});
+
+describe("rel=me in a browser", { skip }, () => {
+    const servers: Server[] = [];
+    let [profile, origin] = ["", ""];
+
+    // A server answering each path from `pages`, else 404; its origin once listening.
+    async function serve(pages: () => Record<string, string>): Promise<string> {
+        const server = createServer((request, response) => {
+            const body = pages()[request.url ?? "/"];
+            response.writeHead(body === undefined ? 404 : 200, { "content-type": "text/html; charset=utf-8" });
+            response.end(body ?? "");
+        });
+        servers.push(server);
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    }
+
+    before(async () => {
+        profile = await serve(() => ({ "/@script": `<html><body><script>document.body.innerHTML = '<a rel="me" href="${origin}/">Home</a>'</script></body></html>`, "/@none": "<html><body>nothing</body></html>" }));
+        origin = await serve(() => ({ "/": `<html><body><a rel="me" href="${profile}/@script">Script</a><a rel="me" href="${profile}/@none">None</a></body></html>` }));
+    });
+
+    after(() => Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve)))));
+
+    it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me", "links/rel-me-rendered"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me", "links/rel-me-rendered"], sample: "all" } } });
+        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me-rendered", `${profile}/@none`]]);
     });
 });

@@ -10,6 +10,7 @@ import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Make } from "../rules/types.ts";
+import { judged } from "./profile-links.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
 // Stack trace shapes of the common server runtimes.
@@ -335,13 +336,14 @@ const meProfiles: SiteExtractor = {
 // One finding per `rel=me` profile whose page does not link back, filed on the page that declares it.
 const meBackLink: Make = (severity) => ({
     meta: { id: "links/rel-me", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
-    check(_pages, _group, site) {
+    check(pages, _group, site) {
+        const verdicts = judged(pages);
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts["rel-me"] !== undefined);
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { unverified, declared } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]> };
             log.debug({ rule: "links/rel-me", subject, unverified: unverified.length }, "rel=me profiles judged");
-            return unverified.map((profile) => {
+            return unverified.filter((profile) => !verdicts.has(bare(profile))).map((profile) => {
                 const pages = declared?.[profile] ?? [subject];
                 return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts`, value: profile, ...(pages.length > 1 && { urls: pages }) };
             });
