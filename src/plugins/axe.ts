@@ -98,6 +98,13 @@ function locate(node: AxeNode): string {
     return `${node.target} ${html}${related.length > 0 ? `, related: ${related.join(", ")}` : ""}`;
 }
 
+// How much a violation matters, from axe’s own impact, inside the rule’s band.
+function impactScore(severity: Severity, impact: string | undefined): number | undefined {
+    if (impact === undefined) return undefined;
+    const table = severity === "error" ? { critical: 9.4, serious: 8.4, moderate: 7.4, minor: 6.8 } : { critical: 6.3, serious: 5.4, moderate: 4.4, minor: 3.5 };
+    return table[impact as keyof typeof table];
+}
+
 // One finding per violated rule on a page, its impact and elements as the value; `fix` is axe’s `help`.
 function rule(id: string, helpUrl: string, fix?: string): Make {
     const ruleId = `${PREFIX}${id}`;
@@ -117,6 +124,7 @@ function rule(id: string, helpUrl: string, fix?: string): Make {
                 message: help,
                 value: { ...(impact && { impact }), nodes: nodes.map(({ target, html, summary }) => ({ target, html, ...(summary && { summary }) })) },
                 locations: nodes.map((node) => locate(node)),
+                score: impactScore(severity, impact),
             }));
         },
     });
