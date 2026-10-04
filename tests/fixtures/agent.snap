@@ -52,7 +52,7 @@ Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no
 
 ## links/broken-external (warning 4.6)
 
-answers 404; linked from 1 page
+answers 404; linked from 1 page; checked TIME
 
 Where: EXTERNAL/gone, used by or shared with:
 - /about

@@ -24,7 +24,7 @@ describe("agent format", () => {
     before(async () => {
         site = await serveFixture();
         report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
-        output = `${formatAgent({ ...report, summary: { ...report.summary, stats: undefined } }).replaceAll(site.origin, "ORIGIN").replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL")}\n`;
+        output = `${formatAgent({ ...report, summary: { ...report.summary, stats: undefined } }).replaceAll(site.origin, "ORIGIN").replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL").replaceAll(/checked \d{4}-\d\d-\d\d \d\d:\d\d UTC/g, "checked TIME")}\n`;
     });
     after(() => site.close());
 
