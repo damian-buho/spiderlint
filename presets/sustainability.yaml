@@ -10,6 +10,7 @@ rules:
     expect: {maximum: 0.209}
     when: {http.status: {minimum: 200, maximum: 299}}
     severity: info
+    score: [[0.209, 1.4], [1.0, 2.6], [3.0, 3.2]]
     message: "one view emits {got} g CO2e by the Sustainable Web Design model, above the 0.209 g budget (rating C)"
     fix: "Cut the page’s transfer size: compress and resize images, drop unused scripts and fonts."
     docs: https://developers.thegreenwebfoundation.org/co2js/explainer/methodologies-for-calculating-website-carbon/
