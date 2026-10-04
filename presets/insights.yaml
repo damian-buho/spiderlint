@@ -4,5 +4,9 @@
 ---
 description: Pages that stand out from the rest of the site, all info
 rules:
-  insight/numeric-outlier: info
-  insight/minority-value: info
+  insight/numeric-outlier:
+    severity: info
+    score: 3.0
+  insight/minority-value:
+    severity: info
+    score: 2.0
