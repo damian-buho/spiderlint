@@ -18,10 +18,5 @@ rules:
     score: 4.2
   links/external-rel: off
   links/rel-me:
-    fact: site.origins.*.rel-me.unverified
-    expect: {maxItems: 0}
     severity: info
     score: 2.2
-    message: "rel=me profiles that do not link back to the site: {got}"
-    fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it."
-    docs: https://microformats.org/wiki/rel-me

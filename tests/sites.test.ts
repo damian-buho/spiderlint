@@ -110,8 +110,9 @@ describe("rel=me", () => {
 
     it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode: "off" });
-        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me", [`${profile}/@other`]]]);
-        assert.deepEqual(report.site.origins?.[origin]?.["rel-me"], { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`] });
+        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me", `${profile}/@other`]]);
+        assert.deepEqual(report.site.origins?.[origin]?.["rel-me"], { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`], declared: { [`${profile}/@other`]: [`${origin}/`], [`${profile}/@me`]: [`${origin}/`], [`${profile}/@gone`]: [`${origin}/`] } });
+        assert.equal(report.findings[0]?.url, `${origin}/`);
     });
 });
 

@@ -301,8 +301,16 @@ const meProfiles: SiteExtractor = {
     crawled: true,
     async extract(origin, context) {
         const ours = new Set([`${origin}/`, ...context.pages.map((page) => page.url.href)].map((href) => bare(href)));
-        const named = context.pages.flatMap((page) => page.html?.rels.me ?? []).filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol) && new URL(href).origin !== origin);
-        const targets = [...new Set(named)].slice(0, REL_ME_MAX);
+        const declared: Record<string, string[]> = {};
+        for (const page of context.pages) {
+            const hrefs = page.html?.rels.me ?? [];
+            for (const href of hrefs) {
+                if (!URL.canParse(href) || !/^https?:$/.test(new URL(href).protocol) || new URL(href).origin === origin) continue;
+                declared[href] = [...new Set([...(declared[href] ?? []), page.url.href])];
+            }
+        }
+        const targets = Object.keys(declared).slice(0, REL_ME_MAX);
+        log.debug({ origin, declared: Object.keys(declared).length, targets: targets.length }, "rel=me profiles collected");
         if (targets.length === 0) return;
         const unverified: string[] = [];
         const unreachable: string[] = [];
@@ -320,14 +328,31 @@ const meProfiles: SiteExtractor = {
                 unreachable.push(target);
             }
         }
-        return { targets, unverified, unreachable };
+        return { targets, unverified, unreachable, declared: Object.fromEntries(targets.map((target) => [target, declared[target]])) };
     },
 };
+
+// One finding per `rel=me` profile whose page does not link back, filed on the page that declares it.
+const meBackLink: Make = (severity) => ({
+    meta: { id: "links/rel-me", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
+    check(_pages, _group, site) {
+        const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts["rel-me"] !== undefined);
+        if (origins.length === 0) return;
+        return origins.flatMap(([subject, facts]): Finding[] => {
+            const { unverified, declared } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]> };
+            log.debug({ rule: "links/rel-me", subject, unverified: unverified.length }, "rel=me profiles judged");
+            return unverified.map((profile) => {
+                const pages = declared?.[profile] ?? [subject];
+                return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts`, value: profile, ...(pages.length > 1 && { urls: pages }) };
+            });
+        });
+    },
+});
 
 // Checks made once per origin rather than per page.
 export default definePlugin({
     name: "origin",
-    rules: { "origin/host-canonical": hostCanonical },
+    rules: { "origin/host-canonical": hostCanonical, "links/rel-me": meBackLink },
     sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, meProfiles],
     presets: {
         origin: {
