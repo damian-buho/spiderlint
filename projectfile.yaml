@@ -76,6 +76,17 @@ org:
         o9s.vlky.password:
           docker:
             run: m6e-secret-random
+      nodes:
+        source-is-tested:
+          needs:
+            usage-matches-source: true
+      tools:
+        usage-matches-source:
+          run: .scripts/usage-check.sh
+          description: Verify the committed --help captures match src/cli.ts, with no image build
+          gha: false
+          forgejo: false
+          tags: [container]
     conventions:
       fragments:
         parents:

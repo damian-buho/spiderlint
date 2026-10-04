@@ -25,8 +25,12 @@ if [[ "${1:-}" == "run" ]]; then
     # Drop the image name and the `sh -c <script> sh` wrapper, leaving the command and its arguments.
     shift 5
     printf 'usage-check: source help lang=%s args=%s\n' "${lang}" "${*:2}" >&2
-    exec env "${env_pairs[@]}" LC_ALL="${lang}" LANGUAGE="${lang}" "${root}/bin/spiderlint.js" "${@:2}" --help 2>&1
+    exec env --unset=XDG_CACHE_HOME HOME=/app "${env_pairs[@]}" LC_ALL="${lang}" LANGUAGE="${lang}" "${root}/bin/spiderlint.js" "${@:2}" --help 2>&1
 fi
 
 cd "${root}"
-M6E_CONTAINER_RUNTIME="${root}/.scripts/usage-check.sh" M6E_IMAGE_FULLNAME="source:src/cli.ts" "${root}/.makefile/container/scripts/usage-capture.sh" --check
+mode=--check
+# `--capture` rewrites docs/usage.d instead of checking it.
+[[ "${1:-}" == "--capture" ]] && mode=""
+printf 'usage-check: mode=%s\n' "${mode:-capture}" >&2
+M6E_CONTAINER_RUNTIME="${root}/.scripts/usage-check.sh" M6E_IMAGE_FULLNAME="source:src/cli.ts" "${root}/.makefile/container/scripts/usage-capture.sh" ${mode}
