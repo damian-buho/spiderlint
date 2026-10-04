@@ -7,17 +7,31 @@ import { domainToUnicode } from "node:url";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { routePath } from "hono/route";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
 import type { Phase, Progress } from "../progress.ts";
 import type { Grade } from "../report/rating.ts";
 import { escape, page, reportBody, STYLE } from "../report/html.ts";
+import { track } from "./analytics.ts";
 import { jobOf, submit, type Jobs } from "./jobs.ts";
+import { asset, type Sources } from "./page.ts";
 import { presetSettings, presetsOffered, Refusal } from "./policy.ts";
 import { latestKey, type ScanJob } from "./queue.ts";
+import type { ServerSettings } from "./settings.ts";
+
+declare module "hono" {
+    interface ContextVariableMap {
+        settings: ServerSettings;
+    }
+}
+
+// One slot of the owner’s page and what it asks of the policy.
+type Fragment = { html: string; sources: Sources };
 
 const BODY_MAX = 64 * 1024;
+const ASSET_MAX_AGE_S = 3600;
 const REFRESH_S = 5;
 const BADGE_MAX_AGE_S = 300;
 const GRADE_COLOR: Record<Grade | "none", string> = { S: "#1e7a34", A: "#1e7a34", B: "#8a6d00", C: "#b45d00", D: "#b45d00", E: "#b3261e", F: "#b3261e", none: "#6b6b75" };
@@ -52,8 +66,14 @@ if (status && "EventSource" in window) {
 
 const hash = (source: string) => `'sha256-${createHash("sha256").update(source).digest("base64")}'`;
 
-// The policy of every page: its own stylesheet and script, same-origin images, events and forms, nothing else.
-export const PAGE_CSP = `default-src 'none'; style-src ${hash(STYLE)}; script-src ${hash(SCRIPT)}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`;
+// The policy of a page: its own stylesheet and script by hash, what the owner’s fragments ask for, same-origin images, events and forms, nothing else; `self` joins scripts and styles only while the owner serves assets.
+export function pageCsp(sources?: Sources, hasAssets = false): string {
+    const list = (own: string, asked: string[]) => [...new Set([own, ...(hasAssets ? ["'self'"] : []), ...asked])].join(" ");
+    return `default-src 'none'; style-src ${list(hash(STYLE), sources?.style ?? [])}; script-src ${list(hash(SCRIPT), sources?.script ?? [])}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`;
+}
+
+// The policy of every page without fragments.
+export const PAGE_CSP = pageCsp();
 
 // A refusal in the reader’s words; `code` picks the sentence, the English message stays for logs.
 function refusalText(t: Translator, refusal: Refusal): string {
@@ -94,12 +114,18 @@ function seedOf(raw: unknown): string {
     return typed === "" || /^[a-z][\d+.a-z-]*:\/\//i.test(typed) ? typed : `https://${typed}`;
 }
 
-// The page in the reader’s language, never cached, under the page policy.
+// The page in the reader’s language with the owner’s fragments, never cached, under the page policy they extend; the view is reported to Matomo when one is set.
 function respond(c: Context, t: Translator, title: string, body: string, status: ContentfulStatusCode = 200, head = ""): Response {
-    c.header("content-security-policy", PAGE_CSP);
+    const { page: owner, matomo } = c.get("settings");
+    const slots = (["head", "header", "footer"] as const).map((slot) => owner.fragments?.slot(slot, t.lang) ?? { html: "", sources: { script: [], style: [] } });
+    const [fromHead, fromHeader, fromFooter] = slots as [Fragment, Fragment, Fragment];
+    const sources = { script: slots.flatMap((slot) => slot.sources.script), style: slots.flatMap((slot) => slot.sources.style) };
+    const privacy = matomo ? `<p class="muted"><a href="${escape(matomo.privacy)}" rel="noopener noreferrer">${escape(t._("Privacy"))}</a></p>` : "";
+    c.header("content-security-policy", pageCsp(sources, owner.assets !== undefined));
     c.header("cache-control", "no-cache");
     c.header("vary", "accept-language");
-    return c.html(page(t, title, body, head), status);
+    track(matomo, c, routePath(c), URL.canParse(title) ? new URL(title).hostname : undefined);
+    return c.html(page(t, title, `${fromHeader.html}${body}${fromFooter.html}${privacy}`, head + fromHead.html), status);
 }
 
 // What each web preset is called and says, in the reader’s language.
@@ -195,6 +221,30 @@ function badge(value: string, color: string, href?: string): string {
 // The form, the job pages and the badge, rendered on the server and complete without scripts.
 export function web(jobs: Jobs): Hono {
     const app = new Hono();
+
+    // The settings as they are for this request, for the pages’ fragments and Matomo.
+    app.use(async (c, next) => {
+        c.set("settings", jobs.settings());
+        await next();
+    });
+
+    // The owner’s files, served as they are from one directory: never a listing, a dotfile or a path out of it.
+    app.get("/assets/*", async (c) => {
+        const { assets } = jobs.settings().page;
+        let relative = "";
+        try {
+            relative = decodeURIComponent(c.req.path.slice("/assets/".length));
+        } catch {
+            log.debug({ path: c.req.path }, "asset path not decodable");
+        }
+        const file = assets && relative ? await asset(assets, relative) : undefined;
+        log.debug({ path: c.req.path, isServed: file !== undefined }, "asset requested");
+        if (!file) throw new Refusal(404, "not-found", `${c.req.path}: no such asset`);
+        c.header("content-type", file.type);
+        c.header("content-security-policy", "default-src 'none'; sandbox");
+        c.header("cache-control", `public, max-age=${ASSET_MAX_AGE_S}`);
+        return c.body(new Uint8Array(file.body));
+    });
 
     const offered = () => presetsOffered(jobs.settings());
 

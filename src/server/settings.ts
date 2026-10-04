@@ -10,6 +10,8 @@ import { parseDuration } from "../cache/index.ts";
 import { ConfigError } from "../config/index.ts";
 import { describe, validateSubtree } from "../config/schema.ts";
 import { log } from "../logger.ts";
+import type { Matomo } from "./analytics.ts";
+import { directoryOf, Fragments } from "./page.ts";
 import { PROVIDERS } from "./providers.ts";
 
 export const DEFAULT_PATH = "/etc/spiderlint/server.yaml";
@@ -49,6 +51,10 @@ export interface ServerSettings {
     clients: { rate?: { jobs: number; seconds: number }; trusted: BlockList; providers: string[] };
     // Origins whose `Date` our clock is checked against at startup; empty skips the check.
     clockReferences: string[];
+    // The owner’s page fragments and the directory served under `/assets/`.
+    page: { fragments?: Fragments; assets?: string };
+    // The Matomo page views are reported to.
+    matomo?: Matomo;
 }
 
 // Origins run by different operators, so one bad clock cannot pass for ours.
@@ -71,6 +77,14 @@ const schema = {
         "allow-private": { type: "boolean" },
         "clock-references": { type: "array", uniqueItems: true, items: { type: "string", pattern: "^https://" } },
         defaults: { type: "object" },
+        page: { type: "object", additionalProperties: false, properties: { directory: { type: "string", minLength: 1 }, assets: { type: "string", minLength: 1 } } },
+        analytics: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+                matomo: { type: "object", additionalProperties: false, required: ["url", "site-id", "site", "privacy"], properties: { url: { type: "string", pattern: "^https?://" }, "site-id": positive, site: { type: "string", pattern: "^https?://" }, privacy: { type: "string", pattern: "^https?://" }, "include-hosts": { type: "boolean" } } },
+            },
+        },
         clients: { type: "object", additionalProperties: false, properties: { rate: { oneOf: [rate, { const: false }] }, "trusted-proxies": { type: "array", items: { type: "string", minLength: 1 } }, "trust-providers": { type: "array", uniqueItems: true, items: { enum: Object.keys(PROVIDERS) } } } },
         policies: {
             type: "array",
@@ -154,7 +168,7 @@ function trustedOf(entries: string[]): BlockList {
 export function settingsOf(raw: unknown): ServerSettings {
     const document = raw ?? {};
     if (!validate(document)) throw new ConfigError((validate.errors ?? []).map((error) => describe(error, "server")).join("; "));
-    const value = document as Record<string, unknown> & { listen?: { host?: string; port?: number }; policies?: RawPolicy[]; clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[]; "trust-providers"?: string[] } };
+    const value = document as Record<string, unknown> & { page?: { directory?: string; assets?: string }; analytics?: { matomo?: { url: string; "site-id": number; site: string; privacy: string; "include-hosts"?: boolean } }; listen?: { host?: string; port?: number }; policies?: RawPolicy[]; clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[]; "trust-providers"?: string[] } };
     const allowPrivate = (value["allow-private"] as boolean | undefined) ?? false;
     const defaults = validateSubtree(value.defaults ?? {}, "server/defaults");
     const policies = (value.policies ?? [{ name: "default", hosts: ["*"] }]).map((policy) => policyOf(policy, allowPrivate));
@@ -172,7 +186,22 @@ export function settingsOf(raw: unknown): ServerSettings {
         policies,
         clients: { ...clientRate(value.clients?.rate), trusted: trustedOf(value.clients?.["trusted-proxies"] ?? []), providers: value.clients?.["trust-providers"] ?? [] },
         clockReferences: (value["clock-references"] as string[] | undefined) ?? CLOCK_REFERENCES,
+        page: pageOf(value.page),
+        ...(value.analytics?.matomo && { matomo: matomoOf(value.analytics.matomo) }),
     };
+}
+
+// The fragments and assets directory the settings name, read now so a bad one is refused.
+function pageOf(raw: { directory?: string; assets?: string } | undefined): ServerSettings["page"] {
+    const assets = raw?.assets === undefined ? undefined : directoryOf("page/assets", raw.assets);
+    if (assets) log.info({ assets }, "page assets served under /assets/");
+    return { ...(raw?.directory !== undefined && { fragments: new Fragments(directoryOf("page/directory", raw.directory)) }), ...(assets && { assets }) };
+}
+
+// The Matomo block as the tracker takes it.
+function matomoOf(raw: { url: string; "site-id": number; site: string; privacy: string; "include-hosts"?: boolean }): Matomo {
+    log.info({ url: raw.url, siteId: raw["site-id"], isHostNamed: raw["include-hosts"] ?? false }, "page views reported to Matomo");
+    return { url: raw.url, siteId: raw["site-id"], site: raw.site, privacy: raw.privacy, isHostNamed: raw["include-hosts"] ?? false };
 }
 
 // The per-client bucket: 10 jobs an hour unless set, none when `false`.

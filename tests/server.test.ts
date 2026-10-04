@@ -2,8 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { after, before, describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { BlockList } from "node:net";
 import type { Queue } from "bullmq";
@@ -222,6 +226,141 @@ describe("web presets", () => {
     it("answers a policy that does not allow the preset with forbidden-rule, and an unknown one with unknown-rule", () => {
         assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: presetSettings("web-quick") }, SETTINGS)), "forbidden-rule");
         assert.equal(refusal(() => presetSettings("all")), "unknown-rule");
+    });
+});
+
+// The CSP hash source of `text`.
+const sha = (text: string) => `'sha256-${createHash("sha256").update(text).digest("base64")}'`;
+// The owner’s inline head script for `lang`.
+const headScript = (lang: string) => `window.owner = "${lang}";`;
+// The body and one header of a response, awaited so a test reads them without chaining.
+async function read(response: Response | Promise<Response>, header?: string): Promise<{ status: number; text: string; header: string }> {
+    const settled = await response;
+    return { status: settled.status, text: await settled.text(), header: header ? (settled.headers.get(header) ?? "") : "" };
+}
+
+describe("server page customisation", () => {
+    let directory: string;
+    let app: ReturnType<typeof api>;
+    const page = (accept: string) => read(app.request("/", { headers: { "accept-language": accept } }), "content-security-policy");
+
+    before(async () => {
+        directory = await mkdtemp(path.join(tmpdir(), "spiderlint-page-"));
+        await mkdir(path.join(directory, "page"));
+        await mkdir(path.join(directory, "assets", "sub"), { recursive: true });
+        await writeFile(path.join(directory, "page", "head.html"), `<script>${headScript("{lang}")}</script><link rel="stylesheet" href="https://cdn.test/x.css" integrity="sha384-abc" crossorigin="anonymous">`);
+        await writeFile(path.join(directory, "page", "footer.html"), '<p id="owner">Footer {dir}</p>');
+        await writeFile(path.join(directory, "page", "footer.uk.html"), '<p id="owner">Підвал {lang}</p>');
+        await writeFile(path.join(directory, "assets", "app.js"), "export const x = 1;\n");
+        await writeFile(path.join(directory, "assets", ".secret"), "no");
+        await writeFile(path.join(directory, "secret.txt"), "outside");
+        const settings = settingsOf({ page: { directory: path.join(directory, "page"), assets: path.join(directory, "assets") } });
+        app = api({} as Queue, {} as Redis, () => settings);
+    });
+
+    after(() => rm(directory, { recursive: true, force: true }));
+
+    it("renders a fragment per language, falling back to the plain file, with {lang} and {dir} filled", async () => {
+        const uk = await page("uk");
+        assert.ok(uk.text.includes('<p id="owner">Підвал uk</p>') && !uk.text.includes("Footer"));
+        const es = await page("es");
+        assert.ok(es.text.includes('<p id="owner">Footer ltr</p>'));
+        assert.ok(es.text.includes(`<script>${headScript("es")}</script>`), "head sits in the document");
+    });
+
+    it("allows an inline script by its hash, an external stylesheet by its origin and self for assets, in that response only", async () => {
+        const { header: csp } = await page("uk");
+        const [own, other] = [sha(headScript("uk")), sha(headScript("es"))];
+        assert.ok(csp.includes(own), csp);
+        assert.ok(!csp.includes(other), "another language’s hash is not allowed");
+        assert.match(csp, /style-src [^;]*https:\/\/cdn\.test/);
+        assert.match(csp, /script-src [^;]*'self'/);
+    });
+
+    it("refuses an external script without integrity at load, naming the file", async () => {
+        const bad = path.join(directory, "bad");
+        await mkdir(bad);
+        await writeFile(path.join(bad, "head.html"), '<script src="https://cdn.test/a.js"></script>');
+        assert.throws(() => settingsOf({ page: { directory: bad } }), /head\.html.*needs an integrity attribute/);
+        await writeFile(path.join(bad, "head.html"), '<script src="https://cdn.test/a.js" integrity="sha384-abc"></script>');
+        const settings = settingsOf({ page: { directory: bad } });
+        const { header: csp } = await read(api({} as Queue, {} as Redis, () => settings).request("/"), "content-security-policy");
+        assert.match(csp, /script-src [^;]*https:\/\/cdn\.test/);
+        await writeFile(path.join(bad, "head.html"), '<script src="ftp://cdn.test/a.js" integrity="sha384-abc"></script>');
+        assert.throws(() => settingsOf({ page: { directory: bad } }), /must be an https URL/);
+    });
+
+    it("serves assets with their type and never a listing, a dotfile or a path out of the directory", async () => {
+        const served = await app.request("/assets/app.js");
+        assert.equal(served.status, 200);
+        assert.match(served.headers.get("content-type") ?? "", /^text\/javascript/);
+        assert.equal(served.headers.get("x-content-type-options"), "nosniff");
+        assert.equal(await served.text(), "export const x = 1;\n");
+        for (const url of ["/assets/", "/assets/sub", "/assets/sub/", "/assets/.secret", "/assets/..%2fsecret.txt", "/assets/%2e%2e/secret.txt", "/assets/missing.js"]) {
+            const { status } = await read(app.request(url));
+            assert.equal(status, 404, url);
+        }
+    });
+
+    it("leaves the badge alone and serves no assets when none are set", async () => {
+        const badge = await read(api({} as Queue, { get: async () => "" } as unknown as Redis, () => settingsOf({ page: { directory: path.join(directory, "page") } })).request("/badge/example.com.svg"), "content-security-policy");
+        assert.equal(badge.header, "default-src 'none'");
+        assert.ok(!badge.text.includes("Footer"));
+        const bare = api({} as Queue, {} as Redis, () => SETTINGS);
+        const missing = await read(bare.request("/assets/app.js"));
+        assert.equal(missing.status, 404);
+        const form = await read(bare.request("/"));
+        assert.ok(!form.text.includes('id="owner"'));
+    });
+
+    it("reports page views to Matomo without a script, never the badge, DNT, Sec-GPC or the API, and links the privacy statement", async () => {
+        const calls: URL[] = [];
+        const stub = mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+            calls.push(new URL(String(input)));
+            return new Response(undefined, { status: 204 });
+        });
+        try {
+            const settings = settingsOf({ analytics: { matomo: { url: "https://mtm.test/", "site-id": 3, site: "https://scan.test/", privacy: "https://scan.test/privacy" } } });
+            const tracked = api({ getJob: async () => ({ id: "j9", data: { url: "https://secret-host.test/", host: "secret-host.test", settings: {} }, progress: {}, getState: async () => "active" }) } as unknown as Queue, {} as Redis, () => settings);
+            const form = await tracked.request("/", { headers: { "user-agent": "Test/1", "accept-language": "uk" } });
+            const privacy = await form.text();
+            assert.ok(privacy.includes('href="https://scan.test/privacy"'));
+            assert.equal(calls.length, 1);
+            const [call] = calls;
+            assert.deepEqual([call?.origin, call?.pathname, call?.searchParams.get("idsite"), call?.searchParams.get("url"), call?.searchParams.get("action_name"), call?.searchParams.get("ua")], ["https://mtm.test", "/matomo.php", "3", "https://scan.test/", "Scan form", "Test/1"]);
+            await tracked.request("/jobs/j9");
+            assert.equal(calls.at(-1)?.searchParams.get("action_name"), "Scan report");
+            assert.ok(!calls.at(-1)?.href.includes("secret-host"), "no scanned host in what is tracked");
+            const before = calls.length;
+            await tracked.request("/", { headers: { dnt: "1" } });
+            await tracked.request("/", { headers: { "sec-gpc": "1" } });
+            await tracked.request("/badge/example.com.svg");
+            await tracked.request("/v1/jobs/j9");
+            await tracked.request("/assets/app.js");
+            assert.equal(calls.length, before);
+            const named = settingsOf({ analytics: { matomo: { url: "https://mtm.test/", "site-id": 3, site: "https://scan.test/", privacy: "https://scan.test/privacy", "include-hosts": true } } });
+            await api({ getJob: async () => ({ id: "j9", data: { url: "https://secret-host.test/", host: "secret-host.test", settings: {} }, progress: {}, getState: async () => "active" }) } as unknown as Queue, {} as Redis, () => named).request("/jobs/j9");
+            assert.equal(calls.at(-1)?.searchParams.get("action_name"), "Scan report: secret-host.test");
+        } finally {
+            stub.mock.restore();
+        }
+    });
+
+    it("pauses tracking after Matomo fails, and the page still renders", async () => {
+        const stub = mock.method(globalThis, "fetch", async () => {
+            throw new Error("down");
+        });
+        try {
+            const settings = settingsOf({ analytics: { matomo: { url: "https://mtm.test/", "site-id": 3, site: "https://scan.test/", privacy: "https://scan.test/privacy" } } });
+            const tracked = api({} as Queue, {} as Redis, () => settings);
+            const first = await read(tracked.request("/"));
+            await sleep(20);
+            const second = await read(tracked.request("/"));
+            assert.deepEqual([first.status, second.status], [200, 200]);
+            assert.equal(stub.mock.callCount(), 1, "one failure pauses further reports");
+        } finally {
+            stub.mock.restore();
+        }
     });
 });
 

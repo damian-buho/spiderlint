@@ -46,6 +46,11 @@ allow-private: false # true lets scans reach loopback and private networks, and 
 clock-references: [https://www.cloudflare.com/, https://www.google.com/, https://www.wikipedia.org/] # our clock is checked against their Date at start; [] skips it
 defaults: # org.spiderlint keys every scan starts from, under the request’s
   resources: { max-per-page: 50 }
+page:
+  directory: /etc/spiderlint/page # head.html, header.html and footer.html, each also as <slot>.<lang>.html
+  assets: /etc/spiderlint/assets # served as they are under /assets/
+analytics:
+  matomo: { url: https://mtm.example/, site-id: 3, site: https://scan.example/, privacy: https://scan.example/privacy } # page views reported by the server
 clients:
   rate: { jobs: 10, per: 1h } # scans one client address may queue; false for no limit
   trusted-proxies: [172.18.0.0/16] # peers whose X-Forwarded-For names the client
@@ -206,6 +211,59 @@ style sheet and script by hash.
 
 A finished host is the badge’s for `retention`, so its latest report is public to
 anyone who knows the hostname.
+
+## Customising pages
+
+An instance owner adds to the form and job pages from the settings file, with no
+change to the image. Both keys under `page` are read at start and again whenever the
+settings change; a fragment edited on disk is picked up within 5 s, and an invalid
+edit is logged and the last good fragments stay. The badge and the API are never
+touched.
+
+- `page.directory` holds up to three HTML fragments: `head.html` goes into the
+  `<head>`, `header.html` above the page and `footer.html` below it. A fragment
+  named `<slot>.<lang>.html` (`footer.uk.html`) wins for readers of that language,
+  the language `Accept-Language` picks; the plain file is the fallback. `{lang}`
+  and `{dir}` inside a fragment become the language code and `ltr` or `rtl`, and
+  nothing else is substituted.
+- `page.assets` is a directory served under `/assets/` with the type its
+  extension names. There is no listing, no dotfile and nothing outside the
+  directory, so an owner can host a script or an image on the server’s own origin.
+
+The content security policy stays automatic. When a fragment loads, every inline
+`<script>` and `<style>` in it is hashed, per language since `{lang}` changes the
+text, and joins that response’s policy. An external `<script src>` or
+`<link rel="stylesheet">` must carry `integrity` and be `https:` or a path on the
+server, or the settings are refused naming the file; its origin joins the policy.
+While `page.assets` is set, `'self'` joins `script-src` and `style-src` too, so a
+fragment can import a module it hosts. Inline event handlers and `style=""`
+attributes stay blocked, and the pages work without JavaScript.
+
+`analytics.matomo` reports each form and job page view to a Matomo from the
+server, through its HTTP tracking API: no script reaches the browser, the policy
+does not change and visits without JavaScript count. Only the page name, its route,
+the language and the user agent are sent, never the client address. The badge,
+`/assets/` and `/v1/` are not reported, nor a visitor who sends `DNT: 1` or
+`Sec-GPC: 1`. A job page is tracked as `/jobs/:id` titled “Scan report”, with the
+scanned host in the title only under `include-hosts: true`. Every page links
+`privacy` while it is on. Each report waits at most 3 s and never delays the page;
+after a failure reporting pauses, a minute longer for each failure in a row, up to
+ten.
+
+Worked example, a banner module hosted on the server: copy its per-locale files into
+`page.assets`, then one `head.html` loads the one for the reader’s language.
+
+```html
+<script type="module">import "/assets/banner/{lang}.js";</script>
+```
+
+Worked example, Matomo: no fragment, only the block under `analytics` shown in the
+settings file above. A browser tracker would instead be a `head.html` with its
+`<script src="https://matomo.example/matomo.js" integrity="…">`, which also needs
+the `connect-src` and `img-src` a tracker uses and so is not supported.
+
+Each load logs which fragments, assets and Matomo are active and how many hashes
+were added to the policy.
 
 ## Address guard
 

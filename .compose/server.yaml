@@ -6,6 +6,8 @@ redis: redis://spiderlint-valkey:6379/0
 retention: 1d
 workers: 2
 allow-private: true
+page:
+  directory: /etc/spiderlint/page
 clients:
   rate: false
   trusted-proxies: [172.16.0.0/12]
