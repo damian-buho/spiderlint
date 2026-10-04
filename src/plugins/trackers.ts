@@ -43,7 +43,7 @@ export default definePlugin({
     presets: {
         trackers: {
             description: "Inventory of the analytics and ad-tech vendors the site loads, from a hand-kept host list",
-            rules: { "trackers/inventory": "info" },
+            rules: { "trackers/inventory": { severity: "info", score: 2.6 } },
         },
     },
 });

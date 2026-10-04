@@ -86,7 +86,7 @@ export default definePlugin({
     presets: {
         markup: {
             description: "Markup the crawl can judge alone: language switcher links, video captions, input types matching their autocomplete",
-            rules: { "markup/lang-switcher": "warning", "markup/captions": "warning", "markup/input-type": "warning" },
+            rules: { "markup/lang-switcher": { severity: "warning", score: 4.8 }, "markup/captions": { severity: "warning", score: 6 }, "markup/input-type": { severity: "warning", score: 4.4 } },
         },
     },
 });

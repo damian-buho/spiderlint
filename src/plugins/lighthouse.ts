@@ -7,6 +7,7 @@ import { debuggingPort } from "../crawl/browser.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
+import type { Scale } from "../rules/score.ts";
 import { definePlugin } from "./types.ts";
 
 const ID = "lighthouse";
@@ -66,13 +67,13 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Lightho
 }
 
 // A category score of at least 0.9, Lighthouse’s own green.
-function score(category: string, label: string, link: string): RuleSpec {
-    return { fact: `${ID}.scores.${category}`, expect: { type: "number", minimum: 0.9 }, severity: "warning", message: `Lighthouse ${label} score is ${GOT}, under 0.9`, docs: link, fix: `Fix the failing audits Lighthouse lists under ${label}, largest savings first.` };
+function score(category: string, label: string, link: string, scale: Scale): RuleSpec {
+    return { fact: `${ID}.scores.${category}`, expect: { type: "number", minimum: 0.9 }, severity: "warning", score: scale, message: `Lighthouse ${label} score is ${GOT}, under 0.9`, docs: link, fix: `Fix the failing audits Lighthouse lists under ${label}, largest savings first.` };
 }
 
 // A lab metric at most `limit`, the bound Lighthouse marks good.
-function metric(key: keyof typeof VITALS, limit: number, unit: string, link: string): RuleSpec {
-    return { fact: `${ID}.vitals.${key}`, expect: { type: "number", maximum: limit }, severity: "warning", message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`, docs: link, fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.` };
+function metric(key: keyof typeof VITALS, limit: number, unit: string, link: string, scale: Scale): RuleSpec {
+    return { fact: `${ID}.vitals.${key}`, expect: { type: "number", maximum: limit }, severity: "warning", score: scale, message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`, docs: link, fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.` };
 }
 
 export default definePlugin({
@@ -82,14 +83,14 @@ export default definePlugin({
         lighthouse: {
             description: "Lighthouse on sampled pages: performance, accessibility, best-practices and SEO scores, and lab LCP, CLS, TBT and FCP",
             rules: {
-                "lighthouse/performance": score("performance", "performance", "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring"),
-                "lighthouse/accessibility": score("accessibility", "accessibility", "https://developer.chrome.com/docs/lighthouse/accessibility/scoring"),
-                "lighthouse/best-practices": score("best-practices", "best-practices", "https://developer.chrome.com/docs/lighthouse/overview"),
-                "lighthouse/seo": score("seo", "SEO", "https://developer.chrome.com/docs/lighthouse/overview"),
-                "lighthouse/lcp": metric("lcp", 2500, " ms", "https://web.dev/articles/lcp"),
-                "lighthouse/cls": metric("cls", 0.1, "", "https://web.dev/articles/cls"),
-                "lighthouse/tbt": metric("tbt", 200, " ms", "https://web.dev/articles/tbt"),
-                "lighthouse/fcp": metric("fcp", 1800, " ms", "https://web.dev/articles/fcp"),
+                "lighthouse/performance": score("performance", "performance", "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring", [[0, 6.4], [0.9, 3.3]]),
+                "lighthouse/accessibility": score("accessibility", "accessibility", "https://developer.chrome.com/docs/lighthouse/accessibility/scoring", [[0, 6.2], [0.9, 3.3]]),
+                "lighthouse/best-practices": score("best-practices", "best-practices", "https://developer.chrome.com/docs/lighthouse/overview", [[0, 5.6], [0.9, 3.3]]),
+                "lighthouse/seo": score("seo", "SEO", "https://developer.chrome.com/docs/lighthouse/overview", [[0, 5.4], [0.9, 3.3]]),
+                "lighthouse/lcp": metric("lcp", 2500, " ms", "https://web.dev/articles/lcp", [[2500, 3.4], [6000, 6]]),
+                "lighthouse/cls": metric("cls", 0.1, "", "https://web.dev/articles/cls", [[0.1, 3.4], [0.25, 6]]),
+                "lighthouse/tbt": metric("tbt", 200, " ms", "https://web.dev/articles/tbt", [[200, 3.4], [600, 6]]),
+                "lighthouse/fcp": metric("fcp", 1800, " ms", "https://web.dev/articles/fcp", [[1800, 3.4], [3000, 6]]),
             },
         },
     },

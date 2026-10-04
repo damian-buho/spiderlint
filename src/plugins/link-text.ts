@@ -64,7 +64,7 @@ export default definePlugin({
     presets: {
         "link-text": {
             description: "Links whose text says where they lead, judged in the page’s own language: English, Spanish and Ukrainian",
-            rules: { "link-text/generic": "warning" },
+            rules: { "link-text/generic": { severity: "warning", score: 4.6 } },
         },
     },
 });

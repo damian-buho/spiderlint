@@ -110,7 +110,7 @@ export default definePlugin({
     presets: {
         manifest: {
             description: "Web app manifest linked from every page, served as a manifest, and carrying what installation needs: name, id, start URL inside its scope, display mode, sized and maskable icons",
-            rules: { "manifest/parse": "error", "manifest/fields": "warning", "manifest/icons": "warning", "manifest/served": "warning", "manifest/discovery": "warning" },
+            rules: { "manifest/parse": { severity: "error", score: 7.2 }, "manifest/fields": { severity: "warning", score: 5 }, "manifest/icons": { severity: "warning", score: 4.6 }, "manifest/served": { severity: "warning", score: 5.4 }, "manifest/discovery": { severity: "warning", score: 4.2 } },
         },
     },
 });

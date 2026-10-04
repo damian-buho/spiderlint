@@ -219,7 +219,7 @@ export default definePlugin({
     presets: {
         live: {
             description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme and under increased contrast, icons and opt-outs under forced colours, click handlers on plain elements, form fields small enough to zoom",
-            rules: { "live/reduced-motion": "warning", "live/dark-contrast": "warning", "live/contrast-enhanced": "warning", "live/forced-icons": "warning", "live/click-listener": "warning", "live/input-font-size": "info", "live/contrast-more": "info", "live/forced-opt-out": "info" },
+            rules: { "live/reduced-motion": { severity: "warning", score: 6.2 }, "live/dark-contrast": { severity: "warning", score: 5.6 }, "live/contrast-enhanced": { severity: "warning", score: 5 }, "live/forced-icons": { severity: "warning", score: 5.4 }, "live/click-listener": { severity: "warning", score: 5.2 }, "live/input-font-size": { severity: "info", score: 2.6 }, "live/contrast-more": { severity: "info", score: 1.6 }, "live/forced-opt-out": { severity: "info", score: 2.4 } },
         },
     },
 });

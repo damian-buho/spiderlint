@@ -222,7 +222,7 @@ export default definePlugin({
     presets: {
         keyboard: {
             description: "Keyboard use on sampled pages: Tab reaches every control without a trap, focus shows, also under forced colours, and is not covered, a skip link comes first",
-            rules: { "keyboard/tab-walk": "warning", "keyboard/focus-visible": "warning", "keyboard/focus-obscured": "warning", "keyboard/forced-focus": "warning", "keyboard/skip-link": "info" },
+            rules: { "keyboard/tab-walk": { severity: "warning", score: 6.4 }, "keyboard/focus-visible": { severity: "warning", score: 6 }, "keyboard/focus-obscured": { severity: "warning", score: 5.8 }, "keyboard/forced-focus": { severity: "warning", score: 5.4 }, "keyboard/skip-link": { severity: "info", score: 2.8 } },
         },
     },
 });

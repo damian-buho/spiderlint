@@ -288,9 +288,9 @@ const icons: SiteExtractor = {
 };
 
 // A rule over one of the per-origin problem lists.
-function problemRule(check: keyof IconsFacts, severity: Severity, message: string, documentation: string, fix: string) {
+function problemRule(check: keyof IconsFacts, severity: Severity, score: number, message: string, documentation: string, fix: string) {
     // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation -- {got} is the rule message placeholder
-    return { fact: `site.origins.*.${ID}.${check}`, expect: { maxItems: 0 }, message: `${message}: {got}`, severity, docs: documentation, fix };
+    return { fact: `site.origins.*.${ID}.${check}`, expect: { maxItems: 0 }, message: `${message}: {got}`, severity, score, docs: documentation, fix };
 }
 
 export default definePlugin({
@@ -300,12 +300,12 @@ export default definePlugin({
         icons: {
             description: "Favicons and platform icons fetched and measured: the favicon, SVG, Apple touch, Safari pinned tab and Windows tile icons, and every declared size",
             rules: {
-                "icons/favicon": problemRule("favicon", "warning", "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
-                "icons/svg": problemRule("svg", "hint", "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
-                "icons/apple-touch": problemRule("apple-touch", "warning", "the Apple touch icon is missing or unfit", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html", "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>."),
-                "icons/mask-icon": problemRule("mask-icon", "hint", "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html", "Link a single-colour SVG with a color attribute, or drop rel=mask-icon."),
-                "icons/ms-tile": problemRule("ms-tile", "info", "a Windows tile image or browserconfig.xml is broken", "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)", "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them."),
-                "icons/declared-size": problemRule("declared-size", "warning", "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
+                "icons/favicon": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
+                "icons/svg": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
+                "icons/apple-touch": problemRule("apple-touch", "warning", 3.8, "the Apple touch icon is missing or unfit", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html", "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>."),
+                "icons/mask-icon": problemRule("mask-icon", "hint", 0.4, "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html", "Link a single-colour SVG with a color attribute, or drop rel=mask-icon."),
+                "icons/ms-tile": problemRule("ms-tile", "info", 1.4, "a Windows tile image or browserconfig.xml is broken", "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)", "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them."),
+                "icons/declared-size": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
             },
         },
     },
