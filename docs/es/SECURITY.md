@@ -84,10 +84,12 @@ aplica a este proyecto):
 | CVE-2026-69152 | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-69192 | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-73566 | bundled tar < 7.5.21 in npm; fixed upstream, drop after the node fleet rebuilds |
+| CVE-2026-93687 | bundled braces 3.0.3 in pnpm; no fixed braces release exists |
+| GHSA-vfj7-8cjw-p6xm | bundled braces 3.0.3 in pnpm; no fixed braces release exists |
+| CVE-2026-93748 | bundled inside npm (latest dist-tag); no npm release ships the fix |
+| GHSA-ch52-4w7c-c8xp | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102276 | bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102278 | bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix |
 | GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| CVE-2026-93748 | cache semantics |
-| GHSA-ch52-4w7c-c8xp | cache semantics |
 
 <!-- textlint-enable -->

@@ -6,8 +6,4 @@
 org:
   projectfile:
     vulnerabilities:
-      suppress:
-        - id: CVE-2026-93748
-          reason: cache semantics
-        - id: GHSA-ch52-4w7c-c8xp
-          reason: cache semantics
+      suppress: []

@@ -21,6 +21,7 @@ identity:
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
+  - .makefile/b19/vulnerabilities/npm-bundled.yaml
   - .makefile/container/traits/readme-tool-image.yaml
   - .makefile/core/traits/github-action.yaml
   - .makefile/library/images/valkey.yaml
