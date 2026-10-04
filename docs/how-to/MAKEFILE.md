@@ -1137,6 +1137,22 @@ Run the package.json typecheck script
 
 > Image: NODE_TOOL_IMAGE
 
+### `pf-bridge-audit-ci-check`
+
+Verify audit-ci.jsonc still matches the projectfile
+
+`pf-bridge vulnerabilities audit-ci.jsonc --check`
+
+> Image: PF_BRIDGE_IMAGE
+
+### `pf-bridge-audit-ci-generate`
+
+Generate audit-ci.jsonc from the projectfile
+
+`pf-bridge vulnerabilities audit-ci.jsonc --force`
+
+> Image: PF_BRIDGE_IMAGE
+
 ### `pf-bridge-browserslistrc-check`
 
 Verify .browserslistrc still matches the projectfile
