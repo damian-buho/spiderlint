@@ -309,15 +309,15 @@ export default definePlugin({
     presets: {
         images: {
             description: "Image weight and markup: bytes a modern format or a re-encode saves, heavy and oversized images, layout shift",
-            rules: { "images/modern-format": "warning", "images/recompress": "warning", "images/weight": "warning", "images/dimensions": "warning", "images/oversized": "warning" },
+            rules: { "images/modern-format": { severity: "warning", score: 5.2 }, "images/recompress": { severity: "warning", score: 4.8 }, "images/weight": { severity: "warning", score: 5.6 }, "images/dimensions": { severity: "warning", score: 5.4 }, "images/oversized": { severity: "warning", score: 4.6 } },
         },
         "images:assets": {
             description: "Fonts and text assets: WOFF2, font-display, and bytes minification saves",
-            rules: { "images/font-format": "warning", "images/font-display": "warning", "images/minify": "warning" },
+            rules: { "images/font-format": { severity: "warning", score: 4.4 }, "images/font-display": { severity: "warning", score: 5 }, "images/minify": { severity: "warning", score: 4.2 } },
         },
         "images:live": {
             description: "Images as the browser lays them out, on sampled pages: lazy loading against the fold, pixels shipped against pixels shown",
-            rules: { "images/lazy-below-fold": "warning", "images/lazy-above-fold": "warning", "images/rendered-oversize": "warning" },
+            rules: { "images/lazy-below-fold": { severity: "warning", score: 4.8 }, "images/lazy-above-fold": { severity: "warning", score: 5.8 }, "images/rendered-oversize": { severity: "warning", score: 4.4 } },
         },
     },
 });

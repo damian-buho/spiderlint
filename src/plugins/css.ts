@@ -345,7 +345,7 @@ export default definePlugin({
     presets: {
         css: {
             description: "Style sheets and inline CSS as browsers parse them: syntax errors, unknown properties, values outside the grammar, and features the declared browser targets lack",
-            rules: { "css/parse-error": "warning", "css/unknown-property": "warning", "css/invalid-value": "warning", "css/unsupported": "info", "css/inline-parse-error": "warning", "css/inline-unknown-property": "warning", "css/inline-invalid-value": "warning", "css/inline-unsupported": "info" },
+            rules: { "css/parse-error": { severity: "warning", score: 5.6 }, "css/unknown-property": { severity: "warning", score: 4.6 }, "css/invalid-value": { severity: "warning", score: 4.4 }, "css/unsupported": { severity: "info", score: 2.2 }, "css/inline-parse-error": { severity: "warning", score: 5.2 }, "css/inline-unknown-property": { severity: "warning", score: 4.2 }, "css/inline-invalid-value": { severity: "warning", score: 4 }, "css/inline-unsupported": { severity: "info", score: 1.8 } },
         },
     },
 });
