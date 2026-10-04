@@ -29,6 +29,9 @@ msgstr "Comprobando los enlaces externos"
 msgid "Checking linked resources"
 msgstr "Comprobando los recursos enlazados"
 
+msgid "Checks"
+msgstr "Comprobaciones"
+
 msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
 msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de seguridad, TLS, enlaces y más."
 
@@ -37,6 +40,9 @@ msgstr "Comprobaciones superadas"
 
 msgid "Click depth"
 msgstr "Profundidad en clics"
+
+msgid "Comprehensive"
+msgstr "Completo"
 
 msgid "Cookies"
 msgstr "Cookies"
@@ -185,6 +191,9 @@ msgstr "Páginas: {done} de {total}"
 msgid "Passed: {count} checks"
 msgstr "Superadas: {count} comprobaciones"
 
+msgid "Quick"
+msgstr "Rápido"
+
 msgid "Rating"
 msgstr "Calificación"
 
@@ -260,6 +269,9 @@ msgstr "Informe de spiderlint"
 msgid "spiderlint — site linter"
 msgstr "spiderlint — revisión de sitios web"
 
+msgid "Standard"
+msgstr "Estándar"
+
 msgid "Start a new scan"
 msgstr "Iniciar un nuevo análisis"
 
@@ -275,11 +287,20 @@ msgstr "Transferencia de estilos"
 msgid "TCP connect"
 msgstr "Conexión TCP"
 
+msgid "The basics over HTTP, on at most 25 pages"
+msgstr "Lo básico por HTTP, en 25 páginas como máximo"
+
 msgid "The form could not be read. Try again."
 msgstr "No se pudo leer el formulario. Inténtalo de nuevo."
 
 msgid "The form was sent from another site. Open this page and try again."
 msgstr "El formulario se envió desde otro sitio. Abre esta página e inténtalo de nuevo."
+
+msgid "The recommended checks"
+msgstr "Las comprobaciones recomendadas"
+
+msgid "The recommended checks plus link graph, structured data, manifest, trackers and more"
+msgstr "Las comprobaciones recomendadas más grafo de enlaces, datos estructurados, manifiesto, rastreadores y más"
 
 msgid "The requested fetch mode is not available on this instance."
 msgstr "El modo de descarga pedido no está disponible en esta instancia."
@@ -344,3 +365,4 @@ msgstr "{passed} de {total}"
 
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} de {total}"
+

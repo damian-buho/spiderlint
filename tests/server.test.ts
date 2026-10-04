@@ -12,7 +12,7 @@ import { ConfigError } from "../src/config/index.ts";
 import { negotiate, readerLocale, translator } from "../src/i18n.ts";
 import { api } from "../src/server/api.ts";
 import { Buckets, clientOf } from "../src/server/clients.ts";
-import { admit, policyFor, Refusal, resolveRules } from "../src/server/policy.ts";
+import { admit, policyFor, presetSettings, presetsOffered, Refusal, resolveRules } from "../src/server/policy.ts";
 import { addRanges } from "../src/server/providers.ts";
 import { connect, scanQueue } from "../src/server/queue.ts";
 import { hostSuffix, settingsOf } from "../src/server/settings.ts";
@@ -165,6 +165,31 @@ describe("server pages without Redis", () => {
         assert.ok(response.headers.get("content-security-policy")?.includes("script-src 'sha256-"));
     });
 
+    it("offers the web presets as radios, the default first and checked, in the reader’s language", async () => {
+        const response = await app.request("/", { headers: { "accept-language": "es" } });
+        const html = await response.text();
+        assert.match(html, /<input type="radio" name="preset" value="recommended" checked> Estándar/);
+        assert.ok(html.indexOf('value="web-quick"') > html.indexOf('value="recommended"') && html.indexOf('value="web-comprehensive"') > html.indexOf('value="web-quick"'));
+        assert.equal(html.match(/ checked>/g)?.length, 1);
+    });
+
+    it("refuses a preset the host’s policy does not allow, keeping the choice on the form", async () => {
+        const response = await app.request("/", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ url: "a.ua", preset: "web-comprehensive" }).toString() });
+        const html = await response.text();
+        assert.equal(response.status, 403);
+        assert.ok(html.includes("A requested rule is not available on this instance."));
+        assert.match(html, /value="web-comprehensive" checked/);
+        const unknown = await app.request("/", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ url: "example.com", preset: "all" }).toString() });
+        assert.equal(unknown.status, 400);
+    });
+
+    it("shows the rulesets a running scan was queued with", async () => {
+        const job = { id: "j3", data: { url: "https://a.test/", host: "a.test", settings: { rules: ["web-quick"] } }, progress: { done: 1, total: 2, phase: "crawl" }, getState: async () => "active" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j3");
+        const html = await response.text();
+        assert.ok(html.includes("Rulesets: web-quick"));
+    });
+
     it("refuses a form sent from another site", async () => {
         const response = await app.request("/", { method: "POST", headers: { "sec-fetch-site": "cross-site", "content-type": "application/x-www-form-urlencoded" }, body: "url=example.com" });
         assert.equal(response.status, 403);
@@ -175,6 +200,28 @@ describe("server pages without Redis", () => {
         assert.equal(response.headers.get("content-type"), "image/svg+xml; charset=utf-8");
         assert.equal(response.headers.get("cross-origin-resource-policy"), "cross-origin");
         assert.match(await response.text(), /not scanned/);
+    });
+});
+
+describe("web presets", () => {
+    it("offers those some policy admits, none when every policy bans", () => {
+        assert.deepEqual(presetsOffered(SETTINGS), ["recommended", "web-quick", "web-comprehensive"]);
+        const narrow = settingsOf({ policies: [{ name: "a", hosts: ["*"], rules: { allow: ["web-quick", "seo"] } }] });
+        assert.deepEqual(presetsOffered(narrow), ["web-quick"]);
+        assert.deepEqual(presetsOffered(settingsOf({ policies: [{ name: "b", hosts: ["*"], ban: true }] })), []);
+    });
+
+    it("lowers caps and never raises them past the policy", () => {
+        const quick = admit({ url: "https://example.com/", settings: presetSettings("web-quick") }, SETTINGS).settings;
+        assert.deepEqual([quick["max-pages"], quick.rules, quick.resources], [25, ["web-quick"], { fetch: false }]);
+        const capped = settingsOf({ policies: [{ name: "a", hosts: ["*"], caps: { "max-pages": 10 } }] });
+        assert.equal(admit({ url: "https://example.com/", settings: presetSettings("web-quick") }, capped).settings["max-pages"], 10);
+        assert.equal(admit({ url: "https://example.com/", settings: presetSettings("web-comprehensive") }, SETTINGS).settings["max-pages"], 100);
+    });
+
+    it("answers a policy that does not allow the preset with forbidden-rule, and an unknown one with unknown-rule", () => {
+        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: presetSettings("web-quick") }, SETTINGS)), "forbidden-rule");
+        assert.equal(refusal(() => presetSettings("all")), "unknown-rule");
     });
 });
 

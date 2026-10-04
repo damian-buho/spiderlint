@@ -16,7 +16,7 @@ discovery, scope, depth, glob and body-size limits; a fetch mode derived per
 group, both crawlers side by side in one run, and `adaptive` detection per group; sitemap discovery and facts; transport,
 TLS and resource facts; groups; declarative and built-in rules, presets
 `seo`, `security-headers`, `performance`, `links`, `tls`, `cookies`, `redirects`, `sitemap`, `robots`, `i18n`,
-`resources`, `browser`, `parity`, `sustainability`, `insights`, `vendor`, `recommended`, `server`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
+`resources`, `browser`, `parity`, `sustainability`, `insights`, `vendor`, `recommended`, `server`, `web-quick`, `web-comprehensive`, `all`; site-wide `unique`; folding; fact statistics and the `export-facts` export; `human`, `json`,
 `sarif`, `checkstyle`, `csv`, `html`, `agent` with `--output`; checks passed and the S–F rating; `pf-cli` and plain-file config; `sites` with `--site`; the store with `crawl`, `lint`,
 `show-report` and `--resume`; the `pages`, `resources`, `sitemaps`, `robots`, `probes` and `extractors`
 buckets with RFC 9111 revalidation, `show-cache`, `purge-cache`, `warm-cache`, `--no-cache`,

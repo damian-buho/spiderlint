@@ -9,6 +9,8 @@ import { parsedHeaders } from "../src/facts/headers.ts";
 import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop, Role, TlsFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
+import { isBrowserFact } from "../src/plugins/index.ts";
+import { NEVER_SERVED, WEB_PRESETS } from "../src/server/policy.ts";
 import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule } from "../src/rules/types.ts";
@@ -255,6 +257,19 @@ describe("presets", () => {
         assert.ok(Object.keys(resolveRuleset("tls/*", {})).every((id) => id.startsWith("tls/")));
         assert.deepEqual(Object.keys(resolveRuleset("mine", { mine: { extends: ["http/alt-svc-h3"] } })), ["http/alt-svc-h3"]);
         assert.throws(() => resolveRuleset("http/no-such-rule", {}), /no rule ID matches it/);
+    });
+
+    it("ships every web preset the form offers, over HTTP only and clear of what a server never serves", () => {
+        for (const name of Object.keys(WEB_PRESETS)) {
+            const rules = compileRulesets([name], {});
+            assert.ok(rules.length > 0, name);
+            assert.deepEqual(rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => rule.meta.id), [], name);
+            assert.deepEqual(rules.filter((rule) => rule.meta.id.startsWith("sshfp")).map((rule) => rule.meta.id), [], name);
+        }
+        assert.ok(NEVER_SERVED.length > 0);
+        const quick = new Set(compileRulesets(["web-quick"], {}).map((rule) => rule.meta.id));
+        assert.ok(!quick.has("links/broken-external") && quick.has("links/broken-internal"), "no outbound probe of external links");
+        assert.ok(compileRulesets(["web-comprehensive"], {}).length > compileRulesets(["recommended"], {}).length);
     });
 
     it("derives server from the recommended rules that need no page past the seeds", () => {

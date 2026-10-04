@@ -14,7 +14,7 @@ import type { Phase, Progress } from "../progress.ts";
 import type { Grade } from "../report/rating.ts";
 import { escape, page, reportBody, STYLE } from "../report/html.ts";
 import { jobOf, submit, type Jobs } from "./jobs.ts";
-import { Refusal } from "./policy.ts";
+import { presetSettings, presetsOffered, Refusal } from "./policy.ts";
 import { latestKey, type ScanJob } from "./queue.ts";
 
 const BODY_MAX = 64 * 1024;
@@ -102,11 +102,29 @@ function respond(c: Context, t: Translator, title: string, body: string, status:
     return c.html(page(t, title, body, head), status);
 }
 
-// The form, with the address typed and the refusal it met, if any.
-function formPage(c: Context, t: Translator, typed = "", refusal?: Refusal): Response {
+// What each web preset is called and says, in the reader’s language.
+function presetText(t: Translator): Record<string, [name: string, summary: string]> {
+    return {
+        recommended: [t._("Standard"), t._("The recommended checks")],
+        "web-quick": [t._("Quick"), t._("The basics over HTTP, on at most 25 pages")],
+        "web-comprehensive": [t._("Comprehensive"), t._("The recommended checks plus link graph, structured data, manifest, trackers and more")],
+    };
+}
+
+// The presets as a radio group, `chosen` or else the first checked; nothing when no policy offers one.
+function presetChoice(t: Translator, offered: string[], chosen?: string): string {
+    if (offered.length === 0) return "";
+    const checked = chosen !== undefined && offered.includes(chosen) ? chosen : offered[0];
+    const text = presetText(t);
+    const options = offered.map((name) => `<label><input type="radio" name="preset" value="${escape(name)}"${name === checked ? " checked" : ""}> ${escape(text[name]?.[0] ?? name)} <small class="muted">${escape(text[name]?.[1] ?? "")}</small></label>`);
+    return `<fieldset><legend class="muted">${escape(t._("Checks"))}</legend>${options.join("")}</fieldset>`;
+}
+
+// The form, with the address typed, the preset chosen and the refusal it met, if any.
+function formPage(c: Context, t: Translator, offered: string[], typed = "", refusal?: Refusal, chosen?: string): Response {
     if (refusal?.retryAfter !== undefined) c.header("retry-after", String(refusal.retryAfter));
     const alert = refusal ? `<p class="alert" role="alert">${escape(refusalText(t, refusal))}${refusal.code === "banned" ? `<br><small>${escape(refusal.message)}</small>` : ""}</p>` : "";
-    const body = `<main><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button></form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p></main>`;
+    const body = `<main><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button>${presetChoice(t, offered, chosen)}</form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p></main>`;
     return respond(c, t, t._("spiderlint — site linter"), body, refusal?.status ?? 200);
 }
 
@@ -134,7 +152,8 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
     const state = status === "running" ? t._("Scanning…") : t._("Waiting in the queue…");
     const values = total === undefined ? "" : ` max="${total}" value="${done ?? 0}"`;
     const attributes = [["events", `/v1/jobs/${job.id}/events`], ["locale", t.locale], ["running", t._("Scanning…")], ["count", count], ["eta", t._("About {range} left", { range: "{range}" })], ["under", t._("Less than {range} left", { range: "{range}" })], ["step", stepText], ["phases", JSON.stringify(names)]].map(([name, value]) => `data-${name}="${escape(value as string)}"`).join(" ");
-    return `<div ${attributes}><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
+    const rulesets = (job.data.settings?.rules as string[] | undefined)?.join(", ");
+    return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
 }
 
 // The report with its downloads and badge.
@@ -177,21 +196,24 @@ function badge(value: string, color: string, href?: string): string {
 export function web(jobs: Jobs): Hono {
     const app = new Hono();
 
-    app.get("/", (c) => formPage(c, translate(c)));
+    const offered = () => presetsOffered(jobs.settings());
 
-    app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: (c) => formPage(c, translate(c), "", new Refusal(400, "invalid-body", "form too large")) }), async (c) => {
+    app.get("/", (c) => formPage(c, translate(c), offered()));
+
+    app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: (c) => formPage(c, translate(c), offered(), "", new Refusal(400, "invalid-body", "form too large")) }), async (c) => {
         const t = translate(c);
         const form = await formOf(c);
         const typed = typeof form.url === "string" ? form.url : "";
+        const preset = typeof form.preset === "string" ? form.preset : undefined;
         try {
             if (c.req.header("sec-fetch-site") === "cross-site") throw new Refusal(403, "cross-site", "form sent from another site");
-            const { job, isRepeat } = await submit(jobs, { url: seedOf(typed) }, c);
-            log.debug({ job: job.id, isRepeat }, "form submitted");
+            const { job, isRepeat } = await submit(jobs, { url: seedOf(typed), ...(preset !== undefined && { settings: presetSettings(preset) }) }, c);
+            log.debug({ job: job.id, isRepeat, preset }, "form submitted");
             return c.redirect(`/jobs/${job.id}`, 303);
         } catch (error) {
             if (!(error instanceof Refusal)) throw error;
-            log.info({ code: error.code, status: error.status }, "form refused");
-            return formPage(c, t, typed, error);
+            log.info({ code: error.code, status: error.status, preset }, "form refused");
+            return formPage(c, t, offered(), typed, error, preset);
         }
     });
 

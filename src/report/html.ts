@@ -43,6 +43,8 @@ th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 summary { cursor: pointer; } summary h2 { display: inline; }
 ul { margin: .25rem 0 0; padding-inline-start: 1.25rem; }
 form { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1.5rem; }
+fieldset { flex: 1 1 100%; border: 0; padding: 0; margin: .5rem 0 0; } fieldset label { display: block; }
+input[type=radio] { flex: none; inline-size: auto; margin-inline-end: .25rem; }
 input { flex: 1 1 20rem; font: inherit; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: .375rem; color: inherit; background: transparent; }
 button { font: inherit; padding: .5rem 1.25rem; border: 0; border-radius: .375rem; color: var(--bg); background: var(--fg); cursor: pointer; }
 progress { inline-size: 100%; block-size: .75rem; }

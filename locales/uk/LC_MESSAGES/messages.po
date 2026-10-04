@@ -29,6 +29,9 @@ msgstr "Перевіряємо зовнішні посилання"
 msgid "Checking linked resources"
 msgstr "Перевіряємо підключені ресурси"
 
+msgid "Checks"
+msgstr "Перевірки"
+
 msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
 msgstr "Перевіряє кожну сторінку сайту: теги для пошукових систем, заголовки безпеки, TLS, посилання тощо."
 
@@ -37,6 +40,9 @@ msgstr "Пройдені перевірки"
 
 msgid "Click depth"
 msgstr "Глибина в кліках"
+
+msgid "Comprehensive"
+msgstr "Повні"
 
 msgid "Cookies"
 msgstr "Cookie"
@@ -185,6 +191,9 @@ msgstr "Сторінок: {done} з {total}"
 msgid "Passed: {count} checks"
 msgstr "Пройдено: {count} перевірок"
 
+msgid "Quick"
+msgstr "Швидкі"
+
 msgid "Rating"
 msgstr "Оцінка"
 
@@ -260,6 +269,9 @@ msgstr "Звіт spiderlint"
 msgid "spiderlint — site linter"
 msgstr "spiderlint — перевірка сайтів"
 
+msgid "Standard"
+msgstr "Стандартні"
+
 msgid "Start a new scan"
 msgstr "Почати нову перевірку"
 
@@ -275,11 +287,20 @@ msgstr "Передача стилів"
 msgid "TCP connect"
 msgstr "З’єднання TCP"
 
+msgid "The basics over HTTP, on at most 25 pages"
+msgstr "Основи через HTTP, не більше ніж на 25 сторінках"
+
 msgid "The form could not be read. Try again."
 msgstr "Не вдалося прочитати форму. Спробуйте ще раз."
 
 msgid "The form was sent from another site. Open this page and try again."
 msgstr "Форму надіслано з іншого сайту. Відкрийте цю сторінку та спробуйте ще раз."
+
+msgid "The recommended checks"
+msgstr "Рекомендовані перевірки"
+
+msgid "The recommended checks plus link graph, structured data, manifest, trackers and more"
+msgstr "Рекомендовані перевірки плюс граф посилань, структуровані дані, маніфест, трекери та інше"
 
 msgid "The requested fetch mode is not available on this instance."
 msgstr "Запитаний режим завантаження недоступний на цьому сервері."
@@ -344,3 +365,4 @@ msgstr "{passed} з {total}"
 
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} з {total}"
+

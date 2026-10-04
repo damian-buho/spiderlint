@@ -89,6 +89,20 @@ A policy entry:
 | `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                        |
 | `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                              |
 
+The form offers three rule sets as radios, `recommended` first: `recommended`
+(Standard), `web-quick` and `web-comprehensive`. `web-quick` runs search tags,
+security headers, caching, TLS, redirects, `robots.txt` and internal links over
+HTTP, on at most 25 pages and without fetching resources or probing external
+links. `web-comprehensive` is `recommended` plus the link graph, language,
+structured data, manifest, markup, link text, well-known files, trackers,
+footprint and vendor paths. Neither needs a browser or reaches what the server
+never serves. A choice is an ordinary request naming that rule set, so `rules.allow`
+and `rules.deny` decide it per host: an option no policy admits is not shown, and
+one the host’s own policy refuses answers the form with “A requested rule is not
+available”. List `web-*` in `allow` to offer them where `allow` is set. A preset
+lowers `max-pages` and never raises a cap past the policy’s. The job page and the
+report header name the rule set.
+
 A request that names no rules runs `recommended`, so an `allow` list without it
 refuses such a request. Settings a request may never set: `plugins`, `sources`,
 `proxy`, `resolver`, `resolve`, `robots`, `cache`, `profile`, `format`,

@@ -16,6 +16,13 @@ const REQUEST_KEYS = new Set(["canonical-origin", "rules", "exclude-rules", "ove
 // Rules whose extractors connect to ports a stranger’s URL must never aim the server at.
 export const NEVER_SERVED = ["sshfp", "sshfp/*"];
 
+// What the form lets a visitor pick, default first, and the settings each lowers beside its rules; the policy still clamps after, so none raises a cap.
+export const WEB_PRESETS: Record<string, Record<string, unknown>> = {
+    recommended: {},
+    "web-quick": { "max-pages": 25, resources: { fetch: false } },
+    "web-comprehensive": {},
+};
+
 // A request the server turns down, with a stable code a client can translate.
 export class Refusal extends Error {
     readonly status: 400 | 403 | 404 | 409 | 429 | 503;
@@ -75,6 +82,29 @@ function checkRules(settings: Record<string, unknown>, policy: Policy): void {
         log.debug({ id, policy: policy.name }, "requested rule checked");
         if (isDenied(id) || !isAllowed(id)) throw new Refusal(403, "forbidden-rule", `rules: ${id} is not allowed by policy ${policy.name}`);
     }
+}
+
+// The request settings of the web preset `name`, or a refusal when the form never offered it.
+export function presetSettings(name: string): Record<string, unknown> {
+    if (!Object.hasOwn(WEB_PRESETS, name)) throw new Refusal(400, "unknown-rule", `preset: ${name} is not a web preset`);
+    log.debug({ preset: name }, "web preset chosen");
+    return { rules: [name], ...WEB_PRESETS[name] };
+}
+
+// The web presets some admitting policy lets a request name, in the form’s order; the host typed picks the policy, so each stays checked on submit.
+export function presetsOffered(server: ServerSettings): string[] {
+    const policies = server.policies.filter((policy) => policy.ban === undefined);
+    const offered = Object.keys(WEB_PRESETS).filter((name) => policies.some((policy) => {
+        try {
+            checkRules({ rules: [name] }, policy);
+            return true;
+        } catch (error) {
+            if (error instanceof Refusal) return false;
+            throw error;
+        }
+    }));
+    log.debug({ offered, policies: policies.length }, "web presets offered");
+    return offered;
 }
 
 // Each fetch mode the scan names must be allowed; unnamed, it takes the policy’s first.

@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: MIT
+---
+description: A fast look at the basics over HTTP — search tags, security headers, caching, TLS, redirects and robots.txt — for the scan server’s form
+extends:
+  - spiderlint:seo
+  - spiderlint:security-headers
+  - spiderlint:performance
+  - spiderlint:tls
+  - spiderlint:redirects
+  - spiderlint:robots
+  - spiderlint:links
+rules:
+  links/broken-external: off
