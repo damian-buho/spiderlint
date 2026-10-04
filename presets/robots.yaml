@@ -4,6 +4,10 @@
 ---
 description: robots.txt shutting every crawler out, the AI crawlers it names, and its Content Signals
 rules:
-  robots/disallow-all: {severity: warning, when: {site.role: production}}
-  robots/ai-crawlers: info
-  robots/content-signal: warning
+  robots/disallow-all: {severity: warning, score: 6.3, when: {site.role: production}}
+  robots/ai-crawlers:
+    severity: info
+    score: 1.6
+  robots/content-signal:
+    severity: warning
+    score: 3.6
