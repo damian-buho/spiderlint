@@ -44,6 +44,9 @@ msgstr "Розмір після розпакування"
 msgid "DNS lookup"
 msgstr "Запит DNS"
 
+msgid "Documentation"
+msgstr "Документація"
+
 msgid "DOM ready"
 msgstr "DOM готовий"
 
@@ -67,6 +70,9 @@ msgstr "Знахідка"
 
 msgid "First Contentful Paint"
 msgstr "First Contentful Paint"
+
+msgid "Fix: {fix}"
+msgstr "Виправлення: {fix}"
 
 msgid "Font transfer"
 msgstr "Передача шрифтів"
@@ -277,3 +283,4 @@ msgstr "ще {count}"
 
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
+

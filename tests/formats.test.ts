@@ -139,6 +139,21 @@ describe("formatHtml", () => {
         assert.ok(html.includes(`<code>${report.findings[0]?.rule}</code>`));
     });
 
+    it("names the resource, trims same-origin URLs beside a foreign one and shows the rule’s fix", () => {
+        const resource: Finding = { rule: "resources/status", severity: "warning", scope: "site", url: "https://other.test/pixel.php?id=3", message: "image answers 400; used by 2 pages", urls: [`${site.origin}/a`, `${site.origin}/b`] };
+        const own: Finding = { rule: "seo/title", severity: "warning", scope: "page", group: "default", url: `${site.origin}/c`, message: "title is missing" };
+        const rules = { "resources/status": { facts: ["resources"], fix: "Serve the image.", docs: "https://example.test/status" } };
+        const input = { ...report, findings: [resource, own], rules };
+        const html = formatHtml(input, undefined, false, "en");
+        assert.ok(html.includes('href="https://other.test/pixel.php?id=3"'), "resource named");
+        assert.ok(html.includes(">/a</a>") && html.includes(">/c</a>"), "same-origin URLs trimmed");
+        assert.ok(html.includes("Fix: Serve the image.") && html.includes('href="https://example.test/status"'), "fix and docs");
+        for (const text of [formatHuman(input), formatAgent(input)]) {
+            assert.ok(text.includes("https://other.test/pixel.php?id=3"), text);
+            assert.ok(text.includes("/c") && !text.includes(`${site.origin}/c`), text);
+        }
+    });
+
     it("names each statistic by its translated label with the path on hover, an unlabelled one by its path", () => {
         const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");

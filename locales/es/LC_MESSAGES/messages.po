@@ -44,6 +44,9 @@ msgstr "Tamaño descomprimido"
 msgid "DNS lookup"
 msgstr "Consulta DNS"
 
+msgid "Documentation"
+msgstr "Documentación"
+
 msgid "DOM ready"
 msgstr "DOM listo"
 
@@ -67,6 +70,9 @@ msgstr "Hallazgo"
 
 msgid "First Contentful Paint"
 msgstr "First Contentful Paint"
+
+msgid "Fix: {fix}"
+msgstr "Solución: {fix}"
 
 msgid "Font transfer"
 msgstr "Transferencia de fuentes"
@@ -277,3 +283,4 @@ msgstr "{count} más"
 
 msgid "{passed} of {total}"
 msgstr "{passed} de {total}"
+

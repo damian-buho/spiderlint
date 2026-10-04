@@ -118,7 +118,7 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
 function doneBody(t: Translator, job: ScanJob): string {
     const downloads = formatNames().map((name) => `<a href="/v1/jobs/${escape(job.id)}/report/${escape(name)}">${escape(name)}</a>`).join(" · ");
     const badge = `/badge/${escape(job.data.host)}.svg`;
-    return `${reportBody(job.returnvalue, t, shown(job.data.url))}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
+    return `${reportBody(job.returnvalue, t, shown(job.data.url), new URL(job.data.url).origin)}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
 }
 
 // Pixels a badge half needs for `text` in 11px Verdana, roughly.

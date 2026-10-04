@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { Queue, type Job } from "bullmq";
 import { Redis } from "ioredis";
-import type { Summary } from "../index.ts";
+import type { Report, Summary } from "../index.ts";
 import { log } from "../logger.ts";
 import type { Progress } from "../progress.ts";
 import type { Finding } from "../rules/types.ts";
@@ -29,10 +29,11 @@ export interface ScanData {
     trace?: Record<string, string>;
 }
 
-// What `--format json` prints: the summary and the findings.
+// What `--format json` prints: the summary, the findings and the guides of the rules that found something.
 export interface ScanResult {
     summary: Summary;
     findings: Finding[];
+    rules?: Report["rules"];
 }
 
 export type ScanJob = Job<ScanData, ScanResult>;

@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
+import { fixFor } from "../rules/fix.ts";
 import { bytes, label, withUnit } from "../facts/labels.ts";
 import { environmentLanguage, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
 import { byImportance, scoreOf } from "../rules/score.ts";
-import type { Finding } from "../rules/types.ts";
+import type { Finding, RuleGuide } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { bundle } from "./human.ts";
 
@@ -87,14 +88,22 @@ function detail(t: Translator, same: Finding[], origin: string): string {
         const pages = first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share });
         return `<p class="muted">${escape(pages)}</p>${items(t, (first.samples ?? []).map((url) => `${link(url, origin)}${locations(t, first.sampleLocations?.[url])}`))}`;
     }
-    return first.urls ? `${items(t, first.urls.map((url) => link(url, origin)))}${locations(t, first.locations)}` : `<div>${link(first.url, origin)}</div>${locations(t, first.locations)}`;
+    if (first.urls) return `${first.urls.includes(first.url) ? "" : `<div>${link(first.url, origin)}</div>`}${items(t, first.urls.map((url) => link(url, origin)))}${locations(t, first.locations)}`;
+    return `<div>${link(first.url, origin)}</div>${locations(t, first.locations)}`;
+}
+
+// The rule’s fix filled for this finding, then its docs link; nothing when the rule has neither.
+function remedy(t: Translator, guide: RuleGuide | undefined, finding: Finding): string {
+    const fix = guide?.fix ? `<p>${escape(t._("Fix: {fix}", { fix: fixFor(guide.fix, finding) }))}</p>` : "";
+    const documentation = guide?.docs && /^https?:\/\//i.test(guide.docs) ? `<p><a href="${escape(guide.docs)}" rel="noopener noreferrer">${escape(t._("Documentation"))}</a></p>` : "";
+    return fix + documentation;
 }
 
 // One table row per bundle of findings.
-function row(t: Translator, same: Finding[], origin: string): string {
+function row(t: Translator, same: Finding[], origin: string, guides: Report["rules"]): string {
     const [first] = same as [Finding];
     const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
-    return `<tr><td class="${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</td><td><code>${escape(first.rule)}</code></td><td>${escape(message)}${detail(t, same, origin)}</td></tr>`;
+    return `<tr><td class="${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</td><td><code>${escape(first.rule)}</code></td><td>${escape(message)}${detail(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</td></tr>`;
 }
 
 // One summary cell.
@@ -103,8 +112,8 @@ function total(label: string, value: string, tone = ""): string {
 }
 
 // Severity, rule and finding columns, one row per bundle.
-function table(t: Translator, findings: Finding[], origin: string): string {
-    return `<table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin)).join("")}</tbody></table>`;
+function table(t: Translator, findings: Finding[], origin: string, guides: Report["rules"]): string {
+    return `<table><thead><tr><th>${escape(t._("Severity"))}</th><th>${escape(t._("Rule"))}</th><th>${escape(t._("Finding"))}</th></tr></thead><tbody>${bundle(findings).map((same) => row(t, same, origin, guides)).join("")}</tbody></table>`;
 }
 
 // A fact’s translated label with its path on hover, or the path as code when it has none.
@@ -121,9 +130,8 @@ function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): stri
 }
 
 // The rating, the totals and every finding grouped by group, site-wide ones next, each vendor’s last; findings keep their English message.
-export function reportBody(report: Pick<Report, "summary" | "findings"> & { pages?: Report["pages"] }, t: Translator, title: string): string {
+export function reportBody(report: Pick<Report, "summary" | "findings" | "rules">, t: Translator, title: string, origin: string): string {
     const { summary } = report;
-    const origin = singleOrigin([...(report.pages ?? []).map((facts) => facts.url.href), ...report.findings.map((finding) => finding.url)]);
     const { rating } = summary;
     const started = new Intl.DateTimeFormat(t.lang, { dateStyle: "medium", timeStyle: "short" }).format(new Date(summary.started));
     const head = `<header class="head"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
@@ -144,7 +152,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
     }
     const section = (heading: string, findings: Finding[]) => {
         findings.sort(byImportance(summary.pages));
-        return `<section><h2>${heading}</h2>${table(t, findings, origin)}</section>`;
+        return `<section><h2>${heading}</h2>${table(t, findings, origin, report.rules)}</section>`;
     };
     const groupHeading = (group: string) => (group === "" ? escape(t._("Whole site")) : `<code>${escape(group)}</code> <small>${escape(t._("Pages: {count}", { count: t.number(summary.groups[group] ?? 0) }))}</small>`);
     const sections = [
@@ -152,7 +160,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
         ...[...vendors].map(([vendor, findings]) => section(escape(t._("Vendor: {name}", { name: vendor })), findings)),
     ];
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
-    if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${table(t, hints.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url)), origin)}</details></section>`);
+    if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${table(t, hints.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url)), origin, report.rules)}</details></section>`);
     return `${head}<dl class="totals">${totals.join("")}</dl>${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${statistics(t, summary.stats)}`;
 }
 
@@ -161,5 +169,5 @@ export function formatHtml(report: Report, _paint?: Paint, _isFull?: boolean, la
     const t = translator(lang);
     const origin = singleOrigin(report.pages.map((facts) => facts.url.href));
     const title = origin || t._("spiderlint report");
-    return page(t, title, `<main>${reportBody(report, t, title)}</main>`);
+    return page(t, title, `<main>${reportBody(report, t, title, origin)}</main>`);
 }
