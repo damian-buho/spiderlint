@@ -16,7 +16,7 @@ identity:
     en: Spiderlint crawls every page a site serves, collects facts about each request (HTML, headers, TLS, timings, sizes) and lints them against rulesets scoped by URL group, so a template missing a heading is one finding rather than one per page. Built on Node and Crawlee.
     es: Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petición (HTML, cabeceras, TLS, tiempos, tamaños) y los valida contra conjuntos de reglas por grupo de URL, de modo que una plantilla sin encabezado es un solo hallazgo y no uno por página. Construido sobre Node y Crawlee.
     uk: Spiderlint обходить кожну сторінку сайту, збирає факти про кожен запит (HTML, заголовки, TLS, таймінги, розміри) і перевіряє їх за наборами правил для груп URL, тож шаблон без заголовка — це один результат, а не по одному на сторінку. Побудовано на Node і Crawlee.
-  version: 0.137.0
+  version: 0.138.0
   released: "2026-10-03"
 includes:
   - .makefile/b19/ci.yaml
