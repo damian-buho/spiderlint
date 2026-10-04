@@ -7,4 +7,4 @@
 # Runs the CLI from the image’s source tree; Node strips the types itself.
 set -eo pipefail
 
-exec node --experimental-strip-types "${B19_HOME}/src/cli.ts" "$@"
+exec node "${B19_HOME}/src/cli.ts" "$@"

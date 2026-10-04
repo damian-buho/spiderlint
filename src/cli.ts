@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+#!/usr/bin/env node
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
 // SPDX-License-Identifier: MIT
