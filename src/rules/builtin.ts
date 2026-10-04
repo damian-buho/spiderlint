@@ -439,7 +439,7 @@ export const builtin: Record<string, Make> = {
     ...insightRules,
     ...lengthRules,
     ...relationRules,
-    "resources/status": resourceRule("resources/status", (_page, resource) => resource.kind !== "enclosure", resourceStatus, undefined, undefined, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
+    "resources/status": resourceRule("resources/status", (_page, resource) => resource.kind !== "enclosure", resourceStatus, undefined, (resource) => resource.http?.status ?? 0, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),

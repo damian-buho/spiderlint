@@ -4,15 +4,26 @@
 ---
 description: Scripts, styles, images and fonts — status, mixed content, integrity, caching, compression, overlays
 rules:
-  resources/status: error
-  resources/mixed-content: error
-  resources/sri: warning
-  resources/cache-control: warning
-  resources/compression: warning
+  resources/status:
+    severity: error
+    score: [[0, 9.0], [404, 7.6], [500, 9.0]]
+  resources/mixed-content:
+    severity: error
+    score: 9.4
+  resources/sri:
+    severity: warning
+    score: 6.5
+  resources/cache-control:
+    severity: warning
+    score: 4.8
+  resources/compression:
+    severity: warning
+    score: 4.4
   resources/a11y-overlay:
     fact: resources
     expect: {not: {contains: {properties: {url: {pattern: "^https?://([^/]+\\.)?(acsbapp\\.com|acsbap\\.com|accessibe\\.com|userway\\.org|audioeye\\.com|equalweb\\.com|nagich\\.co\\.il|maxaccess\\.io|allyable\\.com|accessiblyapp\\.com|user1st\\.info|purplelens\\.eu)(:|/|$)"}}}}}
     severity: warning
+    score: 5.2
     message: "loads an accessibility overlay, which does not fix the page and gets in the way of assistive tools ({got})"
     fix: "Remove the accessibility overlay script and fix accessibility issues directly."
     docs: https://overlayfactsheet.com/
