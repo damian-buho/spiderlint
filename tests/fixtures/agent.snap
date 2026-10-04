@@ -462,3 +462,5 @@ Reads: `html.property.og:type`, expects `{"type":"string","pattern":"^(?:website
 Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
 Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
+
+Checks passed: 393 of 453; 22 rules failed nowhere.
