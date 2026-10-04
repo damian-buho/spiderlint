@@ -10,6 +10,7 @@ rules:
     fact: tls.authorized
     expect: {const: true}
     severity: error
+    score: 9.5
     message: "certificate is not trusted"
     fix: "Install the CA bundle the server needs, or request a certificate from a trusted CA."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
@@ -17,6 +18,7 @@ rules:
     fact: tls.protocol
     expect: {enum: [TLSv1.2, TLSv1.3]}
     severity: warning
+    score: 6.1
     message: "TLS should be 1.2 or 1.3, found {got}"
     fix: "Disable TLS 1.0 and 1.1 in the server configuration; keep only TLS 1.2 and 1.3."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
@@ -42,6 +44,7 @@ rules:
     fact: tls.cert.days-left
     expect: {type: integer, minimum: 0}
     severity: error
+    score: 9.3
     message: "certificate has expired ({got} days left)"
     fix: "Renew the certificate and reload the server that serves it."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
@@ -54,6 +57,7 @@ rules:
         - {properties: {type: {const: Ed25519}}}
     when: {tls.cert.key: {type: object}}
     severity: error
+    score: 8.8
     message: "certificate key is weaker than RSA 2048 or EC P-256: {got}"
     fix: "Issue the certificate for a new EC P-256 key, or an RSA key of at least 2048 bits."
     docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
@@ -62,6 +66,7 @@ rules:
     expect: {items: {not: {pattern: "[Ss][Hh][Aa]1|[Mm][Dd][245]"}}}
     when: {tls.cert.signatures: {type: array}}
     severity: error
+    score: 8.6
     message: "the certificate chain is signed with SHA-1 or MD5: {got}"
     fix: "Reissue the certificate from a CA that signs with SHA-256 or stronger, and serve its current intermediates."
     docs: https://www.rfc-editor.org/rfc/rfc9155
