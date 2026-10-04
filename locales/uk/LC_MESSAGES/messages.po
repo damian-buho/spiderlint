@@ -20,6 +20,15 @@ msgstr "Залишилося приблизно {range}"
 msgid "Badge"
 msgstr "Значок"
 
+msgid "Checking domain, mail and certificates"
+msgstr "Перевіряємо домен, пошту та сертифікати"
+
+msgid "Checking external links"
+msgstr "Перевіряємо зовнішні посилання"
+
+msgid "Checking linked resources"
+msgstr "Перевіряємо підключені ресурси"
+
 msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
 msgstr "Перевіряє кожну сторінку сайту: теги для пошукових систем, заголовки безпеки, TLS, посилання тощо."
 
@@ -71,6 +80,9 @@ msgstr "Введіть вебадресу, наприклад example.com."
 msgid "Error"
 msgstr "Помилка"
 
+msgid "Evaluating the rules"
+msgstr "Застосовуємо правила"
+
 msgid "External links"
 msgstr "Зовнішні посилання"
 
@@ -121,6 +133,9 @@ msgstr "Внутрішні посилання"
 
 msgid "Largest Contentful Paint"
 msgstr "Largest Contentful Paint"
+
+msgid "Less than {range} left"
+msgstr "Залишилося менше ніж {range}"
 
 msgid "Link rank"
 msgstr "Ранг посилань"
@@ -325,3 +340,7 @@ msgstr "ще {count}"
 
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
+
+
+msgid "{phase}: {done} of {total}"
+msgstr "{phase}: {done} з {total}"

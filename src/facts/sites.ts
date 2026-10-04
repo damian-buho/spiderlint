@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { progressCount, progressPhase } from "../progress.ts";
 import { getDomain } from "tldts";
 import type { Bucket } from "../cache/index.ts";
 import { defaults, type Config } from "../config/index.ts";
@@ -87,6 +88,8 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
     if (extra.size > 0) site.linked = extra.keys().toArray();
     log.debug({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length, linked: extra.size }, "site extractors start");
     const ran: string[] = [];
+    let finished = 0;
+    progressPhase("site", jobs.length);
     const queue = jobs.values();
     const worker = async () => {
         for (const { extractor, subject, members, isLinked } of queue) {
@@ -104,6 +107,7 @@ export async function extractSites(pages: Facts[], site: SiteFacts, active: Site
                     else log.warn({ extractor: extractor.id, subject, error: reason(error) }, `${extractor.id} checks of ${subject} skipped:`);
                 }
             }
+            progressCount((finished += 1));
             if (value === undefined) continue;
             const facts = (site[KIND[extractor.per]] ??= {});
             (facts[subject] ??= {})[extractor.id] = value;

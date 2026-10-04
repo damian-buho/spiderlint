@@ -34,7 +34,7 @@ import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { isProgressOn, progressDone } from "./progress.ts";
+import { isProgressOn, progressDone, progressEnd, progressPhase } from "./progress.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, pageReader, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
@@ -366,6 +366,7 @@ function linter(config: Config): Lint {
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
     return ({ pages, site, cost, fetch }, started) => {
         stopIfInterrupted("lint");
+        progressPhase("lint");
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
         if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, `${parity.join(", ")} skipped on ${unrendered} pages crawled over http; --fetch browser renders them`);
         derive(pages, site, config, matchers, isDetected);
@@ -377,6 +378,7 @@ function linter(config: Config): Lint {
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
         log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
+        progressEnd();
         return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
     };
 }
@@ -413,6 +415,7 @@ async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
     try {
         return await crawlOpen(config, store, network.proxy);
     } finally {
+        progressEnd();
         await network.close();
     }
 }

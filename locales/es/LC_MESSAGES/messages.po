@@ -20,6 +20,15 @@ msgstr "Quedan unos {range}"
 msgid "Badge"
 msgstr "Insignia"
 
+msgid "Checking domain, mail and certificates"
+msgstr "Comprobando dominio, correo y certificados"
+
+msgid "Checking external links"
+msgstr "Comprobando los enlaces externos"
+
+msgid "Checking linked resources"
+msgstr "Comprobando los recursos enlazados"
+
 msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
 msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de seguridad, TLS, enlaces y más."
 
@@ -71,6 +80,9 @@ msgstr "Escribe una dirección web, como example.com."
 msgid "Error"
 msgstr "Error"
 
+msgid "Evaluating the rules"
+msgstr "Evaluando las reglas"
+
 msgid "External links"
 msgstr "Enlaces externos"
 
@@ -121,6 +133,9 @@ msgstr "Enlaces internos"
 
 msgid "Largest Contentful Paint"
 msgstr "Largest Contentful Paint"
+
+msgid "Less than {range} left"
+msgstr "Quedan menos de {range}"
 
 msgid "Link rank"
 msgstr "Rango de enlaces"
@@ -325,3 +340,7 @@ msgstr "{count} más"
 
 msgid "{passed} of {total}"
 msgstr "{passed} de {total}"
+
+
+msgid "{phase}: {done} of {total}"
+msgstr "{phase}: {done} de {total}"

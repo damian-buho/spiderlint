@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { progressCount, progressPhase } from "../progress.ts";
 import { availableParallelism } from "node:os";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { Bucket, OfflineMiss } from "../cache/index.ts";
@@ -237,6 +238,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const images = new Set(entries.filter((entry) => entry.kind === "image").map((entry) => entry.url));
     log.debug({ resources: urls.length, references: entries.length, images: images.size, headed: headed.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
+    progressPhase("resources", urls.length);
     const results = new Map<string, ResourceResults[string]>();
     const failures = new Bucket<Failure>(bucket.name, bucket.directory, bucket.ttlSeconds, bucket.mode);
     const queue = urls.values();
@@ -244,6 +246,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
         for (const url of queue) {
             const answer = logged.get(url);
             results.set(url, headed.has(url) && !isUsable(answer) ? await headRemembered(url, bucket, failures, config.cacheFailureTtl, ACCEPT_ENCODING) : isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }));
+            progressCount(results.size);
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);

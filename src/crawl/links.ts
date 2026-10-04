@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { progressCount, progressPhase } from "../progress.ts";
 import type { Bucket } from "../cache/index.ts";
 import type { Config } from "../config/index.ts";
 import type { LinkFacts } from "../facts/types.ts";
@@ -73,12 +74,15 @@ export async function probeLinks(links: string[], config: Pick<Config, "allowPri
     const answers: Record<string, LinkFacts> = {};
     const signal = new AbortController().signal;
     let cached = 0;
+    let probed = 0;
+    progressPhase("probes", hrefs.length);
     const worker = async () => {
         for (const group of hosts) {
             for (const href of group) {
                 const { cached: isCached, ...answer } = await answerOf(href, config, bucket, signal);
                 cached += isCached ? 1 : 0;
                 answers[href] = answer;
+                progressCount((probed += 1));
             }
         }
     };

@@ -10,6 +10,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
+import type { Phase, Progress } from "../progress.ts";
 import type { Grade } from "../report/rating.ts";
 import { escape, page, reportBody, STYLE } from "../report/html.ts";
 import { jobOf, submit, type Jobs } from "./jobs.ts";
@@ -27,17 +28,23 @@ const status = document.querySelector("[data-events]");
 if (status && "EventSource" in window) {
     const lang = status.dataset.locale;
     const numbers = new Intl.NumberFormat(lang);
-    const seconds = new Intl.NumberFormat(lang, { style: "unit", unit: "second" });
+    const phases = JSON.parse(status.dataset.phases);
     const fill = (template, values) => template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
+    const left = (eta) => {
+        const units = new Intl.NumberFormat(lang, { style: "unit", unit: eta.unit });
+        if (eta.low === 0) return fill(status.dataset.under, { range: units.format(eta.high) });
+        return fill(status.dataset.eta, { range: eta.low === eta.high ? units.format(eta.high) : units.formatRange(eta.low, eta.high) });
+    };
     const events = new EventSource(status.dataset.events);
     events.addEventListener("progress", (event) => {
         const job = JSON.parse(event.data);
         if (job.status === "running") status.querySelector("[data-state]").textContent = status.dataset.running;
         if (!job.progress) return;
-        const { done, total, eta } = job.progress;
+        const { done, total, eta, phase, step } = job.progress;
         Object.assign(status.querySelector("progress"), { max: total, value: done });
         status.querySelector("[data-count]").textContent = fill(status.dataset.count, { done: numbers.format(done), total: numbers.format(total) });
-        status.querySelector("[data-eta]").textContent = eta ? fill(status.dataset.eta, { range: seconds.formatRange(eta[0], eta[1]) }) : "";
+        status.querySelector("[data-eta]").textContent = eta ? left(eta) : "";
+        status.querySelector("[data-phase]").textContent = phase === "crawl" || !phases[phase] ? "" : step ? fill(status.dataset.step, { phase: phases[phase], done: numbers.format(step.done), total: numbers.format(step.total) }) : phases[phase];
     });
     for (const name of ["done", "failed", "expired"]) events.addEventListener(name, () => { events.close(); location.reload(); });
 }
@@ -103,15 +110,31 @@ function formPage(c: Context, t: Translator, typed = "", refusal?: Refusal): Res
     return respond(c, t, t._("spiderlint — site linter"), body, refusal?.status ?? 200);
 }
 
+// The time left as the reader writes it: “about 2–4 min”, “less than 3 min” while the low end is zero.
+function etaLine(t: Translator, eta: Progress["eta"]): string {
+    if (!eta) return "";
+    const units = new Intl.NumberFormat(t.locale, { style: "unit", unit: eta.unit });
+    if (eta.low === 0) return t._("Less than {range} left", { range: units.format(eta.high) });
+    return t._("About {range} left", { range: eta.low === eta.high ? units.format(eta.high) : units.formatRange(eta.low, eta.high) });
+}
+
+// What each phase after the crawl is called, in the reader’s language.
+function phaseNames(t: Translator): Partial<Record<Phase, string>> {
+    return { resources: t._("Checking linked resources"), probes: t._("Checking external links"), site: t._("Checking domain, mail and certificates"), lint: t._("Evaluating the rules") };
+}
+
 // Where a queued or running scan stands, updated by events or, without scripts, by a refresh.
 function progressBody(t: Translator, job: ScanJob, status: string): string {
-    const { done, total, eta } = (typeof job.progress === "object" ? job.progress : {}) as { done?: number; total?: number; eta?: [number, number] };
+    const { done, total, eta, phase, step } = (typeof job.progress === "object" ? job.progress : {}) as Partial<Progress>;
     const count = t._("Pages: {done} of {total}", { done: "{done}", total: "{total}" });
-    const etaText = t._("About {range} left", { range: "{range}" });
-    const seconds = new Intl.NumberFormat(t.locale, { style: "unit", unit: "second" });
+    const stepText = t._("{phase}: {done} of {total}", { phase: "{phase}", done: "{done}", total: "{total}" });
+    const names = phaseNames(t);
+    const named = phase && names[phase];
+    const phaseText = named ? (step ? t._("{phase}: {done} of {total}", { phase: named, done: t.number(step.done), total: t.number(step.total) }) : named) : "";
     const state = status === "running" ? t._("Scanning…") : t._("Waiting in the queue…");
     const values = total === undefined ? "" : ` max="${total}" value="${done ?? 0}"`;
-    return `<div data-events="/v1/jobs/${escape(job.id)}/events" data-locale="${escape(t.locale)}" data-running="${escape(t._("Scanning…"))}" data-count="${escape(count)}" data-eta="${escape(etaText)}"><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${eta ? escape(t._("About {range} left", { range: seconds.formatRange(eta[0], eta[1]) })) : ""}</span></p></div>`;
+    const attributes = [["events", `/v1/jobs/${job.id}/events`], ["locale", t.locale], ["running", t._("Scanning…")], ["count", count], ["eta", t._("About {range} left", { range: "{range}" })], ["under", t._("Less than {range} left", { range: "{range}" })], ["step", stepText], ["phases", JSON.stringify(names)]].map(([name, value]) => `data-${name}="${escape(value as string)}"`).join(" ");
+    return `<div ${attributes}><p data-state>${escape(state)}</p><progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
 }
 
 // The report with its downloads and badge.

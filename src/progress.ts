@@ -11,15 +11,32 @@ const REDRAW_MS = 1000;
 const ETA_WINDOW = 50;
 const ETA_MIN_SAMPLES = 3;
 const ETA_Z = 2;
+const COUNT_MS = 250;
 
-// The status line: whether it draws, what it shows, the origin trimmed from its URL.
-const state = { isOn: false, isShown: false, done: 0, total: 0, page: "", step: "", since: 0, origin: "", last: 0, intervals: [] as number[] };
+// What a run does, in order: the crawl, then the work on its pages, then the rules.
+export const PHASES = ["crawl", "resources", "probes", "site", "lint"] as const;
+export type Phase = (typeof PHASES)[number];
 
-// Done and known pages with the ETA range in seconds, as a listener receives them.
+// What each phase is called on the status line.
+const PHASE_TEXT: Record<Phase, string> = { crawl: "crawling", resources: "linked resources", probes: "external links", site: "site checks", lint: "rules" };
+
+// The status line: whether it draws, what it shows, the origin trimmed from its URL, the phase and how far inside it.
+const state = { isOn: false, isShown: false, done: 0, total: 0, page: "", step: "", since: 0, origin: "", last: 0, notified: 0, phase: "crawl" as Phase, count: undefined as { done: number; total: number } | undefined, intervals: [] as number[] };
+
+// A time left as whole numbers in one unit `Intl` names.
+export interface EtaSpan {
+    low: number;
+    high: number;
+    unit: "second" | "minute" | "hour";
+}
+
+// Done and known pages, the phase the run is in with its own count where it has one, and the ETA, as a listener receives them.
 export interface Progress {
     done: number;
     total: number;
-    eta?: [number, number];
+    phase: Phase;
+    step?: { done: number; total: number };
+    eta?: EtaSpan;
 }
 
 // Called on every change of done or known pages; the server’s scan runner sets it.
@@ -34,7 +51,8 @@ export function onProgress(listener: (progress: Progress) => void): void {
 function notify(): void {
     const total = Math.max(state.done, state.total);
     const range = eta(state.intervals, total - state.done);
-    observer.listener?.({ done: state.done, total, ...(range && { eta: range }) });
+    state.notified = Date.now();
+    observer.listener?.({ done: state.done, total, phase: state.phase, ...(state.count && { step: { ...state.count } }), ...(range && { eta: etaSpan(range) }) });
 }
 
 // Turns the status line on for an interactive run; `--no-progress`, a pipe or JSON logs keep it off.
@@ -45,6 +63,31 @@ export function enableProgress(isOn: boolean): void {
 // Whether the status line draws, so per-page logs can step down to debug.
 export function isProgressOn(): boolean {
     return state.isOn;
+}
+
+// Moves the run into `phase`, which has `total` things to do when it knows; the status line comes back for it, and the listener hears it at once.
+export function progressPhase(phase: Phase, total?: number): void {
+    log.debug({ phase, total }, "progress phase");
+    Object.assign(state, { phase, count: total === undefined ? undefined : { done: 0, total }, page: "", step: "", since: Date.now() });
+    if (state.isOn) state.isShown = true;
+    progressDraw();
+    notify();
+}
+
+// Counts `done` things finished inside the phase; the listener hears it at most four times a second, and the last one always.
+export function progressCount(done: number): void {
+    if (!state.count) return;
+    state.count.done = done;
+    progressDraw();
+    if (done >= state.count.total || Date.now() - state.notified >= COUNT_MS) notify();
+}
+
+// Clears the status line once the run no longer reports, whichever phase it ended in.
+export function progressEnd(): void {
+    if (!state.isShown) return;
+    logUpdateStderr.clear();
+    logUpdateStderr.done();
+    state.isShown = false;
 }
 
 // Names the page and step in flight, timed from now.
@@ -74,18 +117,26 @@ export function eta(intervals: readonly number[], remaining: number): [number, n
     return [Math.max(0, remaining * mean - spread), remaining * mean + spread];
 }
 
-// A span in its largest whole unit: `[value, unit]`.
-function span(seconds: number, round: (value: number) => number): [number, string] {
-    const [size, unit] = seconds < 60 ? [1, "s"] : seconds < 3600 ? [60, "min"] : [3600, "h"];
-    return [round(seconds / size), unit];
+// The range as whole numbers in the unit the high end reaches: the low end rounded down, the high end up.
+export function etaSpan(range: [number, number]): EtaSpan {
+    const [size, unit] = range[1] < 60 ? [1, "second" as const] : range[1] < 3600 ? [60, "minute" as const] : [3600, "hour" as const];
+    return { low: Math.floor(range[0] / size), high: Math.ceil(range[1] / size), unit };
 }
 
-// The range as `ETA 2–4 min`, one unit when both ends share it, one value when they meet.
+const SUFFIX: Record<EtaSpan["unit"], string> = { second: "s", minute: "min", hour: "h" };
+
+// The range as `ETA 2–4 min`, `ETA under 3 min` while the low end is zero, one value when both ends meet.
 export function etaText(range: [number, number] | undefined): string {
     if (!range) return "";
-    const [[low, lowUnit], [high, highUnit]] = [span(range[0], Math.floor), span(range[1], Math.ceil)];
-    if (lowUnit !== highUnit) return `ETA ${low} ${lowUnit}–${high} ${highUnit}`;
-    return low === high ? `ETA ${high} ${highUnit}` : `ETA ${low}–${high} ${highUnit}`;
+    const { low, high, unit } = etaSpan(range);
+    if (low === high) return `ETA ${high} ${SUFFIX[unit]}`;
+    return low === 0 ? `ETA under ${high} ${SUFFIX[unit]}` : `ETA ${low}–${high} ${SUFFIX[unit]}`;
+}
+
+// What the run is at: the page in flight while crawling, else the phase with its count.
+function where(): string {
+    if (state.phase === "crawl") return relative(state.page, state.origin);
+    return `${PHASE_TEXT[state.phase]}${state.count ? ` ${state.count.done}/${state.count.total}` : ""}`;
 }
 
 // The line as drawn: a bar, done/known, the ETA, the step, the page, seconds on the step.
@@ -94,7 +145,7 @@ function line(): string {
     const total = Math.max(done, state.total);
     const filled = total > 0 ? Math.min(BAR_WIDTH, Math.round((done / total) * BAR_WIDTH)) : 0;
     const seconds = state.since > 0 ? `${Math.round((Date.now() - state.since) / 1000)} s` : "";
-    return [`▕${"█".repeat(filled)}${"░".repeat(BAR_WIDTH - filled)}▏`, `${done}/${total}`, etaText(eta(state.intervals, total - done)), state.step, relative(state.page, state.origin), seconds].filter(Boolean).join(" ");
+    return [`▕${"█".repeat(filled)}${"░".repeat(BAR_WIDTH - filled)}▏`, `${done}/${total}`, etaText(eta(state.intervals, total - done)), state.step, where(), seconds].filter(Boolean).join(" ");
 }
 
 // Draws the line again in place.
@@ -126,7 +177,7 @@ async function refresh(known: () => Promise<number>): Promise<void> {
 // Redraws each second from `known` until the returned stop runs, which clears the line.
 export function trackProgress(known: () => Promise<number>, origin: string): () => void {
     if (!state.isOn && !observer.listener) return () => {};
-    Object.assign(state, { isShown: state.isOn, origin, last: Date.now(), intervals: [] });
+    Object.assign(state, { isShown: state.isOn, origin, last: Date.now(), intervals: [], phase: "crawl", count: undefined });
     const timer = setInterval(() => void refresh(known), REDRAW_MS);
     timer.unref();
     return () => {

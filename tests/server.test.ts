@@ -153,6 +153,18 @@ describe("server pages without Redis", () => {
         assert.ok(!html.includes("html.text"), "unlabelled fact left to json");
     });
 
+    it("names the phase after the last page with its count and a time left without a fraction", async () => {
+        const progress = { done: 100, total: 100, phase: "resources", step: { done: 40, total: 230 }, eta: { low: 0, high: 2, unit: "minute" } };
+        const job = { id: "j2", data: { url: "https://a.test/", host: "a.test" }, progress, getState: async () => "active" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j2", { headers: { "accept-language": "es" } });
+        const html = await response.text();
+        assert.ok(html.includes("Comprobando los recursos enlazados: 40 de 230"), html);
+        assert.ok(html.includes("Quedan menos de 2 min"), html);
+        const script = /<script>([^]*)<\/script>/.exec(html)?.[1] ?? "";
+        assert.doesNotThrow(() => new Function(script), "inline script parses");
+        assert.ok(response.headers.get("content-security-policy")?.includes("script-src 'sha256-"));
+    });
+
     it("refuses a form sent from another site", async () => {
         const response = await app.request("/", { method: "POST", headers: { "sec-fetch-site": "cross-site", "content-type": "application/x-www-form-urlencoded" }, body: "url=example.com" });
         assert.equal(response.status, 403);
