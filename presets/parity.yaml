@@ -10,6 +10,7 @@ rules:
     fact: parity.missing
     expect: {properties: {title: false}}
     severity: warning
+    score: 6.0
     message: "the title exists only after JavaScript runs: {got}"
     fix: "Render <title> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
@@ -17,6 +18,7 @@ rules:
     fact: parity.missing
     expect: {properties: {description: false}}
     severity: info
+    score: 2.6
     message: "the meta description exists only after JavaScript runs: {got}"
     fix: "Render <meta name=\"description\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
@@ -24,6 +26,7 @@ rules:
     fact: parity.missing
     expect: {properties: {canonical: false}}
     severity: warning
+    score: 5.5
     message: "the canonical link exists only after JavaScript runs: {got}"
     fix: "Render <link rel=\"canonical\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics#properly-inject-canonical-links
@@ -31,6 +34,7 @@ rules:
     fact: parity.missing
     expect: {properties: {h1: false}}
     severity: info
+    score: 2.4
     message: "the h1 exists only after JavaScript runs: {got}"
     fix: "Render the page heading on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
@@ -38,6 +42,7 @@ rules:
     fact: parity
     expect: {if: {properties: {rendered: {properties: {text: {minimum: 200}}}}}, then: {properties: {text-share: {minimum: 0.5}}}}
     severity: warning
+    score: 5.2
     message: "the raw HTML carries a {got} share of the text the rendered page shows"
     fix: "Render the main content on the server, or give it a <noscript> fallback."
     docs: https://developer.mozilla.org/docs/Glossary/SSR
@@ -45,6 +50,7 @@ rules:
     fact: parity.missing
     expect: {properties: {links: false}}
     severity: warning
+    score: 5.8
     message: "internal links exist only after JavaScript runs: {got}"
     fix: "Render navigation links as <a href> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
