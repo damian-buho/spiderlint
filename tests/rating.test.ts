@@ -58,11 +58,11 @@ describe("checks", () => {
     it("counts a page once however many findings it has, passes info, skips when-guarded pages", () => {
         const rule = pageRule({ "/a": [], "/b": ["error", "error", "warning"], "/c": ["info"], "/e": ["warning"] });
         const run = runRules([page("/a"), page("/b"), page("/c"), page("/d"), page("/e")], new Map([["default", [rule]]]), {} as never);
-        assert.deepEqual(run.checks, { total: 4, failed: 2, errored: 1 });
+        assert.deepEqual(run.checks, { total: 4, failed: 2, errored: 1, cost: 3.56 });
     });
 
     it("counts nothing for a group without pages", () => {
         const run = runRules([], new Map([["default", [pageRule({})]]]), {} as never);
-        assert.deepEqual(run.checks, { total: 0, failed: 0, errored: 0 });
+        assert.deepEqual(run.checks, { total: 0, failed: 0, errored: 0, cost: 0 });
     });
 });

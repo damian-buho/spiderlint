@@ -6,6 +6,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import { bytes, label, withUnit } from "../facts/labels.ts";
 import { environmentLanguage, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
+import { byImportance, scoreOf } from "../rules/score.ts";
 import type { Finding } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { bundle } from "./human.ts";
@@ -93,7 +94,7 @@ function detail(t: Translator, same: Finding[], origin: string): string {
 function row(t: Translator, same: Finding[], origin: string): string {
     const [first] = same as [Finding];
     const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
-    return `<tr><td class="${first.severity}">${escape(severityName(t, first.severity))}</td><td><code>${escape(first.rule)}</code></td><td>${escape(message)}${detail(t, same, origin)}</td></tr>`;
+    return `<tr><td class="${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</td><td><code>${escape(first.rule)}</code></td><td>${escape(message)}${detail(t, same, origin)}</td></tr>`;
 }
 
 // One summary cell.
@@ -142,7 +143,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings"> & { page
         sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
     const section = (heading: string, findings: Finding[]) => {
-        findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
+        findings.sort(byImportance(summary.pages));
         return `<section><h2>${heading}</h2>${table(t, findings, origin)}</section>`;
     };
     const groupHeading = (group: string) => (group === "" ? escape(t._("Whole site")) : `<code>${escape(group)}</code> <small>${escape(t._("Pages: {count}", { count: t.number(summary.groups[group] ?? 0) }))}</small>`);

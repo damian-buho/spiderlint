@@ -9,6 +9,8 @@ export interface Checks {
     passed: number;
     failed: number;
     errored: number;
+    // What the failed checks cost, each by its worst score; the failed count when absent.
+    cost?: number;
 }
 
 export interface Rating {
@@ -26,10 +28,11 @@ const FLOORS: [number, Grade][] = [
     [2, "E"],
 ];
 
-// Grade by share passed; S needs no failed check, an error caps at B, nothing judged means no grade.
+// Grade by share passed, a failed check counting for its cost, 1 at a warning and more as its score rises; S needs no failed check, an error caps at B, nothing judged means no grade.
 export function rate(checks: Checks, rulesets: string[]): Rating | undefined {
     if (checks.total === 0) return undefined;
     const floors = checks.errored > 0 ? FLOORS.slice(1) : FLOORS;
-    const grade = checks.failed === 0 ? "S" : (floors.find(([tenths]) => checks.passed * 10 >= tenths * checks.total)?.[1] ?? "F");
-    return { grade, score: Number((checks.passed / checks.total).toFixed(4)), rulesets };
+    const share = Math.max(0, checks.total - (checks.cost ?? checks.failed)) / checks.total;
+    const grade = checks.failed === 0 ? "S" : (floors.find(([tenths]) => share * 10 >= tenths)?.[1] ?? "F");
+    return { grade, score: Number(share.toFixed(4)), rulesets };
 }

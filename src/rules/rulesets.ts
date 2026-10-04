@@ -9,7 +9,7 @@ import { ConfigError } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { pageReader, pluginPreset, pluginPresetNames, ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
-import type { Rule, RuleSpec, RulesetConfig, Severity } from "./types.ts";
+import type { Rule, RuleEntry, RuleSpec, RulesetConfig, Severity } from "./types.ts";
 
 const PRESETS = new URL("../../presets/", import.meta.url);
 const PREFIX = "spiderlint:";
@@ -58,6 +58,14 @@ export function presetNames(): string[] {
     return [...files, ALL, SERVER, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
 }
 
+// A level pins the rule’s score to its band; a number replaces the level.
+function entryOf(entry: RuleEntry, isUser: boolean): RuleSpec {
+    if (typeof entry === "number") return { score: entry, severity: undefined, pinned: undefined };
+    const spec = typeof entry === "string" ? { severity: entry } : entry;
+    const isPinned = spec.severity !== undefined && spec.score === undefined && (typeof entry === "string" || isUser);
+    return isPinned ? { ...spec, pinned: true } : spec;
+}
+
 // Flattens `extends` depth-first; later entries override earlier ones per rule ID, `expect` keyword by keyword.
 export function resolveRuleset(name: string, rulesets: Record<string, RulesetConfig>, seen: string[] = []): Record<string, RuleSpec> {
     if (seen.includes(name)) throw new ConfigError(`ruleset ${name}: extends itself through ${seen.join(" → ")}`);
@@ -65,11 +73,12 @@ export function resolveRuleset(name: string, rulesets: Record<string, RulesetCon
     if (!config) return selectRules(name, rulesets, seen);
     const merged: Record<string, RuleSpec> = {};
     const parents = config.extends ?? [];
+    const isUser = !name.startsWith(PREFIX) && Object.hasOwn(rulesets, name);
     for (const parent of parents) Object.assign(merged, resolveRuleset(parent, rulesets, [...seen, name]));
     const own = Object.entries(config.rules ?? {});
     for (const [id, entry] of own) {
-        if (typeof entry === "string" && merged[id] === undefined && ruleMaker(id) === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
-        const spec = typeof entry === "string" ? { severity: entry } : entry;
+        if (typeof entry !== "object" && merged[id] === undefined && ruleMaker(id) === undefined) throw new ConfigError(`ruleset ${name}: rule ${id} sets ${entry} but is not defined`);
+        const spec = entryOf(entry, isUser);
         // A new `expect` drops the inherited sentence, which may state the old bounds.
         const expect = spec.expect && { expect: { ...merged[id]?.expect, ...spec.expect }, message: spec.message };
         merged[id] = { ...merged[id], ...spec, ...expect, ...(config.when && { when: { ...config.when, ...merged[id]?.when, ...spec.when } }) };
@@ -111,7 +120,7 @@ export function compileRulesets(names: string[], rulesets: Record<string, Rulese
             log.debug({ rule: id }, "rule off");
             continue;
         }
-        rules.push(compileRule(id, severity === spec.severity ? spec : { ...spec, severity }));
+        rules.push(compileRule(id, severity === spec.severity ? spec : { ...spec, severity, pinned: true }));
     }
     return rules;
 }

@@ -4,7 +4,7 @@
 
 # spiderlint findings for ORIGIN
 
-## links/broken-internal (error)
+## links/broken-internal (error 8.0)
 
 http.status is 404; linked from 12 pages
 
@@ -26,20 +26,88 @@ Fix: Fix the page at the link target so it answers 2xx, or point the links to a 
 Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
 Done when: `spiderlint audit ORIGIN/ --rules links/broken-internal` reports no links/broken-internal finding.
 
-## html/one-h1 (error)
+## html/unique-description (warning 5.0)
 
-should have exactly one <h1>, found none
+pages share one meta description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
 
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1
-- /posts/2
-- /posts/3
-Reads: `html.h1`, expects `{"type":"array","minItems":1,"maxItems":1}`
-Fix: Use exactly one <h1> per page.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
-Done when: `spiderlint audit ORIGIN/ --rules html/one-h1` reports no html/one-h1 finding.
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.meta.description`
+Fix: Give each page a distinct meta description.
+Docs: https://developers.google.com/search/docs/appearance/snippet
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no html/unique-description finding.
 
-## html/viewport (warning)
+## html/unique-og-description (warning 5.0)
+
+pages share one og:description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.property.og:description`
+Fix: Give each page a distinct og:description.
+Docs: https://ogp.me/#optional
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-description` reports no html/unique-og-description finding.
+
+## html/unique-og-title (warning 5.0)
+
+pages share one og:title: 43 characters: “Fixture tag index — posts filed under a tag”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.property.og:title`
+Fix: Give each page a distinct og:title.
+Docs: https://ogp.me/#metadata
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-title` reports no html/unique-og-title finding.
+
+## html/unique-title (warning 5.0)
+
+pages share one <title>: 43 characters: “Fixture tag index — posts filed under a tag”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.title`
+Fix: Give each page a distinct <title>.
+Docs: https://developers.google.com/search/docs/appearance/title-link
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-title` reports no html/unique-title finding.
+
+## links/broken-external (warning 5.0)
+
+answers 404; linked from 1 page
+
+Where: EXTERNAL/gone, used by or shared with:
+- /about
+Reads: `site.links`, `html.links.external`
+Fix: Remove or repoint each broken external link.
+Docs: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
+Done when: `spiderlint audit ORIGIN/ --rules links/broken-external` reports no links/broken-external finding.
+
+## links/redirected-internal (warning 5.0)
+
+redirects to /about; linked from 1 page
+
+Where: /old-about, used by or shared with:
+- /orphan
+Reads: `site.redirects`, `html.links.internal`
+Fix: Make the link target point at the final URL, or serve the content directly.
+Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
+Done when: `spiderlint audit ORIGIN/ --rules links/redirected-internal` reports no links/redirected-internal finding.
+
+## url/trailing-slash (warning 5.0)
+
+trailing slashes differ in group default: 7 pages without /, 1 with /
+
+Where: /app/, used by or shared with:
+- /app/
+Reads: `url.pathname`
+Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
+Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
+Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash` reports no url/trailing-slash finding.
+
+## html/viewport (warning 5.0)
 
 meta viewport should set width=device-width and allow zoom, found none
 
@@ -52,7 +120,7 @@ Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
 Done when: `spiderlint audit ORIGIN/ --rules html/viewport` reports no html/viewport finding.
 
-## html/viewport (warning)
+## html/viewport (warning 5.0)
 
 meta viewport should set width=device-width and allow zoom, found none
 
@@ -65,7 +133,46 @@ Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
 Done when: `spiderlint audit ORIGIN/ --rules html/viewport` reports no html/viewport finding.
 
-## html/theme-color (warning)
+## html/one-h1 (error 8.0)
+
+should have exactly one <h1>, found none
+
+Where: 5 pages of group posts (100 %), for example:
+- /posts/1
+- /posts/2
+- /posts/3
+Reads: `html.h1`, expects `{"type":"array","minItems":1,"maxItems":1}`
+Fix: Use exactly one <h1> per page.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
+Done when: `spiderlint audit ORIGIN/ --rules html/one-h1` reports no html/one-h1 finding.
+
+## html/author (warning 5.0)
+
+an article names no author for its link preview
+
+Where: 6 pages of group default (100 %), for example:
+- /about
+- /duplicate
+- /orphan
+Reads: `html.author`, expects `{"type":"string","minLength":1}`
+Fix: Add <meta name=author>, article:author, or a JSON-LD author to the article head.
+Docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
+Done when: `spiderlint audit ORIGIN/ --rules html/author` reports no html/author finding.
+
+## html/published-date (warning 5.0)
+
+an article gives no publication date for its link preview
+
+Where: 6 pages of group default (100 %), for example:
+- /about
+- /duplicate
+- /orphan
+Reads: `html.published`, expects `{"type":"string","minLength":1}`
+Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
+Docs: https://ogp.me/#type_article
+Done when: `spiderlint audit ORIGIN/ --rules html/published-date` reports no html/published-date finding.
+
+## html/theme-color (warning 5.0)
 
 no meta theme-color
 
@@ -78,7 +185,7 @@ Fix: Add <meta name=theme-color> with a color value.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color` reports no html/theme-color finding.
 
-## html/theme-color (warning)
+## html/theme-color (warning 5.0)
 
 no meta theme-color
 
@@ -94,224 +201,7 @@ Fix: Add <meta name=theme-color> with a color value.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color` reports no html/theme-color finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.theme-color` meeting it.
 
-## html/author (warning)
-
-an article names no author for its link preview
-
-Where: 6 pages of group default (100 %), for example:
-- /about
-- /duplicate
-- /orphan
-Reads: `html.author`, expects `{"type":"string","minLength":1}`
-Fix: Add <meta name=author>, article:author, or a JSON-LD author to the article head.
-Docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
-Done when: `spiderlint audit ORIGIN/ --rules html/author` reports no html/author finding.
-
-## html/published-date (warning)
-
-an article gives no publication date for its link preview
-
-Where: 6 pages of group default (100 %), for example:
-- /about
-- /duplicate
-- /orphan
-Reads: `html.published`, expects `{"type":"string","minLength":1}`
-Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
-Docs: https://ogp.me/#type_article
-Done when: `spiderlint audit ORIGIN/ --rules html/published-date` reports no html/published-date finding.
-
-## html/unique-description (warning)
-
-pages share one meta description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.meta.description`
-Fix: Give each page a distinct meta description.
-Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no html/unique-description finding.
-
-## html/unique-og-description (warning)
-
-pages share one og:description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.property.og:description`
-Fix: Give each page a distinct og:description.
-Docs: https://ogp.me/#optional
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-description` reports no html/unique-og-description finding.
-
-## html/unique-og-title (warning)
-
-pages share one og:title: 43 characters: “Fixture tag index — posts filed under a tag”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.property.og:title`
-Fix: Give each page a distinct og:title.
-Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-title` reports no html/unique-og-title finding.
-
-## html/unique-title (warning)
-
-pages share one <title>: 43 characters: “Fixture tag index — posts filed under a tag”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.title`
-Fix: Give each page a distinct <title>.
-Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-title` reports no html/unique-title finding.
-
-## html/canonical-self (warning)
-
-canonical link names /about/, not this page
-
-Where: /about
-Reads: `html.canonical`
-Fix: Point <link rel=canonical> at this page’s own URL.
-Docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
-Done when: `spiderlint audit ORIGIN/ --rules html/canonical-self` reports no html/canonical-self finding.
-
-## html/description (warning)
-
-no meta description
-
-Where: /app/
-Reads: `html.meta.description`, expects `{"type":"string"}`
-Fix: Add <meta name=description> with a summary to the head.
-Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/description` reports no html/description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.description` meeting it.
-
-## html/description-redundant (warning)
-
-meta description repeats itself around a separator: 51 characters: “Duplicate content notice - Duplicate content notice”
-
-Where: /duplicate
-Reads: `html.meta.description`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
-Fix: Remove the repeated suffix from the meta description.
-Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/description-redundant` reports no html/description-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
-
-## html/img-alt (warning)
-
-an <img> has no alt attribute: {"src":"/figure.png"}
-
-Where: /posts/3
-Reads: `html.images`, expects `{"type":"array","items":{"required":["alt"]}}`
-Fix: Add an alt attribute to every <img>.
-Docs: https://developers.google.com/search/docs/appearance/google-images
-Done when: `spiderlint audit ORIGIN/ --rules html/img-alt` reports no html/img-alt finding, and `spiderlint show-facts ORIGIN/posts/3` shows `html.images` meeting it.
-
-## html/jsonld-parses (warning)
-
-a JSON-LD block does not parse: {"@error":"Unexpected end of JSON input"}
-
-Where: /about
-Reads: `html.jsonld`, expects `{"items":{"not":{"required":["@error"]}}}`
-Fix: Fix the JSON-LD block so it is valid JSON.
-Docs: https://json-ld.org/spec/latest/json-ld/
-Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html/jsonld-parses finding, and `spiderlint show-facts ORIGIN/about` shows `html.jsonld` meeting it.
-
-## html/og-description (warning)
-
-og:description should be 50–200 characters, found none
-
-Where: /app/
-Reads: `html.property.og:description`, expects `{"type":"string","minLength":50,"maxLength":200}`
-Fix: Set og:description to 50–200 characters.
-Docs: https://ogp.me/#optional
-Done when: `spiderlint audit ORIGIN/ --rules html/og-description` reports no html/og-description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
-
-## html/og-image (warning)
-
-og:image should be an absolute http(s) URL, found none
-
-Where: /app/
-Reads: `html.property.og:image`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
-Fix: Make og:image an absolute URL.
-Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
-
-## html/og-title (warning)
-
-og:title should be 10–90 characters, found none
-
-Where: /app/
-Reads: `html.property.og:title`, expects `{"type":"string","minLength":10,"maxLength":90}`
-Fix: Set og:title to 10–90 characters.
-Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-title` reports no html/og-title finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
-
-## html/theme-color-schemes (warning)
-
-color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media
-
-Where: /about
-Reads: `html.metas`, expects `{"allOf":[{"contains":{"properties":{"name":{"const":"theme-color"}},"required":["name"]},"minContains":2},{"contains":{"properties":{"name":{"const":"theme-color"},"media":{"pattern":"(?i:prefers-color-scheme)"}},"required":["name","media"]}}]}`
-Fix: Add <meta name=theme-color media="(prefers-color-scheme: dark)"> beside the light one.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
-Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-schemes` reports no html/theme-color-schemes finding, and `spiderlint show-facts ORIGIN/about` shows `html.metas` meeting it.
-
-## html/title-length (warning)
-
-<title> should be 30–60 characters, found 11 characters: “About page!”
-
-Where: /about
-Reads: `html.title`, expects `{"type":"string","minLength":30,"maxLength":60}`
-Fix: Shorten or lengthen <title> to 30–60 characters.
-Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/title-length` reports no html/title-length finding, and `spiderlint show-facts ORIGIN/about` shows `html.title` meeting it.
-
-## html/title-redundant (warning)
-
-<title> repeats itself around a separator: 47 characters: “Duplicate Fixture Page - Duplicate Fixture Page”
-
-Where: /duplicate
-Reads: `html.title`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
-Fix: Remove the repeated suffix from <title>.
-Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/title-redundant` reports no html/title-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.title` meeting it.
-
-## links/broken-external (warning)
-
-answers 404; linked from 1 page
-
-Where: EXTERNAL/gone, used by or shared with:
-- /about
-Reads: `site.links`, `html.links.external`
-Fix: Remove or repoint each broken external link.
-Docs: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
-Done when: `spiderlint audit ORIGIN/ --rules links/broken-external` reports no links/broken-external finding.
-
-## links/redirected-internal (warning)
-
-redirects to /about; linked from 1 page
-
-Where: /old-about, used by or shared with:
-- /orphan
-Reads: `site.redirects`, `html.links.internal`
-Fix: Make the link target point at the final URL, or serve the content directly.
-Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
-Done when: `spiderlint audit ORIGIN/ --rules links/redirected-internal` reports no links/redirected-internal finding.
-
-## url/trailing-slash (warning)
-
-trailing slashes differ in group default: 7 pages without /, 1 with /
-
-Where: /app/, used by or shared with:
-- /app/
-Reads: `url.pathname`
-Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
-Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
-Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash` reports no url/trailing-slash finding.
-
-## html/favicon (info)
+## html/favicon (info 2.0)
 
 no <link rel=icon> in the head
 
@@ -324,7 +214,7 @@ Fix: Add <link rel=icon href=/favicon.ico> to the head.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
 Done when: `spiderlint audit ORIGIN/ --rules html/favicon` reports no html/favicon finding.
 
-## html/favicon (info)
+## html/favicon (info 2.0)
 
 no <link rel=icon> in the head
 
@@ -337,7 +227,7 @@ Fix: Add <link rel=icon href=/favicon.ico> to the head.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
 Done when: `spiderlint audit ORIGIN/ --rules html/favicon` reports no html/favicon finding.
 
-## html/privacy-policy (info)
+## html/privacy-policy (info 2.0)
 
 no link with rel=privacy-policy
 
@@ -350,7 +240,7 @@ Fix: Add <link rel=privacy-policy href=/privacy> to the head.
 Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
 Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
-## html/privacy-policy (info)
+## html/privacy-policy (info 2.0)
 
 no link with rel=privacy-policy
 
@@ -363,7 +253,7 @@ Fix: Add <link rel=privacy-policy href=/privacy> to the head.
 Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
 Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
-## html/color-scheme (info)
+## html/color-scheme (info 2.0)
 
 meta color-scheme should be normal, or scheme names such as light dark, found none
 
@@ -376,7 +266,7 @@ Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding.
 
-## html/color-scheme (info)
+## html/color-scheme (info 2.0)
 
 meta color-scheme should be normal, or scheme names such as light dark, found none
 
@@ -392,7 +282,7 @@ Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
 
-## url/readable-slug (info)
+## url/readable-slug (info 2.0)
 
 the slug 1 is an identifier, not words
 
@@ -405,7 +295,117 @@ Fix: Name the page in its URL with words from its title, as /spring-recipes for 
 Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
 Done when: `spiderlint audit ORIGIN/ --rules url/readable-slug` reports no url/readable-slug finding.
 
-## groups/heterogeneous (info)
+## html/canonical-self (warning 5.0)
+
+canonical link names /about/, not this page
+
+Where: /about
+Reads: `html.canonical`
+Fix: Point <link rel=canonical> at this page’s own URL.
+Docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+Done when: `spiderlint audit ORIGIN/ --rules html/canonical-self` reports no html/canonical-self finding.
+
+## html/description (warning 5.0)
+
+no meta description
+
+Where: /app/
+Reads: `html.meta.description`, expects `{"type":"string"}`
+Fix: Add <meta name=description> with a summary to the head.
+Docs: https://developers.google.com/search/docs/appearance/snippet
+Done when: `spiderlint audit ORIGIN/ --rules html/description` reports no html/description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.description` meeting it.
+
+## html/description-redundant (warning 5.0)
+
+meta description repeats itself around a separator: 51 characters: “Duplicate content notice - Duplicate content notice”
+
+Where: /duplicate
+Reads: `html.meta.description`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
+Fix: Remove the repeated suffix from the meta description.
+Docs: https://developers.google.com/search/docs/appearance/snippet
+Done when: `spiderlint audit ORIGIN/ --rules html/description-redundant` reports no html/description-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
+
+## html/img-alt (warning 5.0)
+
+an <img> has no alt attribute: {"src":"/figure.png"}
+
+Where: /posts/3
+Reads: `html.images`, expects `{"type":"array","items":{"required":["alt"]}}`
+Fix: Add an alt attribute to every <img>.
+Docs: https://developers.google.com/search/docs/appearance/google-images
+Done when: `spiderlint audit ORIGIN/ --rules html/img-alt` reports no html/img-alt finding, and `spiderlint show-facts ORIGIN/posts/3` shows `html.images` meeting it.
+
+## html/jsonld-parses (warning 5.0)
+
+a JSON-LD block does not parse: {"@error":"Unexpected end of JSON input"}
+
+Where: /about
+Reads: `html.jsonld`, expects `{"items":{"not":{"required":["@error"]}}}`
+Fix: Fix the JSON-LD block so it is valid JSON.
+Docs: https://json-ld.org/spec/latest/json-ld/
+Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html/jsonld-parses finding, and `spiderlint show-facts ORIGIN/about` shows `html.jsonld` meeting it.
+
+## html/og-description (warning 5.0)
+
+og:description should be 50–200 characters, found none
+
+Where: /app/
+Reads: `html.property.og:description`, expects `{"type":"string","minLength":50,"maxLength":200}`
+Fix: Set og:description to 50–200 characters.
+Docs: https://ogp.me/#optional
+Done when: `spiderlint audit ORIGIN/ --rules html/og-description` reports no html/og-description finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
+
+## html/og-image (warning 5.0)
+
+og:image should be an absolute http(s) URL, found none
+
+Where: /app/
+Reads: `html.property.og:image`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
+Fix: Make og:image an absolute URL.
+Docs: https://ogp.me/#metadata
+Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
+
+## html/og-title (warning 5.0)
+
+og:title should be 10–90 characters, found none
+
+Where: /app/
+Reads: `html.property.og:title`, expects `{"type":"string","minLength":10,"maxLength":90}`
+Fix: Set og:title to 10–90 characters.
+Docs: https://ogp.me/#metadata
+Done when: `spiderlint audit ORIGIN/ --rules html/og-title` reports no html/og-title finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
+
+## html/theme-color-schemes (warning 5.0)
+
+color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media
+
+Where: /about
+Reads: `html.metas`, expects `{"allOf":[{"contains":{"properties":{"name":{"const":"theme-color"}},"required":["name"]},"minContains":2},{"contains":{"properties":{"name":{"const":"theme-color"},"media":{"pattern":"(?i:prefers-color-scheme)"}},"required":["name","media"]}}]}`
+Fix: Add <meta name=theme-color media="(prefers-color-scheme: dark)"> beside the light one.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
+Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-schemes` reports no html/theme-color-schemes finding, and `spiderlint show-facts ORIGIN/about` shows `html.metas` meeting it.
+
+## html/title-length (warning 5.0)
+
+<title> should be 30–60 characters, found 11 characters: “About page!”
+
+Where: /about
+Reads: `html.title`, expects `{"type":"string","minLength":30,"maxLength":60}`
+Fix: Shorten or lengthen <title> to 30–60 characters.
+Docs: https://developers.google.com/search/docs/appearance/title-link
+Done when: `spiderlint audit ORIGIN/ --rules html/title-length` reports no html/title-length finding, and `spiderlint show-facts ORIGIN/about` shows `html.title` meeting it.
+
+## html/title-redundant (warning 5.0)
+
+<title> repeats itself around a separator: 47 characters: “Duplicate Fixture Page - Duplicate Fixture Page”
+
+Where: /duplicate
+Reads: `html.title`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
+Fix: Remove the repeated suffix from <title>.
+Docs: https://developers.google.com/search/docs/appearance/title-link
+Done when: `spiderlint audit ORIGIN/ --rules html/title-redundant` reports no html/title-redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.title` meeting it.
+
+## groups/heterogeneous (info 2.0)
 
 html/theme-color fails on 6 of 8 pages; the group likely spans two templates
 
@@ -414,7 +414,7 @@ Reads: `group`
 Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
-## groups/heterogeneous (info)
+## groups/heterogeneous (info 2.0)
 
 html/color-scheme fails on 6 of 8 pages; the group likely spans two templates
 
@@ -423,7 +423,7 @@ Reads: `group`
 Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
-## html/hreflang-x-default (info)
+## html/hreflang-x-default (info 2.0)
 
 hreflang alternates should include x-default, found 1 items
 
@@ -433,7 +433,7 @@ Fix: Add <link rel=alternate hreflang=x-default> to the head.
 Docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
 Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default` reports no html/hreflang-x-default finding, and `spiderlint show-facts ORIGIN/about` shows `html.hreflang` meeting it.
 
-## html/og-type (info)
+## html/og-type (info 2.0)
 
 og:type should be an Open Graph type or namespace:type, found none
 
@@ -443,7 +443,7 @@ Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
 Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
 
-## html/og-url (info)
+## html/og-url (info 2.0)
 
 og:url should be an absolute http(s) URL, found none
 
@@ -453,7 +453,7 @@ Fix: Make og:url an absolute URL of this page.
 Docs: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-url` reports no html/og-url finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:url` meeting it.
 
-## html/og-url-self (info)
+## html/og-url-self (info 2.0)
 
 og:url names /, not this page
 

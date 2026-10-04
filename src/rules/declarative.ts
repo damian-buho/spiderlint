@@ -8,6 +8,7 @@ import { subjectPath } from "../facts/sites.ts";
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { ruleMaker } from "../plugins/index.ts";
+import { baseScore, interpolate, levelOf, pin, scoreOf, type Level } from "./score.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
 
 // strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it; `format: uri` is an absolute URL a browser parses.
@@ -51,7 +52,7 @@ function message(fact: string, value: unknown, error: ErrorObject, text: string 
 }
 
 function severityOf(id: string, spec: RuleSpec, fallback: Severity): Exclude<Severity, "off"> {
-    const severity = spec.severity ?? fallback;
+    const severity = typeof spec.score === "number" && !spec.pinned ? levelOf(spec.score) : (spec.severity ?? fallback);
     if (severity === "off") throw new ConfigError(`rule ${id}: compiled while off`);
     return severity;
 }
@@ -177,8 +178,32 @@ function guarded(rule: Rule, when: Record<string, unknown> | undefined): Rule {
     return { ...rule, check: (pages, group, site) => (isSkipped({}, "site", site) ? undefined : rule.check(pages, group, site)) };
 }
 
-// `fact` + `expect` is a page rule, `unique` an aggregate, an ID without `fact` a built-in handed its `expect`; else a config error.
+// Gives every finding its score: the spec’s number, else the rule’s own or the scale’s over the finding’s value, else the level’s base; a hand-written level pins it inside its band.
+function scored(rule: Rule, spec: RuleSpec): Rule {
+    const fixed = typeof spec.score === "number" ? (spec.pinned ? pin(spec.severity as Level, spec.score) : spec.score) : undefined;
+    const scale = typeof spec.score === "object" ? spec.score : undefined;
+    const level: Level = (spec.pinned ? spec.severity : rule.meta.severity) as Level;
+    const meta = { ...rule.meta, score: fixed ?? (scale ? undefined : baseScore(level)), scale };
+    const grade = (finding: Finding): Finding => {
+        const measured = scale && typeof finding.value === "number" ? interpolate(scale, finding.value) : finding.score;
+        const raw = fixed ?? measured ?? scoreOf(finding);
+        const score = spec.pinned ? pin(level, raw) : raw;
+        log.debug({ rule: rule.meta.id, url: finding.url, score, pinned: spec.pinned === true }, "finding scored");
+        return { ...finding, score, severity: levelOf(score) };
+    };
+    const all = (found: Finding[] | undefined) => found?.map((finding) => grade(finding));
+    return isPageRule(rule)
+        ? { meta: { ...meta, scope: "page" }, check: (page: Facts, site?: SiteFacts) => all(rule.check(page, site)) }
+        : { meta: { ...meta, scope: rule.meta.scope }, check: (pages: Facts[], group?: string, site?: SiteFacts) => all(rule.check(pages, group, site)) };
+}
+
+// A rule from its spec, every finding scored.
 export function compileRule(id: string, spec: RuleSpec): Rule {
+    return scored(compileUnscored(id, spec), spec);
+}
+
+// `fact` + `expect` is a page rule, `unique` an aggregate, an ID without `fact` a built-in handed its `expect`; else a config error.
+function compileUnscored(id: string, spec: RuleSpec): Rule {
     if (spec.unique) return compileUnique(id, spec, spec.unique);
     const make = spec.fact ? undefined : ruleMaker(id);
     if (!spec.fact && (make || !spec.expect)) {

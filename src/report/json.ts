@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 import type { Report } from "../index.ts";
+import { scoreOf } from "../rules/score.ts";
 
 // Summary, findings and their rules’ docs; facts stay behind `spiderlint show-facts <url>`.
 export function formatJson(report: Report): string {
-    return JSON.stringify({ summary: report.summary, findings: report.findings, ...(report.rules && { rules: report.rules }) }, undefined, 2);
+    return JSON.stringify({ summary: report.summary, findings: report.findings.map((finding) => ({ ...finding, score: scoreOf(finding) })), ...(report.rules && { rules: report.rules }) }, undefined, 2);
 }

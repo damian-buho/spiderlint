@@ -11,7 +11,8 @@ import type { RulesetConfig, Severity } from "../rules/types.ts";
 
 export type FetchMode = "auto" | "http" | "browser" | "adaptive";
 export type BrowserName = "chromium" | "firefox" | "webkit";
-export type FailOn = "error" | "warning" | "info" | "never";
+// A level, `never`, or the lowest score that fails the run.
+export type FailOn = "error" | "warning" | "info" | "never" | number;
 export const ROLES = ["production", "staging", "development"] as const;
 
 export interface GroupConfig {

@@ -305,7 +305,7 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.ok(text.startsWith(`${site.origin}\nsite\n`));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
-        assert.match(text, /^posts \(5 pages\)\n {2}error {3}html\/one-h1 — 5 pages \(100%\)/m);
+        assert.match(text, /^posts \(5 pages\)\n {2}error {3}8\.0 html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
         assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
@@ -313,7 +313,7 @@ describe("audit", () => {
 
     it("colors severities when painted, and matches the plain text once styles are stripped", () => {
         const text = formatHuman(report, painter(process.stdout, true));
-        assert.ok(text.includes("\u{1B}[31merror  \u{1B}[39m"), text);
+        assert.ok(text.includes("\u{1B}[31merror   8.0\u{1B}[39m"), text);
         assert.equal(stripVTControlCharacters(text), formatHuman(report));
     });
 
@@ -324,7 +324,7 @@ describe("audit", () => {
             summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, byRule: {}, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
-        assert.deepEqual(lines.slice(2, 6), ["  warning http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning http/csp /z: csp is weak"]);
+        assert.deepEqual(lines.slice(2, 6), ["  warning 5.0 http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp /z: csp is weak"]);
         assert.deepEqual(lines.slice(-3), ["findings   3 (0 errors, 3 warnings, 0 info)", "rating     – (no checks ran)", "fetch      none"]);
         const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
         const progressed = formatHuman({ ...bundledReport, summary: { ...bundledReport.summary, previous } }).split("\n");
@@ -339,8 +339,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 449, failed: 59, errored: 6, passed: 390 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8686, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 449, failed: 59, errored: 6, passed: 390, cost: 68.36 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.8478, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

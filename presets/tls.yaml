@@ -25,6 +25,7 @@ rules:
     expect: {type: integer, minimum: 14}
     when: {tls.cert.days-left: {minimum: 2}}
     severity: info
+    score: [[2, 3.2], [14, 1.0]]
     message: "certificate expires within 14 days ({got} left)"
     fix: "Check that certificate renewal is scheduled and has succeeded before."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
@@ -33,6 +34,7 @@ rules:
     expect: {type: integer, minimum: 2}
     when: {tls.cert.days-left: {minimum: 0}}
     severity: warning
+    score: [[0, 6.8], [2, 5.2]]
     message: "certificate expires within 2 days ({got} left)"
     fix: "Renew the certificate now and find out why automatic renewal did not run."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security

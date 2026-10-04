@@ -13,7 +13,7 @@ import { PURGEABLE, purgeCache } from "./cache/purge.ts";
 import { cacheStatus } from "./cache/status.ts";
 import { audit, crawl, factsStore, lintStore, loadPlugins, reportStore, warmCache, type Report } from "./index.ts";
 import { ConfigError, PROFILES, ROLES, layered, originOf, proxyOf, seedOf, type Config, type FailOn } from "./config/index.ts";
-import { BROWSERS, environmentSettings, FAIL_ONS, FETCH_MODES, parseInteger, pick, SCOPES } from "./config/environment.ts";
+import { BROWSERS, environmentSettings, FETCH_MODES, parseFailOn, parseInteger, pick, SCOPES } from "./config/environment.ts";
 import { loadSettings, type Settings } from "./config/policy.ts";
 import { parseResolver } from "./crawl/dns.ts";
 import { FACT_FORMATS, formatFacts } from "./facts/export.ts";
@@ -21,6 +21,7 @@ import { parsePin } from "./crawl/resolve.ts";
 import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { writeAgentFiles } from "./report/agent.ts";
+import { scoreOf } from "./rules/score.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { handleInterrupts, Interrupted } from "./interrupt.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
@@ -58,7 +59,7 @@ interface Verb {
     examples: [description: string, line: string][];
 }
 
-const RANK: Record<FailOn, number> = { never: -1, error: 0, warning: 1, info: 2 };
+const RANK: Record<Exclude<FailOn, number> | "hint", number> = { never: -1, error: 0, warning: 1, info: 2, hint: 3 };
 const DOMAIN = "A domain is example.com or a URL to start from; without a scheme, https:// is assumed.";
 const TARGETS = "With no domain, the targets come from org.spiderlint in the config, one run per site.";
 const IDS = "Rule IDs and rulesets are comma-separated; an ID may be a glob such as lighthouse/*.";
@@ -137,7 +138,7 @@ function ruleOptions(): Option[] {
 function reportOptions(): Option[] {
     return section("Report", [
         flag("--format <format>", `${formatNames().join(", ")} or a plugin’s`, "human", "SPIDERLINT_FORMAT"),
-        flag("--fail-on <level>", "exit 1 at error, warning, info, or never", "error", "SPIDERLINT_FAIL_ON"),
+        flag("--fail-on <level>", "exit 1 at error, warning, info, a score from 0.1 to 9.9, or never", "error", "SPIDERLINT_FAIL_ON"),
         flag("--unfold", "one finding per page, every URL and location listed", undefined, "SPIDERLINT_FOLD=false"),
         flag("--show-hints", "list hints in human output, not only their count"),
         flag("--explain", "print each finding’s fix and docs in human output"),
@@ -388,6 +389,7 @@ function cacheMode(values: Record<string, unknown>): CacheMode | undefined {
 // 1 once any finding reaches --fail-on, which no hint does; 3 when nothing was fetched.
 function exitCode(report: Report, failOn: FailOn): number {
     if (report.pages.length === 0) return 3;
+    if (typeof failOn === "number") return report.findings.some((finding) => finding.severity !== "hint" && scoreOf(finding) >= failOn) ? 1 : 0;
     return report.findings.some((finding) => finding.severity !== "hint" && RANK[finding.severity] <= RANK[failOn]) ? 1 : 0;
 }
 
@@ -437,7 +439,7 @@ function flagSettings(values: Record<string, unknown>): Settings {
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
         ...(values["allow-private"] !== undefined && { allowPrivate: values["allow-private"] as boolean }),
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
-        ...(values["fail-on"] !== undefined && { failOn: pick("--fail-on", values["fail-on"] as string, FAIL_ONS) }),
+        ...(values["fail-on"] !== undefined && { failOn: parseFailOn("--fail-on", values["fail-on"] as string) }),
         ...(values.format !== undefined && { format: values.format as string }),
         ...(values["exclude-rules"] !== undefined && { excludeRules: splitIds(values["exclude-rules"] as string) }),
         ...(values.rules !== undefined && { rules: (values.rules as string[]).flatMap((raw) => splitIds(raw)) }),
@@ -545,7 +547,7 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
         if (command === "show-facts" || command === "export-facts") return await facts(command, config, store, values);
         const formatName = pick("--format", config.format, formatNames());
         const format = formatter(formatName);
-        const failOn = RANK[config.failOn];
+        const failOn = typeof config.failOn === "number" ? config.failOn : RANK[config.failOn];
         const requiresSeeds = ["audit", "crawl", "list-groups", "warm-cache"].includes(command);
         if (!format || failOn === undefined || (requiresSeeds && config.seeds.length === 0) || (isStored && !store)) {
             verb.outputHelp({ error: true });

@@ -10,11 +10,11 @@ import type { Report } from "../index.ts";
 import { isRanked } from "../facts/flatten.ts";
 import { log } from "../logger.ts";
 import { fixFor } from "../rules/fix.ts";
+import { importance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
 import { printable, printableFinding } from "./printable.ts";
 
-const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 
 // Pages a fix clears: a fold’s occurrences, an aggregate’s URLs, else the one page.
 function clears(finding: Finding): number {
@@ -26,13 +26,14 @@ function originOf(finding: Finding, shared: string): string {
     return shared || (URL.canParse(finding.url) ? new URL(finding.url).origin : `https://${finding.url}`);
 }
 
-// Findings grouped by rule, rules by severity then the pages their findings clear, findings within a rule by the same.
-export function ordered(findings: Finding[]): Finding[][] {
+// Findings grouped by rule, rules by their most important finding (score times the share of pages touched) then the pages they clear, findings within a rule by the same.
+export function ordered(findings: Finding[], pages: number): Finding[][] {
     const byRule = new Map<string, Finding[]>();
     for (const finding of findings) byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding]);
     const total = (same: Finding[]) => same.reduce((sum, finding) => sum + clears(finding), 0);
-    const rules = byRule.values().map((same) => same.toSorted((a, b) => clears(b) - clears(a) || a.url.localeCompare(b.url))).toArray();
-    return rules.toSorted((a, b) => ORDER[(a[0] as Finding).severity] - ORDER[(b[0] as Finding).severity] || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
+    const top = (same: Finding[]) => Math.max(...same.map((finding) => importance(finding, pages)));
+    const rules = byRule.values().map((same) => same.toSorted((a, b) => importance(b, pages) - importance(a, pages) || clears(b) - clears(a) || a.url.localeCompare(b.url))).toArray();
+    return rules.toSorted((a, b) => top(b) - top(a) || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
 }
 
 // Where a finding sits: a fold’s samples, an aggregate’s URLs, or its pages, each with its locations.
@@ -55,7 +56,7 @@ function block(same: Finding[], guide: RuleGuide | undefined, origin: string): s
     const facts = finding.scope === "page" && guide?.expect ? `, and \`spiderlint show-facts ${finding.samples?.[0] ?? finding.url}\` shows \`${guide.facts[0]}\` meeting it` : "";
     const fix = guide?.fix ? `Fix: ${fixFor(guide.fix, finding)}` : guide?.docs ? `Fix: follow ${guide.docs}` : "";
     return [
-        `## ${finding.rule} (${finding.severity})`,
+        `## ${finding.rule} (${finding.severity} ${scoreOf(finding).toFixed(1)})`,
         "",
         origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message,
         "",
@@ -86,7 +87,7 @@ function statistics(stats: Report["summary"]["stats"] = {}): string[] {
 // One block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative.
 export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false): string {
     const origin = sharedOrigin(report);
-    const blocks = ordered(actionable(report, isHintListed)).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
+    const blocks = ordered(actionable(report, isHintListed), report.pages.length).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
     return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."]), ...statistics(report.summary.stats)].join("\n\n");
 }
 
@@ -94,7 +95,7 @@ export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean,
 export function agentFiles(report: Report, isHintListed = false): Map<string, string> {
     const origin = sharedOrigin(report);
     const files = new Map<string, string>();
-    const rules = ordered(actionable(report, isHintListed));
+    const rules = ordered(actionable(report, isHintListed), report.pages.length);
     for (const same of rules) {
         const rule = (same[0] as Finding).rule;
         const title = `# spiderlint: ${rule}${origin ? ` on ${origin}` : ""}`;

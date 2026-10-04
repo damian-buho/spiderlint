@@ -6,6 +6,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import { bytes as sized, label, withUnit } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor } from "../rules/fix.ts";
+import { byImportance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
 import { printable, printableFinding } from "./printable.ts";
@@ -61,19 +62,19 @@ function sampled(finding: Finding, origin: string, paint: Paint, limit: number):
 }
 
 function heading(finding: Finding, paint: Paint): string {
-    return `  ${paint(TONE[finding.severity], finding.severity.padEnd(7))} ${paint("bold", finding.rule)}`;
+    return `  ${paint(TONE[finding.severity], `${finding.severity.padEnd(7)} ${scoreOf(finding).toFixed(1)}`)} ${paint("bold", finding.rule)}`;
 }
 
 function shortMessage(finding: Finding, origin: string): string {
     return origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
 }
 
-// Page findings sharing severity, rule and message bundle together; folds and aggregates stay alone.
+// Page findings sharing severity, score, rule and message bundle together; folds and aggregates stay alone.
 export function bundle(findings: Finding[]): Finding[][] {
     const bundles = new Map<string, Finding[]>();
     for (const [index, finding] of findings.entries()) {
         const isPlain = finding.occurrences === undefined && !finding.urls;
-        const key = isPlain ? `${finding.severity}\t${finding.rule}\t${finding.message}` : String(index);
+        const key = isPlain ? `${finding.severity}\t${scoreOf(finding)}\t${finding.rule}\t${finding.message}` : String(index);
         bundles.set(key, [...(bundles.get(key) ?? []), finding]);
     }
     return bundles.values().toArray();
@@ -114,9 +115,9 @@ function explanation(guide: RuleGuide | undefined, finding: Finding, paint: Pain
     return [guide?.fix ? `${paint("dim", `${DETAIL}fix  `)}${fixFor(guide.fix, finding)}` : "", guide?.docs ? paint("dim", `${DETAIL}docs ${guide.docs}`) : ""].filter(Boolean);
 }
 
-// Findings by severity then rule then URL, bundled, each followed by its explanation when `guides` is given.
-function listed(findings: Finding[], origin: string, paint: Paint, limit: number, guides?: Report["rules"]): string[] {
-    findings.sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url));
+// Findings by importance (score times the share of pages touched) then rule then URL, bundled, each followed by its explanation when `guides` is given.
+function listed(findings: Finding[], origin: string, paint: Paint, limit: number, total: number, guides?: Report["rules"]): string[] {
+    findings.sort(byImportance(total));
     return bundle(findings).flatMap((same) => {
         const first = same[0] as Finding;
         return [...(same.length > 1 ? bundled(same, origin, paint, limit) : line(first, origin, paint, limit)), ...(guides ? explanation(guides[first.rule], first, paint) : [])];
@@ -140,10 +141,10 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     }
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
-        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, guides));
+        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
     }
-    for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, guides));
-    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
+    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
     if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");

@@ -11,7 +11,7 @@ import { ruleMaker } from "../plugins/index.ts";
 import { compileRule } from "./declarative.ts";
 import { fixFor } from "./fix.ts";
 import { compileRulesets, lookup, presetNames, resolveRuleset } from "./rulesets.ts";
-import type { RuleSpec, Scope, Severity } from "./types.ts";
+import type { RuleMeta, RuleSpec, Scope, Severity } from "./types.ts";
 
 const PREFIX = "spiderlint:";
 const TONE: Record<string, Style> = { error: "red", warning: "yellow", info: "blue", hint: "dim", off: "dim" };
@@ -20,6 +20,8 @@ export interface RuleInfo {
     id: string;
     severity: string;
     preset: Severity;
+    // The static score, or the points a dynamic one follows.
+    score: string;
     scope: Scope;
     rulesets: string[];
     facts: string[];
@@ -82,12 +84,17 @@ export function listRules(config: Config, names: string[]): RuleExplanation[] {
     return Object.entries(specs).toSorted(([a], [b]) => a.localeCompare(b)).map(([id, spec]) => describeRule(id, spec, severities, homes.get(id) ?? []));
 }
 
+// A rule’s score as `5.0`, or the scale a dynamic one follows as `0 days → 6.8, 2 → 5.2`.
+function scoreText({ score, scale }: Pick<RuleMeta, "score" | "scale">): string {
+    return scale ? `dynamic: ${scale.map(([value, points]) => `${value} → ${points.toFixed(1)}`).join(", ")}` : (score ?? 0).toFixed(1);
+}
+
 // One rule’s catalog row, compiled at its preset severity so an `off` rule still has a meta.
 function describeRule(id: string, spec: RuleSpec, severities: Map<string, Set<string>>, rulesets: string[]): RuleExplanation {
     const preset = spec.severity ?? "warning";
     const { meta } = compileRule(id, { ...spec, severity: preset === "off" ? "warning" : preset });
     const kind = spec.unique ? "unique" : spec.fact ? "declarative" : "built-in";
-    return { id, severity: [...(severities.get(id) ?? ["off"])].join("/"), preset, scope: meta.scope, rulesets, facts: meta.facts, docs: meta.docs, kind, expect: spec.expect, when: spec.when, message: spec.message, fix: meta.fix };
+    return { id, severity: [...(severities.get(id) ?? ["off"])].join("/"), preset, score: scoreText(meta), scope: meta.scope, rulesets, facts: meta.facts, docs: meta.docs, kind, expect: spec.expect, when: spec.when, message: spec.message, fix: meta.fix };
 }
 
 // Everything known about one rule; a rule no ruleset carries and no plugin makes is a config error.
@@ -119,14 +126,15 @@ function table(rows: string[][], paint: Paint, style: (row: number, column: numb
 }
 
 export function formatRules(rules: RuleInfo[], paint: Paint): string {
-    const rows = [["RULE", "SEVERITY", "SCOPE", "RULESET", "DOCS"], ...rules.map((rule) => [rule.id, rule.severity, rule.scope, rule.rulesets.join(", "), rule.docs ?? ""])];
-    return table(rows, paint, (_row, column, cell) => (column === 1 ? TONE[cell.split("/", 1)[0] ?? ""] : column === 4 ? "dim" : undefined));
+    const rows = [["RULE", "SEVERITY", "SCORE", "SCOPE", "RULESET", "DOCS"], ...rules.map((rule) => [rule.id, rule.severity, rule.score.split(":", 1)[0] as string, rule.scope, rule.rulesets.join(", "), rule.docs ?? ""])];
+    return table(rows, paint, (_row, column, cell) => (column === 1 ? TONE[cell.split("/", 1)[0] ?? ""] : column === 5 ? "dim" : undefined));
 }
 
 // One labelled line per field the rule carries; schemas as compact JSON.
 export function formatExplanation(rule: RuleExplanation, paint: Paint): string {
     const rows: [string, string | undefined][] = [
         ["severity", `${rule.severity} (preset ${rule.preset})`],
+        ["score", rule.score],
         ["scope", rule.scope],
         ["kind", rule.kind],
         ["rulesets", rule.rulesets.join(", ") || undefined],

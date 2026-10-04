@@ -95,14 +95,14 @@ describe("formatCheckstyle and formatCsv", () => {
 
     it("csv has a header and one row per finding", () => {
         const rows = parseCsv(formatCsv(report));
-        assert.deepEqual(rows[0], ["severity", "rule", "scope", "group", "url", "message", "occurrences", "locations"]);
+        assert.deepEqual(rows[0], ["severity", "score", "rule", "scope", "group", "url", "message", "occurrences", "locations"]);
         assert.equal(rows.length - 1, report.findings.length);
-        assert.ok(rows.slice(1).every((row) => row.length === 8));
+        assert.ok(rows.slice(1).every((row) => row.length === 9));
     });
 
     it("csv quotes commas, quotes and line breaks", () => {
         const [, row] = parseCsv(formatCsv({ findings: [TRICKY] } as Report));
-        assert.deepEqual(row, ["warning", "seo/title", "page", "", TRICKY.url, TRICKY.message, "", "3:7 title <title>\n9:1 h1 <h1>"]);
+        assert.deepEqual(row, ["warning", "5.0", "seo/title", "page", "", TRICKY.url, TRICKY.message, "", "3:7 title <title>\n9:1 h1 <h1>"]);
     });
 });
 

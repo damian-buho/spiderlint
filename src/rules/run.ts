@@ -4,12 +4,13 @@
 
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { scoreOf, weight } from "./score.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule } from "./types.ts";
 
 export interface RuleRun {
     findings: Finding[];
     applicable: Map<string, number>;
-    checks: { total: number; failed: number; errored: number };
+    checks: { total: number; failed: number; errored: number; cost: number };
     // Cells whose rule saw only the group’s sample.
     sampled?: Set<string>;
 }
@@ -19,12 +20,16 @@ export function cell(group: string, rule: string): string {
     return `${group}\t${rule}`;
 }
 
-// One subject a rule judged, none when it had no pages or is a hint; it fails on any finding above `info`.
+// One subject a rule judged, none when it had no pages or is a hint; it fails on any finding above `info`, at the cost of its worst score.
 function judged(run: RuleRun, found: Finding[], rule: Rule, pages = 1): void {
     if (pages === 0 || rule.meta.severity === "hint") return;
     run.checks.total += 1;
     if (found.some((finding) => finding.severity === "error")) run.checks.errored += 1;
-    if (found.some((finding) => finding.severity !== "info" && finding.severity !== "hint")) run.checks.failed += 1;
+    const failing = found.filter((finding) => finding.severity !== "info" && finding.severity !== "hint");
+    if (failing.length === 0) return;
+    run.checks.failed += 1;
+    const worst = Math.max(...failing.map((finding) => scoreOf(finding)));
+    run.checks.cost = Number((run.checks.cost + weight(worst)).toFixed(4));
 }
 
 // One page rule over one group; `undefined` results are `when`-skips and do not count.
@@ -42,7 +47,7 @@ function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleR
 
 // Page and group rules run within their group; site rules run once over the crawl.
 export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, facts: SiteFacts): RuleRun {
-    const run: RuleRun = { findings: [], applicable: new Map(), checks: { total: 0, failed: 0, errored: 0 } };
+    const run: RuleRun = { findings: [], applicable: new Map(), checks: { total: 0, failed: 0, errored: 0, cost: 0 } };
     const site = new Map<string, AggregateRule>();
     for (const [group, rules] of rulesByGroup) {
         const members = pages.filter((page) => page.group === group);

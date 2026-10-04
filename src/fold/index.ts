@@ -5,6 +5,7 @@
 import type { FoldConfig } from "../config/index.ts";
 import { log } from "../logger.ts";
 import { cell, type RuleRun } from "../rules/run.ts";
+import { levelOf, round, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 
 const HETEROGENEOUS = 0.2;
@@ -32,7 +33,7 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         if (!isFolded) {
             out.push(...findings);
             if (options !== false && applicable >= options.min && ratio > HETEROGENEOUS) {
-                out.push({ rule: "groups/heterogeneous", severity: "info", scope: "group", url: findings[0]?.url as string, group, message: `${rule} fails on ${failed} of ${applicable} pages; the group likely spans two templates` });
+                out.push({ rule: "groups/heterogeneous", severity: "info", score: 2, scope: "group", url: findings[0]?.url as string, group, message: `${rule} fails on ${failed} of ${applicable} pages; the group likely spans two templates` });
             }
             continue;
         }
@@ -40,7 +41,8 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         const first = findings[0] as Finding;
         const located = samples.map((url) => [url, findings.filter((finding) => finding.url === url).flatMap((finding) => finding.locations ?? [])] as const).filter(([, locations]) => locations.length > 0);
         const { locations: _locations, ...shared } = first;
-        out.push({ ...shared, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string, ...(run.sampled?.has(key) && { sampled: applicable }), ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }) });
+        const score = round(Math.max(...findings.map((finding) => scoreOf(finding))));
+        out.push({ ...shared, severity: levelOf(score), score, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string, ...(run.sampled?.has(key) && { sampled: applicable }), ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }) });
     }
     log.debug({ before: run.findings.length, after: out.length }, "fold done");
     return out;

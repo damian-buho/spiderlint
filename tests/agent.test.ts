@@ -55,10 +55,8 @@ describe("agent format", () => {
         assert.ok(!paths.includes("graph.rank"), table);
     });
 
-    it("orders errors first, then the rule clearing the most pages", () => {
-        const rules = output.matchAll(/^## (\S+) \((\w+)\)/gm).map((match) => match[2]).toArray();
-        assert.deepEqual(rules, rules.toSorted((a, b) => ["error", "warning", "info"].indexOf(a ?? "") - ["error", "warning", "info"].indexOf(b ?? "")));
-        assert.match(output, /^# spiderlint findings for ORIGIN\n\n## links\/broken-internal \(error\)/);
+    it("puts the most important rule first, the score beside its level", () => {
+        assert.match(output, /^# spiderlint findings for ORIGIN\n\n## links\/broken-internal \(error 8\.0\)/);
     });
 
     it("writes one file per rule and rewrites the same bytes", async () => {
@@ -70,7 +68,7 @@ describe("agent format", () => {
             const written = await readdir(directory);
             assert.deepEqual(written.toSorted((a, b) => a.localeCompare(b)), agentFiles(report).keys().toArray().toSorted((a, b) => a.localeCompare(b)));
             assert.equal(await readFile(path.join(directory, "html-one-h1.md"), "utf8"), first);
-            assert.match(first, /^# spiderlint: html\/one-h1 on http:\/\/127\.0\.0\.1:\d+\n\n## html\/one-h1 \(error\)\n/);
+            assert.match(first, /^# spiderlint: html\/one-h1 on http:\/\/127\.0\.0\.1:\d+\n\n## html\/one-h1 \(error 8\.0\)\n/);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

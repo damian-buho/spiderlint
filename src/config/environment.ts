@@ -4,7 +4,7 @@
 
 import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
-import { ConfigError, PROFILES, ROLES, originOf, proxyOf } from "./index.ts";
+import { ConfigError, PROFILES, ROLES, originOf, proxyOf, type FailOn } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
 export const FETCH_MODES = ["auto", "http", "browser", "adaptive"] as const;
@@ -33,6 +33,14 @@ export function parseInteger(name: string, raw: string): number {
 export function pick<T extends string>(name: string, raw: string, valid: readonly T[]): T {
     if (!valid.includes(raw as T)) throw new ConfigError(`${name}: invalid value ${raw} (expected: ${valid.join("|")})`);
     return raw as T;
+}
+
+// A level or `never`, or the lowest score, 0.1 to 9.9, that fails the run.
+export function parseFailOn(name: string, raw: string): FailOn {
+    const score = Number(raw);
+    if (raw.trim() === "" || Number.isNaN(score)) return pick(name, raw, FAIL_ONS);
+    if (score < 0.1 || score > 9.9) throw new ConfigError(`${name}: invalid score ${raw} (expected 0.1 to 9.9)`);
+    return score;
 }
 
 // One severity bucket of rule IDs, as `SPIDERLINT_OVERRIDE_ERROR` etc. carry it.
@@ -70,7 +78,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_ROBOTS !== undefined && { robots: isTruthy("SPIDERLINT_ROBOTS", environment.SPIDERLINT_ROBOTS) }),
         ...(environment.SPIDERLINT_SITEMAP !== undefined && { sitemap: isTruthy("SPIDERLINT_SITEMAP", environment.SPIDERLINT_SITEMAP) }),
         ...(environment.SPIDERLINT_FOLD !== undefined && { fold: isTruthy("SPIDERLINT_FOLD", environment.SPIDERLINT_FOLD) && { threshold: 0.8, min: 3 } }),
-        ...(environment.SPIDERLINT_FAIL_ON !== undefined && { failOn: pick("SPIDERLINT_FAIL_ON", environment.SPIDERLINT_FAIL_ON, FAIL_ONS) }),
+        ...(environment.SPIDERLINT_FAIL_ON !== undefined && { failOn: parseFailOn("SPIDERLINT_FAIL_ON", environment.SPIDERLINT_FAIL_ON) }),
         ...(environment.SPIDERLINT_FORMAT !== undefined && { format: environment.SPIDERLINT_FORMAT }),
         ...(environment.SPIDERLINT_CACHE !== undefined && { cacheMode: pick("SPIDERLINT_CACHE", environment.SPIDERLINT_CACHE, CACHE_MODES) }),
         ...(environment.SPIDERLINT_EXCLUDE_RULES !== undefined && { excludeRules: list(environment.SPIDERLINT_EXCLUDE_RULES) }),

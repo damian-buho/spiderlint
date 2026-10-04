@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 import type { Report } from "../index.ts";
+import { scoreOf } from "../rules/score.ts";
 import type { Finding } from "../rules/types.ts";
 
-const COLUMNS = ["severity", "rule", "scope", "group", "url", "message", "occurrences", "locations"] as const;
+const COLUMNS = ["severity", "score", "rule", "scope", "group", "url", "message", "occurrences", "locations"] as const;
 
 // RFC 4180 field: quoted when it holds a quote, comma or line break, quotes doubled.
 export function field(value: string | number | boolean | undefined): string {
@@ -14,7 +15,7 @@ export function field(value: string | number | boolean | undefined): string {
 }
 
 function toRow(finding: Finding): string {
-    const cells = [finding.severity, finding.rule, finding.scope, finding.group, finding.url, finding.message, finding.occurrences, finding.locations?.join("\n")];
+    const cells = [finding.severity, scoreOf(finding).toFixed(1), finding.rule, finding.scope, finding.group, finding.url, finding.message, finding.occurrences, finding.locations?.join("\n")];
     return cells.map((cell) => field(cell)).join(",");
 }
 

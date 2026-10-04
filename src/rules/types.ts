@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Facts, SiteFacts } from "../facts/types.ts";
+import type { Scale } from "./score.ts";
 
 export type Severity = "error" | "warning" | "info" | "hint" | "off";
 export type Scope = "page" | "group" | "site";
@@ -15,6 +16,8 @@ export interface Finding {
     group?: string;
     message: string;
     value?: unknown;
+    // 0.0 to 9.9; the pipeline sets it, and its band is `severity`.
+    score?: number;
     // Where on the page it is: one short line per element, as `line:column selector` or `selector <tag>`.
     locations?: string[];
     urls?: string[];
@@ -36,6 +39,10 @@ export interface RuleMeta {
     facts: string[];
     docs?: string;
     fix?: string;
+    // The score a finding gets when nothing measured it; absent when `scale` computes it.
+    score?: number;
+    // How a dynamic score follows the finding’s value.
+    scale?: Scale;
     // The JSON Schema a declarative rule holds its fact to.
     expect?: Record<string, unknown>;
     // Also judges hosts the crawl only links or loads under its registrable domains.
@@ -75,6 +82,10 @@ export interface RuleSpec {
     unique?: string;
     scope?: Scope;
     severity?: Severity;
+    // A number replaces the score; a scale computes it from the finding’s numeric value.
+    score?: number | Scale;
+    // Set when a level was written by hand, so a computed score stays inside its band.
+    pinned?: true;
     docs?: string;
     fix?: string;
     message?: string;
@@ -82,7 +93,7 @@ export interface RuleSpec {
     linked?: boolean;
 }
 
-export type RuleEntry = RuleSpec | Severity;
+export type RuleEntry = RuleSpec | Severity | number;
 
 export interface RulesetConfig {
     description?: string;

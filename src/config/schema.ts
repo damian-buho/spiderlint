@@ -10,6 +10,7 @@ const ajv = new Ajv2020({ strictTypes: false, allErrors: true });
 const ttl = { oneOf: [{ type: "string" }, { type: "integer", minimum: 0 }] };
 const fetchMode = { enum: ["auto", "http", "browser", "adaptive"] };
 const severity = { enum: ["error", "warning", "info", "hint", "off"] };
+const score = { type: "number", minimum: 0, maximum: 9.9 };
 const ruleSpec = {
     type: "object",
     additionalProperties: false,
@@ -20,6 +21,7 @@ const ruleSpec = {
         unique: { type: "string" },
         scope: { enum: ["page", "group", "site"] },
         severity,
+        score: { oneOf: [score, { type: "array", minItems: 2, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "number" } } }] },
         docs: { type: "string" },
         fix: { type: "string" },
         message: { type: "string" },
@@ -69,7 +71,7 @@ const site = {
             additionalProperties: false,
             properties: Object.fromEntries(["pages", "probes", "resources", "robots", "sitemaps", "origins", "dns", "extractors"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl, ...(bucket === "resources" && { "failure-ttl": ttl }) } }])),
         },
-        "fail-on": { enum: ["error", "warning", "info", "never"] },
+        "fail-on": { oneOf: [{ enum: ["error", "warning", "info", "never"] }, { type: "number", minimum: 0.1, maximum: 9.9 }] },
         format: { type: "string" },
         plugins: { type: "array", items: { type: "string" } },
         sources: { type: "array", items: { type: "string" } },
@@ -92,7 +94,7 @@ const site = {
                     description: { type: "string" },
                     extends: { type: "array", items: { type: "string" } },
                     when: { type: "object" },
-                    rules: { type: "object", additionalProperties: { oneOf: [severity, ruleSpec] } },
+                    rules: { type: "object", additionalProperties: { oneOf: [severity, score, ruleSpec] } },
                 },
             },
         },
