@@ -87,6 +87,12 @@ org:
           gha: false
           forgejo: false
           tags: [container]
+        npm-test:
+          set-env:
+            PLAYWRIGHT_BROWSERS_PATH: /app/.cache/host-playwright
+          mounts:
+            - from: /home/buho/.cache/ms-playwright
+              to: /app/.cache/host-playwright
     conventions:
       fragments:
         parents:

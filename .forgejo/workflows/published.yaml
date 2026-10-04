@@ -517,6 +517,8 @@ jobs:
   source-passes-lint:
     runs-on: docker
     needs: ["deps-installed"]
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /app/.cache/host-playwright
     steps:
       - uses: actions/checkout@v7
         with:
@@ -558,6 +560,8 @@ jobs:
           image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}${{ vars.B19_NODE_SERIES || '26' }}
           run: npm test --if-present
+          env: |-
+            PLAYWRIGHT_BROWSERS_PATH=/app/.cache/host-playwright
       - name: npm-typecheck
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_NPM_TYPECHECK != 'true'
         uses: projectfile/actions/run-tool@v1
