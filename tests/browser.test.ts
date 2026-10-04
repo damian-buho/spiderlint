@@ -338,6 +338,28 @@ describe("rel=me in a browser", { skip }, () => {
 
     after(() => Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve)))));
 
+    it("answers a repeat run from the cache and loads the profiles again on --refresh", async () => {
+        const directory = await mkdtemp(path.join(tmpdir(), "spiderlint-live-"));
+        const previous = process.env.XDG_CACHE_HOME;
+        process.env.XDG_CACHE_HOME = directory;
+        try {
+            const loads = () => requested.filter((entry) => entry === "/@none").length;
+            const run = async (cacheMode: "use" | "refresh") => audit({ seeds: [`${origin}/`], rules: ["links/rel-me-rendered"], cacheMode, sitemap: false, groups: { default: { rules: ["links/rel-me-rendered"], sample: "all" } } });
+            const first = await run("use");
+            const base = loads();
+            assert.equal(first.findings.length, 1);
+            const second = await run("use");
+            assert.equal(loads(), base, "a fresh verdict is reused without opening the profile");
+            assert.match(second.findings[0]?.message ?? "", /\(read \d{4}-\d\d-\d\d \d\d:\d\d UTC, from the cache; --refresh loads it again\)$/);
+            await run("refresh");
+            assert.equal(loads(), base + 1, "--refresh loads it again");
+        } finally {
+            if (previous === undefined) delete process.env.XDG_CACHE_HOME;
+            else process.env.XDG_CACHE_HOME = previous;
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
     it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me", "links/rel-me-rendered"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me", "links/rel-me-rendered"], sample: "all" } } });
         assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me-rendered", `${profile}/@none`]]);

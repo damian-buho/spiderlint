@@ -7,6 +7,7 @@ import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { parseCacheControl, parseLink } from "../facts/headers.ts";
+import { utc } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
 import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
@@ -50,7 +51,7 @@ const brokenExternal: Make = (severity) => ({
             log.debug({ rule: "links/broken-external", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
             if (!isBroken) continue;
             const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
-            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, message: `${verdict}; linked from ${pageCount(urls.length)}`, value: answer.status, urls });
+            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, message: `${verdict}; linked from ${pageCount(urls.length)}${answer.checked ? `; checked ${utc(answer.checked)}` : ""}`, value: answer.status, urls });
         }
         return findings;
     },

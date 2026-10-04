@@ -147,7 +147,7 @@ describe("audit", () => {
         const [dead, ...rest] = of("links/broken-external");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${cdn()}/gone`);
-        assert.equal(dead?.message, "answers 404; linked from 1 page");
+        assert.match(dead?.message ?? "", /^answers 404; linked from 1 page; checked \d{4}-\d\d-\d\d \d\d:\d\d UTC$/);
         assert.deepEqual(dead?.urls, [`${site.origin}/about`]);
         const probes = () => site.requested.filter((pathname) => pathname === "/gone").length;
         assert.equal(probes(), 1);
@@ -166,7 +166,8 @@ describe("audit", () => {
         const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
         const href = `${cdn()}/walled`;
         const first = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
-        assert.deepEqual(first, { status: 403, method: "HEAD", walled: true });
+        assert.deepEqual({ ...first, checked: undefined }, { status: 403, method: "HEAD", walled: true, checked: undefined });
+        assert.ok(!Number.isNaN(Date.parse(first.checked ?? "")), "the answer says when it was probed");
         const second = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
         assert.equal(second.cached, true);
         const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
@@ -177,7 +178,7 @@ describe("audit", () => {
     it("treats a Cloudflare edge block that never asked the origin as a wall", async () => {
         const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
         const answer = await answerOf(`${cdn()}/edge-blocked`, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
-        assert.deepEqual(answer, { status: 403, method: "HEAD", walled: true });
+        assert.deepEqual({ ...answer, checked: undefined }, { status: 403, method: "HEAD", walled: true, checked: undefined });
     });
 
     it("re-asks a fresh cached broken answer", async () => {
@@ -185,7 +186,7 @@ describe("audit", () => {
         const href = `${cdn()}/walled`;
         await bucket.set(href, { status: 403, method: "HEAD" });
         const answer = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
-        assert.deepEqual(answer, { status: 403, method: "HEAD", walled: true });
+        assert.deepEqual({ ...answer, checked: undefined }, { status: 403, method: "HEAD", walled: true, checked: undefined });
     });
 
     it("judges no SEO fact on a page outside 2xx", () => {

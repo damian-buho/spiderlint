@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Page } from "playwright";
+import type { Bucket } from "../cache/index.ts";
 import type { Paint } from "../color.ts";
 import type { DnsClient } from "../crawl/dns.ts";
 import type { Probe, ProbeInit } from "../crawl/probe.ts";
@@ -34,6 +35,8 @@ export interface PageContext {
     fetch(url: string, init?: ProbeInit): Promise<Probe>;
     // Whether robots.txt lets spiderlint load `url`, on any host; true when the run ignores robots.txt.
     allowed(url: string): Promise<boolean>;
+    // The `profiles` bucket, for a verdict about another host’s page that stays true for a while; a key of its own never meets a page’s URL.
+    profiles: Bucket<unknown>;
     signal: AbortSignal;
 }
 

@@ -5,6 +5,7 @@
 import type { Page } from "playwright";
 import type { Facts } from "../facts/types.ts";
 import { reason } from "../crawl/fetch.ts";
+import { readNote } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
 import { pageRule } from "../rules/builtin.ts";
 import { definePlugin, type PageContext } from "./types.ts";
@@ -19,6 +20,9 @@ export interface LiveProfile {
     status?: number;
     back: boolean;
     error?: string;
+    // When the browser loaded it, and `cached` when that was an earlier run.
+    at?: string;
+    cached?: true;
 }
 
 // A page script listing the absolute `href` of every `rel=me` link in the rendered DOM.
@@ -63,7 +67,14 @@ const extract = async (page: Facts, _body: string, live?: Page, context?: PageCo
             profiles.push({ url: target, back: false, error: "robots.txt disallows it" });
             continue;
         }
-        profiles.push(await withPage(live, async (fresh) => {
+        const key = `rel-me-live\t${page.url.href}\t${target}`;
+        const entry = await context?.profiles.get(key);
+        if (entry && context?.profiles.isFresh(entry)) {
+            log.debug({ url: page.url.href, target, stored: entry.stored }, "rel=me profile verdict from the cache");
+            profiles.push({ ...(entry.value as LiveProfile), at: entry.stored, cached: true });
+            continue;
+        }
+        const loaded: LiveProfile = await withPage(live, async (fresh): Promise<LiveProfile> => {
             let status: number | undefined;
             fresh.on("response", (response) => {
                 if (response.request().isNavigationRequest() && response.frame() === fresh.mainFrame()) status = response.status();
@@ -77,14 +88,17 @@ const extract = async (page: Facts, _body: string, live?: Page, context?: PageCo
                 log.debug({ url: page.url.href, target, error: reason(error) }, "rel=me profile not rendered");
                 return { url: target, back: false, error: reason(error) };
             }
-        }));
+        });
+        const at = new Date().toISOString();
+        if (loaded.status !== undefined && !loaded.error) await context?.profiles.set(key, loaded);
+        profiles.push({ ...loaded, at });
     }
     return { profiles };
 };
 
 const rendered = pageRule("links/rel-me-rendered", [`${ID}.profiles`], (page) => {
     if (page[ID] === undefined) return;
-    return examined(page).filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299).map((profile) => ({ message: `rel=me profile ${profile.url} does not link back to ${page.url.origin}, even after its scripts ran in a browser`, value: profile.url }));
+    return examined(page).filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299).map((profile) => ({ message: `rel=me profile ${profile.url} does not link back to ${page.url.origin}, even after its scripts ran in a browser${profile.at ? ` (${readNote({ at: profile.at, ...(profile.cached && { cached: profile.cached }) })}; --refresh loads it again)` : ""}`, value: profile.url }));
 }, { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." });
 
 export default definePlugin({

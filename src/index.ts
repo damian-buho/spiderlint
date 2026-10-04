@@ -450,6 +450,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     log.debug({ seeds: config.seeds, fetch: config.fetch, scope: config.scope, maxPages: config.maxPages, follow: config.follow, followedFor: config.follow ? reader : undefined, resumed: earlier.length, store: store?.directory }, "crawl start");
     const cost: Cost = { extractors: {} };
     const extractors = extractorCache(config, store, cost);
+    const profiles = openBucket<unknown>("profiles", config, store?.directory);
     const redirects: Record<string, string> = {};
     const { site, pages, revalidated, launches, responses, tlsProbes, modes } = await crawlSite(
         config,
@@ -458,7 +459,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
             if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
             const chosen = sample.take(facts, active);
             const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
-            const context = { signal, allowed: async (url: string) => {
+            const context = { signal, profiles, allowed: async (url: string) => {
                 const file = await robots?.(url);
                 return file?.isAllowed(url, "spiderlint") ?? true;
             }, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };

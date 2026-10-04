@@ -59,7 +59,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
     const isReused = entry !== undefined && bucket.isFresh(entry) && isKept(entry.value);
     log.debug({ url: href, isCached: entry !== undefined, isReused }, "external link cache");
     if (isReused) return { ...entry.value, cached: true };
-    const answer = await probeOne(href, config, signal);
+    const answer = { ...(await probeOne(href, config, signal)), checked: new Date().toISOString() };
     const isStored = isKept(answer);
     log.debug({ url: href, status: answer.status, isStored }, "external link answer");
     if (isStored) await bucket.set(href, answer);

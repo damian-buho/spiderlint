@@ -49,6 +49,8 @@ export interface LinkFacts {
     walled?: true;
     excluded?: true;
     vendor?: string;
+    // When the answer was probed, as an ISO time.
+    checked?: string;
 }
 
 // One `robots.txt` group: the agents it names and the rules it gives them.
