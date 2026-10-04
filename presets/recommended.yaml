@@ -21,21 +21,30 @@ extends:
   - spiderlint:icons
   - spiderlint:insights
 rules:
-  http/consistent-origin: info
+  http/consistent-origin:
+    severity: info
+    score: 2.8
   icons/favicon: warning
   icons/apple-touch: warning
   icons/declared-size: warning
   icons/svg: off
   icons/mask-icon: off
   icons/ms-tile: off
-  manifest/parse: error
+  manifest/parse:
+    severity: error
+    score: 7.2
   origin/www-resolves: info
-  http/clock-skew: warning
-  http/content-length: warning
+  http/clock-skew:
+    severity: warning
+    score: [[-3600, 6.8], [-60, 3.4], [60, 3.4], [3600, 6.8]]
+  http/content-length:
+    severity: warning
+    score: 5.4
   http/date:
     fact: http.headers.date
     expect: {type: string, pattern: "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d{4} \\d{2}:\\d{2}:\\d{2} GMT$"}
     severity: warning
+    score: 4.2
     message: "Date should be an IMF-fixdate, found {got}"
     fix: "Send Date in IMF-fixdate form, as Sun, 06 Nov 1994 08:49:37 GMT."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
