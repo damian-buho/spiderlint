@@ -154,6 +154,22 @@ describe("formatHtml", () => {
         }
     });
 
+    it("lists one collapsed line per finding under its rule, whole-site scope without a page list, and no group heading for default alone", () => {
+        const pages = Array.from({ length: 100 }, (_unused, index) => `${site.origin}/p${index}`);
+        const fold: Finding = { rule: "seo/title", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "title is missing", occurrences: 100, coverage: 1, samples: pages.slice(0, 3) };
+        const some: Finding = { rule: "seo/h1", severity: "error", scope: "group", group: "default", url: `${site.origin}/p0`, message: "h1 is missing", occurrences: 40, coverage: 0.4, samples: pages.slice(0, 2) };
+        const input = { ...report, pages: report.pages, findings: [fold, some], summary: { ...report.summary, pages: 100, groups: { default: 100 } } };
+        const html = formatHtml(input, undefined, false, "en");
+        assert.equal(html.match(/<details class="finding">/g)?.length, 2);
+        assert.equal(html.match(/<h3><code>/g)?.length, 2);
+        assert.ok(!html.includes("<table><thead><tr><th>Severity"), "no findings table");
+        assert.ok(!html.includes("Group:"), "default alone has no heading");
+        const wholeSite = html.split('<details class="finding">').find((part) => part.includes("title is missing"));
+        assert.ok(wholeSite?.includes("Whole site") && !wholeSite.includes("<ul>"), "whole-site finding lists no pages");
+        const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
+        assert.ok(grouped.includes("Group: default · Pages: 60"));
+    });
+
     it("names each statistic by its translated label with the path on hover, an unlabelled one by its path", () => {
         const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");

@@ -80,6 +80,9 @@ msgstr "Передача шрифтів"
 msgid "Group"
 msgstr "Група"
 
+msgid "Group: {name} · Pages: {count}"
+msgstr "Група: {name} · Сторінки: {count}"
+
 msgid "Hint"
 msgstr "Порада"
 
@@ -283,4 +286,3 @@ msgstr "ще {count}"
 
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
-

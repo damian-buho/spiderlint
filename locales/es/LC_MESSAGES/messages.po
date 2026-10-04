@@ -80,6 +80,9 @@ msgstr "Transferencia de fuentes"
 msgid "Group"
 msgstr "Grupo"
 
+msgid "Group: {name} · Pages: {count}"
+msgstr "Grupo: {name} · Páginas: {count}"
+
 msgid "Hint"
 msgstr "Sugerencia"
 
@@ -283,4 +286,3 @@ msgstr "{count} más"
 
 msgid "{passed} of {total}"
 msgstr "{passed} de {total}"
-
