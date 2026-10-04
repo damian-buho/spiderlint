@@ -13,7 +13,7 @@ import { log } from "../logger.ts";
 import { inSpan, recordScan, traceCarrier, withTraceCarrier } from "../telemetry.ts";
 import { latestKey, PREFIX, PROGRESS_FD, QUEUE, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
 
-const RUNNER = new URL("scan.ts", import.meta.url).pathname;
+const RUNNER = new URL(`scan${path.extname(import.meta.url)}`, import.meta.url).pathname;
 const PROGRESS_MS = 1000;
 const REPORT_MAX = 64 * 1024 * 1024;
 const TAIL = 20;

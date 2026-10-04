@@ -16,7 +16,9 @@
     "lint": "eslint ./",
     "fix": "eslint ./ --fix",
     "test": "node --test --test-timeout=120000 --experimental-strip-types tests/**/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsc --project tsconfig.build.json",
+    "postpack": "rm --recursive --force dist"
   },
   "dependencies": {
     "@axe-core/playwright": "4.13.0",
