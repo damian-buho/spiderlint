@@ -12,6 +12,7 @@ rules:
     fact: browser.console.errors
     expect: {maxItems: 0}
     severity: warning
+    score: 5.8
     message: "the browser console logged errors ({got})"
     docs: https://developer.mozilla.org/docs/Web/API/console/error_static
     fix: "Fix the JavaScript error logged to the console."
@@ -19,6 +20,7 @@ rules:
     fact: browser.console.warnings
     expect: {not: {contains: {type: string, pattern: "preloaded using link preload but not used"}}}
     severity: info
+    score: 1.8
     message: "a preloaded resource went unused ({got})"
     docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload
     fix: "Remove the preload link, or use the resource it points at."
