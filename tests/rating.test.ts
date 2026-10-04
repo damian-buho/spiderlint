@@ -59,6 +59,7 @@ describe("checks", () => {
         const rule = pageRule({ "/a": [], "/b": ["error", "error", "warning"], "/c": ["info"], "/e": ["warning"] });
         const run = runRules([page("/a"), page("/b"), page("/c"), page("/d"), page("/e")], new Map([["default", [rule]]]), {} as never);
         assert.deepEqual(run.checks, { total: 4, failed: 2, errored: 1, cost: 3.56 });
+        assert.deepEqual(run.perRule.get("test/rule"), { checks: 4, failed: 2, pages: 4 });
     });
 
     it("counts nothing for a group without pages", () => {

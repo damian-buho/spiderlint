@@ -13,6 +13,18 @@ export interface Checks {
     cost?: number;
 }
 
+// What one rule judged: checks run, checks failed, and the pages those checks covered.
+export interface RuleChecks {
+    checks: number;
+    failed: number;
+    pages: number;
+}
+
+// The rules that ran and failed nowhere, by ID.
+export function passing(checked: Record<string, RuleChecks> = {}): [string, RuleChecks][] {
+    return Object.entries(checked).filter(([, rule]) => rule.failed === 0).toSorted(([a], [b]) => a.localeCompare(b));
+}
+
 export interface Rating {
     grade: Grade;
     score: number;

@@ -12,6 +12,7 @@ import type { Finding, RuleGuide } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { ordered } from "./agent.ts";
 import { bundle } from "./human.ts";
+import { passing } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 const LIST = 5;
@@ -129,6 +130,16 @@ function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): stri
     return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
 }
 
+// The rules that ran and failed nowhere, closed: a green check, the rule, what it expects and the pages it covered; nothing without any.
+function passed(t: Translator, report: Pick<Report, "summary" | "rules">): string {
+    const rows = passing(report.summary.checked).map(([id, rule]) => {
+        const fix = report.rules?.[id]?.fix;
+        return `<li><span class="good" aria-hidden="true">✓</span> <code>${escape(id)}</code>${fix ? ` <small class="muted">${escape(fixFor(fix))}</small>` : ""} <small class="muted">· ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</small></li>`;
+    });
+    const heading = escape(t._("Passed: {count} checks", { count: t.number(report.summary.checks.passed) }));
+    return rows.length === 0 ? "" : `<section><details><summary><h2>${heading}</h2></summary><ul>${rows.join("")}</ul></details></section>`;
+}
+
 // The rating, the totals and every finding grouped by group, site-wide ones next, each vendor’s last; findings keep their English message.
 export function reportBody(report: Pick<Report, "summary" | "findings" | "rules">, t: Translator, title: string, origin: string): string {
     const { summary } = report;
@@ -163,7 +174,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     ];
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
     if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${rules(t, hints, origin, report.rules, summary.pages)}</details></section>`);
-    return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${statistics(t, summary.stats)}`;
+    return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${passed(t, report)}${statistics(t, summary.stats)}`;
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.

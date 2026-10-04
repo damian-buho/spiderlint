@@ -43,7 +43,7 @@ import type { Finding, Rule, RuleGuide } from "./rules/types.ts";
 import { stopIfInterrupted } from "./interrupt.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
-import { rate, type Checks, type Rating } from "./report/rating.ts";
+import { passing, rate, type Checks, type Rating, type RuleChecks } from "./report/rating.ts";
 import { factStats, type Stat } from "./report/stats.ts";
 
 const PAGE_CONTEXT_MS = 60_000;
@@ -67,6 +67,8 @@ export interface Summary {
     findings: Record<Finding["severity"], number> & { total: number };
     rules: number;
     checks: Checks;
+    // Checks run, failed and pages covered by each rule that judged anything, so the passing ones are known.
+    checked?: Record<string, RuleChecks>;
     rating?: Rating;
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
@@ -87,9 +89,9 @@ export interface Report {
     rules?: Record<string, RuleGuide>;
 }
 
-// The docs of every rule with a finding, from its first compiled instance.
-function ruleGuides(findings: Finding[], rulesByGroup: Map<string, Rule[]>): Record<string, RuleGuide> {
-    const found = new Set(findings.map((finding) => finding.rule));
+// The docs of every rule with a finding or a clean check, from its first compiled instance.
+function ruleGuides(findings: Finding[], rulesByGroup: Map<string, Rule[]>, checked: Record<string, RuleChecks> = {}): Record<string, RuleGuide> {
+    const found = new Set([...findings.map((finding) => finding.rule), ...passing(checked).map(([id]) => id)]);
     const guides = new Map<string, RuleGuide>();
     for (const { meta } of rulesByGroup.values().toArray().flat()) {
         if (!found.has(meta.id) || guides.has(meta.id)) continue;
@@ -158,6 +160,7 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         rules: rules.length,
         byRule,
         checks,
+        checked: Object.fromEntries(run.perRule.entries().toArray().toSorted(([a], [b]) => a.localeCompare(b))),
         ...(rating && { rating }),
         cost,
         stats: factStats(pages),
@@ -374,7 +377,7 @@ function linter(config: Config): Lint {
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
         log.debug(summary, "lint summary");
         log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
-        return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup) };
+        return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
     };
 }
 

@@ -10,7 +10,7 @@ import { byImportance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
 import { printable, printableFinding } from "./printable.ts";
-import type { Grade, Rating } from "./rating.ts";
+import { passing, type Grade, type Rating } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
 const TONE: Record<Finding["severity"], Style> = { error: "red", warning: "yellow", info: "blue", hint: "dim" };
@@ -18,7 +18,7 @@ const LIST = 5;
 const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
 const LABEL = 11;
-const PLURAL: Record<string, string> = { error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
+const PLURAL: Record<string, string> = { rule: "rules", error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
 const MINUS = "\u{2212}";
@@ -145,9 +145,16 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     }
     for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
     if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    if (isFull) out.push("", ...passedRows(report.summary, paint));
     if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
+}
+
+// Every rule that failed nowhere with the pages it covered, under a count; nothing when none ran.
+function passedRows({ checked }: Report["summary"], paint: Paint): string[] {
+    const rules = passing(checked);
+    return rules.length === 0 ? [] : [paint("bold", `passed ${counted(rules.length, "rule")}`), ...rules.map(([id, rule]) => `  ${paint("green", "✓")} ${id} ${paint("dim", counted(rule.pages, "page"))}`)];
 }
 
 // Pages, size, time, rules, checks, findings with their change since the last run, and the rating, one row each; findings are counted before folding.

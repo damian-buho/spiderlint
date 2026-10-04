@@ -170,6 +170,19 @@ describe("formatHtml", () => {
         assert.ok(grouped.includes("Group: default · Pages: 60"));
     });
 
+    it("lists every rule that failed nowhere once, its counts summing to the checks, and counts them for an agent", () => {
+        const checked = Object.values(report.summary.checked ?? {});
+        assert.equal(checked.reduce((sum, rule) => sum + rule.checks, 0), report.summary.checks.total);
+        assert.equal(checked.reduce((sum, rule) => sum + rule.failed, 0), report.summary.checks.failed);
+        const clean = Object.entries(report.summary.checked ?? {}).filter(([, rule]) => rule.failed === 0).map(([id]) => id);
+        assert.ok(clean.length > 0);
+        const section = formatHtml(report, undefined, false, "en").split("<summary><h2>Passed: ", 2)[1] ?? "";
+        for (const id of clean) assert.equal(section.split(`<code>${id}</code>`).length - 1, 1, id);
+        assert.ok(formatHuman(report, undefined, true).includes(`✓ ${clean[0]}`));
+        assert.ok(formatAgent(report).includes(`${clean.length} rules failed nowhere`));
+        assert.ok(!formatAgent(report).includes(`✓`));
+    });
+
     it("names each statistic by its translated label with the path on hover, an unlabelled one by its path", () => {
         const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");

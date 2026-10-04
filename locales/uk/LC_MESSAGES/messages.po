@@ -137,6 +137,9 @@ msgstr "Сторінок: {count} ({share})"
 msgid "Pages: {done} of {total}"
 msgstr "Сторінок: {done} з {total}"
 
+msgid "Passed: {count} checks"
+msgstr "Пройдено: {count} перевірок"
+
 msgid "Rating"
 msgstr "Оцінка"
 
@@ -286,3 +289,4 @@ msgstr "ще {count}"
 
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
+

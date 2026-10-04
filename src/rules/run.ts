@@ -4,6 +4,7 @@
 
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import type { RuleChecks } from "../report/rating.ts";
 import { scoreOf, weight } from "./score.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule } from "./types.ts";
 
@@ -11,6 +12,8 @@ export interface RuleRun {
     findings: Finding[];
     applicable: Map<string, number>;
     checks: { total: number; failed: number; errored: number; cost: number };
+    // The same checks by rule ID, so the counts sum to `checks`.
+    perRule: Map<string, RuleChecks>;
     // Cells whose rule saw only the group’s sample.
     sampled?: Set<string>;
 }
@@ -26,6 +29,8 @@ function judged(run: RuleRun, found: Finding[], rule: Rule, pages = 1): void {
     run.checks.total += 1;
     if (found.some((finding) => finding.severity === "error")) run.checks.errored += 1;
     const failing = found.filter((finding) => finding.severity !== "info" && finding.severity !== "hint");
+    const tally = run.perRule.get(rule.meta.id) ?? { checks: 0, failed: 0, pages: 0 };
+    run.perRule.set(rule.meta.id, { checks: tally.checks + 1, failed: tally.failed + (failing.length > 0 ? 1 : 0), pages: tally.pages + pages });
     if (failing.length === 0) return;
     run.checks.failed += 1;
     const worst = Math.max(...failing.map((finding) => scoreOf(finding)));
@@ -47,7 +52,7 @@ function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleR
 
 // Page and group rules run within their group; site rules run once over the crawl.
 export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, facts: SiteFacts): RuleRun {
-    const run: RuleRun = { findings: [], applicable: new Map(), checks: { total: 0, failed: 0, errored: 0, cost: 0 } };
+    const run: RuleRun = { findings: [], applicable: new Map(), perRule: new Map(), checks: { total: 0, failed: 0, errored: 0, cost: 0 } };
     const site = new Map<string, AggregateRule>();
     for (const [group, rules] of rulesByGroup) {
         const members = pages.filter((page) => page.group === group);

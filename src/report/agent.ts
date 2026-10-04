@@ -13,6 +13,7 @@ import { fixFor } from "../rules/fix.ts";
 import { importance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
+import { passing } from "./rating.ts";
 import { printable, printableFinding } from "./printable.ts";
 
 
@@ -84,11 +85,16 @@ function statistics(stats: Report["summary"]["stats"] = {}): string[] {
     return rows.length === 0 ? [] : [["# Site statistics", "", "| Fact | Pages | Min | Median | p95 | Max | Total |", "| --- | --: | --: | --: | --: | --: | --: |", ...rows].join("\n")];
 }
 
+// How many checks and rules came out clean, as one line; the list stays in `json`.
+function passed({ checks, checked }: Report["summary"]): string[] {
+    return [`Checks passed: ${checks.passed} of ${checks.total}; ${passing(checked).length} rules failed nowhere.`];
+}
+
 // One block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative.
 export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false): string {
     const origin = sharedOrigin(report);
     const blocks = ordered(actionable(report, isHintListed), report.pages.length).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
-    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."]), ...statistics(report.summary.stats)].join("\n\n");
+    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."]), ...passed(report.summary), ...statistics(report.summary.stats)].join("\n\n");
 }
 
 // One Markdown prompt per rule, by file name, the same findings always giving the same bytes.

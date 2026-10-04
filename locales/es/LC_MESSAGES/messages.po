@@ -137,6 +137,9 @@ msgstr "Páginas: {count} ({share})"
 msgid "Pages: {done} of {total}"
 msgstr "Páginas: {done} de {total}"
 
+msgid "Passed: {count} checks"
+msgstr "Superadas: {count} comprobaciones"
+
 msgid "Rating"
 msgstr "Calificación"
 
@@ -286,3 +289,4 @@ msgstr "{count} más"
 
 msgid "{passed} of {total}"
 msgstr "{passed} de {total}"
+
