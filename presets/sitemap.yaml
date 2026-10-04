@@ -11,6 +11,7 @@ rules:
     expect: {type: array, minItems: 1}
     when: {crawl.discovered-via: sitemap}
     severity: warning
+    score: 5.4
     message: "listed in the sitemap, yet no crawled page links here"
     fix: "Add a link to this page from somewhere on the site, or remove it from the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
@@ -22,6 +23,12 @@ rules:
     message: "missing from the sitemap"
     fix: "Add this URL to the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview
-  sitemap/unreadable: warning
-  sitemap/hreflang: warning
-  sitemap/media: warning
+  sitemap/unreadable:
+    severity: warning
+    score: [[0, 5.8], [404, 4.4], [500, 5.8]]
+  sitemap/hreflang:
+    severity: warning
+    score: 4.6
+  sitemap/media:
+    severity: warning
+    score: [[0, 5.2], [404, 4.0], [500, 5.2]]
