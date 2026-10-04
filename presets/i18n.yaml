@@ -4,7 +4,15 @@
 ---
 description: hreflang alternates that name each other back and answer 2xx, and lang against Content-Language and the language of the title and description
 rules:
-  i18n/hreflang-reciprocal: warning
-  i18n/hreflang-status: warning
-  i18n/content-language: info
-  i18n/metadata-language: info
+  i18n/hreflang-reciprocal:
+    severity: warning
+    score: 5.2
+  i18n/hreflang-status:
+    severity: warning
+    score: 5.6
+  i18n/content-language:
+    severity: info
+    score: 2.4
+  i18n/metadata-language:
+    severity: info
+    score: 2.8
