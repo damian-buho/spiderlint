@@ -177,8 +177,9 @@ Rules:
 Report:
   --format <format>         human, json, sarif, checkstyle, csv, html, agent or
                             a plugin’s (default: human, env: SPIDERLINT_FORMAT)
-  --fail-on <level>         exit 1 at error, warning, info, or never (default:
-                            error, env: SPIDERLINT_FAIL_ON)
+  --fail-on <level>         exit 1 at error, warning, info, a score from 0.1 to
+                            9.9, or never (default: error, env:
+                            SPIDERLINT_FAIL_ON)
   --unfold                  one finding per page, every URL and location listed
                             (env: SPIDERLINT_FOLD=false)
   --show-hints              list hints in human output, not only their count
@@ -372,8 +373,8 @@ Rules:
 Report:
   --format <format>      human, json, sarif, checkstyle, csv, html, agent or a
                          plugin’s (default: human, env: SPIDERLINT_FORMAT)
-  --fail-on <level>      exit 1 at error, warning, info, or never (default:
-                         error, env: SPIDERLINT_FAIL_ON)
+  --fail-on <level>      exit 1 at error, warning, info, a score from 0.1 to
+                         9.9, or never (default: error, env: SPIDERLINT_FAIL_ON)
   --unfold               one finding per page, every URL and location listed
                          (env: SPIDERLINT_FOLD=false)
   --show-hints           list hints in human output, not only their count
@@ -654,8 +655,8 @@ site.
 Report:
   --format <format>  human, json, sarif, checkstyle, csv, html, agent or a
                      plugin’s (default: human, env: SPIDERLINT_FORMAT)
-  --fail-on <level>  exit 1 at error, warning, info, or never (default: error,
-                     env: SPIDERLINT_FAIL_ON)
+  --fail-on <level>  exit 1 at error, warning, info, a score from 0.1 to 9.9, or
+                     never (default: error, env: SPIDERLINT_FAIL_ON)
   --unfold           one finding per page, every URL and location listed (env:
                      SPIDERLINT_FOLD=false)
   --show-hints       list hints in human output, not only their count
