@@ -9,7 +9,7 @@
     "node": ">=26"
   },
   "bin": {
-    "spiderlint": "src/cli.ts"
+    "spiderlint": "bin/spiderlint.js"
   },
   "scripts": {
     "start": "node --experimental-strip-types src/cli.ts",
