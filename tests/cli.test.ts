@@ -375,6 +375,6 @@ describe("cli", () => {
         assert.match(collapsed.stdout, /^hints \(\d+ hints\)\n {10}--show-hints lists them$/m);
         assert.doesNotMatch(collapsed.stdout, /http\/digest/);
         const listed = await suggested(directory, site.origin, "--show-hints");
-        assert.match(listed.stdout, /hint +0\.5 http\/digest/);
+        assert.match(listed.stdout, /hint +0\.6 http\/digest/);
     });
 });

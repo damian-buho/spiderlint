@@ -305,7 +305,7 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.ok(text.startsWith(`${site.origin}\nsite\n`));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
-        assert.match(text, /^posts \(5 pages\)\n {2}error {3}8\.0 html\/one-h1 — 5 pages \(100%\)/m);
+        assert.match(text, /^posts \(5 pages\)\n {2}error {3}7\.4 html\/one-h1 — 5 pages \(100%\)/m);
         assert.match(text, /^site\n/m);
         assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
@@ -313,7 +313,7 @@ describe("audit", () => {
 
     it("colors severities when painted, and matches the plain text once styles are stripped", () => {
         const text = formatHuman(report, painter(process.stdout, true));
-        assert.ok(text.includes("\u{1B}[31merror   8.0\u{1B}[39m"), text);
+        assert.ok(text.includes("\u{1B}[31merror   7.4\u{1B}[39m"), text);
         assert.equal(stripVTControlCharacters(text), formatHuman(report));
     });
 
@@ -339,8 +339,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 449, failed: 59, errored: 6, passed: 390, cost: 68.36 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.8478, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 449, failed: 59, errored: 6, passed: 390, cost: 55.2048 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.877, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });

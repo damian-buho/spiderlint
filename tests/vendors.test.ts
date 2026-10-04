@@ -55,7 +55,7 @@ describe("vendor paths", () => {
     it("judges the decode script and lists its findings under the vendor", () => {
         const decode = on.findings.find((finding) => finding.rule === "resources/status");
         assert.equal(decode?.vendor, "Cloudflare");
-        assert.match(formatHuman(on), /^Cloudflare \(vendor\)\n {2}error {3}8\.0 resources\/status/m);
+        assert.match(formatHuman(on), /^Cloudflare \(vendor\)\n {2}error {3}7\.6 resources\/status/m);
     });
 
     it("lints the page as the site’s own with vendor-paths false", () => {
