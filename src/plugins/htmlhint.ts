@@ -40,6 +40,38 @@ const EXTRA: Record<string, Level> = {
 };
 const RULESET = Object.fromEntries(Object.keys({ ...DEFAULT, ...EXTRA }).map((id) => [id, true]));
 
+// How much each rule matters, inside its own level’s band; absent keeps the band’s base.
+const SCORES: Record<string, number> = {
+    "tag-pair": 9,
+    "id-unique": 8.4,
+    "src-not-empty": 8.2,
+    "attr-no-duplication": 7.8,
+    "title-require": 7.6,
+    "spec-char-escape": 7.4,
+    "doctype-first": 7,
+    "tagname-lowercase": 6.8,
+    "attr-lowercase": 6.8,
+    "attr-value-double-quotes": 6.6,
+    "meta-charset-require": 7.8,
+    "meta-viewport-require": 7.6,
+    "meta-description-require": 7.2,
+    "tag-no-obsolete": 7,
+    "tagname-specialchars": 6.8,
+    "attr-value-no-duplication": 6.8,
+    "attr-whitespace": 6.6,
+    "attr-no-unnecessary-whitespace": 6.6,
+    "alt-require": 6.2,
+    "input-requires-label": 6,
+    "h1-require": 5.8,
+    "html-lang-require": 5.6,
+    "main-require": 5.4,
+    "frame-title-require": 4.6,
+    "button-type-require": 4.8,
+    "attr-unsafe-chars": 4.4,
+    "doctype-html5": 4.2,
+    "id-class-ad-disabled": 3.6,
+};
+
 // htmlhint’s rule descriptions, keyed by ID; `fix` is derived from them where present.
 const DESCRIPTIONS = new Map<string, string>();
 for (const [id, rule] of Object.entries(HTMLHint.rules)) if (rule?.description) DESCRIPTIONS.set(id, rule.description);
@@ -60,9 +92,9 @@ async function extract(page: Facts, body: string): Promise<HtmlHintFacts | undef
     return { messages };
 }
 
-// A spiderlint preset from rule levels.
+// A spiderlint preset from rule levels, each rule scored by how much it matters.
 function preset(description: string, levels: Record<string, Level>): RulesetConfig {
-    return { description, rules: Object.fromEntries(Object.entries(levels).map(([id, severity]) => [`${PREFIX}${id}`, severity])) };
+    return { description, rules: Object.fromEntries(Object.entries(levels).map(([id, severity]): [string, Level | { severity: Level; score: number }] => [`${PREFIX}${id}`, SCORES[id] === undefined ? severity : { severity, score: SCORES[id] as number }])) };
 }
 
 const rules = Object.fromEntries(Object.keys(RULESET).map((id) => [`${PREFIX}${id}`, messageRule(ID, PREFIX, id, `https://htmlhint.com/rules/${id}`, DESCRIPTIONS.get(id))]));
