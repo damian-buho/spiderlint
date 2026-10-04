@@ -4,15 +4,24 @@
 ---
 description: Links that answer an error, internal links that redirect or carry nofollow, rel=me profiles that do not link back
 rules:
-  links/broken-internal: error
-  links/redirected-internal: warning
-  links/broken-external: warning
-  links/internal-nofollow: warning
+  links/broken-internal:
+    severity: error
+    score: [[0, 8.4], [404, 7.4], [500, 8.4]]
+  links/redirected-internal:
+    severity: warning
+    score: 4.6
+  links/broken-external:
+    severity: warning
+    score: [[0, 6.0], [404, 4.6], [500, 6.0]]
+  links/internal-nofollow:
+    severity: warning
+    score: 4.2
   links/external-rel: off
   links/rel-me:
     fact: site.origins.*.rel-me.unverified
     expect: {maxItems: 0}
     severity: info
+    score: 2.2
     message: "rel=me profiles that do not link back to the site: {got}"
     fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it."
     docs: https://microformats.org/wiki/rel-me
