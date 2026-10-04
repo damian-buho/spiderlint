@@ -41,7 +41,7 @@ interface Spec {
     check?: Check;
     // An HTML page is the file itself, and a redirect off the host counts as present.
     html?: true;
-    rule?: { id: string; docs: string };
+    rule?: { id: string; docs: string; score?: number };
 }
 
 const DAY_MS = 86_400_000;
@@ -226,7 +226,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "gpc",
         paths: ["/.well-known/gpc.json"],
-        rule: { id: "gpc", docs: "https://www.w3.org/TR/gpc/#gpc-support-resource" },
+        rule: { id: "gpc", score: 4.4, docs: "https://www.w3.org/TR/gpc/#gpc-support-resource" },
         check: json("object", (data, errors) => {
             if (typeof data.gpc !== "boolean") errors.push("gpc is not a boolean");
             if (data.lastUpdate !== undefined && Number.isNaN(Date.parse(String(data.lastUpdate)))) errors.push("lastUpdate is not a date");
@@ -236,7 +236,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "api-catalog",
         paths: ["/.well-known/api-catalog"],
-        rule: { id: "api-catalog", docs: "https://www.rfc-editor.org/rfc/rfc9727#section-4" },
+        rule: { id: "api-catalog", score: 4.6, docs: "https://www.rfc-editor.org/rfc/rfc9727#section-4" },
         check: json("object", (data, errors, { answer }) => {
             served(answer, ["application/linkset+json"], errors);
             if (!Array.isArray(data.linkset)) errors.push("linkset is not an array");
@@ -245,7 +245,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "openid-configuration",
         paths: ["/.well-known/openid-configuration"],
-        rule: { id: "openid-configuration", docs: "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata" },
+        rule: { id: "openid-configuration", score: 5.6, docs: "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata" },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["issuer", "authorization_endpoint", "jwks_uri", "response_types_supported", "subject_types_supported", "id_token_signing_alg_values_supported"], errors);
             sameOrigin(data.issuer, "issuer", [origin], errors);
@@ -254,7 +254,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "oauth-authorization-server",
         paths: ["/.well-known/oauth-authorization-server"],
-        rule: { id: "oauth-authorization-server", docs: "https://www.rfc-editor.org/rfc/rfc8414#section-2" },
+        rule: { id: "oauth-authorization-server", score: 5.6, docs: "https://www.rfc-editor.org/rfc/rfc8414#section-2" },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["issuer", "response_types_supported"], errors);
             sameOrigin(data.issuer, "issuer", [origin], errors);
@@ -263,7 +263,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "oauth-protected-resource",
         paths: ["/.well-known/oauth-protected-resource"],
-        rule: { id: "oauth-protected-resource", docs: "https://www.rfc-editor.org/rfc/rfc9728#section-3.3" },
+        rule: { id: "oauth-protected-resource", score: 5.4, docs: "https://www.rfc-editor.org/rfc/rfc9728#section-3.3" },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["resource"], errors);
             sameOrigin(data.resource, "resource", [origin, `${origin}/`], errors);
@@ -272,7 +272,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "webauthn",
         paths: ["/.well-known/webauthn"],
-        rule: { id: "webauthn", docs: "https://www.w3.org/TR/webauthn-3/#sctn-related-origins" },
+        rule: { id: "webauthn", score: 5.4, docs: "https://www.w3.org/TR/webauthn-3/#sctn-related-origins" },
         check: json("object", (data, errors) => {
             if (!Array.isArray(data.origins)) errors.push("origins is not an array");
             const origins: unknown[] = Array.isArray(data.origins) ? data.origins : [];
@@ -282,7 +282,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "apple-app-site-association",
         paths: ["/.well-known/apple-app-site-association"],
-        rule: { id: "apple-app-site-association", docs: "https://developer.apple.com/documentation/xcode/supporting-associated-domains" },
+        rule: { id: "apple-app-site-association", score: 5, docs: "https://developer.apple.com/documentation/xcode/supporting-associated-domains" },
         check: json("object", (_data, errors, { answer }) => {
             served(answer, ["application/json"], errors);
             if (answer.redirects.length > 0) errors.push(`reached through ${answer.redirects.length} redirects`);
@@ -291,16 +291,16 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "assetlinks",
         paths: ["/.well-known/assetlinks.json"],
-        rule: { id: "assetlinks", docs: "https://developers.google.com/digital-asset-links/v1/getting-started" },
+        rule: { id: "assetlinks", score: 5, docs: "https://developers.google.com/digital-asset-links/v1/getting-started" },
         check: json("array", (data, errors) => {
             each(data, "statements", ["relation", "target"], errors);
         }),
     },
-    { key: "nodeinfo", paths: ["/.well-known/nodeinfo"], rule: { id: "nodeinfo", docs: "https://github.com/jhass/nodeinfo/blob/main/PROTOCOL.md" }, check: nodeinfo },
+    { key: "nodeinfo", paths: ["/.well-known/nodeinfo"], rule: { id: "nodeinfo", score: 3.8, docs: "https://github.com/jhass/nodeinfo/blob/main/PROTOCOL.md" }, check: nodeinfo },
     {
         key: "traffic-advice",
         paths: ["/.well-known/traffic-advice"],
-        rule: { id: "traffic-advice", docs: "https://github.com/buettner/private-prefetch-proxy/blob/main/traffic-advice.md" },
+        rule: { id: "traffic-advice", score: 4, docs: "https://github.com/buettner/private-prefetch-proxy/blob/main/traffic-advice.md" },
         check: json("array", (data, errors, { answer }) => {
             served(answer, ["application/trafficadvice+json"], errors);
             for (const [index, advice] of each(data, "advice", ["user_agent"], errors).entries()) {
@@ -313,7 +313,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "tdmrep",
         paths: ["/.well-known/tdmrep.json"],
-        rule: { id: "tdmrep", docs: "https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/#sec-tdm-file-orig" },
+        rule: { id: "tdmrep", score: 4.2, docs: "https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/#sec-tdm-file-orig" },
         check: json("array", (data, errors) => {
             for (const [index, rule] of each(data, "rules", ["location", "tdm-reservation"], errors).entries()) if (rule["tdm-reservation"] !== undefined && ![0, 1].includes(rule["tdm-reservation"] as number)) errors.push(`rules[${index}].tdm-reservation is not 0 or 1`);
         }),
@@ -327,7 +327,7 @@ const AGENTS: Spec[] = [
     {
         key: "agent-card",
         paths: ["/.well-known/agent-card.json"],
-        rule: { id: "agent-card", docs: "https://specification.website/spec/agent-readiness/a2a-agent-cards/" },
+        rule: { id: "agent-card", score: 0.6, docs: "https://specification.website/spec/agent-readiness/a2a-agent-cards/" },
         check: json("object", (data, errors, { answer }) => {
             served(answer, ["application/json"], errors);
             need(data, ["name", "description", "version", "supportedInterfaces", "capabilities", "defaultInputModes", "defaultOutputModes", "skills"], errors);
@@ -339,7 +339,7 @@ const AGENTS: Spec[] = [
     {
         key: "ai-catalog",
         paths: ["/.well-known/ai-catalog.json"],
-        rule: { id: "ai-catalog", docs: "https://specification.website/spec/agent-readiness/agentic-resource-discovery/" },
+        rule: { id: "ai-catalog", score: 0.4, docs: "https://specification.website/spec/agent-readiness/agentic-resource-discovery/" },
         check: json("object", (data, errors) => {
             need(data, ["specVersion", "host", "entries"], errors);
             for (const [index, entry] of each(data.entries, "entries", ["identifier", "displayName"], errors).entries()) {
@@ -352,13 +352,13 @@ const AGENTS: Spec[] = [
     {
         key: "mcp-server-card",
         paths: ["/.well-known/mcp/server-card.json"],
-        rule: { id: "mcp-server-card", docs: "https://specification.website/spec/agent-readiness/mcp-and-tool-discovery/" },
+        rule: { id: "mcp-server-card", score: 0.6, docs: "https://specification.website/spec/agent-readiness/mcp-and-tool-discovery/" },
         check: json("object", (data) => ({ name: data.name, version: data.version })),
     },
     {
         key: "agent-skills",
         paths: ["/.well-known/agent-skills/index.json"],
-        rule: { id: "agent-skills", docs: "https://specification.website/spec/agent-readiness/agent-skills-discovery/" },
+        rule: { id: "agent-skills", score: 0.5, docs: "https://specification.website/spec/agent-readiness/agent-skills-discovery/" },
         check: json("object", (data, errors) => {
             need(data, ["$schema", "skills"], errors);
             return { schema: data.$schema, skills: each(data.skills, "skills", ["name", "type", "description", "url", "digest"], errors).length };
@@ -367,7 +367,7 @@ const AGENTS: Spec[] = [
     {
         key: "okf",
         paths: ["/okf/index.md"],
-        rule: { id: "okf", docs: "https://specification.website/spec/agent-readiness/okf-bundle/" },
+        rule: { id: "okf", score: 0.3, docs: "https://specification.website/spec/agent-readiness/okf-bundle/" },
         check: (text) => {
             const version = /^---\r?\n(?:.*\r?\n)*?okf_version:\s*["']?([^"'\s]+)/.exec(text)?.[1];
             return { errors: version ? [] : ["no okf_version in the front matter"], fields: { version } };
@@ -376,7 +376,7 @@ const AGENTS: Spec[] = [
     {
         key: "schemamap",
         paths: ["/schemamap.xml"],
-        rule: { id: "schemamap", docs: "https://specification.website/spec/agent-readiness/schemamap/" },
+        rule: { id: "schemamap", score: 0.3, docs: "https://specification.website/spec/agent-readiness/schemamap/" },
         check: (text, { answer }) => {
             const errors: string[] = [];
             served(answer, ["application/xml", "text/xml"], errors);
@@ -549,7 +549,7 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
         specs.flatMap((spec) => {
             if (!spec.rule) return [];
             const at = `site.origins.*.${extractor}.${spec.key}`;
-            return [[`well-known/${spec.rule.id}`, { fact: `${at}.errors`, expect: { maxItems: 0 }, when: { [`${at}.present`]: true }, message: [spec.paths[0], "is malformed: {got}"].join(" "), severity, docs: spec.rule.docs, fix: `Correct each error the finding lists in ${spec.paths[0]}.` }]];
+            return [[`well-known/${spec.rule.id}`, { fact: `${at}.errors`, expect: { maxItems: 0 }, when: { [`${at}.present`]: true }, message: [spec.paths[0], "is malformed: {got}"].join(" "), severity, ...(spec.rule.score !== undefined && { score: spec.rule.score }), docs: spec.rule.docs, fix: `Correct each error the finding lists in ${spec.paths[0]}.` }]];
         }),
     );
 }
@@ -560,6 +560,7 @@ const SECURITY: Record<string, RuleSpec> = {
         expect: { const: true },
         message: "no /.well-known/security.txt tells researchers how to report a vulnerability",
         severity: "warning",
+        score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-3",
         fix: "Publish /.well-known/security.txt with a Contact field and an Expires.",
     },
@@ -569,6 +570,7 @@ const SECURITY: Record<string, RuleSpec> = {
         when: { "site.origins.*.well-known.security-txt.present": true },
         message: "/.well-known/security.txt breaks RFC 9116: {got}",
         severity: "warning",
+        score: 5.6,
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5",
         fix: "Rewrite security.txt so each field is on its own line with `Field: value`.",
     },
@@ -578,6 +580,7 @@ const SECURITY: Record<string, RuleSpec> = {
         when: { "site.origins.*.well-known.security-txt.days-left": { type: "number" } },
         message: "/.well-known/security.txt expires in {got} days, not within the next year",
         severity: "warning",
+        score: [[-365, 6.2], [0, 5.4], [366, 3.5], [1095, 4.5]],
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
         fix: "Set Expires in security.txt to a date less than a year away.",
     },
@@ -587,6 +590,7 @@ const SECURITY: Record<string, RuleSpec> = {
         when: { "site.origins.*.well-known.change-password.required": true },
         message: "a crawled page asks for a password, but /.well-known/change-password leads nowhere",
         severity: "warning",
+        score: 5.4,
         docs: "https://w3c.github.io/webappsec-change-password-url/",
         fix: "Serve a 302 or 303 redirect from /.well-known/change-password to the password-change page.",
     },
@@ -600,6 +604,7 @@ const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
         expect: { maxItems: 0 },
         message: "the crawl links /.well-known/ suffixes IANA has not registered: {got}",
         severity: "info",
+        score: 2.2,
         docs: "https://www.rfc-editor.org/rfc/rfc8615#section-3",
         fix: "Register the suffix with IANA, or remove the link if it is not a standard well-known path.",
     },
@@ -611,6 +616,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         expect: { const: true },
         message: "no /llms.txt summarises the site for language models",
         severity: "hint",
+        score: 0.7,
         docs: "https://llmstxt.org/",
         fix: "Add /llms.txt with an H1, a one-line description, and links to the site’s resources.",
     },
@@ -620,6 +626,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.agents.llms-txt.present": true },
         message: "/llms.txt is malformed: {got}",
         severity: "info",
+        score: 2.6,
         docs: "https://llmstxt.org/#format",
         fix: "Rewrite /llms.txt as Markdown that opens with one H1 followed by its sections.",
     },
@@ -629,6 +636,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.agents.llms-txt.present": true },
         message: "/llms.txt has no /llms-full.txt twin carrying the whole content",
         severity: "hint",
+        score: 0.6,
         docs: "https://llmstxt.org/",
         fix: "Publish /llms-full.txt beside /llms.txt with the full text of the pages it lists.",
     },
@@ -638,6 +646,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.agents.llms-full-txt.present": true },
         message: "/llms-full.txt is malformed: {got}",
         severity: "info",
+        score: 2.4,
         docs: "https://llmstxt.org/#format",
         fix: "Open /llms-full.txt with its one H1, serve it as text/markdown, and repair or drop every link that does not answer 200.",
     },
@@ -648,6 +657,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         when: { "markdown.present": { type: "boolean" } },
         message: "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one",
         severity: "hint",
+        score: 0.5,
         docs: "https://llmstxt.org/#proposal",
         fix: "Add an index.md twin beside each page, or answer Accept: text/markdown with Markdown at the same URL.",
     },
@@ -659,6 +669,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         expect: { const: true },
         message: "no carbon.txt discloses the site’s sustainability documents and providers",
         severity: "info",
+        score: 2.4,
         fix: "Publish /carbon.txt naming your sustainability disclosures and upstream providers.",
         docs: "https://carbontxt.org/",
     },
@@ -668,6 +679,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.present": true },
         message: "carbon.txt is malformed: {got}",
         severity: "info",
+        score: 2.2,
         fix: "Correct carbon.txt against syntax 0.5.",
         docs: "https://carbontxt.org/syntax",
     },
@@ -677,6 +689,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.present": true },
         message: "carbon.txt names disclosures past their valid_until: {got}",
         severity: "info",
+        score: 2.8,
         fix: "Replace each expired disclosure with its current document and valid_until.",
         docs: "https://carbontxt.org/syntax",
     },
@@ -686,6 +699,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.age-days": { type: "number" } },
         message: "carbon.txt was last updated {got} days ago, more than a year",
         severity: "info",
+        score: [[365, 1.2], [1095, 3]],
         fix: "Review carbon.txt and bump last_updated.",
         docs: "https://carbontxt.org/syntax",
     },
