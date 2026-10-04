@@ -12,6 +12,7 @@ rules:
     expect: {enum: [require-corp, credentialless]}
     when: {http.parsed.cross-origin-embedder-policy.errors: {maxItems: 0}}
     severity: hint
+    score: 0.8
     message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless, found {got}"
     fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
@@ -19,6 +20,7 @@ rules:
     fact: http.headers
     expect: {anyOf: [{required: [content-digest]}, {required: [repr-digest]}]}
     severity: hint
+    score: 0.6
     message: "no Content-Digest or Repr-Digest lets a client check the body"
     fix: "Send Repr-Digest: sha-256=:<base64 digest>: with each response."
     docs: https://www.rfc-editor.org/rfc/rfc9530
@@ -27,6 +29,7 @@ rules:
     expect: {type: string, minLength: 1}
     when: {site.role: {enum: [development, staging]}}
     severity: hint
+    score: 0.2
     message: "no Server-Timing header shows where the server spent its time"
     fix: "Send Server-Timing: app;dur=<milliseconds> with durations that name no internals."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Server-Timing
@@ -35,6 +38,7 @@ rules:
     expect: {type: string, minLength: 1}
     when: {url.search: {minLength: 1}}
     severity: hint
+    score: 0.4
     message: "a URL with a query has no No-Vary-Search to say which parameters change the page"
     fix: "Send No-Vary-Search: params=(\"utm_source\" \"utm_medium\") naming the parameters that do not change the page."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/No-Vary-Search
@@ -43,6 +47,7 @@ rules:
     expect: {contains: {required: [type], properties: {type: {pattern: "^(?i:speculationrules)$"}}}}
     when: {http.headers.speculation-rules: {not: {type: string}}}
     severity: hint
+    score: 0.7
     message: "no Speculation Rules script or header prefetches likely next pages"
     fix: "Add <script type=speculationrules> with a prefetch rule for same-origin links."
     docs: https://developer.mozilla.org/docs/Web/API/Speculation_Rules_API
@@ -51,6 +56,7 @@ rules:
     expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {pattern: "^(?i:application/(rss\\+xml|atom\\+xml|feed\\+json))"}}}}
     when: {url.pathname: "/"}
     severity: hint
+    score: 0.5
     message: "the home page links no RSS, Atom or JSON feed"
     fix: "Add <link rel=alternate type=application/atom+xml href=/feed.xml> to the head."
     docs: https://www.rssboard.org/rss-autodiscovery
@@ -59,6 +65,7 @@ rules:
     expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {not: {pattern: "^(?i:text/html)"}}}}}
     when: {url.pathname: "/"}
     severity: hint
+    score: 0.5
     message: "the home page links no machine-readable alternate (feed, JSON, Markdown)"
     fix: "Add <link rel=alternate type=text/markdown href=/index.md> or a feed to the head."
     docs: https://html.spec.whatwg.org/multipage/links.html#rel-alternate
@@ -67,6 +74,7 @@ rules:
     expect: {type: array, minItems: 1}
     when: {url.pathname: "/"}
     severity: hint
+    score: 0.3
     message: "the home page links no NLWeb endpoint with rel=nlweb"
     fix: "Add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint."
     docs: https://github.com/nlweb-ai/NLWeb
@@ -75,6 +83,7 @@ rules:
     expect: {type: string, pattern: "^@?[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"}
     when: {html.property.og:type: article}
     severity: hint
+    score: 0.3
     message: "an article names no fediverse:creator account for Mastodon previews, found {got}"
     fix: "Add <meta name=fediverse:creator content=\"@user@instance.example\"> to the article head."
     docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
@@ -82,6 +91,7 @@ rules:
     fact: http.redirects
     expect: {type: array, items: {required: [by]}}
     severity: hint
+    score: 0.1
     message: "a redirect does not say which component sent it with Redirect-By ({got})"
     fix: "Send Redirect-By: <component> with every redirect."
     docs: https://specification.website/spec/
