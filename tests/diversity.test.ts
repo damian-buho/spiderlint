@@ -107,3 +107,38 @@ describe("page budget spread over a crawl", () => {
         assert.ok(!paths.includes("/project/"), paths.join(" "));
     });
 });
+
+describe("sitemap pages in a cut crawl", () => {
+    let server: Server;
+    let origin: string;
+
+    before(async () => {
+        const pages: Record<string, string> = { "/": `<a href="/hub">hub</a>`, "/hub": `<a href="/leaf">leaf</a>`, "/leaf": "<p>leaf</p>" };
+        server = createServer((request, response) => {
+            const path = new URL(request.url ?? "/", "http://x").pathname;
+            const sitemap = `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${origin}/leaf</loc></url></urlset>`;
+            const body = path === "/sitemap.xml" ? sitemap : pages[path];
+            response.writeHead(body === undefined ? 404 : 200, { "content-type": path === "/sitemap.xml" ? "application/xml" : "text/html" });
+            response.end(body === undefined ? "" : path === "/sitemap.xml" ? body : page(body));
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    });
+
+    after(() => {
+        server.close();
+    });
+
+    const orphans = async (maxPages: number) => {
+        const report = await audit({ seeds: [`${origin}/`], maxPages, concurrency: 1, sitemap: true, robots: false, fetchResources: false, cacheMode: "off", rules: ["sitemap/orphan"] });
+        return report.findings.filter((finding) => finding.rule === "sitemap/orphan").map((finding) => finding.url);
+    };
+
+    it("names no orphan while the pages that may link to it are uncrawled", async () => {
+        assert.deepEqual(await orphans(2), []);
+    });
+
+    it("finds no orphan once the crawl is whole and the sitemap page is linked", async () => {
+        assert.deepEqual(await orphans(0), []);
+    });
+});
