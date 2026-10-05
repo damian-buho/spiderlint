@@ -54,6 +54,11 @@ describe("insights", () => {
         assert.equal((finding?.value as Record<string, number>)["https://site.test/p/0"], 86_700);
     });
 
+    it("leaves a feed among HTML pages alone", () => {
+        const pages = site(25).map((facts, index) => (index === 1 ? { ...facts, http: { ...facts.http, version: "3.0", "content-type": "application/rss+xml" } } : facts));
+        assert.ok(insights(pages).every((finding) => finding.rule !== "insight/minority-value"));
+    });
+
     it("stays quiet on a site of 5 pages", () => {
         assert.deepEqual(insights(site(5)), []);
     });

@@ -33,7 +33,7 @@ interface MinoritySettings {
 }
 
 const NUMERIC: NumericSettings = { facts: ["co2.grams", "http.size.body", "resources.length", "http.timing.total"], z: 3.5, ratio: 3, "min-pages": 20 };
-const MINORITY: MinoritySettings = { facts: ["http.version", "http.content-type", "http.headers.content-encoding", "http.headers.cache-control"], share: 0.1, dominant: 0.8, "min-pages": 20 };
+const MINORITY: MinoritySettings = { facts: ["http.version", "http.headers.content-encoding", "http.headers.cache-control"], share: 0.1, dominant: 0.8, "min-pages": 20 };
 
 // Pages carrying a value for `read`, grouped by it in first-seen order.
 export function partition(pages: Facts[], read: (page: Facts) => string | undefined): Map<string, Facts[]> {
