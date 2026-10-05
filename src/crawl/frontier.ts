@@ -55,7 +55,7 @@ export interface Logged {
 }
 
 // Reasons a crawl ended early, the one that names it first.
-const CRAWL_ENDS: CrawlEnd[] = ["interrupted", "max-pages", "max-depth"];
+const CRAWL_ENDS: CrawlEnd[] = ["interrupted", "timeout", "max-pages", "max-depth"];
 
 // Cached lookups a crawl reads through.
 export interface CrawlCache {

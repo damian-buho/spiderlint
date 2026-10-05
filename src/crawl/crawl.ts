@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { ConfigError, type Config } from "../config/index.ts";
+import type { CrawlEnd } from "../facts/types.ts";
 import { interrupted } from "../interrupt.ts";
 import { log } from "../logger.ts";
 import { browserCrawler } from "./browser.ts";
@@ -24,15 +25,21 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
-    const halt = () => {
-        frontier.cut("interrupted");
-        for (const crawler of [http?.crawler, browser?.crawler]) crawler?.stop(`interrupted by ${String(interrupted.reason)}`);
+    const halt = (reason: CrawlEnd, why: string) => {
+        frontier.cut(reason);
+        for (const crawler of [http?.crawler, browser?.crawler]) crawler?.stop(why);
     };
-    interrupted.addEventListener("abort", halt, { once: true });
+    const interrupt = () => halt("interrupted", `interrupted by ${String(interrupted.reason)}`);
+    interrupted.addEventListener("abort", interrupt, { once: true });
+    const deadline = config.crawlDeadline > 0 ? setTimeout(() => {
+        log.warn({ crawlDeadline: config.crawlDeadline }, "crawl deadline reached, stopping after the pages in flight");
+        halt("timeout", `crawl deadline of ${config.crawlDeadline} s reached`);
+    }, config.crawlDeadline * 1000) : undefined;
     try {
         await frontier.run(crawlers, cache.robots, storage?.resumed);
     } finally {
-        interrupted.removeEventListener("abort", halt);
+        clearTimeout(deadline);
+        interrupted.removeEventListener("abort", interrupt);
         stop();
     }
     const [fetched, rendered] = [http?.stats(), browser?.stats()];

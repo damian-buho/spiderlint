@@ -42,6 +42,8 @@ export interface Config {
     rate: number;
     // Seconds one page may take, its navigation half of it.
     timeout: number;
+    // Seconds after which the crawl stops taking pages and the run goes on with what it has; 0 is no deadline.
+    crawlDeadline: number;
     // A named bundle of settings over the defaults, as `PROFILES` holds; empty is none.
     profile: string;
     // `http`, `https` or `socks*` proxy URL every request goes through; empty goes direct.
@@ -102,6 +104,7 @@ export function defaults(): Config {
         concurrency: 0,
         rate: 0,
         timeout: 60,
+        crawlDeadline: 0,
         profile: "",
         proxy: "",
         maxPages: 0,

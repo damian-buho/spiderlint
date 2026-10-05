@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -69,6 +71,25 @@ describe("crawl complete", () => {
         assert.ok(report.summary.untested?.includes("sitemap/orphan"));
         const stored = await reportStore(stopped);
         assert.deepEqual(stored.site.crawl, { complete: false, reason: "interrupted" });
+    });
+
+    it("returns the pages it has, marked timeout, when the crawl deadline passes", async () => {
+        // A chain of pages, each answering after 300 ms, so one crawler never reaches the end in one second.
+        const slow = createServer((request, response) => {
+            const next = Number(/\d+/.exec(request.url ?? "")?.[0] ?? 0) + 1;
+            setTimeout(() => response.writeHead(200, { "content-type": "text/html" }).end(`<!doctype html><title>p</title><a href="/p${next}">next</a>`), 300);
+        }).listen(0, "127.0.0.1");
+        await once(slow, "listening");
+        try {
+            const origin = `http://127.0.0.1:${(slow.address() as AddressInfo).port}`;
+            const report = await audit({ seeds: [`${origin}/p0`], rules: ["sitemap"], cacheMode: "off", fetchResources: false, concurrency: 1, crawlDeadline: 1, allowPrivate: true });
+            assert.deepEqual(report.site.crawl, { complete: false, reason: "timeout" });
+            assert.ok(report.pages.length > 0 && report.pages.length < 10, String(report.pages.length));
+            assert.ok(report.summary.untested?.includes("sitemap/orphan"));
+        } finally {
+            slow.closeAllConnections();
+            slow.close();
+        }
     });
 
     it("marks the graph findings of a cut crawl as partial", async () => {

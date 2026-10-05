@@ -17,6 +17,8 @@ const RUNNER = new URL(`scan${path.extname(import.meta.url)}`, import.meta.url).
 const PROGRESS_MS = 1000;
 const REPORT_MAX = 64 * 1024 * 1024;
 const TAIL = 20;
+// The share of a scan’s time the crawl may use, leaving the rest to lint and the report.
+const CRAWL_SHARE = 0.8;
 
 // Why a runner exit code failed the scan, as the job’s error says it.
 const EXITS: Record<number, string> = { 2: "invalid settings", 3: "no page could be fetched", 4: "the scan failed" };
@@ -92,7 +94,7 @@ async function runScan(job: ScanJob): Promise<ScanResult> {
         progress.sent = now;
         store(line);
     });
-    child.stdin?.end(JSON.stringify({ url, settings, deny, trace: traceCarrier() }));
+    child.stdin?.end(JSON.stringify({ url, settings, deny, crawlDeadline: Math.floor(scanTimeout * CRAWL_SHARE), trace: traceCarrier() }));
     const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolve) => child.once("close", (exitCode, exitSignal) => resolve([exitCode, exitSignal])));
     clearTimeout(timer);
     if (progress.held) store(progress.held);
