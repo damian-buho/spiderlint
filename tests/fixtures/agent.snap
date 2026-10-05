@@ -6,7 +6,7 @@
 
 ## links/broken-internal (error 7.4)
 
-http.status is 404; linked from 12 pages
+the page answers 404; linked from these pages
 
 Where: /missing, used by or shared with:
 - /
@@ -264,9 +264,9 @@ Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/
 
 ## html/canonical-self (warning 6.4)
 
-canonical link names /about/, not this page
+canonical link names another URL, not this page
 
-Where: /about
+Where: /about: /about/
 Reads: `html.canonical`
 Fix: Point <link rel=canonical> at this page’s own URL.
 Docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
@@ -345,9 +345,9 @@ Done when: `spiderlint audit ORIGIN/ --rules links/broken-external` reports no l
 
 ## links/redirected-internal (warning 4.6)
 
-redirects to /about; linked from 1 page
+the link redirects elsewhere; linked from these pages
 
-Where: /old-about, used by or shared with:
+Where: /old-about: /about, used by or shared with:
 - /orphan
 Reads: `site.redirects`, `html.links.internal`
 Fix: Make the link target point at the final URL, or serve the content directly.
@@ -427,9 +427,9 @@ Done when: `spiderlint audit ORIGIN/ --rules html/og-url` reports no html/og-url
 
 ## html/og-url-self (info 2.4)
 
-og:url names /, not this page
+og:url names another URL, not this page
 
-Where: /orphan
+Where: /orphan: /
 Reads: `html.property.og:url`
 Fix: Point <meta property=og:url> at this page’s own URL.
 Docs: https://ogp.me/#metadata

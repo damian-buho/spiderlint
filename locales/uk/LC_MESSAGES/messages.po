@@ -1484,3 +1484,192 @@ msgstr "стрічка подкасту {format} блокується значе
 
 msgid "{format} podcast feed sets no podcast:locked, so any platform may import it"
 msgstr "стрічка подкасту {format} не задає podcast:locked, тому будь-яка платформа може її імпортувати"
+
+msgid "@font-face rules without font-display: swap, fallback or optional; used by these pages"
+msgstr "правила @font-face без font-display: swap, fallback чи optional; використовують ці сторінки"
+
+msgid "a 103 Early Hints preload is missing from the final Link header"
+msgstr "попереднього завантаження з 103 Early Hints немає у фінальному заголовку Link"
+
+msgid "a meta viewport entry is not a key and value browsers read, so they ignore it"
+msgstr "запис meta viewport не є ключем і значенням, які читають браузери, тому вони його ігнорують"
+
+msgid "a text {kind} is not served with br, gzip or zstd; used by these pages"
+msgstr "текстовий {kind} віддається не через br, gzip чи zstd; використовують ці сторінки"
+
+msgid "a {format} font is not WOFF2; used by these pages"
+msgstr "шрифт {format} не є WOFF2; використовують ці сторінки"
+
+msgid "a {format} image is above the weight limit; used by these pages"
+msgstr "зображення {format} перевищує ліміт ваги; використовують ці сторінки"
+
+msgid "a {format} image is smaller as {target}; used by these pages"
+msgstr "зображення {format} важить менше як {target}; використовують ці сторінки"
+
+msgid "a {format} image re-encodes smaller; used by these pages"
+msgstr "зображення {format} перекодовується меншим; використовують ці сторінки"
+
+msgid "a {kind} minifies smaller; used by these pages"
+msgstr "{kind} мініфікується до меншого розміру; використовують ці сторінки"
+
+msgid "an <img> below the fold without loading=lazy loads before the reader scrolls"
+msgstr "<img> нижче першого екрана без loading=lazy завантажується, ще перш ніж читач прокрутить"
+
+msgid "an <img> in the first viewport with loading=lazy waits for layout before loading"
+msgstr "<img> на першому екрані з loading=lazy чекає на розкладку перед завантаженням"
+
+msgid "an <img> ships far more pixels than the page renders"
+msgstr "<img> передає значно більше пікселів, ніж показує сторінка"
+
+msgid "an <img> without srcset ships over {oversize} the width it displays"
+msgstr "<img> без srcset передає понад {oversize} ширини, яку показує"
+
+msgid "an <img> without width and height shifts the layout as it loads"
+msgstr "<img> без width і height зсуває макет під час завантаження"
+
+msgid "an origin serves a render-blocking {kind} and nothing preconnects to it"
+msgstr "origin віддає {kind}, що блокує відображення, і ніщо не робить preconnect до нього"
+
+msgid "cross-origin {kind} without integrity; used by these pages"
+msgstr "{kind} з іншого origin без integrity; використовують ці сторінки"
+
+msgid "inline CSS uses features the browser targets “{query}” lack"
+msgstr "вбудований CSS використовує можливості, яких бракує цільовим браузерам «{query}»"
+
+msgid "meta theme-color is empty, so browsers ignore it"
+msgstr "meta theme-color порожній, тому браузери його ігнорують"
+
+msgid "meta theme-color is not a CSS color, so browsers ignore it"
+msgstr "meta theme-color не є кольором CSS, тому браузери його ігнорують"
+
+msgid "neither content-security-policy frame-ancestors nor x-frame-options refuses framing"
+msgstr "ні frame-ancestors у content-security-policy, ні x-frame-options не забороняють вбудовування у фрейм"
+
+msgid "rel={relation} warms an origin that no resource of the page loads"
+msgstr "rel={relation} прогріває origin, з якого жоден ресурс сторінки не завантажується"
+
+msgid "the link redirects elsewhere; linked from these pages"
+msgstr "посилання переспрямовує деінде; на нього посилаються ці сторінки"
+
+msgid "the manifest does not parse; linked from these pages"
+msgstr "маніфест не розбирається; на нього посилаються ці сторінки"
+
+msgid "the manifest icons lack sizes or a maskable icon; linked from these pages"
+msgstr "піктограмам маніфесту бракує розмірів або піктограми maskable; на нього посилаються ці сторінки"
+
+msgid "the manifest is served or declared wrongly; linked from these pages"
+msgstr "маніфест віддається або оголошений неправильно; на нього посилаються ці сторінки"
+
+msgid "the manifest lacks members, so browsers will not offer to install the site; linked from these pages"
+msgstr "маніфесту бракує членів, тому браузери не пропонуватимуть установити сайт; на нього посилаються ці сторінки"
+
+msgid "the page answers {status}; linked from these pages"
+msgstr "сторінка відповідає {status}; на неї посилаються ці сторінки"
+
+msgid "the page could not be fetched: {error}; linked from these pages"
+msgstr "сторінку не вдалося отримати: {error}; на неї посилаються ці сторінки"
+
+msgid "the preconnect to a font origin lacks crossorigin, so fonts open a second connection"
+msgstr "preconnect до origin шрифтів не має crossorigin, тому шрифти відкривають друге з’єднання"
+
+msgid "the sitemap could not be read"
+msgstr "sitemap не вдалося прочитати"
+
+msgid "the sitemap media answers {status}; listed by these pages"
+msgstr "медіаресурс зі sitemap відповідає {status}; його перелічують ці сторінки"
+
+msgid "the sitemap media could not be reached: {error}; listed by these pages"
+msgstr "медіаресурс зі sitemap недосяжний: {error}; його перелічують ці сторінки"
+
+msgid "the style sheet uses features the browser targets “{query}” lack; used by these pages"
+msgstr "таблиця стилів використовує можливості, яких бракує цільовим браузерам «{query}»; використовують ці сторінки"
+
+msgid "{count} of {total} pages link no manifest while the rest do"
+msgstr "{count} із {total} сторінок не посилаються на маніфест, тоді як решта посилається"
+
+msgid "{kind} answers {status}; used by these pages"
+msgstr "{kind} відповідає {status}; використовують ці сторінки"
+
+msgid "{kind} could not be fetched: {error}; used by these pages"
+msgstr "{kind} не вдалося отримати: {error}; використовують ці сторінки"
+
+msgid "{kind} loads over http: on the https: pages that use it"
+msgstr "{kind} завантажується через http: на сторінках https:, що його використовують"
+
+msgid "{label} names another URL, not this page"
+msgstr "{label} називає інший URL, а не цю сторінку"
+
+msgid "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111; used by these pages"
+msgstr "{kind} з відбитком надсилає Cache-Control, що порушує RFC 9111; використовують ці сторінки"
+
+msgid "immutable {kind} sends a Cache-Control that breaks RFC 9111; used by these pages"
+msgstr "незмінний {kind} надсилає Cache-Control, що порушує RFC 9111; використовують ці сторінки"
+
+msgid "fingerprinted {kind} is cached for less than a year; used by these pages"
+msgstr "{kind} з відбитком кешується менш ніж на рік; використовують ці сторінки"
+
+msgid "immutable {kind} is cached for less than a year; used by these pages"
+msgstr "незмінний {kind} кешується менш ніж на рік; використовують ці сторінки"
+
+msgid "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages"
+msgstr "таблиця стилів має синтаксичні помилки, тому браузери відкидають правило чи блок, у якому кожна з них стоїть; використовують ці сторінки"
+
+msgid "inline CSS has syntax errors, so browsers drop the rule or block each sits in"
+msgstr "вбудований CSS має синтаксичні помилки, тому браузери відкидають правило чи блок, у якому кожна з них стоїть"
+
+msgid "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages"
+msgstr "таблиця стилів називає властивості, яких браузери не знають, тому відкидають ці оголошення; використовують ці сторінки"
+
+msgid "inline CSS names properties browsers do not know, so they drop those declarations"
+msgstr "вбудований CSS називає властивості, яких браузери не знають, тому відкидають ці оголошення"
+
+msgid "the style sheet carries values outside a property’s grammar, so browsers drop those declarations; used by these pages"
+msgstr "таблиця стилів містить значення поза граматикою властивості, тому браузери відкидають ці оголошення; використовують ці сторінки"
+
+msgid "inline CSS carries values outside a property’s grammar, so browsers drop those declarations"
+msgstr "вбудований CSS містить значення поза граматикою властивості, тому браузери відкидають ці оголошення"
+
+msgid "{kind}: a cookie is set without the Secure flag; used by these pages"
+msgstr "{kind}: cookie встановлено без прапорця Secure; використовують ці сторінки"
+
+msgid "{kind}: a cookie is set without the HttpOnly flag; used by these pages"
+msgstr "{kind}: cookie встановлено без прапорця HttpOnly; використовують ці сторінки"
+
+msgid "{kind}: a cookie is set without a SameSite attribute; used by these pages"
+msgstr "{kind}: cookie встановлено без атрибута SameSite; використовують ці сторінки"
+
+msgid "{kind}: a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it; used by these pages"
+msgstr "{kind}: cookie __Host- не має Secure чи Path=/ або задає Domain, тому браузери її відхиляють; використовують ці сторінки"
+
+msgid "{kind}: a __Secure- cookie lacks Secure, so browsers reject it; used by these pages"
+msgstr "{kind}: cookie __Secure- не має Secure, тому браузери її відхиляють; використовують ці сторінки"
+
+msgid "{kind}: a SameSite=None cookie lacks Secure, so browsers reject it; used by these pages"
+msgstr "{kind}: cookie SameSite=None не має Secure, тому браузери її відхиляють; використовують ці сторінки"
+
+msgid "{kind}: a cookie outlives 400 days, which browsers cap; used by these pages"
+msgstr "{kind}: cookie живе понад 400 днів, а браузери це обмежують; використовують ці сторінки"
+
+msgid "the response body ended short of the bytes Content-Length declares; on these pages"
+msgstr "тіло відповіді закінчилося раніше за байти, які оголошує Content-Length; на цих сторінках"
+
+msgid "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; on these pages"
+msgstr "тіло відповіді не збігається з Content-Length, або Content-Length надіслано двічі чи разом з chunked; на цих сторінках"
+
+msgid "the response sends Content-Length beside Transfer-Encoding; on these pages"
+msgstr "відповідь надсилає Content-Length разом з Transfer-Encoding; на цих сторінках"
+
+msgid "a 204 response carries Content-Length; on these pages"
+msgstr "відповідь 204 містить Content-Length; на цих сторінках"
+
+msgid "{kind}: the response body ended short of the bytes Content-Length declares; used by these pages"
+msgstr "{kind}: тіло відповіді закінчилося раніше за байти, які оголошує Content-Length; використовують ці сторінки"
+
+msgid "{kind}: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages"
+msgstr "{kind}: тіло відповіді не збігається з Content-Length, або Content-Length надіслано двічі чи разом з chunked; використовують ці сторінки"
+
+msgid "{kind}: the response sends Content-Length beside Transfer-Encoding; used by these pages"
+msgstr "{kind}: відповідь надсилає Content-Length разом з Transfer-Encoding; використовують ці сторінки"
+
+msgid "{kind}: a 204 response carries Content-Length; used by these pages"
+msgstr "{kind}: відповідь 204 містить Content-Length; використовують ці сторінки"

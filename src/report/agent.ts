@@ -44,13 +44,14 @@ export function ordered(findings: Finding[], pages: number): Finding[][] {
 // Where a finding sits: a fold’s samples, an aggregate’s URLs, or its pages, each with its values and locations.
 function where(same: Finding[], origin: string): string[] {
     const finding = same[0] as Finding;
-    const at = (url: string, locations: string[] | undefined, owner = finding) => [[`- ${relative(url, origin)}`, ...valuesAt(owner, url, inEnglish)].join(": "), ...(locations ?? []).map((location) => `  - at ${location}`)];
+    const named = (url: string, owner: Finding) => [relative(url, origin), ...valuesAt(owner, url, inEnglish).map((value) => relative(value, origin))].join(": ");
+    const at = (url: string, locations: string[] | undefined, owner = finding) => [`- ${named(url, owner)}`, ...(locations ?? []).map((location) => `  - at ${location}`)];
     if (finding.occurrences !== undefined) {
         const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
         return [`Where: ${pages} of group ${finding.group} (${Math.round((finding.coverage ?? 0) * 100)} %), for example:`, ...(finding.samples ?? []).flatMap((url) => at(url, finding.sampleLocations?.[url]))];
     }
-    if (finding.urls) return [`Where: ${relative(finding.url, origin)}, used by or shared with:`, ...finding.urls.flatMap((url) => at(url, undefined)), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
-    return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations, page))] : [`Where: ${[relative(finding.url, origin), ...valuesAt(finding, finding.url, inEnglish)].join(": ")}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];
+    if (finding.urls) return [`Where: ${named(finding.url, finding)}, used by or shared with:`, ...finding.urls.flatMap((url) => at(url, undefined)), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
+    return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations, page))] : [`Where: ${named(finding.url, finding)}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];
 }
 
 // The reads a bundle took from a cache, so the agent knows a fix may already be live.

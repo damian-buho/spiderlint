@@ -52,9 +52,9 @@ function list(urls: string[], origin: string, limit: number): string {
     return urls.length > limit ? `${shown} … and ${urls.length - limit} more` : shown;
 }
 
-// A URL relative to the origin, then what was measured there.
+// A URL, then what was measured there, each relative to the origin.
 function shown(finding: Finding, url: string, origin: string): string {
-    return [relative(url, origin), ...valuesAt(finding, url, number)].join("  ");
+    return [url, ...valuesAt(finding, url, number)].map((text) => relative(text, origin)).join("  ");
 }
 
 // At most `limit` URLs one per line with their values, the rest as a count.

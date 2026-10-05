@@ -37,13 +37,16 @@ describe("css plugin", () => {
             "css/parse-error /broken.css 9:10 Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Delim('*')' — a::before *",
             "css/unknown-property /broken.css 7:19 Unknown property `colr` — colr: #222",
         ]);
-        assert.equal(report.findings.find((finding) => finding.rule === "css/unknown-property")?.message, "1 declaration in the style sheet names a property browsers do not know, so they drop it; used by 1 pages");
+        const unknown = report.findings.find((finding) => finding.rule === "css/unknown-property");
+        assert.equal(unknown?.message, "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages");
+        assert.deepEqual(unknown?.data, { [unknown?.url as string]: { messages: 1 } });
     });
 
     it("judges features against the declared browser targets", async () => {
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, rules: ["css/unsupported"], pluginSettings: { css: { targets: "ie 11" } }, sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(found(report, site.origin), ["css/unsupported /broken.css 7:31 CSS Variables (Custom Properties) — IE 11"]);
-        assert.match(report.findings[0]?.message ?? "", /the browser targets “ie 11” lack; used by 1 pages$/);
+        assert.equal(report.findings[0]?.message, "the style sheet uses features the browser targets “ie 11” lack; used by these pages");
+        assert.deepEqual(report.findings[0]?.variables, { query: "ie 11" });
     });
 
     it("places a style attribute’s messages in the document and spares grammar gaps and guarded features", async () => {

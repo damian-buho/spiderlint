@@ -8,6 +8,7 @@ import { USER_AGENT } from "../agent.ts";
 import type { CookieFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resourceRule } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import type { Make, RuleSpec, Severity } from "../rules/types.ts";
 import { TRACKING_COOKIES } from "./cookies-registry.ts";
 import { definePlugin, type Extractor } from "./types.ts";
@@ -92,6 +93,9 @@ function over(fact: string, check: Check): RuleSpec {
     return { fact, expect: { type: "array", items: check.item }, ...(check.isHttpsOnly && { when: { "url.protocol": "https:" } }), severity: check.severity, score: check.score, message: check.message, docs: check.docs, ...(check.fix && { fix: check.fix }) };
 }
 
+// What a resource finding names first.
+const SUBJECT = "{kind}:";
+
 // The check over each resource’s own Set-Cookie, keyed by resource URL with the pages that load it.
 function onResources(check: Check): Make {
     const isValid = ajv.compile(check.item) as (value: unknown) => boolean;
@@ -99,9 +103,9 @@ function onResources(check: Check): Make {
     return resourceRule(
         `cookies/resource-${check.name}`,
         (_page, resource) => (resource.http?.cookies?.length ?? 0) > 0 && (!check.isHttpsOnly || resource.url.startsWith("https:")),
-        (resource, pages) => {
+        (resource) => {
             const names = failing(resource.http?.cookies);
-            return names.length === 0 ? undefined : `${resource.kind}: ${check.message} (${names.join(", ")}); used by ${pages} pages`;
+            return names.length === 0 ? undefined : { ...said(`${SUBJECT} ${check.message}; used by these pages`, { kind: resource.kind }), data: { [resource.url]: { cookies: names.join(", ") } } };
         },
         ["resources"],
         (resource) => failing(resource.http?.cookies),

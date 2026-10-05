@@ -34,7 +34,7 @@ const brokenInternal: Make = (severity) => ({
                 severity,
                 scope: "site",
                 url: page.url.href,
-                message: `${page.http.error ? `http.error is ${page.http.error}` : `http.status is ${page.http.status}`}; linked from ${pageCount(page.crawl.referrers.length)}`,
+                ...(page.http.error ? said("the page could not be fetched: {error}; linked from these pages", { error: page.http.error }) : said("the page answers {status}; linked from these pages", { status: String(page.http.status) })),
                 value: page.http.status,
                 urls: page.crawl.referrers,
             });
@@ -78,17 +78,12 @@ const sitemapMedia: Make = (severity) => ({
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
             log.debug({ rule: "sitemap/media", url: href, status: answer?.status, isBroken }, "sitemap media judged");
             if (!isBroken) continue;
-            const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
-            findings.push({ rule: "sitemap/media", severity, scope: "site", url: href, message: `sitemap media ${verdict}; listed for ${pageCount(urls.length)}`, value: answer.status, urls });
+            const verdict = answer.status === 0 ? said("the sitemap media could not be reached: {error}; listed by these pages", { error: answer.error ?? "" }) : said("the sitemap media answers {status}; listed by these pages", { status: String(answer.status) });
+            findings.push({ rule: "sitemap/media", severity, scope: "site", url: href, ...verdict, value: answer.status, urls });
         }
         return findings;
     },
 });
-
-// A page count with its noun.
-function pageCount(count: number): string {
-    return `${count} page${count === 1 ? "" : "s"}`;
-}
 
 // Every internal link answering with a redirect, once per target, with the pages linking to it.
 const redirectedInternal: Make = (severity) => ({
@@ -103,7 +98,7 @@ const redirectedInternal: Make = (severity) => ({
         log.debug({ rule: "links/redirected-internal", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
         return linking
             .entries()
-            .map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, message: `redirects to ${landing.get(href)}; linked from ${pageCount(urls.length)}`, value: landing.get(href), urls }))
+            .map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, ...said("the link redirects elsewhere; linked from these pages"), data: { [href]: { landing: landing.get(href) as string } }, value: landing.get(href), urls }))
             .toArray();
     },
 });
@@ -114,7 +109,7 @@ const sitemapUnreadable: Make = (severity) => ({
     check(_pages: Facts[], _group?: string, site?: SiteFacts) {
         const files = site?.sitemaps ?? [];
         log.debug({ rule: "sitemap/unreadable", files: files.length }, "sitemap files judged");
-        return files.filter((file) => file.error).map((file) => ({ rule: "sitemap/unreadable", severity, scope: "site" as const, url: file.url, message: `sitemap ${file.error}`, value: file.status }));
+        return files.filter((file) => file.error).map((file) => ({ rule: "sitemap/unreadable", severity, scope: "site" as const, url: file.url, ...said("the sitemap could not be read"), data: { [file.url]: { error: file.error as string } }, value: file.status }));
     },
 });
 
@@ -139,7 +134,20 @@ const frameOptions: Make = (severity) => ({
         const options = header(page, "x-frame-options").trim();
         const isDenied = hasAncestors || /^(?:deny|sameorigin)$/i.test(options);
         log.debug({ rule: "http/frame-options", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
-        return isDenied ? [] : [{ rule: "http/frame-options", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `neither content-security-policy frame-ancestors nor x-frame-options refuses framing (x-frame-options: ${options || "absent"})`, value: options || undefined }];
+        return isDenied
+            ? []
+            : [
+                  {
+                      rule: "http/frame-options",
+                      severity,
+                      scope: "page" as const,
+                      url: page.url.href,
+                      group: page.group,
+                      ...said("neither content-security-policy frame-ancestors nor x-frame-options refuses framing"),
+                      ...(options && { data: { [page.url.href]: { "x-frame-options": options } } }),
+                      value: options || undefined,
+                  },
+              ];
     },
 });
 
@@ -166,7 +174,7 @@ const earlyHintsPreload: Make = (severity) => ({
         const final = new Set(targets(linksOf(parsed), "preload", page.url.href));
         const dropped = [...new Set(hints.flatMap((hint) => linkTargets(hint.link ?? "", "preload", page.url.href))).difference(final)];
         log.debug({ rule: "http/early-hints-preload", url: page.url.href, hints: hints.length, final: final.size, dropped: dropped.length }, "early hints compared");
-        return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `103 Early Hints preload ${dropped.join(", ")}, which the final Link header lacks`, value: dropped }];
+        return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("a 103 Early Hints preload is missing from the final Link header"), data: { [page.url.href]: { preloads: dropped.join(", ") } }, value: dropped }];
     },
 });
 
@@ -207,7 +215,7 @@ const preconnectUnused = pageRule(
             .filter(([origin]) => !used.has(origin))
             .toArray();
         log.debug({ rule: "html/preconnect-unused", url: page.url.href, used: used.size, unused: unused.length }, "resource hints matched");
-        return unused.map(([origin, relation]) => ({ message: `rel=${relation} warms ${origin}, which no resource of the page loads`, value: origin }));
+        return unused.map(([origin, relation]) => ({ ...said("rel={relation} warms an origin that no resource of the page loads", { relation }), data: { [page.url.href]: { origin } }, value: origin }));
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Remove the preconnect or dns-prefetch link to an origin the page no longer loads from." },
 );
@@ -240,7 +248,7 @@ const viewportSyntax = pageRule(
             return value === undefined || !VIEWPORT[key.toLowerCase()]?.test(value);
         });
         log.debug({ rule: "html/viewport-syntax", url: page.url.href, entries: entries.length, dropped: dropped.length }, "viewport entries read");
-        return dropped.map((entry) => ({ message: `meta viewport entry “${entry}” is not a key and value browsers read, so they ignore it`, value: entry }));
+        return dropped.map((entry) => ({ ...said("a meta viewport entry is not a key and value browsers read, so they ignore it"), data: { [page.url.href]: { entry } }, value: entry }));
     },
     { docs: "https://drafts.csswg.org/css-viewport/#viewport-meta", fix: "Keep meta viewport to known keys, as in width=device-width, initial-scale=1." },
 );
@@ -255,7 +263,7 @@ const themeColorSyntax = pageRule(
         const { lexer } = createRequire(import.meta.url)("css-tree") as typeof import("css-tree");
         const invalid = colors.filter((meta) => !lexer.match("<color>", meta.content.trim()).matched);
         log.debug({ rule: "html/theme-color-syntax", url: page.url.href, colors: colors.length, invalid: invalid.length }, "theme colors read");
-        return invalid.map((meta) => ({ message: meta.content.trim() === "" ? "meta theme-color is empty, so browsers ignore it" : `meta theme-color “${meta.content}” is not a CSS color, so browsers ignore it`, value: meta.content }));
+        return invalid.map((meta) => ({ ...(meta.content.trim() === "" ? said("meta theme-color is empty, so browsers ignore it") : { ...said("meta theme-color is not a CSS color, so browsers ignore it"), data: { [page.url.href]: { content: meta.content } } }), value: meta.content }));
     },
     { docs: "https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color", fix: "Set <meta name=theme-color> content to a CSS color, as in #1a73e8." },
 );
@@ -281,7 +289,7 @@ const preconnectMissing = pageRule(
             .filter(([origin]) => !warmed.has(origin))
             .toArray();
         log.debug({ rule: "html/preconnect-missing", url: page.url.href, warmed: warmed.size, cold: cold.length }, "render-blocking origins matched");
-        return cold.map(([origin, kind]) => ({ message: `${origin} serves a render-blocking ${kind} and nothing preconnects to it`, value: origin }));
+        return cold.map(([origin, kind]) => ({ ...said("an origin serves a render-blocking {kind} and nothing preconnects to it", { kind }), data: { [page.url.href]: { origin } }, value: origin }));
     },
     { docs: "https://web.dev/articles/preconnect-and-dns-prefetch", fix: 'Add <link rel="preconnect" href="https://origin.example"> for each cross origin a render-blocking script or style sheet comes from.' },
 );
@@ -302,7 +310,7 @@ const preconnectCrossorigin = pageRule(
         const anonymous = new Set(preconnects.filter((link) => link.crossorigin !== undefined).map((link) => originOf(link.href)));
         const bare = [...new Set(preconnects.map((link) => originOf(link.href))).difference(anonymous)];
         log.debug({ rule: "html/preconnect-crossorigin", url: page.url.href, fonts: fonts.size, preconnects: preconnects.length, bare: bare.length }, "font preconnects matched");
-        return bare.map((origin) => ({ message: `the preconnect to font origin ${String(origin)} lacks crossorigin, so fonts open a second connection`, value: origin }));
+        return bare.map((origin) => ({ ...said("the preconnect to a font origin lacks crossorigin, so fonts open a second connection"), data: { [page.url.href]: { origin: String(origin) } }, value: origin }));
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Add the crossorigin attribute to the preconnect link towards the origin fonts load from." },
 );
@@ -326,7 +334,7 @@ function pointsHere(id: string, fact: string, label: string, read: (html: HtmlFa
             const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
             const matches = here.includes(target);
             log.debug({ rule: id, url: page.url.href, twin: page.url.twin, target, matches }, "self reference checked");
-            return matches ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${label} names ${target}, not this page`, value: raw }];
+            return matches ? [] : [{ rule: id, severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("{label} names another URL, not this page", { label }), data: { [page.url.href]: { target } }, value: raw }];
         },
     });
 }
@@ -361,8 +369,8 @@ const consistentOrigin: Make = (severity) => ({
     },
 });
 
-// A resource’s finding as its message, or with the locations inside it.
-export type Verdict = (resource: ResourceFacts, pages: number) => string | Pick<Finding, "message" | "locations"> | undefined;
+// A resource’s finding, with the values measured at it under its URL.
+export type Verdict = (resource: ResourceFacts) => Offence | undefined;
 
 // A rule's docs link and one-line fix.
 export type Guide = Pick<RuleMeta, "docs" | "fix">;
@@ -396,9 +404,9 @@ export function resourceRule(id: string, isUsed: (page: Facts, resource: Resourc
             }
             const findings: Finding[] = [];
             for (const [url, { resource, urls }] of usedBy) {
-                const judged = verdict(resource, urls.length);
+                const judged = verdict(resource);
                 log.debug({ rule: id, resource: url, pages: urls.length, isFinding: judged !== undefined }, "resource judged");
-                if (judged) findings.push({ rule: id, severity, scope: "site", url, ...(typeof judged === "string" ? { message: judged } : judged), value: valueOf(resource), urls });
+                if (judged) findings.push({ rule: id, severity, scope: "site", url, ...judged, value: valueOf(resource), urls });
             }
             return findings;
         },
@@ -408,10 +416,10 @@ export function resourceRule(id: string, isUsed: (page: Facts, resource: Resourc
 const isAnyUse = () => true;
 
 // A fetched resource answering outside 2xx, or not at all.
-const resourceStatus: Verdict = (resource, pages) => {
+const resourceStatus: Verdict = (resource) => {
     const http = resource.http;
     if (!http || (http.status >= 200 && http.status < 300)) return;
-    return http.status === 0 ? `${resource.kind} could not be fetched (${http.error}); used by ${pages} pages` : `${resource.kind} answers ${http.status}; used by ${pages} pages`;
+    return http.status === 0 ? said("{kind} could not be fetched: {error}; used by these pages", { kind: resource.kind, error: http.error ?? "" }) : said("{kind} answers {status}; used by these pages", { kind: resource.kind, status: String(http.status) });
 };
 
 // A resource header's value, repeated fields joined; absent is empty.
@@ -432,7 +440,7 @@ const YEAR = 31_536_000;
 const HASHED = /[.-](?=[\w-]*\d)[\w-]{8,}\.\w+$/;
 
 // A fingerprinted or `immutable` asset whose `Cache-Control` keeps it for less than a year.
-const resourceCacheControl: Verdict = (resource, pages) => {
+const resourceCacheControl: Verdict = (resource) => {
     const policy = resourceHeader(resource, "cache-control");
     const isImmutable = /\bimmutable\b/i.test(policy);
     const isHashed = HASHED.test(new URL(resource.url).pathname);
@@ -442,21 +450,22 @@ const resourceCacheControl: Verdict = (resource, pages) => {
     const maxAge = Number(directives["max-age"] ?? 0);
     const isLong = maxAge >= YEAR && !directives["no-cache"] && !directives["no-store"];
     log.debug({ rule: "resources/cache-control", resource: resource.url, isImmutable, isHashed, maxAge, isLong, errors }, "resource cache policy judged");
-    if (errors.length > 0) return `${isHashed ? "fingerprinted" : "immutable"} ${resource.kind} sends a Cache-Control that breaks RFC 9111 (${errors.join("; ")}); used by ${pages} pages`;
-    return isLong ? undefined : `${isHashed ? "fingerprinted" : "immutable"} ${resource.kind} is cached for ${maxAge} s (Cache-Control: ${policy || "absent"}); used by ${pages} pages`;
+    const variables = { kind: resource.kind };
+    if (errors.length > 0) return { ...said(isHashed ? "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111; used by these pages" : "immutable {kind} sends a Cache-Control that breaks RFC 9111; used by these pages", variables), data: { [resource.url]: { errors: errors.join("; ") } } };
+    return isLong ? undefined : { ...said(isHashed ? "fingerprinted {kind} is cached for less than a year; used by these pages" : "immutable {kind} is cached for less than a year; used by these pages", variables), data: { [resource.url]: { "max-age": maxAge, ...(policy && { "cache-control": policy }) } } };
 };
 
 // Text formats worth compressing, fonts other than WOFF and WOFF2 included.
 const TEXT = /^(?:text\/|image\/svg\+xml|application\/(?:(?:[\w.-]+\+)?(?:json|xml)|javascript|ecmascript|wasm|vnd\.ms-fontobject|x-font-(?:ttf|otf)|font-sfnt)|font\/(?:ttf|otf|sfnt|collection))/;
 
 // A text asset over 1 KB answered without br, gzip or zstd.
-const resourceCompression: Verdict = (resource, pages) => {
+const resourceCompression: Verdict = (resource) => {
     const type = resource.http?.["content-type"] ?? "";
     const coding = resourceHeader(resource, "content-encoding");
     const isText = TEXT.test(type) && (resource.http?.size.body ?? 0) >= 1024;
     const isCompressed = /\b(?:br|gzip|zstd)\b/i.test(coding);
     log.debug({ rule: "resources/compression", resource: resource.url, type, coding, isText, isCompressed }, "resource compression judged");
-    return isText && !isCompressed && isServed(resource) ? `${type} ${resource.kind} is served ${coding || "uncompressed"}; used by ${pages} pages` : undefined;
+    return isText && !isCompressed && isServed(resource) ? { ...said("a text {kind} is not served with br, gzip or zstd; used by these pages", { kind: resource.kind }), data: { [resource.url]: { type, ...(coding && { "content-encoding": coding }) } } } : undefined;
 };
 
 // TypeScript rules a preset enables by ID alone.
@@ -494,7 +503,7 @@ export const builtin: Record<string, Make> = {
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
-        (resource, pages) => `${resource.kind} loads over http: on ${pages} https: pages`,
+        (resource) => said("{kind} loads over http: on the https: pages that use it", { kind: resource.kind }),
         undefined,
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content", fix: "Load the resource over https instead of http." },
@@ -502,7 +511,7 @@ export const builtin: Record<string, Make> = {
     "resources/sri": resourceRule(
         "resources/sri",
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
-        (resource, pages) => (resource.integrity ? undefined : `cross-origin ${resource.kind} without integrity; used by ${pages} pages`),
+        (resource) => (resource.integrity ? undefined : said("cross-origin {kind} without integrity; used by these pages", { kind: resource.kind })),
         undefined,
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." },

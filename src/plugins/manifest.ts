@@ -5,6 +5,7 @@
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resourceRule } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { definePlugin } from "./types.ts";
 
@@ -58,9 +59,9 @@ const FACTS = [`resources.${ID}`];
 const parse = resourceRule(
     "manifest/parse",
     isManifest,
-    (resource, pages) => {
+    (resource) => {
         const error = manifestOf(resource)?.error;
-        return error ? `manifest does not parse: ${error}; linked from ${pages} pages` : undefined;
+        return error ? { ...said("the manifest does not parse; linked from these pages"), data: { [resource.url]: { error } } } : undefined;
     },
     FACTS,
     (resource) => manifestOf(resource)?.error,
@@ -70,10 +71,10 @@ const parse = resourceRule(
 const fields = resourceRule(
     "manifest/fields",
     isParsed,
-    (resource, pages) => {
+    (resource) => {
         const members = new Set(manifestOf(resource)?.members);
         const missing = FIELDS.filter((field) => !members.has(field));
-        return missing.length === 0 ? undefined : `manifest lacks ${missing.join(", ")}, so browsers will not offer to install the site; linked from ${pages} pages`;
+        return missing.length === 0 ? undefined : { ...said("the manifest lacks members, so browsers will not offer to install the site; linked from these pages"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
     FACTS,
     (resource) => manifestOf(resource)?.members,
@@ -83,11 +84,11 @@ const fields = resourceRule(
 const icons = resourceRule(
     "manifest/icons",
     isParsed,
-    (resource, pages) => {
+    (resource) => {
         const all = manifestOf(resource)?.icons ?? [];
         const sizes = new Set(all.flatMap((icon) => icon.sizes));
         const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
-        return missing.length === 0 ? undefined : `manifest icons lack ${missing.join(", ")}; linked from ${pages} pages`;
+        return missing.length === 0 ? undefined : { ...said("the manifest icons lack sizes or a maskable icon; linked from these pages"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
     FACTS,
     (resource) => manifestOf(resource)?.icons,
@@ -98,7 +99,7 @@ const icons = resourceRule(
 const served = resourceRule(
     "manifest/served",
     isManifest,
-    (resource, pages) => {
+    (resource) => {
         const facts = manifestOf(resource);
         const type = String(resource.http?.["content-type"] ?? "")
             .split(";", 1)[0]
@@ -111,7 +112,7 @@ const served = resourceRule(
             ...(facts?.start && facts.scope && !facts.start.startsWith(facts.scope) ? [`start_url ${facts.start} is outside scope ${facts.scope}`] : []),
         ];
         log.debug({ url: resource.url, type, problems: problems.length }, "manifest serving judged");
-        return problems.length === 0 ? undefined : `manifest ${problems.join("; ")}; linked from ${pages} pages`;
+        return problems.length === 0 ? undefined : { ...said("the manifest is served or declared wrongly; linked from these pages"), data: { [resource.url]: { problems: problems.join("; ") } } };
     },
     FACTS,
     (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
@@ -129,7 +130,7 @@ const discovery: Make = (severity) => ({
         const without = html.filter((page) => !isLinked(page)).map((page) => page.url.href);
         log.debug({ rule: "manifest/discovery", group, pages: html.length, without: without.length }, "manifest links judged");
         if (without.length === html.length) return;
-        return without.length === 0 ? [] : [{ rule: "manifest/discovery", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), message: `${without.length} of ${html.length} pages link no manifest while the rest do`, urls: without }];
+        return without.length === 0 ? [] : [{ rule: "manifest/discovery", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), ...said("{count} of {total} pages link no manifest while the rest do", { count: without.length, total: html.length }), urls: without }];
     },
 });
 

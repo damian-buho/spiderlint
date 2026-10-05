@@ -85,8 +85,9 @@ describe("page plugins", () => {
         assert.deepEqual(locations("structured-data/required"), ["Event without startDate, location", "Recipe without image"]);
         assert.deepEqual(locations("markup/lang-switcher"), [`${site.origin}/es/ declares no lang for es`]);
         assert.deepEqual(locations("markup/input-type"), ["autocomplete=email on type=text"]);
-        assert.match(report.findings.find((finding) => finding.rule === "manifest/fields")?.message ?? "", /lacks start_url, display, icons|lacks start_url, display/);
-        assert.match(report.findings.find((finding) => finding.rule === "manifest/served")?.message ?? "", /served as application\/json, not application\/manifest\+json; no id; https:\/\/elsewhere\.example\/ is on another origin; start_url \S+\/bad\.webmanifest is outside scope/);
+        const dataOf = (rule: string) => Object.values(report.findings.find((finding) => finding.rule === rule)?.data ?? {})[0];
+        assert.match(String(dataOf("manifest/fields")?.missing), /^start_url, display(?:, icons)?$/);
+        assert.match(String(dataOf("manifest/served")?.problems), /served as application\/json, not application\/manifest\+json; no id; https:\/\/elsewhere\.example\/ is on another origin; start_url \S+\/bad\.webmanifest is outside scope/);
         assert.match(report.findings.find((finding) => finding.rule === "manifest/discovery")?.message ?? "", /^1 of \d+ pages link no manifest/);
     });
 

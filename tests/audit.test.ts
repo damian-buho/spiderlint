@@ -153,7 +153,7 @@ describe("audit", () => {
         assert.equal(dead?.url, `${site.origin}/missing`);
         assert.equal(dead?.severity, "error");
         assert.equal(dead?.urls?.length, 12);
-        assert.equal(dead?.message, "http.status is 404; linked from 12 pages");
+        assert.equal(dead?.message, "the page answers 404; linked from these pages");
     });
 
     it("reports only the dead external link, and asks it again on the next run", async () => {
@@ -309,7 +309,8 @@ describe("audit", () => {
         const [redirected, ...rest] = of("links/redirected-internal");
         assert.equal(rest.length, 0);
         assert.equal(redirected?.url, `${site.origin}/old-about`);
-        assert.equal(redirected?.message, `redirects to ${site.origin}/about; linked from 1 page`);
+        assert.equal(redirected?.message, "the link redirects elsewhere; linked from these pages");
+        assert.deepEqual(redirected?.data, { [`${site.origin}/old-about`]: { landing: `${site.origin}/about` } });
         assert.deepEqual(redirected?.urls, [`${site.origin}/orphan`]);
         assert.ok(report.pages.find((page) => page.url.pathname === "/about")?.crawl.referrers.includes(`${site.origin}/orphan`));
     });
@@ -318,7 +319,8 @@ describe("audit", () => {
         const [canonical, ...restCanonical] = of("html/canonical-self");
         assert.equal(restCanonical.length, 0);
         assert.equal(canonical?.url, `${site.origin}/about`);
-        assert.equal(canonical?.message, `canonical link names ${site.origin}/about/, not this page`);
+        assert.equal(canonical?.message, "canonical link names another URL, not this page");
+        assert.deepEqual(canonical?.data, { [`${site.origin}/about`]: { target: `${site.origin}/about/` } });
         const [ogUrl, ...restOgUrl] = of("html/og-url-self");
         assert.equal(restOgUrl.length, 0);
         assert.equal(ogUrl?.url, `${site.origin}/orphan`);
@@ -411,8 +413,8 @@ describe("staging twin", () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], canonicalOrigin: production, fold: false });
         const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
         assert.deepEqual(
-            of("html/canonical-self").map((finding) => [finding.url, finding.message]),
-            [[`${site.origin}/about`, `canonical link names ${production}/about/, not this page`]],
+            of("html/canonical-self").map((finding) => [finding.url, finding.data?.[finding.url]?.target]),
+            [[`${site.origin}/about`, `${production}/about/`]],
         );
         assert.deepEqual(
             of("html/og-url-self").map((finding) => finding.url),
@@ -688,11 +690,11 @@ describe("audit options", () => {
         const paths = (rule: string) => report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(paths("sitemap/orphan"), ["/orphan"]);
         assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
-        const unreadable = report.findings.filter((finding) => finding.rule === "sitemap/unreadable").map((finding) => [new URL(finding.url).pathname, finding.message, finding.value]);
+        const unreadable = report.findings.filter((finding) => finding.rule === "sitemap/unreadable").map((finding) => [new URL(finding.url).pathname, finding.data?.[finding.url]?.error, finding.value]);
         assert.deepEqual(unreadable, [
-            ["/sitemap-broken.xml", "sitemap does not parse: Unexpected close tag", 200],
-            ["/sitemap-gone.xml", "sitemap answers 404", 404],
-            ["/about.html", "sitemap is text/html, not a sitemap", 200],
+            ["/sitemap-broken.xml", "does not parse: Unexpected close tag", 200],
+            ["/sitemap-gone.xml", "answers 404", 404],
+            ["/about.html", "is text/html, not a sitemap", 200],
         ]);
     });
 
@@ -714,17 +716,20 @@ describe("audit options", () => {
         assert.equal(site.requested.filter((path) => path === "/cdn/lib.js").length - before, 1);
         const statuses = report.findings.filter((finding) => finding.rule === "resources/status");
         assert.deepEqual(
-            statuses.map((finding) => finding.message).toSorted((a, b) => a.localeCompare(b)),
-            ["image answers 404; used by 2 pages", "script answers 404; used by 13 pages"],
+            statuses.map((finding) => [finding.message, finding.urls?.length]).toSorted(([a], [b]) => String(a).localeCompare(String(b))),
+            [
+                ["image answers 404; used by these pages", 2],
+                ["script answers 404; used by these pages", 13],
+            ],
         );
         const status = statuses.find((finding) => finding.url.endsWith("/cdn/lib.js"));
         assert.match(status?.url ?? "", /^http:\/\/localhost:\d+\/cdn\/lib\.js$/);
-        assert.equal(status?.message, "script answers 404; used by 13 pages");
+        assert.equal(status?.message, "script answers 404; used by these pages");
         assert.equal(status?.urls?.length, 13);
         const sri = report.findings.filter((finding) => finding.rule === "resources/sri");
         assert.deepEqual(
             sri.map((finding) => finding.message),
-            ["cross-origin script without integrity; used by 13 pages"],
+            ["cross-origin script without integrity; used by these pages"],
         );
     });
 
@@ -797,6 +802,10 @@ describe("clock skew", () => {
     });
 });
 
+// Rows in a stable order, and a URL with the fixture host masked.
+const sorted = (rows: unknown[][]) => rows.toSorted((a, b) => a.join("\t").localeCompare(b.join("\t")));
+const hosted = (url: string) => url.replace(/^(?:http:\/\/)?127\.0\.0\.1:\d+/, "HOST");
+
 describe("content length", () => {
     let framing: Framing;
 
@@ -809,17 +818,23 @@ describe("content length", () => {
     it("reports each wrongly framed page host and resource, and leaves a 304 and an overlong body alone", async () => {
         const rulesets = { framing: { rules: { "http/content-length": "warning" as const, "links/broken-internal": "error" as const } } };
         const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off", timeout: 10 });
-        const found = report.findings.map((finding) => [new URL(finding.url).pathname, finding.message.replace(/^127\.0\.0\.1:\d+/, "HOST")]).toSorted(([a = ""], [b = ""]) => a.localeCompare(b));
-        assert.deepEqual(found, [
-            ["/both", "HOST: it sends Content-Length beside Transfer-Encoding; on 1 pages"],
-            ["/chunked.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
-            ["/empty", "HOST: a 204 carries Content-Length; on 1 pages"],
-            ["/short", "HOST: its body ended at 12 of the 400 bytes Content-Length declares; on 1 pages"],
-            ["/short", "http.error is Response body length does not match content-length header: body ended at 12 of the 400 bytes Content-Length declares; linked from 1 page"],
-            ["/short.js", "script its body ended at 7 of the 40 bytes Content-Length declares; used by 1 pages"],
-            ["/twice", "HOST: its body does not match Content-Length, or Content-Length is sent twice or beside chunked; on 1 pages"],
-            ["/twice", "http.error is Response body length does not match content-length header; linked from 1 page"],
-            ["/twice.js", "script its body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by 1 pages"],
+        const found = report.findings.filter((finding) => finding.rule === "http/content-length").map((finding) => [hosted(finding.url), finding.message, finding.data?.[finding.url]?.detail]);
+        assert.deepEqual(
+            sorted(found),
+            sorted([
+                ["HOST", "the response sends Content-Length beside Transfer-Encoding; on these pages", undefined],
+                ["HOST", "a 204 response carries Content-Length; on these pages", undefined],
+                ["HOST", "the response body ended short of the bytes Content-Length declares; on these pages", "body ended at 12 of the 400 bytes Content-Length declares"],
+                ["HOST", "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; on these pages", undefined],
+                ["HOST/chunked.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages", undefined],
+                ["HOST/short.js", "script: the response body ended short of the bytes Content-Length declares; used by these pages", "body ended at 7 of the 40 bytes Content-Length declares"],
+                ["HOST/twice.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages", undefined],
+            ]),
+        );
+        const broken = report.findings.filter((finding) => finding.rule === "links/broken-internal").map((finding) => [hosted(finding.url), finding.variables?.error]);
+        assert.deepEqual(sorted(broken), [
+            ["HOST/short", "Response body length does not match content-length header: body ended at 12 of the 400 bytes Content-Length declares"],
+            ["HOST/twice", "Response body length does not match content-length header"],
         ]);
     });
 });

@@ -84,7 +84,7 @@ describe("resource rules", () => {
         const rule = builtin["resources/mixed-content"]?.("error") as AggregateRule;
         const findings = rule.check([page("https://site.test/", [script]), page("https://site.test/b", [script]), page("http://site.test/c", [script])]) ?? [];
         assert.equal(findings.length, 1);
-        assert.equal(findings[0]?.message, "script loads over http: on 2 https: pages");
+        assert.equal(findings[0]?.message, "script loads over http: on the https: pages that use it");
         assert.deepEqual(findings[0]?.urls, ["https://site.test/", "https://site.test/b"]);
     });
 
@@ -108,8 +108,10 @@ describe("resource rules", () => {
             findings.map((finding) => finding.url),
             resources.slice(0, 4).map((resource) => resource.url),
         );
-        assert.match(findings[1]?.message ?? "", /^fingerprinted script is cached for 0 s \(Cache-Control: absent\)/);
-        assert.match(findings[3]?.message ?? "", /breaks RFC 9111 \(“max-age=31536000; immutable” is not a directive\)/);
+        assert.equal(findings[1]?.message, "fingerprinted script is cached for less than a year; used by these pages");
+        assert.deepEqual(findings[1]?.data, { [findings[1]?.url as string]: { "max-age": 0 } });
+        assert.equal(findings[3]?.message, "fingerprinted script sends a Cache-Control that breaks RFC 9111; used by these pages");
+        assert.deepEqual(findings[3]?.data, { [findings[3]?.url as string]: { errors: "“max-age=31536000; immutable” is not a directive" } });
     });
 
     it("wants a text asset over 1 KB compressed, and leaves WOFF2 and small files alone", () => {
@@ -123,10 +125,10 @@ describe("resource rules", () => {
         const rule = builtin["resources/compression"]?.("warning") as AggregateRule;
         const findings = rule.check([page("https://site.test/", resources)]) ?? [];
         assert.deepEqual(
-            findings.map((finding) => [finding.url, finding.message]),
+            findings.map((finding) => [finding.url, finding.message, finding.data?.[finding.url]]),
             [
-                ["https://site.test/a.css", "text/css style is served uncompressed; used by 1 pages"],
-                ["https://site.test/f.ttf", "font/ttf style is served identity; used by 1 pages"],
+                ["https://site.test/a.css", "a text style is not served with br, gzip or zstd; used by these pages", { type: "text/css" }],
+                ["https://site.test/f.ttf", "a text style is not served with br, gzip or zstd; used by these pages", { type: "font/ttf", "content-encoding": "identity" }],
             ],
         );
     });
@@ -143,8 +145,8 @@ describe("resource hints", () => {
         const rule = builtin["html/preconnect-unused"]?.("info") as PageRule;
         assert.equal(rule.check(statik), undefined);
         assert.deepEqual(
-            rule.check(rendered)?.map((finding) => finding.message),
-            ["rel=dns-prefetch warms https://gone.test, which no resource of the page loads"],
+            rule.check(rendered)?.map((finding) => [finding.message, finding.data?.["https://site.test/"]]),
+            [["rel=dns-prefetch warms an origin that no resource of the page loads", { origin: "https://gone.test" }]],
         );
     });
 
