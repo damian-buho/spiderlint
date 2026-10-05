@@ -409,6 +409,12 @@ export class Frontier {
         const seeds = Object.groupBy(this.#config.seeds, (seed) => this.#router.queue(seed));
         log.debug({ crawlers: running.map(([mode]) => mode), http: seeds.http?.length ?? 0, browser: seeds.browser?.length ?? 0 }, "seeds routed");
         await Promise.all(running.map(([mode, crawler]) => crawler.run(seeds[mode] ?? [])));
+        for (const [mode, crawler] of running) {
+            const queue = await crawler.getRequestQueue();
+            if (this.#config.maxPages === 0 || (await queue.isFinished())) continue;
+            log.debug({ crawler: mode, handled: this.#handled }, "queue left requests behind");
+            this.cut("max-pages");
+        }
         const isRead = this.#config.robots || this.#config.sitemap;
         const files = isRead ? await Promise.all(this.#origins().map(async (origin) => robotsFactsOf(await robots(origin)))) : [];
         this.#robots = files.filter((facts) => facts !== undefined);
