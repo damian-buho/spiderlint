@@ -128,7 +128,7 @@ Options:
   --[no-]progress                 status line on an interactive stderr (default:
                                   auto)
   --log-level <level>             trace, debug, info, warn, error or silent
-                                  (default: info, env: SPIDERLINT_LOG_LEVEL)
+                                  (default: warn, env: SPIDERLINT_LOG_LEVEL)
   -V, --version                   show the version
   -h, --help                      show this screen, or a command’s with the
                                   command

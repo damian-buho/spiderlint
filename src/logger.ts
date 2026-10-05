@@ -11,7 +11,7 @@ import { relative, singleOrigin } from "./crawl/scope.ts";
 import { progressPrint } from "./progress.ts";
 import { isTelemetryConfigured } from "./telemetry-environment.ts";
 
-const level = process.env.SPIDERLINT_LOG_LEVEL ?? "info";
+const level = process.env.SPIDERLINT_LOG_LEVEL ?? "warn";
 
 // The single seed origin trimmed from logged URLs; empty logs them absolute.
 const base = { origin: "" };

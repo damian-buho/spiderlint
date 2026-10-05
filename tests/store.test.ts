@@ -104,7 +104,7 @@ describe("store", () => {
 
     it("stops an interrupted audit with exit 130, the store unlocked and unfinished", async () => {
         const interruptedStore = path.join(directory, "interrupted");
-        const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", interruptedStore, "--no-progress"], { stdio: ["ignore", "ignore", "pipe"] });
+        const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", interruptedStore, "--no-progress", "--log-level", "info"], { stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
         child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
             if (!stderr.includes("pages stored in") && (stderr + chunk).includes("pages stored in")) child.kill("SIGINT");

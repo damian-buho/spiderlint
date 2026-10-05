@@ -57,7 +57,7 @@ describe("crawl complete", () => {
 
     it("keeps the interrupted reason in the store, and lint reads it back", async () => {
         const stopped = path.join(directory, "stopped");
-        const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", stopped, "--rules", "sitemap", "--no-progress"], { stdio: ["ignore", "ignore", "pipe"] });
+        const child = spawn(process.execPath, ["--experimental-strip-types", CLI, "audit", `${site.origin}/`, "--store", stopped, "--rules", "sitemap", "--no-progress", "--log-level", "info"], { stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
         child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
             if (!stderr.includes("page done") && (stderr + chunk).includes("page done")) child.kill("SIGINT");

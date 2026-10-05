@@ -15,7 +15,7 @@
     "start": "node --experimental-strip-types src/cli.ts",
     "lint": "eslint ./",
     "fix": "eslint ./ --fix",
-    "test": "node --test --test-timeout=120000 --experimental-strip-types tests/**/*.test.ts",
+    "test": "SPIDERLINT_LOG_LEVEL=warn node --test --test-timeout=120000 --experimental-strip-types tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepack": "tsc --project tsconfig.build.json",
     "postpack": "rm --recursive --force dist"

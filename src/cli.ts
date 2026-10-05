@@ -355,7 +355,7 @@ function program(act: (command: Command) => Promise<void>): Command {
     root.addOption(flag("--config <path>", "settings file", "projectfile.yaml", "SPIDERLINT_CONFIG"));
     root.addOption(repeatable("--site <names>", "only these org.spiderlint.sites, repeatable", "all"));
     for (const option of [...toggle("color", "force or disable color", "auto", "NO_COLOR, FORCE_COLOR"), ...toggle("progress", "status line on an interactive stderr", "auto")]) root.addOption(option);
-    root.addOption(flag("--log-level <level>", "trace, debug, info, warn, error or silent", "info", "SPIDERLINT_LOG_LEVEL"));
+    root.addOption(flag("--log-level <level>", "trace, debug, info, warn, error or silent", "warn", "SPIDERLINT_LOG_LEVEL"));
     root.version(VERSION, "-V, --version", "show the version");
     root.helpOption("-h, --help", "show this screen, or a command’s with the command");
     root.helpCommand("help [command]", "show a command’s options and examples");
