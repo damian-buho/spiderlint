@@ -57,7 +57,7 @@
     "lighthouse": "13.5.0",
     "lightningcss": "1.33.0",
     "log-update": "8.0.0",
-    "marked": "18.0.14",
+    "marked": "18.1.0",
     "picomatch": "4.0.7",
     "pino": "10.4.0",
     "pino-opentelemetry-transport": "4.0.2",
