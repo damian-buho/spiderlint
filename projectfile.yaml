@@ -80,7 +80,17 @@ org:
         source-is-tested:
           needs:
             usage-matches-source: true
+        source-passes-lint:
+          needs:
+            npm-format-check: true
       tools:
+        npm-format-check:
+          image: NODE_TOOL_IMAGE
+          run: npm run format:check
+          description: Check the source is formatted by prettier
+          guard: package.json
+          fuse: lint
+          tags: [node]
         usage-matches-source:
           run: .scripts/usage-check.sh
           description: Verify the committed --help captures match src/cli.ts, with no image build
