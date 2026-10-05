@@ -26,87 +26,6 @@ Fix: Fix the page at the link target so it answers 2xx, or point the links to a 
 Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
 Done when: `spiderlint audit ORIGIN/ --rules links/broken-internal` reports no links/broken-internal finding.
 
-## html/unique-title (warning 5.9)
-
-pages share one <title>: 43 characters: “Fixture tag index — posts filed under a tag”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.title`
-Fix: Give each page a distinct <title>.
-Docs: https://developers.google.com/search/docs/appearance/title-link
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-title` reports no html/unique-title finding.
-
-## html/unique-description (warning 5.6)
-
-pages share one meta description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.meta.description`
-Fix: Give each page a distinct meta description.
-Docs: https://developers.google.com/search/docs/appearance/snippet
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no html/unique-description finding.
-
-## links/broken-external (warning 4.6)
-
-answers 404; linked from 1 page; checked TIME
-
-Where: EXTERNAL/gone, used by or shared with:
-- /about
-Reads: `site.links`, `html.links.external`
-Fix: Remove or repoint each broken external link.
-Docs: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
-Done when: `spiderlint audit ORIGIN/ --rules links/broken-external` reports no links/broken-external finding.
-
-## links/redirected-internal (warning 4.6)
-
-redirects to /about; linked from 1 page
-
-Where: /old-about, used by or shared with:
-- /orphan
-Reads: `site.redirects`, `html.links.internal`
-Fix: Make the link target point at the final URL, or serve the content directly.
-Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
-Done when: `spiderlint audit ORIGIN/ --rules links/redirected-internal` reports no links/redirected-internal finding.
-
-## url/trailing-slash (warning 4.3)
-
-trailing slashes differ in group default: 7 pages without /, 1 with /
-
-Where: /app/, used by or shared with:
-- /app/
-Reads: `url.pathname`
-Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
-Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
-Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash` reports no url/trailing-slash finding.
-
-## html/unique-og-title (warning 4.2)
-
-pages share one og:title: 43 characters: “Fixture tag index — posts filed under a tag”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.property.og:title`
-Fix: Give each page a distinct og:title.
-Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-title` reports no html/unique-og-title finding.
-
-## html/unique-og-description (warning 4.1)
-
-pages share one og:description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-
-Where: /tags/a, used by or shared with:
-- /tags/a
-- /tags/b
-Reads: `html.property.og:description`
-Fix: Give each page a distinct og:description.
-Docs: https://ogp.me/#optional
-Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-description` reports no html/unique-og-description finding.
-
 ## html/viewport (warning 5.3)
 
 meta viewport should set width=device-width and allow zoom, found none
@@ -227,6 +146,18 @@ Fix: Add <link rel=icon href=/favicon.ico> to the head.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
 Done when: `spiderlint audit ORIGIN/ --rules html/favicon` reports no html/favicon finding.
 
+## html/unique-title (warning 5.9)
+
+pages share one <title>: 43 characters: “Fixture tag index — posts filed under a tag”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.title`
+Fix: Give each page a distinct <title>.
+Docs: https://developers.google.com/search/docs/appearance/title-link
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-title` reports no html/unique-title finding.
+
 ## html/privacy-policy (info 1.6)
 
 no link with rel=privacy-policy
@@ -253,6 +184,18 @@ Fix: Add <link rel=privacy-policy href=/privacy> to the head.
 Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
 Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
+## html/unique-description (warning 5.6)
+
+pages share one meta description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.meta.description`
+Fix: Give each page a distinct meta description.
+Docs: https://developers.google.com/search/docs/appearance/snippet
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no html/unique-description finding.
+
 ## url/readable-slug (info 2.0)
 
 the slug 1 is an identifier, not words
@@ -265,6 +208,30 @@ Reads: `url.pathname`, `html.title`, `html.h1`
 Fix: Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.
 Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
 Done when: `spiderlint audit ORIGIN/ --rules url/readable-slug` reports no url/readable-slug finding.
+
+## html/unique-og-title (warning 4.2)
+
+pages share one og:title: 43 characters: “Fixture tag index — posts filed under a tag”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.property.og:title`
+Fix: Give each page a distinct og:title.
+Docs: https://ogp.me/#metadata
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-title` reports no html/unique-og-title finding.
+
+## html/unique-og-description (warning 4.1)
+
+pages share one og:description: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
+
+Where: /tags/a, used by or shared with:
+- /tags/a
+- /tags/b
+Reads: `html.property.og:description`
+Fix: Give each page a distinct og:description.
+Docs: https://ogp.me/#optional
+Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-description` reports no html/unique-og-description finding.
 
 ## html/color-scheme (info 1.4)
 
@@ -365,6 +332,28 @@ Fix: Make og:image an absolute URL.
 Docs: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-image finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
 
+## links/broken-external (warning 4.6)
+
+answers 404; linked from 1 page; checked TIME
+
+Where: EXTERNAL/gone, used by or shared with:
+- /about
+Reads: `site.links`, `html.links.external`
+Fix: Remove or repoint each broken external link.
+Docs: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
+Done when: `spiderlint audit ORIGIN/ --rules links/broken-external` reports no links/broken-external finding.
+
+## links/redirected-internal (warning 4.6)
+
+redirects to /about; linked from 1 page
+
+Where: /old-about, used by or shared with:
+- /orphan
+Reads: `site.redirects`, `html.links.internal`
+Fix: Make the link target point at the final URL, or serve the content directly.
+Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
+Done when: `spiderlint audit ORIGIN/ --rules links/redirected-internal` reports no links/redirected-internal finding.
+
 ## html/jsonld-parses (warning 4.5)
 
 a JSON-LD block does not parse: {"@error":"Unexpected end of JSON input"}
@@ -374,6 +363,17 @@ Reads: `html.jsonld`, expects `{"items":{"not":{"required":["@error"]}}}`
 Fix: Fix the JSON-LD block so it is valid JSON.
 Docs: https://json-ld.org/spec/latest/json-ld/
 Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html/jsonld-parses finding, and `spiderlint show-facts ORIGIN/about` shows `html.jsonld` meeting it.
+
+## url/trailing-slash (warning 4.3)
+
+trailing slashes differ in group default: 7 pages without /, 1 with /
+
+Where: /app/, used by or shared with:
+- /app/
+Reads: `url.pathname`
+Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
+Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
+Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash` reports no url/trailing-slash finding.
 
 ## html/og-title (warning 4.0)
 

@@ -14,7 +14,7 @@ import { compileRule } from "../src/rules/declarative.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { compileRulesets, resolveRuleset } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
-import { byImportance, interpolate, levelOf, pin } from "../src/rules/score.ts";
+import { byImportance, impact, interpolate, levelOf, pin } from "../src/rules/score.ts";
 import type { Finding, PageRule, Rule } from "../src/rules/types.ts";
 
 void builtin;
@@ -144,6 +144,12 @@ describe("importance", () => {
         const lone = finding({ rule: "lone/rule", score: 9 });
         const sorted = [lone, folded, site].toSorted(byImportance(10)).map((one) => one.rule);
         assert.deepEqual(sorted, ["site/rule", "fold/rule", "lone/rule"]);
+    });
+
+    it("counts a site-wide finding listing URLs as those pages, impact being score times pages", () => {
+        const listed = finding({ rule: "site/listed", scope: "site", score: 2, urls: ["https://site.test/a", "https://site.test/b"] });
+        assert.equal(impact(listed, 50), 4);
+        assert.equal(impact(finding({ rule: "site/rule", scope: "site", score: 2 }), 50), 100);
     });
 });
 

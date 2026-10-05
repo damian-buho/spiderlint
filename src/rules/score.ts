@@ -61,9 +61,14 @@ export function weight(score: number): number {
     return (score / BANDS.warning.base) ** 2;
 }
 
-// Pages the finding touches: the whole site for a site-wide one, else its folded count, listed URLs or one.
-function pagesOf(finding: Finding, total: number): number {
-    return finding.scope === "site" ? total : (finding.occurrences ?? finding.urls?.length ?? 1);
+// Pages the finding touches: its folded count or listed URLs, else the whole site for a site-wide one, else one.
+export function pagesOf(finding: Finding, total: number): number {
+    return finding.occurrences ?? finding.urls?.length ?? (finding.scope === "site" ? total : 1);
+}
+
+// Score times the pages the finding touches.
+export function impact(finding: Finding, total: number): number {
+    return scoreOf(finding) * pagesOf(finding, total);
 }
 
 // Score times the share of the site’s pages the finding touches; a site-wide finding touches all of them.
