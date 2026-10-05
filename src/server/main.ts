@@ -33,12 +33,19 @@ async function main(): Promise<void> {
         const queue = scanQueue(redis, retention);
         observeQueue(async () => queue.getJobCounts("waiting", "active", "delayed", "prioritized"));
         const server = serve({ fetch: api(queue, redis, settings.current).fetch, hostname: listen.host, port: listen.port }, (info) => log.info({ address: info.address, port: info.port }, "api listening"));
-        closers.push(async () => new Promise((resolve) => server.close(resolve)), async () => queue.close(), async () => redis.quit());
+        closers.push(
+            async () => new Promise((resolve) => server.close(resolve)),
+            async () => queue.close(),
+            async () => redis.quit(),
+        );
     }
     if (mode !== "api") {
         const redis = connect(url, password);
         const worker = startWorker(redis, workers, retention);
-        closers.push(async () => worker.close(), async () => redis.quit());
+        closers.push(
+            async () => worker.close(),
+            async () => redis.quit(),
+        );
     }
     if (telemetry) closers.push(async () => telemetry.shutdown());
     const stop = async (signal: string) => {

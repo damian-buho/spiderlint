@@ -73,7 +73,11 @@ describe("parity rules", () => {
             return context.skip(`chromium does not launch: ${String(error).split("\n", 1)[0]}`);
         }
         const report = await audit({ seeds: [`${origin}/client`, `${origin}/server`], sitemap: false, fetch: "browser", groups: { default: { rules: ["parity"] } } });
-        const byUrl = (path: string) => report.findings.filter((finding) => finding.url === `${origin}${path}`).map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b));
+        const byUrl = (path: string) =>
+            report.findings
+                .filter((finding) => finding.url === `${origin}${path}`)
+                .map((finding) => finding.rule)
+                .toSorted((a, b) => a.localeCompare(b));
         assert.deepEqual(byUrl("/client"), ["parity/canonical", "parity/description", "parity/h1", "parity/links", "parity/text", "parity/title"]);
         assert.deepEqual(byUrl("/server"), []);
     });

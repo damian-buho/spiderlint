@@ -475,7 +475,10 @@ const carbonTxt: SiteExtractor = {
     per: "origin",
     async extract(origin, context) {
         let first: Record<string, unknown> | undefined;
-        const direct: ["root" | "well-known", string][] = [["root", "/carbon.txt"], ["well-known", "/.well-known/carbon.txt"]];
+        const direct: ["root" | "well-known", string][] = [
+            ["root", "/carbon.txt"],
+            ["well-known", "/.well-known/carbon.txt"],
+        ];
         for (const [via, path] of direct) {
             const answer: Record<string, unknown> = { via, ...(await probeFile(origin, path, CARBON_TXT, context)) };
             if (answer.present) return answer;
@@ -549,7 +552,21 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
         specs.flatMap((spec) => {
             if (!spec.rule) return [];
             const at = `site.origins.*.${extractor}.${spec.key}`;
-            return [[`well-known/${spec.rule.id}`, { fact: `${at}.errors`, expect: { maxItems: 0 }, when: { [`${at}.present`]: true }, message: [spec.paths[0], "is malformed: {got}"].join(" "), severity, ...(spec.rule.score !== undefined && { score: spec.rule.score }), docs: spec.rule.docs, fix: `Correct each error the finding lists in ${spec.paths[0]}.` }]];
+            return [
+                [
+                    `well-known/${spec.rule.id}`,
+                    {
+                        fact: `${at}.errors`,
+                        expect: { maxItems: 0 },
+                        when: { [`${at}.present`]: true },
+                        message: [spec.paths[0], "is malformed: {got}"].join(" "),
+                        severity,
+                        ...(spec.rule.score !== undefined && { score: spec.rule.score }),
+                        docs: spec.rule.docs,
+                        fix: `Correct each error the finding lists in ${spec.paths[0]}.`,
+                    },
+                ],
+            ];
         }),
     );
 }
@@ -580,7 +597,12 @@ const SECURITY: Record<string, RuleSpec> = {
         when: { "site.origins.*.well-known.security-txt.days-left": { type: "number" } },
         message: "/.well-known/security.txt expires in {got} days, not within the next year",
         severity: "warning",
-        score: [[-365, 6.2], [0, 5.4], [366, 3.5], [1095, 4.5]],
+        score: [
+            [-365, 6.2],
+            [0, 5.4],
+            [366, 3.5],
+            [1095, 4.5],
+        ],
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
         fix: "Set Expires in security.txt to a date less than a year away.",
     },
@@ -699,7 +721,10 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.carbon-txt.age-days": { type: "number" } },
         message: "carbon.txt was last updated {got} days ago, more than a year",
         severity: "info",
-        score: [[365, 1.2], [1095, 3]],
+        score: [
+            [365, 1.2],
+            [1095, 3],
+        ],
         fix: "Review carbon.txt and bump last_updated.",
         docs: "https://carbontxt.org/syntax",
     },

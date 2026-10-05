@@ -19,7 +19,10 @@ function isTrusted(address: string, trusted: BlockList[]): boolean {
 // The peer, or while the hop in hand is a trusted proxy, the X-Forwarded-For entry it added, read right to left.
 export function clientOf(peer: string, forwarded: string | undefined, trusted: BlockList[]): string {
     let client = plain(peer);
-    const hops = (forwarded ?? "").split(",").map((entry) => plain(entry.trim())).toReversed();
+    const hops = (forwarded ?? "")
+        .split(",")
+        .map((entry) => plain(entry.trim()))
+        .toReversed();
     for (const hop of hops) {
         if (!isTrusted(client, trusted) || isIP(hop) === 0) break;
         client = hop;

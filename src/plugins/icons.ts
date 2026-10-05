@@ -81,7 +81,12 @@ async function measure(url: string, bytes: Buffer): Promise<Pick<IconFile, "form
     const text = bytes.subarray(0, 1024).toString("utf8");
     if (/<svg[\s>]/i.test(text)) {
         const svg = bytes.toString("utf8");
-        const colours = new Set(svg.matchAll(PAINT).map((match) => String(match[1]).toLowerCase()).filter((paint) => !UNPAINTED.has(paint))).size;
+        const colours = new Set(
+            svg
+                .matchAll(PAINT)
+                .map((match) => String(match[1]).toLowerCase())
+                .filter((paint) => !UNPAINTED.has(paint)),
+        ).size;
         try {
             optimize(svg);
             return { format: "svg", ...(colours > 0 && { colours }) };
@@ -177,7 +182,11 @@ async function browserConfig(pages: readonly Facts[], origin: string, context: S
     if (answer.status < 200 || answer.status > 299) return { tiles: [], problems: named.length > 0 ? [`${url} answers ${answer.status || "nothing"}`] : [] };
     const $ = load(answer.body, { xml: true });
     if ($("browserconfig msapplication").length === 0) return { tiles: [], problems: [`${url} does not parse as a browserconfig document`] };
-    const tiles = $("browserconfig msapplication tile *[src]").map((_, element) => String($(element).attr("src"))).get().filter((named) => URL.canParse(named, answer.url)).map((named) => new URL(named, answer.url).href);
+    const tiles = $("browserconfig msapplication tile *[src]")
+        .map((_, element) => String($(element).attr("src")))
+        .get()
+        .filter((named) => URL.canParse(named, answer.url))
+        .map((named) => new URL(named, answer.url).href);
     return { tiles, problems: [] };
 }
 
@@ -236,12 +245,14 @@ function appleProblems(declared: DeclaredIcon[], files: Record<string, IconFile>
 
 // Safari pinned tab: a single-colour SVG with a `color`, judged only when linked.
 function maskProblems(declared: DeclaredIcon[], files: Record<string, IconFile>): string[] {
-    return declared.filter((icon) => icon.source === "mask-icon").flatMap((icon) => {
-        const problem = unusable(icon.url, files[icon.url]);
-        if (problem) return [problem];
-        const colours = files[icon.url]?.colours ?? 0;
-        return [...(files[icon.url]?.format === "svg" ? [] : [`${icon.url} is not an SVG`]), ...(colours > 1 ? [`${icon.url} paints ${colours} colours, not one`] : []), ...(icon.color ? [] : [`${icon.url} is linked without a color`])];
-    });
+    return declared
+        .filter((icon) => icon.source === "mask-icon")
+        .flatMap((icon) => {
+            const problem = unusable(icon.url, files[icon.url]);
+            if (problem) return [problem];
+            const colours = files[icon.url]?.colours ?? 0;
+            return [...(files[icon.url]?.format === "svg" ? [] : [`${icon.url} is not an SVG`]), ...(colours > 1 ? [`${icon.url} paints ${colours} colours, not one`] : []), ...(icon.color ? [] : [`${icon.url} is linked without a color`])];
+        });
 }
 
 // Windows tiles: each `msapplication-TileImage` and browserconfig.xml tile answers with an image.
@@ -283,7 +294,16 @@ const icons: SiteExtractor = {
         const urls = [...new Set([...declared.map((icon) => icon.url), ...config.tiles, favicon, apple])];
         const files = Object.fromEntries(await Promise.all(urls.map(async (url) => [url, await get(url)] as const)));
         log.debug({ origin, declared: declared.length, files: urls.length, unlinked }, "icons measured");
-        return { declared, files, favicon: faviconProblems(declared, files, favicon), svg: svgProblems(declared, files), "apple-touch": appleProblems(declared, files, apple, unlinked), "mask-icon": maskProblems(declared, files), "ms-tile": tileProblems(declared, files, config), "declared-size": sizeProblems(declared, files) } satisfies IconsFacts;
+        return {
+            declared,
+            files,
+            favicon: faviconProblems(declared, files, favicon),
+            svg: svgProblems(declared, files),
+            "apple-touch": appleProblems(declared, files, apple, unlinked),
+            "mask-icon": maskProblems(declared, files),
+            "ms-tile": tileProblems(declared, files, config),
+            "declared-size": sizeProblems(declared, files),
+        } satisfies IconsFacts;
     },
 };
 
@@ -302,9 +322,30 @@ export default definePlugin({
             rules: {
                 "icons/favicon": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
                 "icons/svg": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
-                "icons/apple-touch": problemRule("apple-touch", "warning", 3.8, "the Apple touch icon is missing or unfit", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html", "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>."),
-                "icons/mask-icon": problemRule("mask-icon", "hint", 0.4, "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html", "Link a single-colour SVG with a color attribute, or drop rel=mask-icon."),
-                "icons/ms-tile": problemRule("ms-tile", "info", 1.4, "a Windows tile image or browserconfig.xml is broken", "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)", "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them."),
+                "icons/apple-touch": problemRule(
+                    "apple-touch",
+                    "warning",
+                    3.8,
+                    "the Apple touch icon is missing or unfit",
+                    "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html",
+                    "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>.",
+                ),
+                "icons/mask-icon": problemRule(
+                    "mask-icon",
+                    "hint",
+                    0.4,
+                    "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead",
+                    "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html",
+                    "Link a single-colour SVG with a color attribute, or drop rel=mask-icon.",
+                ),
+                "icons/ms-tile": problemRule(
+                    "ms-tile",
+                    "info",
+                    1.4,
+                    "a Windows tile image or browserconfig.xml is broken",
+                    "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)",
+                    "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them.",
+                ),
                 "icons/declared-size": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
             },
         },

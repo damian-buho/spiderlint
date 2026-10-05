@@ -25,7 +25,10 @@ describe("feeds", () => {
     after(() => site.close());
 
     it("fails each check on its failing feed and passes the conforming ones", () => {
-        const found = report.findings.filter((finding) => !finding.rule.startsWith("groups/")).map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`).toSorted((a, b) => a.localeCompare(b));
+        const found = report.findings
+            .filter((finding) => !finding.rule.startsWith("groups/"))
+            .map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`)
+            .toSorted((a, b) => a.localeCompare(b));
         assert.deepEqual(found, [
             "feeds/absolute-url /old.json",
             "feeds/absolute-url /spec.xml",
@@ -81,11 +84,7 @@ describe("feeds", () => {
     });
 
     it("names each item delivering raw MDX and spares one quoting it in code", () => {
-        assert.deepEqual(locations("feeds/raw-markup", "/mdx.xml"), [
-            "item 1 content:encoded: <Callout>",
-            "item 1 content:encoded: import Callout from '../components/Callout.astro'",
-            "item 1 content:encoded: Markdown heading, bold, link: ## Why it matters",
-        ]);
+        assert.deepEqual(locations("feeds/raw-markup", "/mdx.xml"), ["item 1 content:encoded: <Callout>", "item 1 content:encoded: import Callout from '../components/Callout.astro'", "item 1 content:encoded: Markdown heading, bold, link: ## Why it matters"]);
     });
 
     it("joins items to the pages they link, judging a redirected item once", () => {
@@ -101,32 +100,33 @@ describe("feeds", () => {
 
     it("strips tracking parameters from item links before queueing them", () => {
         const feed = report.pages.find((page) => page.url.pathname === "/feed.xml")?.feed as { entries: { link: string }[] };
-        assert.deepEqual(feed.entries.map((entry) => entry.link), [`${site.origin}/posts/1`]);
+        assert.deepEqual(
+            feed.entries.map((entry) => entry.link),
+            [`${site.origin}/posts/1`],
+        );
         assert.ok(report.pages.every((page) => !page.url.search.includes("utm_")));
     });
 
     it("passes a conforming podcast feed and faults every enclosure of a bad one", () => {
-        assert.deepEqual(report.findings.filter((finding) => finding.url === `${site.origin}/cast.xml`).map((finding) => finding.rule), []);
-        assert.deepEqual(locations("feeds/enclosure", "/cast-bad.xml"), [
-            "item 1 /ep-length.mp3 serves 64 bytes, the feed declares 999999",
-            "item 2 /ep-text.mp3 serves text/plain, the feed declares audio/mpeg",
-            "item 3 /ep-plain.mp3 sends no Accept-Ranges: bytes",
-            "item 4 /ep-gone.mp3 answers 404",
-        ]);
+        assert.deepEqual(
+            report.findings.filter((finding) => finding.url === `${site.origin}/cast.xml`).map((finding) => finding.rule),
+            [],
+        );
+        assert.deepEqual(locations("feeds/enclosure", "/cast-bad.xml"), ["item 1 /ep-length.mp3 serves 64 bytes, the feed declares 999999", "item 2 /ep-text.mp3 serves text/plain, the feed declares audio/mpeg", "item 3 /ep-plain.mp3 sends no Accept-Ranges: bytes", "item 4 /ep-gone.mp3 answers 404"]);
         assert.deepEqual(locations("feeds/enclosure", "/podcast.xml"), ["item 1 /ep1.mp3 answers 404"]);
     });
 
     it("gives a feed with no enclosure no podcasts finding", () => {
         const podcasts = new Set(["feeds/enclosure", "feeds/itunes-required", "feeds/podcast-guid", "feeds/podcast-locked"]);
-        assert.deepEqual(report.findings.filter((finding) => finding.url === `${site.origin}/feed.xml` && podcasts.has(finding.rule)), []);
+        assert.deepEqual(
+            report.findings.filter((finding) => finding.url === `${site.origin}/feed.xml` && podcasts.has(finding.rule)),
+            [],
+        );
     });
 
     it("names an unlocked podcast feed and spares a locked one", () => {
         const locked = report.findings.filter((finding) => finding.rule === "feeds/podcast-locked").map((finding) => `${finding.url.replace(site.origin, "")} ${finding.message}`);
-        assert.deepEqual(locked, [
-            "/cast-bad.xml rss podcast feed sets no podcast:locked, so any platform may import it",
-            "/podcast.xml rss podcast feed sets no podcast:locked, so any platform may import it",
-        ]);
+        assert.deepEqual(locked, ["/cast-bad.xml rss podcast feed sets no podcast:locked, so any platform may import it", "/podcast.xml rss podcast feed sets no podcast:locked, so any platform may import it"]);
     });
 
     it("names a feed of teasers and spares a feed of full posts", () => {
@@ -140,7 +140,10 @@ describe("feeds", () => {
         try {
             await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
             const second = await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
-            assert.deepEqual(second.findings.map((finding) => finding.url.replace(site.origin, "")).toSorted((a, b) => a.localeCompare(b)), ["/frozen.xml", "/spec.xml"]);
+            assert.deepEqual(
+                second.findings.map((finding) => finding.url.replace(site.origin, "")).toSorted((a, b) => a.localeCompare(b)),
+                ["/frozen.xml", "/spec.xml"],
+            );
             assert.match(second.findings.find((finding) => finding.url.endsWith("/frozen.xml"))?.message ?? "", /unchanged body/);
         } finally {
             await rm(directory, { recursive: true, force: true });
@@ -150,7 +153,10 @@ describe("feeds", () => {
         const off = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(off.findings, []);
         const on = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], pluginSettings: { feeds: { websub: true } }, sitemap: false, robots: false, cacheMode: "off" });
-        assert.deepEqual(on.findings.map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`), ["feeds/websub-hub "]);
+        assert.deepEqual(
+            on.findings.map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`),
+            ["feeds/websub-hub "],
+        );
         assert.match(on.findings[0]?.message ?? "", /dead-hub answers 404/);
     });
 });

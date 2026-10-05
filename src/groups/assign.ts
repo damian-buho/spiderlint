@@ -26,7 +26,10 @@ function matcher(group: string, entry: string): Matcher {
     }
     if (entry.startsWith("content-type:")) {
         const type = entry.slice("content-type:".length).toLowerCase();
-        return (facts) => String(facts.http.headers["content-type"] ?? "").toLowerCase().startsWith(type);
+        return (facts) =>
+            String(facts.http.headers["content-type"] ?? "")
+                .toLowerCase()
+                .startsWith(type);
     }
     const glob = picomatch(entry);
     return (facts) => glob(facts.url.pathname + facts.url.search);

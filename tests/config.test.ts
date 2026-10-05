@@ -59,7 +59,10 @@ describe("overlay", () => {
 
 describe("seedOf", () => {
     it("prepends https:// to a domain, a host with a port and a path, and keeps a URL", () => {
-        assert.deepEqual(["example.com", "localhost:8080", "example.com/about/", "ftp://example.com/"].map((seed) => seedOf(seed)), ["https://example.com", "https://localhost:8080", "https://example.com/about/", "ftp://example.com/"]);
+        assert.deepEqual(
+            ["example.com", "localhost:8080", "example.com/about/", "ftp://example.com/"].map((seed) => seedOf(seed)),
+            ["https://example.com", "https://localhost:8080", "https://example.com/about/", "ftp://example.com/"],
+        );
     });
 });
 
@@ -173,10 +176,7 @@ describe("loadSettings", () => {
 
     it("reads the org.spiderlint subtree of an explicit projectfile via pf-cli", () => {
         const file = path.join(directory, "explicit.yaml");
-        writeFileSync(
-            file,
-            ["org:", "  spiderlint:", "    targets: [https://f.dbuho.me/]", "    fetch: browser", "    max-pages: 50", "    groups:", "      posts:", "        match: [/posts/**]"].join("\n"),
-        );
+        writeFileSync(file, ["org:", "  spiderlint:", "    targets: [https://f.dbuho.me/]", "    fetch: browser", "    max-pages: 50", "    groups:", "      posts:", "        match: [/posts/**]"].join("\n"));
         const { settings, document } = loadSettings(file);
         assert.equal(document, file);
         assert.deepEqual(settings.seeds, ["https://f.dbuho.me/"]);
@@ -187,10 +187,7 @@ describe("loadSettings", () => {
 
     it("reads exclude-rules and flattens the override buckets via pf-cli", () => {
         const file = path.join(directory, "overrides.yaml");
-        writeFileSync(
-            file,
-            ["org:", "  spiderlint:", "    exclude-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"),
-        );
+        writeFileSync(file, ["org:", "  spiderlint:", "    exclude-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"));
         const { settings } = loadSettings(file);
         assert.deepEqual(settings.excludeRules, ["html/canonical-self"]);
         assert.deepEqual(settings.overrides, { "html/one-h1": "error", "http/hsts": "warning" });

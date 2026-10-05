@@ -39,16 +39,28 @@ export function track(matomo: Matomo | undefined, c: Context, route: string, hos
         return;
     }
     const address = new URL("matomo.php", matomo.url);
-    const parameters = { idsite: String(matomo.siteId), rec: "1", apiv: "1", send_image: "0", url: new URL(route, matomo.site).href, action_name: host && matomo.isHostNamed ? `${name}: ${host}` : name, ua: c.req.header("user-agent") ?? "", lang: c.req.header("accept-language") ?? "", rand: String(Math.random()).slice(2) };
+    const parameters = {
+        idsite: String(matomo.siteId),
+        rec: "1",
+        apiv: "1",
+        send_image: "0",
+        url: new URL(route, matomo.site).href,
+        action_name: host && matomo.isHostNamed ? `${name}: ${host}` : name,
+        ua: c.req.header("user-agent") ?? "",
+        lang: c.req.header("accept-language") ?? "",
+        rand: String(Math.random()).slice(2),
+    };
     address.search = new URLSearchParams(parameters).toString();
-    void fetch(address, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "manual" }).then((response) => {
-        if (response.status >= 500) throw new Error(`answered ${response.status}`);
-        pause.failures = 0;
-        log.debug({ route, status: response.status }, "page view tracked");
-        return response.status;
-    }).catch((error: unknown) => {
-        pause.failures += 1;
-        pause.until = Date.now() + PAUSE_MS * Math.min(pause.failures, 10);
-        log.warn({ route, failures: pause.failures, error: error instanceof Error ? error.message : String(error) }, "page view not tracked; tracking paused");
-    });
+    void fetch(address, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "manual" })
+        .then((response) => {
+            if (response.status >= 500) throw new Error(`answered ${response.status}`);
+            pause.failures = 0;
+            log.debug({ route, status: response.status }, "page view tracked");
+            return response.status;
+        })
+        .catch((error: unknown) => {
+            pause.failures += 1;
+            pause.until = Date.now() + PAUSE_MS * Math.min(pause.failures, 10);
+            log.warn({ route, failures: pause.failures, error: error instanceof Error ? error.message : String(error) }, "page view not tracked; tracking paused");
+        });
 }

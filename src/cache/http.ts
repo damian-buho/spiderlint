@@ -94,10 +94,15 @@ export async function fetchHeadCached(bucket: Bucket<Stored<{ bytes: number; hea
         return { ...entry.value, cached: true, at: entry.stored };
     }
     const conditional = policy ? (policy.revalidationHeaders(request) as Record<string, string>) : {};
-    const { response, ms } = await fetchRetrying(url, async (answer) => {
-        await answer.body?.cancel();
-        return {};
-    }, { ...sent, ...conditional }, "HEAD");
+    const { response, ms } = await fetchRetrying(
+        url,
+        async (answer) => {
+            await answer.body?.cancel();
+            return {};
+        },
+        { ...sent, ...conditional },
+        "HEAD",
+    );
     const headers = Object.fromEntries(response.headers);
     if (entry && policy && response.status === 304) {
         const { policy: updated, modified } = policy.revalidatedPolicy(request, { status: 304, headers });

@@ -10,7 +10,9 @@ type CheerioAPI = CheerioCrawlingContext["$"];
 
 // Characters of visible text in `<main>`, else `<body>`; `<noscript>` counts only where no script runs.
 export function mainText($: CheerioAPI, isScripted: boolean): number {
-    const root = $($("main").length > 0 ? "main" : "body").first().clone();
+    const root = $($("main").length > 0 ? "main" : "body")
+        .first()
+        .clone();
     root.find(`script, style, template${isScripted ? ", noscript" : ""}`).remove();
     return root.text().replaceAll(/\s+/g, " ").trim().length;
 }

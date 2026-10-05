@@ -89,7 +89,10 @@ function systemServers(): Server[] {
     } catch (error) {
         log.warn({ error: reason(error) }, "resolv.conf unreadable");
     }
-    const servers = text.matchAll(/^\s*nameserver\s+(\S+)/gm).map((match) => ({ address: match[1] as string, port: 53 })).toArray();
+    const servers = text
+        .matchAll(/^\s*nameserver\s+(\S+)/gm)
+        .map((match) => ({ address: match[1] as string, port: 53 }))
+        .toArray();
     log.debug({ servers: servers.map((entry) => entry.address) }, "system resolvers read");
     return servers;
 }

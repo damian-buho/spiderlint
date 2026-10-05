@@ -318,12 +318,26 @@ function layout(command: Command, helper: Help): string {
     const item = (term: string, text: string) => helper.formatItem(term, width, text, helper);
     const list = (heading: string, items: string[]) => (items.length > 0 ? ["", helper.styleTitle(heading), ...items] : []);
     const commands = helper.groupItems([...command.commands], helper.visibleCommands(command), (sub) => sub.helpGroup() || "Commands:");
-    const options = helper.groupItems([...command.options], helper.visibleOptions(command).filter((option) => !command.parent || option.long !== "--help"), (option) => option.helpGroupHeading ?? "Options:");
+    const options = helper.groupItems(
+        [...command.options],
+        helper.visibleOptions(command).filter((option) => !command.parent || option.long !== "--help"),
+        (option) => option.helpGroupHeading ?? "Options:",
+    );
     return [
         `${helper.styleTitle("Usage:")} ${helper.styleUsage(helper.commandUsage(command))}`,
         helper.boxWrap(helper.styleCommandDescription(helper.commandDescription(command)), helper.helpWidth ?? 80),
-        ...[...commands].flatMap(([heading, subs]) => list(heading, subs.map((sub) => item(helper.styleSubcommandTerm(helper.subcommandTerm(sub)), helper.styleSubcommandDescription(helper.subcommandDescription(sub)))))),
-        ...[...options].flatMap(([heading, flags]) => list(heading, flags.map((option) => item(helper.styleOptionTerm(helper.optionTerm(option)), helper.styleOptionDescription(helper.optionDescription(option)))))),
+        ...[...commands].flatMap(([heading, subs]) =>
+            list(
+                heading,
+                subs.map((sub) => item(helper.styleSubcommandTerm(helper.subcommandTerm(sub)), helper.styleSubcommandDescription(helper.subcommandDescription(sub)))),
+            ),
+        ),
+        ...[...options].flatMap(([heading, flags]) =>
+            list(
+                heading,
+                flags.map((option) => item(helper.styleOptionTerm(helper.optionTerm(option)), helper.styleOptionDescription(helper.optionDescription(option)))),
+            ),
+        ),
         "",
     ].join("\n");
 }
@@ -333,7 +347,14 @@ function oneLine(root: Command, message: string): string {
     const name = /unknown command '([^']+)'/.exec(message)?.[1];
     const verbs = root.commands.map((command) => command.name()).filter((verb) => name !== undefined && verb.split("-").includes(name));
     log.debug({ name, verbs }, "command line refused");
-    return verbs.length > 0 ? `unknown command '${name}' (did you mean ${verbs.join(" or ")}?)` : message.replace(/^error: /, "").replaceAll("(Did you", "(did you").split("\n").filter(Boolean).join(" ");
+    return verbs.length > 0
+        ? `unknown command '${name}' (did you mean ${verbs.join(" or ")}?)`
+        : message
+              .replace(/^error: /, "")
+              .replaceAll("(Did you", "(did you")
+              .split("\n")
+              .filter(Boolean)
+              .join(" ");
 }
 
 // The whole command line: tool-wide options, one command per verb, each calling `act`.
@@ -360,7 +381,9 @@ function program(act: (command: Command) => Promise<void>): Command {
     root.helpOption("-h, --help", "show this screen, or a command’s with the command");
     root.helpCommand("help [command]", "show a command’s options and examples");
     root.addHelpText("before", () => [paint()("bold", "spiderlint"), DESCRIPTION, paint()("underline", HOMEPAGE), ""].join("\n"));
-    root.addHelpText("after", () => ["", `Run ${paint()("green", "spiderlint <command> --help")} for a command’s options and examples.`, "", paint()("bold", "Exit codes:"), "  0  clean", "  1  findings at or above --fail-on", "  2  usage or config error", "  3  nothing fetched, or an --offline cache miss", "  4  the run failed"].join("\n"));
+    root.addHelpText("after", () =>
+        ["", `Run ${paint()("green", "spiderlint <command> --help")} for a command’s options and examples.`, "", paint()("bold", "Exit codes:"), "  0  clean", "  1  findings at or above --fail-on", "  2  usage or config error", "  3  nothing fetched, or an --offline cache miss", "  4  the run failed"].join("\n"),
+    );
     const shared = root.options.filter((option) => !option.hidden && option.long !== "--version").map((option) => option.flags.split(" ", 1)[0]);
     for (const verb of VERBS) {
         const command = root.command(verb.name).helpGroup(`${verb.group}:`).summary(verb.summary);
@@ -577,7 +600,8 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
             return pages.length === 0 ? 3 : 0;
         }
         // A report to stdout in the chosen format, or one agent prompt per rule under --output.
-        const emit = async (report: Report) => (values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true));
+        const emit = async (report: Report) =>
+            values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true);
         if (command === "lint" || command === "show-report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
             await emit(stored);

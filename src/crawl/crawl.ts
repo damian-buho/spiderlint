@@ -31,10 +31,13 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     };
     const interrupt = () => halt("interrupted", `interrupted by ${String(interrupted.reason)}`);
     interrupted.addEventListener("abort", interrupt, { once: true });
-    const deadline = config.crawlDeadline > 0 ? setTimeout(() => {
-        log.warn({ crawlDeadline: config.crawlDeadline }, "crawl deadline reached, stopping after the pages in flight");
-        halt("timeout", `crawl deadline of ${config.crawlDeadline} s reached`);
-    }, config.crawlDeadline * 1000) : undefined;
+    const deadline =
+        config.crawlDeadline > 0
+            ? setTimeout(() => {
+                  log.warn({ crawlDeadline: config.crawlDeadline }, "crawl deadline reached, stopping after the pages in flight");
+                  halt("timeout", `crawl deadline of ${config.crawlDeadline} s reached`);
+              }, config.crawlDeadline * 1000)
+            : undefined;
     try {
         await frontier.run(crawlers, cache.robots, storage?.resumed);
     } finally {

@@ -84,7 +84,15 @@ describe("TLS flights", () => {
 
     it("reads an alert, a HelloRetryRequest and an SSLv2 SERVER-HELLO", () => {
         assert.deepEqual(readFlight(Buffer.from([21, 3, 3, 0, 2, 2, 40])), { complete: true, alert: 40 });
-        const hello = serverHello(0x03_03, 0x13_02, [[43, hex("0304")], [51, hex("0017")]], RETRY);
+        const hello = serverHello(
+            0x03_03,
+            0x13_02,
+            [
+                [43, hex("0304")],
+                [51, hex("0017")],
+            ],
+            RETRY,
+        );
         const retry = readFlight(record(22, hello));
         assert.deepEqual(retry, { complete: true, version: 0x03_04, retry: true, suite: 0x13_02, compression: 0, extensions: [43, 51], group: 23 });
         const sslv2 = hex(`80210400010002000300030010616263010080${"00".repeat(16)}`);

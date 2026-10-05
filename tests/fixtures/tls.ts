@@ -41,9 +41,10 @@ export async function serveTls(alpn = ["h2", "http/1.1"], versions: Pick<TlsOpti
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     fixture.origin = `https://localhost:${(server.address() as AddressInfo).port}`;
-    fixture.close = () => new Promise((resolve) => {
-        server.close(() => resolve());
-        for (const socket of sockets) socket.destroy();
-    });
+    fixture.close = () =>
+        new Promise((resolve) => {
+            server.close(() => resolve());
+            for (const socket of sockets) socket.destroy();
+        });
     return fixture;
 }

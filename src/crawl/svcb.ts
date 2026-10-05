@@ -63,7 +63,7 @@ const DECODERS: Record<number, (value: Buffer) => Partial<Svcb>> = {
 export function parseSvcb(data: Buffer): Svcb {
     const [target, start] = name(data, 2);
     const record: Svcb = { priority: data.readUInt16BE(0), target };
-    for (let offset = start; offset < data.length; ) {
+    for (let offset = start; offset < data.length;) {
         const key = data.readUInt16BE(offset);
         const value = data.subarray(offset + 4, offset + 4 + data.readUInt16BE(offset + 2));
         offset += 4 + value.length;

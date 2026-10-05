@@ -17,7 +17,9 @@ const MANIFEST = "application/manifest+json";
 
 // Each path with its content type and body, `ORIGIN` standing for the served origin.
 const FILES: Record<string, [string, string]> = {
-    "/good": [HTML, `<!DOCTYPE html><html lang="en"><head><title>Good</title>
+    "/good": [
+        HTML,
+        `<!DOCTYPE html><html lang="en"><head><title>Good</title>
 <link rel="alternate" hreflang="en" href="/good"><link rel="alternate" hreflang="es-ES" href="/es/">
 <link rel="alternate" type="application/rss+xml" href="/feed.xml"><link rel="alternate" type="application/atom+xml" href="/atom.xml"><link rel="alternate" type="application/feed+json" href="/feed.json">
 <link rel="manifest" href="/good.webmanifest">
@@ -29,8 +31,11 @@ const FILES: Record<string, [string, string]> = {
 <video src="/talk.mp4" controls><track kind="captions" src="/talk.vtt" srclang="en"></video>
 <video src="/loop.mp4" autoplay muted loop></video>
 <input type="email" autocomplete="email"><input type="text" inputmode="tel" autocomplete="billing tel">
-</body></html>`],
-    "/bad": [HTML, `<!DOCTYPE html><html lang="en-GB"><head><title>Bad</title>
+</body></html>`,
+    ],
+    "/bad": [
+        HTML,
+        `<!DOCTYPE html><html lang="en-GB"><head><title>Bad</title>
 <link rel="alternate" hreflang="es" href="/es/">
 <link rel="manifest" href="/bad.webmanifest">
 <script type="application/ld+json">{"@type": "Event", "name": "Launch"}</script>
@@ -44,7 +49,8 @@ const FILES: Record<string, [string, string]> = {
 <a href="/bad.xml">Broken feed</a> <a href="/noid.xml">Feed without ids</a> <a href="/hub.json">Hub feed</a> <a href="/elsewhere.xml">Feed of another URL</a>
 <video src="/talk.mp4" controls></video>
 <input type="text" autocomplete="email">
-</body></html>`],
+</body></html>`,
+    ],
     "/es/": [HTML, `<!DOCTYPE html><html lang="es"><head><title>Bueno</title><link rel="manifest" href="/broken.webmanifest"></head><body><h1>Bueno</h1><a href="/good">Leer más…</a></body></html>`],
     "/de": [HTML, `<!DOCTYPE html><html lang="de"><head><title>Gut</title></head><body><h1>Gut</h1><a href="/good">Hier klicken</a></body></html>`],
     "/feed.xml": [RSS, `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Good</title><atom:link rel="self" href="ORIGIN/feed.xml"/><atom:link rel="hub" href="https://hub.example/"/><item><title>One</title><guid>one</guid></item></channel></rss>`],
@@ -67,7 +73,7 @@ export async function serveSpec(): Promise<SpecSite> {
         const file = FILES[pathname];
         if (pathname === "/moved") response.writeHead(301, { location: "/good" }).end();
         else if (file) response.writeHead(200, { "content-type": file[0] }).end(file[1].replaceAll("ORIGIN", () => origin));
-        else response.writeHead(404, { "content-type": HTML }).end("<!DOCTYPE html><html lang=\"en\"><title>Not found</title></html>");
+        else response.writeHead(404, { "content-type": HTML }).end('<!DOCTYPE html><html lang="en"><title>Not found</title></html>');
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

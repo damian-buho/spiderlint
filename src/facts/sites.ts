@@ -69,7 +69,18 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
     const timeout = ((extractor.timeout ?? TIMEOUT_MS) * config.timeout) / defaults().timeout;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
-    const context: SiteContext = { pages, signal, fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }), delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: config.allowPrivate, signal, robots }), cached: (url) => cachedGet(url, profiles, robots), link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)), dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) }, address: (name) => connectable(name, config.allowPrivate), ...(isLinked && { linked: true as const }), ...(extractor.settings !== undefined && { settings: extractor.settings }) };
+    const context: SiteContext = {
+        pages,
+        signal,
+        fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }),
+        delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: config.allowPrivate, signal, robots }),
+        cached: (url) => cachedGet(url, profiles, robots),
+        link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)),
+        dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) },
+        address: (name) => connectable(name, config.allowPrivate),
+        ...(isLinked && { linked: true as const }),
+        ...(extractor.settings !== undefined && { settings: extractor.settings }),
+    };
     const expired = new Promise<never>((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true }));
     try {
         return await Promise.race([extractor.extract(subject, context), expired]);
@@ -80,7 +91,18 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
 }
 
 // Runs each active extractor once per subject, and on linked hosts too for the IDs in `linked`, from `bucket` while fresh; returns the IDs of every real run.
-export async function extractSites(pages: Facts[], site: SiteFacts, active: SiteExtractor[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "timeout">, bucket: SiteBucket, dns: DnsClient, probes: ProbeBucket, robots?: RobotsFor, linked: ReadonlySet<string> = new Set(), profiles: ProfileBucket = new Bucket("profiles", undefined, 0, "off")): Promise<string[]> {
+export async function extractSites(
+    pages: Facts[],
+    site: SiteFacts,
+    active: SiteExtractor[],
+    config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "timeout">,
+    bucket: SiteBucket,
+    dns: DnsClient,
+    probes: ProbeBucket,
+    robots?: RobotsFor,
+    linked: ReadonlySet<string> = new Set(),
+    profiles: ProfileBucket = new Bucket("profiles", undefined, 0, "off"),
+): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
         ...[...subjects(pages, extractor)].map(([subject, members]) => ({ extractor, subject, members, isLinked: false })),

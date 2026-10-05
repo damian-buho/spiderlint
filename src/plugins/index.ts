@@ -138,13 +138,27 @@ function register(plugin: Plugin): void {
     const extractors = (plugin.extractors ?? []).map((extractor) => extractor.id).filter((id) => taken.has(id));
     const sites = (plugin.sites ?? []).filter((site) => allSiteExtractors().some((other) => other.id === site.id && other.per === site.per)).map((site) => `site.${site.per}s.*.${site.id}`);
     const resources = (plugin.resources ?? []).filter((resource) => allResourceExtractors().some((other) => other.id === resource.id)).map((resource) => `resources.${resource.id}`);
-    const formatters = Object.keys(plugin.formatters ?? {}).filter((name) => formatNames().includes(name)).map((name) => `format ${name}`);
+    const formatters = Object.keys(plugin.formatters ?? {})
+        .filter((name) => formatNames().includes(name))
+        .map((name) => `format ${name}`);
     const sources = (plugin.sources ?? []).filter((source) => allSources().some((other) => other.id === source.id)).map((source) => `source ${source.id}`);
     const keys = plugin.settings && CORE_KEYS.has(plugin.name) ? [`settings key ${plugin.name}`] : [];
     const clash = [...rules, ...presets, ...extractors, ...sites, ...resources, ...formatters, ...sources, ...keys];
     if (clash.length > 0) throw new ConfigError(`plugin ${plugin.name}: ${clash.join(", ")} already defined`);
     plugins.push(plugin);
-    log.debug({ plugin: plugin.name, rules: Object.keys(plugin.rules ?? {}).length, presets: Object.keys(plugin.presets ?? {}), extractors: plugin.extractors?.length ?? 0, sites: plugin.sites?.length ?? 0, resources: plugin.resources?.length ?? 0, formatters: Object.keys(plugin.formatters ?? {}), sources: (plugin.sources ?? []).map((source) => source.id) }, "plugin registered");
+    log.debug(
+        {
+            plugin: plugin.name,
+            rules: Object.keys(plugin.rules ?? {}).length,
+            presets: Object.keys(plugin.presets ?? {}),
+            extractors: plugin.extractors?.length ?? 0,
+            sites: plugin.sites?.length ?? 0,
+            resources: plugin.resources?.length ?? 0,
+            formatters: Object.keys(plugin.formatters ?? {}),
+            sources: (plugin.sources ?? []).map((source) => source.id),
+        },
+        "plugin registered",
+    );
 }
 
 // Imports each named plugin once: a path from the working directory, else a package installed beside spiderlint; then settles every plugin’s settings from `raw`.
@@ -176,7 +190,12 @@ export async function withSources(config: Config): Promise<Config> {
         const [id = "", ...rest] = entry.split(":");
         const argument = rest.join(":");
         const source = allSources().find((candidate) => candidate.id === id);
-        if (!source) throw new ConfigError(`source ${id}: unknown (known: ${allSources().map((candidate) => candidate.id).join(", ")})`);
+        if (!source)
+            throw new ConfigError(
+                `source ${id}: unknown (known: ${allSources()
+                    .map((candidate) => candidate.id)
+                    .join(", ")})`,
+            );
         let urls: string[];
         try {
             urls = await source.urls(argument, AbortSignal.timeout(SOURCE_MS));
@@ -200,10 +219,14 @@ export function extractorsFor(rules: Rule[]): Extractor[] {
 
 // Site extractors whose ID sits under `site.origins.*` or `site.hosts.*` in a fact some rule reads.
 export function siteExtractorsFor(rules: Rule[]): SiteExtractor[] {
-    const read = new Set(rules.flatMap((rule) => rule.meta.facts.flatMap((fact) => {
-        const subject = subjectPath(fact);
-        return subject ? [`${subject.kind}\t${subject.id}`] : [];
-    })));
+    const read = new Set(
+        rules.flatMap((rule) =>
+            rule.meta.facts.flatMap((fact) => {
+                const subject = subjectPath(fact);
+                return subject ? [`${subject.kind}\t${subject.id}`] : [];
+            }),
+        ),
+    );
     const active = plugins.flatMap((plugin) => (plugin.sites ?? []).filter((extractor) => read.has(`${extractor.per}s\t${extractor.id}`)).map((extractor) => (settings.has(plugin.name) ? { ...extractor, settings: settings.get(plugin.name) } : extractor)));
     log.debug({ extractors: active.map((extractor) => extractor.id), read: read.size }, "site extractors chosen");
     return active;
@@ -217,20 +240,30 @@ export function pageReader(rules: Rule[]): string | undefined {
 
 // IDs of the `per: host` site extractors a `linked` rule reads, which then also run on linked hosts.
 export function linkedSiteExtractors(rules: Rule[]): Set<string> {
-    const ids = new Set(rules.filter((rule) => rule.meta.linked).flatMap((rule) => rule.meta.facts.flatMap((fact) => {
-        const subject = subjectPath(fact);
-        return subject?.kind === "hosts" ? [subject.id] : [];
-    })));
+    const ids = new Set(
+        rules
+            .filter((rule) => rule.meta.linked)
+            .flatMap((rule) =>
+                rule.meta.facts.flatMap((fact) => {
+                    const subject = subjectPath(fact);
+                    return subject?.kind === "hosts" ? [subject.id] : [];
+                }),
+            ),
+    );
     log.debug({ extractors: [...ids] }, "site extractors judging linked hosts");
     return ids;
 }
 
 // Resource extractors whose ID is the second key of a `resources.<id>` fact some rule reads.
 export function resourceExtractorsFor(rules: Rule[]): ResourceExtractor[] {
-    const read = new Set(rules.flatMap((rule) => rule.meta.facts.flatMap((fact) => {
-        const [root, id] = fact.split(".", 2);
-        return root === "resources" && id ? [id] : [];
-    })));
+    const read = new Set(
+        rules.flatMap((rule) =>
+            rule.meta.facts.flatMap((fact) => {
+                const [root, id] = fact.split(".", 2);
+                return root === "resources" && id ? [id] : [];
+            }),
+        ),
+    );
     const active = allResourceExtractors().filter((extractor) => read.has(extractor.id));
     log.debug({ extractors: active.map((extractor) => extractor.id), read: read.size }, "resource extractors chosen");
     return active;

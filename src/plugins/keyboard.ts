@@ -182,38 +182,63 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Keyboar
 const keyboardOf = (page: Facts) => page[ID] as KeyboardFacts | undefined;
 const located = (element: Element) => `${element.target} ${element.html}`;
 
-const tabWalk = pageRule("keyboard/tab-walk", [`${ID}.trap`, `${ID}.unreached`], (page) => {
-    const facts = keyboardOf(page);
-    if (!facts) return;
-    return [
-        ...(facts.trap ? [{ message: `keyboard focus is trapped at ${facts.trap}: Tab stops moving or cycles back`, value: facts.trap, locations: [facts.trap] }] : []),
-        ...(facts.unreached.length > 0 ? [{ message: `${facts.unreached.length} interactive element${facts.unreached.length === 1 ? " is" : "s are"} never reached by Tab`, value: facts.unreached, locations: facts.unreached.map((element) => located(element)) }] : []),
-    ];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html", fix: "Let Tab reach every control: drop negative tabindex from interactive elements, and release focus from any widget that holds it." });
+const tabWalk = pageRule(
+    "keyboard/tab-walk",
+    [`${ID}.trap`, `${ID}.unreached`],
+    (page) => {
+        const facts = keyboardOf(page);
+        if (!facts) return;
+        return [
+            ...(facts.trap ? [{ message: `keyboard focus is trapped at ${facts.trap}: Tab stops moving or cycles back`, value: facts.trap, locations: [facts.trap] }] : []),
+            ...(facts.unreached.length > 0 ? [{ message: `${facts.unreached.length} interactive element${facts.unreached.length === 1 ? " is" : "s are"} never reached by Tab`, value: facts.unreached, locations: facts.unreached.map((element) => located(element)) }] : []),
+        ];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html", fix: "Let Tab reach every control: drop negative tabindex from interactive elements, and release focus from any widget that holds it." },
+);
 
-const focusVisible = pageRule("keyboard/focus-visible", [`${ID}.stops`], (page) => {
-    const hidden = keyboardOf(page)?.stops.filter((stop) => !stop.visible);
-    if (!hidden) return;
-    return hidden.length === 0 ? [] : [{ message: `${hidden.length} element${hidden.length === 1 ? " shows" : "s show"} no visible change when focused`, value: hidden.map((stop) => stop.target), locations: hidden.map((stop) => located(stop)) }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html", fix: "Give `:focus-visible` an outline or box-shadow; never remove the outline without a replacement." });
+const focusVisible = pageRule(
+    "keyboard/focus-visible",
+    [`${ID}.stops`],
+    (page) => {
+        const hidden = keyboardOf(page)?.stops.filter((stop) => !stop.visible);
+        if (!hidden) return;
+        return hidden.length === 0 ? [] : [{ message: `${hidden.length} element${hidden.length === 1 ? " shows" : "s show"} no visible change when focused`, value: hidden.map((stop) => stop.target), locations: hidden.map((stop) => located(stop)) }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html", fix: "Give `:focus-visible` an outline or box-shadow; never remove the outline without a replacement." },
+);
 
-const focusObscured = pageRule("keyboard/focus-obscured", [`${ID}.stops`], (page) => {
-    const covered = keyboardOf(page)?.stops.filter((stop) => stop["obscured-by"]);
-    if (!covered) return;
-    return covered.length === 0 ? [] : [{ message: `${covered.length} focused element${covered.length === 1 ? " is" : "s are"} hidden under fixed or sticky content`, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop["obscured-by"]}`) }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html", fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content." });
+const focusObscured = pageRule(
+    "keyboard/focus-obscured",
+    [`${ID}.stops`],
+    (page) => {
+        const covered = keyboardOf(page)?.stops.filter((stop) => stop["obscured-by"]);
+        if (!covered) return;
+        return covered.length === 0 ? [] : [{ message: `${covered.length} focused element${covered.length === 1 ? " is" : "s are"} hidden under fixed or sticky content`, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop["obscured-by"]}`) }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html", fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content." },
+);
 
-const forcedFocus = pageRule("keyboard/forced-focus", [`${ID}.stops`], (page) => {
-    const lost = keyboardOf(page)?.stops.filter((stop) => stop.forced === false);
-    if (!lost) return;
-    return lost.length === 0 ? [] : [{ message: `${lost.length} element${lost.length === 1 ? " loses its" : "s lose their"} focus indicator under forced colours`, value: lost.map((stop) => stop.target), locations: lost.map((stop) => located(stop)) }];
-}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Add `outline: 2px solid transparent` beside a `box-shadow` focus ring; forced colours drop the shadow and paint the outline." });
+const forcedFocus = pageRule(
+    "keyboard/forced-focus",
+    [`${ID}.stops`],
+    (page) => {
+        const lost = keyboardOf(page)?.stops.filter((stop) => stop.forced === false);
+        if (!lost) return;
+        return lost.length === 0 ? [] : [{ message: `${lost.length} element${lost.length === 1 ? " loses its" : "s lose their"} focus indicator under forced colours`, value: lost.map((stop) => stop.target), locations: lost.map((stop) => located(stop)) }];
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Add `outline: 2px solid transparent` beside a `box-shadow` focus ring; forced colours drop the shadow and paint the outline." },
+);
 
-const skipLink = pageRule("keyboard/skip-link", [`${ID}.first`], (page) => {
-    const first = keyboardOf(page)?.first;
-    if (!first) return;
-    return first["in-main"] || first["skips-to"]?.main ? [] : [{ message: `the first Tab stop is not a link to the main content`, value: first, locations: [first.target] }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Techniques/general/G1", fix: "Make the first focusable element `<a href=\"#main\">Skip to content</a>`, pointing at `<main id=\"main\">`." });
+const skipLink = pageRule(
+    "keyboard/skip-link",
+    [`${ID}.first`],
+    (page) => {
+        const first = keyboardOf(page)?.first;
+        if (!first) return;
+        return first["in-main"] || first["skips-to"]?.main ? [] : [{ message: `the first Tab stop is not a link to the main content`, value: first, locations: [first.target] }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Techniques/general/G1", fix: 'Make the first focusable element `<a href="#main">Skip to content</a>`, pointing at `<main id="main">`.' },
+);
 
 export default definePlugin({
     name: "keyboard",
@@ -222,7 +247,13 @@ export default definePlugin({
     presets: {
         keyboard: {
             description: "Keyboard use on sampled pages: Tab reaches every control without a trap, focus shows, also under forced colours, and is not covered, a skip link comes first",
-            rules: { "keyboard/tab-walk": { severity: "warning", score: 6.4 }, "keyboard/focus-visible": { severity: "warning", score: 6 }, "keyboard/focus-obscured": { severity: "warning", score: 5.8 }, "keyboard/forced-focus": { severity: "warning", score: 5.4 }, "keyboard/skip-link": { severity: "info", score: 2.8 } },
+            rules: {
+                "keyboard/tab-walk": { severity: "warning", score: 6.4 },
+                "keyboard/focus-visible": { severity: "warning", score: 6 },
+                "keyboard/focus-obscured": { severity: "warning", score: 5.8 },
+                "keyboard/forced-focus": { severity: "warning", score: 5.4 },
+                "keyboard/skip-link": { severity: "info", score: 2.8 },
+            },
         },
     },
 });

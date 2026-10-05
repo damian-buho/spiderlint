@@ -55,38 +55,68 @@ const isManifest = (_page: Facts, resource: ResourceFacts) => resource.kind === 
 const isParsed = (page: Facts, resource: ResourceFacts) => isManifest(page, resource) && manifestOf(resource)?.error === undefined;
 const FACTS = [`resources.${ID}`];
 
-const parse = resourceRule("manifest/parse", isManifest, (resource, pages) => {
-    const error = manifestOf(resource)?.error;
-    return error ? `manifest does not parse: ${error}; linked from ${pages} pages` : undefined;
-}, FACTS, (resource) => manifestOf(resource)?.error, { docs: DOCS, fix: "Serve the manifest as one JSON object." });
+const parse = resourceRule(
+    "manifest/parse",
+    isManifest,
+    (resource, pages) => {
+        const error = manifestOf(resource)?.error;
+        return error ? `manifest does not parse: ${error}; linked from ${pages} pages` : undefined;
+    },
+    FACTS,
+    (resource) => manifestOf(resource)?.error,
+    { docs: DOCS, fix: "Serve the manifest as one JSON object." },
+);
 
-const fields = resourceRule("manifest/fields", isParsed, (resource, pages) => {
-    const members = new Set(manifestOf(resource)?.members);
-    const missing = FIELDS.filter((field) => !members.has(field));
-    return missing.length === 0 ? undefined : `manifest lacks ${missing.join(", ")}, so browsers will not offer to install the site; linked from ${pages} pages`;
-}, FACTS, (resource) => manifestOf(resource)?.members, { docs: DOCS, fix: `Add ${FIELDS.join(", ")} to the manifest.` });
+const fields = resourceRule(
+    "manifest/fields",
+    isParsed,
+    (resource, pages) => {
+        const members = new Set(manifestOf(resource)?.members);
+        const missing = FIELDS.filter((field) => !members.has(field));
+        return missing.length === 0 ? undefined : `manifest lacks ${missing.join(", ")}, so browsers will not offer to install the site; linked from ${pages} pages`;
+    },
+    FACTS,
+    (resource) => manifestOf(resource)?.members,
+    { docs: DOCS, fix: `Add ${FIELDS.join(", ")} to the manifest.` },
+);
 
-const icons = resourceRule("manifest/icons", isParsed, (resource, pages) => {
-    const all = manifestOf(resource)?.icons ?? [];
-    const sizes = new Set(all.flatMap((icon) => icon.sizes));
-    const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
-    return missing.length === 0 ? undefined : `manifest icons lack ${missing.join(", ")}; linked from ${pages} pages`;
-}, FACTS, (resource) => manifestOf(resource)?.icons, { docs: "https://web.dev/articles/maskable-icon", fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo." });
+const icons = resourceRule(
+    "manifest/icons",
+    isParsed,
+    (resource, pages) => {
+        const all = manifestOf(resource)?.icons ?? [];
+        const sizes = new Set(all.flatMap((icon) => icon.sizes));
+        const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
+        return missing.length === 0 ? undefined : `manifest icons lack ${missing.join(", ")}; linked from ${pages} pages`;
+    },
+    FACTS,
+    (resource) => manifestOf(resource)?.icons,
+    { docs: "https://web.dev/articles/maskable-icon", fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo." },
+);
 
 // Where the manifest is served from, as what, and whether its app stays inside its own scope and origin.
-const served = resourceRule("manifest/served", isManifest, (resource, pages) => {
-    const facts = manifestOf(resource);
-    const type = String(resource.http?.["content-type"] ?? "").split(";", 1)[0]?.trim();
-    const origin = new URL(resource.url).origin;
-    const problems = [
-        ...(type === "application/manifest+json" ? [] : [`served as ${type || "no type"}, not application/manifest+json`]),
-        ...(facts?.error === undefined && facts?.id === undefined ? ["no id"] : []),
-        ...[facts?.start, facts?.scope].filter((href) => href !== undefined && new URL(href).origin !== origin).map((href) => `${href} is on another origin`),
-        ...(facts?.start && facts.scope && !facts.start.startsWith(facts.scope) ? [`start_url ${facts.start} is outside scope ${facts.scope}`] : []),
-    ];
-    log.debug({ url: resource.url, type, problems: problems.length }, "manifest serving judged");
-    return problems.length === 0 ? undefined : `manifest ${problems.join("; ")}; linked from ${pages} pages`;
-}, FACTS, (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }), { docs: "https://www.w3.org/TR/appmanifest/#id-member", fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin." });
+const served = resourceRule(
+    "manifest/served",
+    isManifest,
+    (resource, pages) => {
+        const facts = manifestOf(resource);
+        const type = String(resource.http?.["content-type"] ?? "")
+            .split(";", 1)[0]
+            ?.trim();
+        const origin = new URL(resource.url).origin;
+        const problems = [
+            ...(type === "application/manifest+json" ? [] : [`served as ${type || "no type"}, not application/manifest+json`]),
+            ...(facts?.error === undefined && facts?.id === undefined ? ["no id"] : []),
+            ...[facts?.start, facts?.scope].filter((href) => href !== undefined && new URL(href).origin !== origin).map((href) => `${href} is on another origin`),
+            ...(facts?.start && facts.scope && !facts.start.startsWith(facts.scope) ? [`start_url ${facts.start} is outside scope ${facts.scope}`] : []),
+        ];
+        log.debug({ url: resource.url, type, problems: problems.length }, "manifest serving judged");
+        return problems.length === 0 ? undefined : `manifest ${problems.join("; ")}; linked from ${pages} pages`;
+    },
+    FACTS,
+    (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
+    { docs: "https://www.w3.org/TR/appmanifest/#id-member", fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin." },
+);
 
 // Whether a page’s head links a manifest.
 const isLinked = (page: Facts) => (page.html?.head.links ?? []).some((link) => (link.rel ?? "").toLowerCase().split(/\s+/).includes("manifest"));

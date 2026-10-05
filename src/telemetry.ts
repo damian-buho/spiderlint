@@ -34,7 +34,13 @@ export async function startTelemetry(service: string): Promise<Telemetry | undef
         log.debug({ service, variables: ENDPOINTS }, "telemetry off, no OTLP endpoint set");
         return undefined;
     }
-    const [{ NodeTracerProvider, BatchSpanProcessor }, { MeterProvider, PeriodicExportingMetricReader }, { OTLPTraceExporter }, { OTLPMetricExporter }, { resourceFromAttributes }] = await Promise.all([import("@opentelemetry/sdk-trace-node"), import("@opentelemetry/sdk-metrics"), import("@opentelemetry/exporter-trace-otlp-http"), import("@opentelemetry/exporter-metrics-otlp-http"), import("@opentelemetry/resources")]);
+    const [{ NodeTracerProvider, BatchSpanProcessor }, { MeterProvider, PeriodicExportingMetricReader }, { OTLPTraceExporter }, { OTLPMetricExporter }, { resourceFromAttributes }] = await Promise.all([
+        import("@opentelemetry/sdk-trace-node"),
+        import("@opentelemetry/sdk-metrics"),
+        import("@opentelemetry/exporter-trace-otlp-http"),
+        import("@opentelemetry/exporter-metrics-otlp-http"),
+        import("@opentelemetry/resources"),
+    ]);
     const name = process.env.OTEL_SERVICE_NAME || service;
     const resource = resourceFromAttributes({ "service.name": name, "service.version": VERSION });
     const tracing = new NodeTracerProvider({ resource, spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())] });

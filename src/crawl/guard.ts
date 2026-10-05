@@ -8,8 +8,23 @@ import { log } from "../logger.ts";
 
 // Loopback, private, link-local, CGNAT, unspecified, unique-local and cloud metadata ranges.
 const PRIVATE = new BlockList();
-for (const [network, prefix] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.168.0.0", 16]] as const) PRIVATE.addSubnet(network, prefix, "ipv4");
-for (const [network, prefix] of [["::", 128], ["::1", 128], ["fc00::", 7], ["fe80::", 10]] as const) PRIVATE.addSubnet(network, prefix, "ipv6");
+for (const [network, prefix] of [
+    ["0.0.0.0", 8],
+    ["10.0.0.0", 8],
+    ["100.64.0.0", 10],
+    ["127.0.0.0", 8],
+    ["169.254.0.0", 16],
+    ["172.16.0.0", 12],
+    ["192.168.0.0", 16],
+] as const)
+    PRIVATE.addSubnet(network, prefix, "ipv4");
+for (const [network, prefix] of [
+    ["::", 128],
+    ["::1", 128],
+    ["fc00::", 7],
+    ["fe80::", 10],
+] as const)
+    PRIVATE.addSubnet(network, prefix, "ipv6");
 
 // An address no public probe may reach; an IPv4-mapped IPv6 address is judged as its IPv4 form.
 export function isPrivate(address: string): boolean {

@@ -41,7 +41,7 @@ describe("carbon.txt validator", () => {
         assert.match(errors(VALID.replace('"web-page"', '"blog"'))[0] ?? "", /^org\.disclosures\[0\]\.doc_type blog is not one of web-page, /);
         assert.deepEqual(errors(VALID.replace("https://example.org/green", "ftp://example.org/green")), ["org.disclosures[0].url ftp://example.org/green is not an http: or https: URL"]);
         assert.deepEqual(errors(VALID.replace("2026-09-01", '"last week"')), ["last_updated last week is not a TOML date or RFC 3339 string"]);
-        assert.deepEqual(errors(VALID.replace(' }]', ', valid_until = "soon" }]')), ["org.disclosures[0].valid_until soon is not a TOML date or RFC 3339 string"]);
+        assert.deepEqual(errors(VALID.replace(" }]", ', valid_until = "soon" }]')), ["org.disclosures[0].valid_until soon is not a TOML date or RFC 3339 string"]);
         assert.deepEqual(errors(`${VALID}[upstream]\nservices = ["hosting.example"]\n`), ["upstream.services[0] is not a table"]);
     });
 
@@ -50,8 +50,8 @@ describe("carbon.txt validator", () => {
     });
 
     it("lists disclosures past their valid_until", () => {
-        assert.deepEqual(checkCarbonTxt(VALID.replace(' }]', ", valid_until = 2026-01-01 }]"), NOW).expired, ["https://example.org/green"]);
-        assert.deepEqual(checkCarbonTxt(VALID.replace(' }]', ', valid_until = "2027-01-01T00:00:00Z" }]'), NOW).expired, []);
+        assert.deepEqual(checkCarbonTxt(VALID.replace(" }]", ", valid_until = 2026-01-01 }]"), NOW).expired, ["https://example.org/green"]);
+        assert.deepEqual(checkCarbonTxt(VALID.replace(" }]", ', valid_until = "2027-01-01T00:00:00Z" }]'), NOW).expired, []);
     });
 });
 
@@ -86,7 +86,10 @@ describe("carbon.txt extractor", () => {
         assert.deepEqual(rules(report), ["well-known/carbon-txt-expired", "well-known/carbon-txt-stale", "well-known/carbon-txt-valid"]);
         const facts = report.site.origins?.[broken.origin]?.["carbon-txt"] as { via: string; errors: string[] };
         assert.equal(facts.via, "well-known");
-        assert.ok(facts.errors.some((error) => error.endsWith("/missing answers 404")), facts.errors.join("; "));
+        assert.ok(
+            facts.errors.some((error) => error.endsWith("/missing answers 404")),
+            facts.errors.join("; "),
+        );
     });
 
     // A context whose own host serves nothing, reaching `target` only by delegation.

@@ -62,8 +62,14 @@ function anchorRels($: CheerioAPI, page: URL): Record<string, string[]> {
     const found = new Map<string, string[]>();
     for (const element of $("a[href]")) {
         const href = resolve(String($(element).attr("href")), page);
-        const tokens = String($(element).attr("rel") ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-        found.set(href, (found.get(href) ?? tokens).filter((token) => tokens.includes(token)));
+        const tokens = String($(element).attr("rel") ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+        found.set(
+            href,
+            (found.get(href) ?? tokens).filter((token) => tokens.includes(token)),
+        );
     }
     return Object.fromEntries([...found].filter(([href, tokens]) => tokens.length > 0 && /^https?:/.test(href)));
 }
@@ -77,7 +83,10 @@ function regionRels($: CheerioAPI, page: URL, external: Set<string>): Record<str
     for (const element of $("a[href]")) {
         const href = resolve(String($(element).attr("href")), page);
         if (!external.has(href)) continue;
-        const tokens = String($(element).attr("rel") ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+        const tokens = String($(element).attr("rel") ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
         for (const [name, selector] of Object.entries(REGIONS)) {
             if ($(element).parents(selector).length === 0) continue;
             const region = (regions[name] ??= {});
@@ -132,7 +141,9 @@ function charsetOf(body: string): HtmlFacts["charset"] {
 
 // Visible words in `<main>`, else `<body>`, scripts and styles excluded.
 function mainWords($: CheerioAPI): number {
-    const root = $($("main").length > 0 ? "main" : "body").first().clone();
+    const root = $($("main").length > 0 ? "main" : "body")
+        .first()
+        .clone();
     root.find("script, style, template, noscript").remove();
     return root.text().split(/\s+/).filter(Boolean).length;
 }
@@ -146,14 +157,20 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
         dir: $("html").attr("dir"),
         charset: charsetOf(body),
         title: $("head > title").first().text().trim() || undefined,
-        h1: $("h1").map((_, element) => $(element).text().trim()).get(),
+        h1: $("h1")
+            .map((_, element) => $(element).text().trim())
+            .get(),
         canonical: $('link[rel="canonical"]').attr("href"),
         meta: firstAttribute($, "meta[name][content]", "name"),
         metas: metas($),
-        "http-equiv": $("head meta[http-equiv][content]").map((_, element) => ({ name: String($(element).attr("http-equiv")).toLowerCase(), content: String($(element).attr("content")) })).get(),
+        "http-equiv": $("head meta[http-equiv][content]")
+            .map((_, element) => ({ name: String($(element).attr("http-equiv")).toLowerCase(), content: String($(element).attr("content")) }))
+            .get(),
         property: firstAttribute($, "meta[property][content]", "property"),
         head: { links: headLinks($, page) },
-        hreflang: $("link[rel~='alternate'][hreflang][href]").map((_, element) => ({ lang: String($(element).attr("hreflang")), href: resolve(String($(element).attr("href")), page) })).get(),
+        hreflang: $("link[rel~='alternate'][hreflang][href]")
+            .map((_, element) => ({ lang: String($(element).attr("hreflang")), href: resolve(String($(element).attr("href")), page) }))
+            .get(),
         jsonld: jsonld($),
         scripts: $("script")
             .map((_, element) => {

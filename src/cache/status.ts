@@ -21,12 +21,14 @@ export const FILE_BUCKETS = (Object.keys(TTL_DEFAULTS) as BucketName[]).filter((
 // Bucket name, the directories holding it (entries counted in the first), and the extension of one entry; user buckets only without a store.
 function layout(root: string | undefined): [string, string[], string][] {
     const files = FILE_BUCKETS.filter((name) => bucketDirectory(name, root)).map((name): [string, string[], string] => [name, [bucketDirectory(name, root) as string], ".json"]);
-    return root === undefined ? files : [
-        ["pages", [path.join(root, "datasets/facts"), path.join(root, "key_value_stores/bodies"), bucketDirectory("pages", root) as string], ".json"],
-        ["records", [path.join(root, "key_value_stores/records")], ".json"],
-        ["frontier", [path.join(root, "request_queues/frontier"), path.join(root, "request_queues/frontier-browser")], ".json"],
-        ...files,
-    ];
+    return root === undefined
+        ? files
+        : [
+              ["pages", [path.join(root, "datasets/facts"), path.join(root, "key_value_stores/bodies"), bucketDirectory("pages", root) as string], ".json"],
+              ["records", [path.join(root, "key_value_stores/records")], ".json"],
+              ["frontier", [path.join(root, "request_queues/frontier"), path.join(root, "request_queues/frontier-browser")], ".json"],
+              ...files,
+          ];
 }
 
 // Files directly under `directory`, empty when it does not exist.

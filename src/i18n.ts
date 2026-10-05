@@ -44,15 +44,26 @@ function catalog(lang: string): Map<string, string> {
 function ranked(accept: string | undefined): string[] {
     const parts = (accept ?? "").split(",").map((part) => {
         const [tag = "", ...parameters] = part.trim().split(";");
-        const q = Number(parameters.map((parameter) => parameter.trim()).find((parameter) => parameter.startsWith("q="))?.slice(2) ?? 1);
+        const q = Number(
+            parameters
+                .map((parameter) => parameter.trim())
+                .find((parameter) => parameter.startsWith("q="))
+                ?.slice(2) ?? 1,
+        );
         return { tag: tag.trim(), q: Number.isFinite(q) ? q : 0 };
     });
-    return parts.filter((entry) => entry.q > 0 && entry.tag !== "").toSorted((a, b) => b.q - a.q).map((entry) => entry.tag);
+    return parts
+        .filter((entry) => entry.q > 0 && entry.tag !== "")
+        .toSorted((a, b) => b.q - a.q)
+        .map((entry) => entry.tag);
 }
 
 // The best language `accept` names that has a catalog, by q-value; English when none has.
 export function negotiate(accept: string | undefined): string {
-    const lang = ranked(accept).map((tag) => tag.toLowerCase().split(/[-_.@]/, 1)[0] ?? "").find((tag) => LANGUAGES.includes(tag)) ?? "en";
+    const lang =
+        ranked(accept)
+            .map((tag) => tag.toLowerCase().split(/[-_.@]/, 1)[0] ?? "")
+            .find((tag) => LANGUAGES.includes(tag)) ?? "en";
     log.debug({ accept, lang }, "language negotiated");
     return lang;
 }

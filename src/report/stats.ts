@@ -48,13 +48,20 @@ export function factStats(pages: Facts[]): Record<string, Stat> {
     const values = new Map<string, number[]>();
     for (const page of pages) {
         const leaves = Object.entries(flatten(page));
-        for (const [path, value] of leaves) if (typeof value === "number" && Number.isFinite(value) && !NOMINAL.has(path)) values.set(path, values.get(path) ?? []).get(path)?.push(value);
+        for (const [path, value] of leaves)
+            if (typeof value === "number" && Number.isFinite(value) && !NOMINAL.has(path))
+                values
+                    .set(path, values.get(path) ?? [])
+                    .get(path)
+                    ?.push(value);
     }
     const paths = values.keys().toArray().toSorted(byRank);
     log.debug({ pages: pages.length, facts: paths.length }, "fact statistics computed");
-    return Object.fromEntries(paths.map((path) => {
-        const sorted = (values.get(path) as number[]).toSorted((a, b) => a - b);
-        const total = sorted.reduce((sum, value) => sum + value, 0);
-        return [path, { count: sorted.length, min: sorted[0] as number, median: rounded(median(sorted)), p95: quantile(sorted, 0.95), max: sorted.at(-1) as number, ...(isSummable(path) && { total: rounded(total) }) }];
-    }));
+    return Object.fromEntries(
+        paths.map((path) => {
+            const sorted = (values.get(path) as number[]).toSorted((a, b) => a - b);
+            const total = sorted.reduce((sum, value) => sum + value, 0);
+            return [path, { count: sorted.length, min: sorted[0] as number, median: rounded(median(sorted)), p95: quantile(sorted, 0.95), max: sorted.at(-1) as number, ...(isSummable(path) && { total: rounded(total) }) }];
+        }),
+    );
 }

@@ -24,7 +24,11 @@ export interface LinkTextFacts {
 
 // Lower-cased, trimmed of punctuation and arrows, whitespace collapsed.
 function normalise(text: string, locale: string): string {
-    return text.toLocaleLowerCase(locale).replaceAll(/\s+/g, " ").trim().replaceAll(/[\p{P}\p{S}\s]+$|^[\p{P}\p{S}\s]+/gu, "");
+    return text
+        .toLocaleLowerCase(locale)
+        .replaceAll(/\s+/g, " ")
+        .trim()
+        .replaceAll(/[\p{P}\p{S}\s]+$|^[\p{P}\p{S}\s]+/gu, "");
 }
 
 // Anchors whose accessible name is a generic phrase of the page’s language; a language with no list adds nothing.
@@ -38,24 +42,39 @@ async function extract(page: Facts, body: string): Promise<LinkTextFacts | undef
     }
     const known = new Set(phrases);
     const $ = load(body);
-    const labelled = (ids: string) => ids.split(/\s+/).map((id) => $(`[id="${id.replaceAll('"', String.raw`\"`)}"]`).text()).join(" ");
-    const generic = $("a[href]").get().flatMap((element) => {
-        const anchor = $(element);
-        const alt = anchor.find("img[alt]").map((_, img) => $(img).attr("alt")).get().join(" ");
-        const name = anchor.attr("aria-labelledby") ? labelled(String(anchor.attr("aria-labelledby"))) : (anchor.attr("aria-label") ?? `${anchor.text()} ${alt}`);
-        const text = normalise(name, locale);
-        return known.has(text) ? [{ text, href: String(anchor.attr("href")) }] : [];
-    });
+    const labelled = (ids: string) =>
+        ids
+            .split(/\s+/)
+            .map((id) => $(`[id="${id.replaceAll('"', String.raw`\"`)}"]`).text())
+            .join(" ");
+    const generic = $("a[href]")
+        .get()
+        .flatMap((element) => {
+            const anchor = $(element);
+            const alt = anchor
+                .find("img[alt]")
+                .map((_, img) => $(img).attr("alt"))
+                .get()
+                .join(" ");
+            const name = anchor.attr("aria-labelledby") ? labelled(String(anchor.attr("aria-labelledby"))) : (anchor.attr("aria-label") ?? `${anchor.text()} ${alt}`);
+            const text = normalise(name, locale);
+            return known.has(text) ? [{ text, href: String(anchor.attr("href")) }] : [];
+        });
     log.debug({ url: page.url.href, locale, generic: generic.length }, "link text read");
     return { locale, generic };
 }
 
-const generic = pageRule("link-text/generic", [`${ID}.generic`], (page) => {
-    const facts = page[ID] as LinkTextFacts | undefined;
-    if (!facts) return;
-    const count = facts.generic.length;
-    return count === 0 ? [] : [{ message: `${count} link${count === 1 ? " says" : "s say"} nothing about ${count === 1 ? "its target" : "their targets"} out of context`, value: facts.generic, locations: facts.generic.map(({ text, href }) => `“${text}” → ${href}`) }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html", fix: "Name the target in the link text itself, or give the link an `aria-label` that does." });
+const generic = pageRule(
+    "link-text/generic",
+    [`${ID}.generic`],
+    (page) => {
+        const facts = page[ID] as LinkTextFacts | undefined;
+        if (!facts) return;
+        const count = facts.generic.length;
+        return count === 0 ? [] : [{ message: `${count} link${count === 1 ? " says" : "s say"} nothing about ${count === 1 ? "its target" : "their targets"} out of context`, value: facts.generic, locations: facts.generic.map(({ text, href }) => `“${text}” → ${href}`) }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html", fix: "Name the target in the link text itself, or give the link an `aria-label` that does." },
+);
 
 export default definePlugin({
     name: "link-text",

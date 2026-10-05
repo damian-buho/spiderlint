@@ -110,7 +110,10 @@ describe("rel=me", () => {
 
     it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode: "off" });
-        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me", `${profile}/@other`]]);
+        assert.deepEqual(
+            report.findings.map((finding) => [finding.rule, finding.value]),
+            [["links/rel-me", `${profile}/@other`]],
+        );
         const { fetched, ...facts } = report.site.origins?.[origin]?.["rel-me"] as { fetched: Record<string, { status: number; at: string; cached?: true }> };
         assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), { [`${profile}/@other`]: [200, false, undefined], [`${profile}/@me`]: [200, false, undefined], [`${profile}/@gone`]: [404, false, undefined] });
         assert.match(report.findings[0]?.message ?? "", /\(read \d{4}-\d\d-\d\d \d\d:\d\d UTC; --refresh reads it again\)$/);
@@ -185,7 +188,10 @@ describe("site extractor plugins", () => {
         const store = path.join(directory, "store");
         const started = Date.now();
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["hosts"] }, { store });
-        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.url, finding.value]), [["hosts/robots-gone", "127.0.0.1", 200]]);
+        assert.deepEqual(
+            report.findings.map((finding) => [finding.rule, finding.url, finding.value]),
+            [["hosts/robots-gone", "127.0.0.1", 200]],
+        );
         assert.deepEqual(runs, { robots: 1, stuck: 1 });
         assert.ok(Date.now() - started < 10_000, "the stuck extractor is abandoned at its timeout");
     });

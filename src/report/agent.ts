@@ -16,7 +16,6 @@ import { bundle } from "./human.ts";
 import { passing } from "./rating.ts";
 import { printable, printableFinding } from "./printable.ts";
 
-
 // Pages a fix clears: a fold’s occurrences, an aggregate’s URLs, else the one page.
 function clears(finding: Finding): number {
     return finding.occurrences ?? finding.urls?.length ?? 1;
@@ -33,7 +32,10 @@ export function ordered(findings: Finding[], pages: number): Finding[][] {
     for (const finding of findings) byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding]);
     const total = (same: Finding[]) => same.reduce((sum, finding) => sum + clears(finding), 0);
     const top = (same: Finding[]) => Math.max(...same.map((finding) => importance(finding, pages)));
-    const rules = byRule.values().map((same) => same.toSorted((a, b) => importance(b, pages) - importance(a, pages) || clears(b) - clears(a) || a.url.localeCompare(b.url))).toArray();
+    const rules = byRule
+        .values()
+        .map((same) => same.toSorted((a, b) => importance(b, pages) - importance(a, pages) || clears(b) - clears(a) || a.url.localeCompare(b.url)))
+        .toArray();
     return rules.toSorted((a, b) => top(b) - top(a) || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
 }
 
@@ -81,7 +83,9 @@ function actionable(report: Report, isHintListed: boolean): Finding[] {
 
 // CO2, bytes, requests and timings as one Markdown table, so an agent weighs a fix against the site; nothing without statistics.
 function statistics(stats: Report["summary"]["stats"] = {}): string[] {
-    const rows = Object.entries(stats).filter(([path]) => isRanked(path)).map(([path, stat]) => `| \`${printable(path).replaceAll("|", String.raw`\|`)}\` | ${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total ?? "–"].join(" | ")} |`);
+    const rows = Object.entries(stats)
+        .filter(([path]) => isRanked(path))
+        .map(([path, stat]) => `| \`${printable(path).replaceAll("|", String.raw`\|`)}\` | ${[stat.count, stat.min, stat.median, stat.p95, stat.max, stat.total ?? "–"].join(" | ")} |`);
     return rows.length === 0 ? [] : [["# Site statistics", "", "| Fact | Pages | Min | Median | p95 | Max | Total |", "| --- | --: | --: | --: | --: | --: | --: |", ...rows].join("\n")];
 }
 

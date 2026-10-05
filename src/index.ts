@@ -151,8 +151,15 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
     const checks = { ...run.checks, passed: run.checks.total - run.checks.failed };
     const severities = tally(run.findings.map((finding) => finding.severity));
     const rating = rate(checks, rulesets);
-    const checked = Object.fromEntries(run.perRule.entries().toArray().toSorted(([a], [b]) => a.localeCompare(b)));
-    const untested = Object.keys(resolveRuleset("spiderlint:all", {})).filter((id) => !Object.hasOwn(checked, id)).toSorted((a, b) => a.localeCompare(b));
+    const checked = Object.fromEntries(
+        run.perRule
+            .entries()
+            .toArray()
+            .toSorted(([a], [b]) => a.localeCompare(b)),
+    );
+    const untested = Object.keys(resolveRuleset("spiderlint:all", {}))
+        .filter((id) => !Object.hasOwn(checked, id))
+        .toSorted((a, b) => a.localeCompare(b));
     log.debug({ checked: Object.keys(checked).length, untested: untested.length }, "untested rules derived");
     const statuses = tally(pages.map((page) => String(page.http.status)));
     return {
@@ -249,7 +256,11 @@ async function prepareLint(config: Config): Promise<void> {
 
 // A sampler handing each page only the extractors its own group’s rules read.
 function samplerOf(config: Config): Sampler {
-    const wanted = new Map(rulesOf(config).entries().map(([group, rules]) => [group, new Set(extractorsFor(rules).map((extractor) => extractor.id))]));
+    const wanted = new Map(
+        rulesOf(config)
+            .entries()
+            .map(([group, rules]) => [group, new Set(extractorsFor(rules).map((extractor) => extractor.id))]),
+    );
     return new Sampler(groupsOf(config), wanted);
 }
 
@@ -272,7 +283,10 @@ async function backfill(pages: Facts[], store: DiskStore, active: Extractor[], c
     }
     const unserved = new Set<string>();
     for (const page of ordered) {
-        const missing = sample.take(page, active.filter((extractor) => page[extractor.id] === undefined));
+        const missing = sample.take(
+            page,
+            active.filter((extractor) => page[extractor.id] === undefined),
+        );
         for (const extractor of missing) if (extractor.mode === "browser" && page.html) unserved.add(extractor.id);
         const runnable = missing.filter((extractor) => extractor.mode !== "browser");
         if (runnable.length === 0) continue;
@@ -308,7 +322,26 @@ function groupModes(config: Config): Record<string, GroupMode> {
 function crawlHash(config: Config): string {
     const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, diversify, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
     const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
-    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, ...(!vendorPaths && { vendorPaths }), ...(!diversify && { diversify }), robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
+    const shape = {
+        canonicalOrigin,
+        fetch,
+        ...(Object.keys(groupFetch).length > 0 && { groupFetch }),
+        browser,
+        scope,
+        maxPages,
+        maxDepth,
+        maxBodySize,
+        include,
+        exclude,
+        ...(!vendorPaths && { vendorPaths }),
+        ...(!diversify && { diversify }),
+        robots,
+        sitemap,
+        keepalive,
+        resources,
+        maxResourcesPerPage,
+        ...(!follow && { follow }),
+    };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -325,7 +358,14 @@ type Lint = (crawled: Crawled, started: Date) => Report;
 
 // Findings of rules reading the link graph say it is partial.
 function partial(run: RuleRun, rulesByGroup: Map<string, Rule[]>, reason: string): void {
-    const readers = new Set(rulesByGroup.values().toArray().flat().filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("graph."))).map((rule) => rule.meta.id));
+    const readers = new Set(
+        rulesByGroup
+            .values()
+            .toArray()
+            .flat()
+            .filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("graph.")))
+            .map((rule) => rule.meta.id),
+    );
     const marked = run.findings.filter((finding) => readers.has(finding.rule));
     for (const finding of marked) finding.message += `; the crawl ended early (${reason}), so the page may sit closer and have more links in`;
     log.debug({ rules: [...readers], findings: marked.length, reason }, "graph findings marked partial");
@@ -360,7 +400,15 @@ function linter(config: Config): Lint {
     const matchers = compileGroups(groups);
     const rulesByGroup = rulesOf(config);
     const rulesets = [...new Set(Object.values(groups).flatMap((group) => group.rules))];
-    const rules = [...new Set(rulesByGroup.values().toArray().flat().map((rule) => rule.meta.id))].toSorted((a, b) => a.localeCompare(b));
+    const rules = [
+        ...new Set(
+            rulesByGroup
+                .values()
+                .toArray()
+                .flat()
+                .map((rule) => rule.meta.id),
+        ),
+    ].toSorted((a, b) => a.localeCompare(b));
     refuseUnknown(config, groups);
     const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
@@ -454,22 +502,28 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     const redirects: Record<string, string> = {};
     const { site, pages, revalidated, launches, responses, tlsProbes, modes } = await crawlSite(
         config,
-        async (facts, body, live) => inSpan("page", { "url.full": facts.url.href, "http.response.status_code": facts.http.status }, async () => {
-            if (proxy) delete facts.http.remote;
-            if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
-            const chosen = sample.take(facts, active);
-            const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
-            const context = { signal, profiles, allowed: async (url: string) => {
-                const file = await robots?.(url);
-                return file?.isAllowed(url, "spiderlint") ?? true;
-            }, fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }) };
-            const extracting = performance.now();
-            const added = await extract(facts, body, chosen, extractors, live, context);
-            sample.release(facts, chosen, added);
-            if (memory.add(facts)) await store?.add(facts, body);
-            progressDone(memory.pages.length);
-            log[isProgressOn() ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
-        }),
+        async (facts, body, live) =>
+            inSpan("page", { "url.full": facts.url.href, "http.response.status_code": facts.http.status }, async () => {
+                if (proxy) delete facts.http.remote;
+                if (facts.crawl.requested && facts.http.redirects.length > 0) redirects[facts.crawl.requested] = facts.url.href;
+                const chosen = sample.take(facts, active);
+                const signal = AbortSignal.timeout(PAGE_CONTEXT_MS);
+                const context = {
+                    signal,
+                    profiles,
+                    allowed: async (url: string) => {
+                        const file = await robots?.(url);
+                        return file?.isAllowed(url, "spiderlint") ?? true;
+                    },
+                    fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }),
+                };
+                const extracting = performance.now();
+                const added = await extract(facts, body, chosen, extractors, live, context);
+                sample.release(facts, chosen, added);
+                if (memory.add(facts)) await store?.add(facts, body);
+                progressDone(memory.pages.length);
+                log[isProgressOn() ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
+            }),
         cache,
         router,
         store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href), resumed: earlier },

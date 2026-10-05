@@ -19,7 +19,13 @@ const presetCache = new Map<string, RulesetConfig>();
 
 // A plugin’s preset, else presets/<name>.yaml read once; undefined when no such preset ships.
 function preset(name: string): RulesetConfig | undefined {
-    if (name === ALL) return { description: "Every rule that ships or a loaded plugin adds", extends: presetNames().filter((other) => other !== ALL && other !== SERVER).map((other) => `${PREFIX}${other}`) };
+    if (name === ALL)
+        return {
+            description: "Every rule that ships or a loaded plugin adds",
+            extends: presetNames()
+                .filter((other) => other !== ALL && other !== SERVER)
+                .map((other) => `${PREFIX}${other}`),
+        };
     if (name === SERVER) return serverPreset();
     const plugged = pluginPreset(name);
     if (plugged) return plugged;
@@ -54,7 +60,9 @@ export function lookup(name: string, rulesets: Record<string, RulesetConfig>): R
 
 // Every preset that ships or a plugin adds, by bare name.
 export function presetNames(): string[] {
-    const files = readdirSync(PRESETS).filter((file) => file.endsWith(".yaml")).map((file) => file.slice(0, -".yaml".length));
+    const files = readdirSync(PRESETS)
+        .filter((file) => file.endsWith(".yaml"))
+        .map((file) => file.slice(0, -".yaml".length));
     return [...files, ALL, SERVER, ...pluginPresetNames()].toSorted((a, b) => a.localeCompare(b));
 }
 

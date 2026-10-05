@@ -98,12 +98,18 @@ describe("served HTTP version", () => {
     it("raises a page a cold connection carried when it advertises h3 on an origin QUIC served", () => {
         const pages = [page("/", "2.0", ":443"), page("/a", "3.0", ":443"), page("/old", "2.0")];
         servedVersions(pages);
-        assert.deepEqual(pages.map((entry) => entry.http.version), ["3.0", "3.0", "2.0"]);
+        assert.deepEqual(
+            pages.map((entry) => entry.http.version),
+            ["3.0", "3.0", "2.0"],
+        );
     });
 
     it("keeps HTTP/2 where QUIC never answered or h3 points elsewhere", () => {
         const pages = [page("/", "2.0", ":443"), page("/b", "2.0", "cdn.test:443")];
         servedVersions(pages);
-        assert.deepEqual(pages.map((entry) => entry.http.version), ["2.0", "2.0"]);
+        assert.deepEqual(
+            pages.map((entry) => entry.http.version),
+            ["2.0", "2.0"],
+        );
     });
 });

@@ -42,7 +42,10 @@ export function pin(level: Level, score: number): number {
 export function interpolate(scale: Scale, value: number): number {
     const points = scale.toSorted(([a], [b]) => a - b);
     const at = Math.min(Math.max(value, (points[0] as [number, number])[0]), (points.at(-1) as [number, number])[0]);
-    const index = Math.max(1, points.findIndex(([x]) => x >= at));
+    const index = Math.max(
+        1,
+        points.findIndex(([x]) => x >= at),
+    );
     const [x0, y0] = points[index - 1] as [number, number];
     const [x1, y1] = points[index] as [number, number];
     return round(y0 + ((y1 - y0) * (at - x0)) / (x1 - x0));

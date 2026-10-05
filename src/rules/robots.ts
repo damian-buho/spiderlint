@@ -55,27 +55,42 @@ function robotsRule(id: string, documentation: string, judge: (file: RobotsFileF
 }
 
 // Every group naming `*` that disallows `/` and allows nothing back.
-const disallowAll = robotsRule("robots/disallow-all", "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.2", (file) => {
-    const blanket = file.groups.filter((group) => group.agents.includes("*") && isBlanket(group));
-    return blanket.length > 0 ? { message: "User-agent: * is disallowed from every path, so no crawler indexes the site", value: "/" } : undefined;
-}, "Remove the Disallow: / rule from the User-agent: * group, or add Allow rules for the paths you want crawled.");
+const disallowAll = robotsRule(
+    "robots/disallow-all",
+    "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.2",
+    (file) => {
+        const blanket = file.groups.filter((group) => group.agents.includes("*") && isBlanket(group));
+        return blanket.length > 0 ? { message: "User-agent: * is disallowed from every path, so no crawler indexes the site", value: "/" } : undefined;
+    },
+    "Remove the Disallow: / rule from the User-agent: * group, or add Allow rules for the paths you want crawled.",
+);
 
 // The AI crawlers the file names, each with its purpose and whether it is shut out.
-const aiCrawlers = robotsRule("robots/ai-crawlers", "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.1", (file) => {
-    const named = file.groups.flatMap((group) => group.agents.flatMap((agent) => (Object.hasOwn(AI_CRAWLERS, agent) ? [{ agent, purpose: AI_CRAWLERS[agent], blocked: isBlanket(group) }] : [])));
-    if (named.length === 0) return;
-    const listed = named.map(({ agent, purpose, blocked }) => `${agent} (${purpose}${blocked ? ", disallowed" : ""})`).join(", ");
-    return { message: `names AI crawlers: ${listed}`, value: named };
-}, "Confirm each named AI crawler is allowed or disallowed as intended.");
+const aiCrawlers = robotsRule(
+    "robots/ai-crawlers",
+    "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.1",
+    (file) => {
+        const named = file.groups.flatMap((group) => group.agents.flatMap((agent) => (Object.hasOwn(AI_CRAWLERS, agent) ? [{ agent, purpose: AI_CRAWLERS[agent], blocked: isBlanket(group) }] : [])));
+        if (named.length === 0) return;
+        const listed = named.map(({ agent, purpose, blocked }) => `${agent} (${purpose}${blocked ? ", disallowed" : ""})`).join(", ");
+        return { message: `names AI crawlers: ${listed}`, value: named };
+    },
+    "Confirm each named AI crawler is allowed or disallowed as intended.",
+);
 
 // Every `Content-Signal` line naming an unknown signal, a value other than yes or no, or nothing.
-const contentSignal = robotsRule("robots/content-signal", "https://contentsignals.org/", (file) => {
-    const malformed = file["content-signals"].filter(({ signals }) => {
-        const entries = Object.entries(signals);
-        return entries.length === 0 || entries.some(([key, value]) => !SIGNALS.has(key) || !VERDICTS.has(value));
-    });
-    return malformed.length > 0 ? { message: `Content-Signal should be search, ai-input or ai-train set to yes or no, found ${malformed.map((line) => `“${line.value}”`).join(", ")}`, value: malformed.map((line) => line.value) } : undefined;
-}, "Write each Content-Signal line as comma-separated signal=yes|no pairs, e.g. Content-Signal: search=yes, ai-input=no, ai-train=no.");
+const contentSignal = robotsRule(
+    "robots/content-signal",
+    "https://contentsignals.org/",
+    (file) => {
+        const malformed = file["content-signals"].filter(({ signals }) => {
+            const entries = Object.entries(signals);
+            return entries.length === 0 || entries.some(([key, value]) => !SIGNALS.has(key) || !VERDICTS.has(value));
+        });
+        return malformed.length > 0 ? { message: `Content-Signal should be search, ai-input or ai-train set to yes or no, found ${malformed.map((line) => `“${line.value}”`).join(", ")}`, value: malformed.map((line) => line.value) } : undefined;
+    },
+    "Write each Content-Signal line as comma-separated signal=yes|no pairs, e.g. Content-Signal: search=yes, ai-input=no, ai-train=no.",
+);
 
 export const robotsRules: Record<string, Make> = {
     "robots/disallow-all": disallowAll,

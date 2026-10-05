@@ -63,7 +63,11 @@ const bare = (term: string) => term.replace(/^.*[/#:]/, "");
 const absolute = (id: string, base: string) => (!id.startsWith("_:") && URL.canParse(id, base) ? new URL(id, base).href : id);
 
 // The bare terms of a space-separated attribute.
-const terms = (attribute: string | undefined) => (attribute ?? "").split(/\s+/).filter(Boolean).map((term) => bare(term));
+const terms = (attribute: string | undefined) =>
+    (attribute ?? "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((term) => bare(term));
 
 // How one syntax marks an item, its properties, identity and types.
 interface Syntax {
@@ -94,7 +98,9 @@ function itemOf($: CheerioAPI, element: Element, syntax: Syntax, base: string): 
     if (types.length > 0) node["@type"] = types;
     const id = syntax.id.map((key) => $(element).attr(key)).find((value) => value !== undefined);
     if (id !== undefined) node["@id"] = absolute(id, base);
-    const owned = $(element).find(syntax.props).filter((_, property) => $(property).parent().closest(syntax.items).get(0) === element);
+    const owned = $(element)
+        .find(syntax.props)
+        .filter((_, property) => $(property).parent().closest(syntax.items).get(0) === element);
     for (const property of owned.get()) {
         const value = $(property).attr(syntax.scope) === undefined ? valueOf($, property, base) : itemOf($, property, syntax, base);
         const names = terms($(property).attr(syntax.prop));
@@ -107,7 +113,10 @@ function itemOf($: CheerioAPI, element: Element, syntax: Syntax, base: string): 
 async function extract(page: Facts, body: string): Promise<StructuredDataFacts | undefined> {
     if (!page.html || !/\bitemscope\b|\btypeof\s*=/i.test(body)) return;
     const $ = load(body);
-    const top = (syntax: Syntax) => $(syntax.tops).get().map((element) => itemOf($, element, syntax, page.url.href));
+    const top = (syntax: Syntax) =>
+        $(syntax.tops)
+            .get()
+            .map((element) => itemOf($, element, syntax, page.url.href));
     const facts = { microdata: top(MICRODATA), rdfa: top(RDFA) };
     log.debug({ url: page.url.href, microdata: facts.microdata.length, rdfa: facts.rdfa.length }, "structured data read");
     return facts;
@@ -143,20 +152,32 @@ const allNodes = (page: Facts) => nodesOf(page).flatMap((top) => everyNode(top).
 // A node that says something besides its identity.
 const isDefinition = (node: Node) => typeof node["@id"] === "string" && Object.keys(node).some((key) => key !== "@id" && key !== "@context");
 
-const parse = pageRule("structured-data/parse", ["html.jsonld"], (page) => {
-    if (!page.html) return;
-    const errors = page.html.jsonld.filter((block): block is { "@error": string } => isNode(block) && typeof block["@error"] === "string").map((block) => block["@error"]);
-    return errors.length === 0 ? [] : [{ message: `${errors.length} JSON-LD block${errors.length === 1 ? " does" : "s do"} not parse: ${errors.join("; ")}`, value: errors }];
-}, { docs: "https://json-ld.org/spec/latest/json-ld/", fix: "Serialise the JSON-LD with a JSON encoder instead of a text template, so quotes and newlines in values are escaped." });
+const parse = pageRule(
+    "structured-data/parse",
+    ["html.jsonld"],
+    (page) => {
+        if (!page.html) return;
+        const errors = page.html.jsonld.filter((block): block is { "@error": string } => isNode(block) && typeof block["@error"] === "string").map((block) => block["@error"]);
+        return errors.length === 0 ? [] : [{ message: `${errors.length} JSON-LD block${errors.length === 1 ? " does" : "s do"} not parse: ${errors.join("; ")}`, value: errors }];
+    },
+    { docs: "https://json-ld.org/spec/latest/json-ld/", fix: "Serialise the JSON-LD with a JSON encoder instead of a text template, so quotes and newlines in values are escaped." },
+);
 
-const required = pageRule("structured-data/required", ["html.jsonld", ID], (page) => {
-    if (!page.html) return;
-    const locations = nodesOf(page).flatMap((node) => typesOf(node).flatMap((type) => {
-        const missing = (REQUIRED[type] ?? []).filter((property) => !isSet(node[property]));
-        return missing.length === 0 ? [] : [`${type} without ${missing.join(", ")}`];
-    }));
-    return locations.length === 0 ? [] : [{ message: `${locations.length} structured data node${locations.length === 1 ? " lacks" : "s lack"} properties their rich result requires`, value: locations, locations }];
-}, { docs: GALLERY, fix: "Add the missing properties to each named node, or drop a type the page does not really describe." });
+const required = pageRule(
+    "structured-data/required",
+    ["html.jsonld", ID],
+    (page) => {
+        if (!page.html) return;
+        const locations = nodesOf(page).flatMap((node) =>
+            typesOf(node).flatMap((type) => {
+                const missing = (REQUIRED[type] ?? []).filter((property) => !isSet(node[property]));
+                return missing.length === 0 ? [] : [`${type} without ${missing.join(", ")}`];
+            }),
+        );
+        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data node${locations.length === 1 ? " lacks" : "s lack"} properties their rich result requires`, value: locations, locations }];
+    },
+    { docs: GALLERY, fix: "Add the missing properties to each named node, or drop a type the page does not really describe." },
+);
 
 // The URL a `ListItem.item` names: a string, or a node’s `@id` or `url`.
 function itemUrl(item: unknown): string | undefined {
@@ -170,24 +191,32 @@ function itemUrl(item: unknown): string | undefined {
 const folded = (text: string) => text.toLowerCase().replaceAll(/\s+/g, " ").trim();
 
 // Page and article nodes whose `url` or `mainEntityOfPage` is not the canonical, or whose name appears in neither `<title>` nor `og:title`.
-const consistent = pageRule("structured-data/consistent", ["html.jsonld", ID, "html.canonical", "html.title", "html.property"], (page) => {
-    if (!page.html) return;
-    const html = page.html;
-    const canonical = resolve(html.canonical ?? page.url.twin ?? page.url.href, page.url.href);
-    const titles = [html.title, html.property["og:title"]].filter((title): title is string => title !== undefined).map((title) => folded(title));
-    const locations = nodesOf(page).flatMap((node) => {
-        const type = typesOf(node).find((name) => PAGES.has(name) || ARTICLES.has(name));
-        if (!type) return [];
-        const urls = [node.url, node.mainEntityOfPage].map((value) => itemUrl(value)).filter((url): url is string => url !== undefined).map((url) => resolve(url, page.url.href));
-        const name = [node.headline, node.name].find((value): value is string => typeof value === "string");
-        log.debug({ url: page.url.href, type, canonical, urls, name }, "page entity compared");
-        return [
-            ...urls.filter((url) => url !== canonical).map((url) => `${type} names ${url}, the canonical is ${canonical}`),
-            ...(name !== undefined && titles.length > 0 && titles.every((title) => !title.includes(folded(name)) && !folded(name).includes(title)) ? [`${type} “${name}” appears in neither the title nor og:title`] : []),
-        ];
-    });
-    return locations.length === 0 ? [] : [{ message: `${locations.length} structured data claim${locations.length === 1 ? " disagrees" : "s disagree"} with the page’s own tags`, value: locations, locations }];
-}, { docs: "https://developers.google.com/search/docs/appearance/structured-data/sd-policies", fix: "Point `url` and `mainEntityOfPage` at the canonical URL, and use the page title as the entity’s `name` or `headline`." });
+const consistent = pageRule(
+    "structured-data/consistent",
+    ["html.jsonld", ID, "html.canonical", "html.title", "html.property"],
+    (page) => {
+        if (!page.html) return;
+        const html = page.html;
+        const canonical = resolve(html.canonical ?? page.url.twin ?? page.url.href, page.url.href);
+        const titles = [html.title, html.property["og:title"]].filter((title): title is string => title !== undefined).map((title) => folded(title));
+        const locations = nodesOf(page).flatMap((node) => {
+            const type = typesOf(node).find((name) => PAGES.has(name) || ARTICLES.has(name));
+            if (!type) return [];
+            const urls = [node.url, node.mainEntityOfPage]
+                .map((value) => itemUrl(value))
+                .filter((url): url is string => url !== undefined)
+                .map((url) => resolve(url, page.url.href));
+            const name = [node.headline, node.name].find((value): value is string => typeof value === "string");
+            log.debug({ url: page.url.href, type, canonical, urls, name }, "page entity compared");
+            return [
+                ...urls.filter((url) => url !== canonical).map((url) => `${type} names ${url}, the canonical is ${canonical}`),
+                ...(name !== undefined && titles.length > 0 && titles.every((title) => !title.includes(folded(name)) && !folded(name).includes(title)) ? [`${type} “${name}” appears in neither the title nor og:title`] : []),
+            ];
+        });
+        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data claim${locations.length === 1 ? " disagrees" : "s disagree"} with the page’s own tags`, value: locations, locations }];
+    },
+    { docs: "https://developers.google.com/search/docs/appearance/structured-data/sd-policies", fix: "Point `url` and `mainEntityOfPage` at the canonical URL, and use the page title as the entity’s `name` or `headline`." },
+);
 
 // The document an `@id` points into: everything before its fragment.
 const documentOf = (id: string) => id.split("#", 1)[0] ?? id;
@@ -198,13 +227,21 @@ const references: Make = (severity) => ({
     check(pages: Facts[]) {
         const defined = new Map<string, Set<string>>();
         for (const page of pages) {
-            const ids = new Set(allNodes(page).filter((node) => isDefinition(node)).map((node) => absolute(String(node["@id"]), page.url.href)));
+            const ids = new Set(
+                allNodes(page)
+                    .filter((node) => isDefinition(node))
+                    .map((node) => absolute(String(node["@id"]), page.url.href)),
+            );
             for (const href of [page.url.href, page.url.twin]) if (href) defined.set(resolve(href, href), ids);
         }
         const naming = new Map<string, string[]>();
         for (const page of pages) {
             const own = defined.get(resolve(page.url.href, page.url.href)) ?? new Set<string>();
-            const ids = new Set(allNodes(page).filter((node) => typeof node["@id"] === "string" && !isDefinition(node)).map((node) => absolute(String(node["@id"]), page.url.href)));
+            const ids = new Set(
+                allNodes(page)
+                    .filter((node) => typeof node["@id"] === "string" && !isDefinition(node))
+                    .map((node) => absolute(String(node["@id"]), page.url.href)),
+            );
             for (const id of ids) {
                 const target = id.startsWith("_:") ? own : id.includes("#") ? defined.get(documentOf(id)) : undefined;
                 const isDangling = target !== undefined && !target.has(id) && !own.has(id);
@@ -212,7 +249,10 @@ const references: Make = (severity) => ({
                 if (isDangling) naming.set(id, [...(naming.get(id) ?? []), page.url.href]);
             }
         }
-        return naming.entries().map(([id, urls]): Finding => ({ rule: "structured-data/references", severity, scope: "site", url: id, message: `reference names a node ${id.startsWith("_:") ? "the page" : documentOf(id)} never defines; named by ${urls.length} page${urls.length === 1 ? "" : "s"}`, value: id, urls })).toArray();
+        return naming
+            .entries()
+            .map(([id, urls]): Finding => ({ rule: "structured-data/references", severity, scope: "site", url: id, message: `reference names a node ${id.startsWith("_:") ? "the page" : documentOf(id)} never defines; named by ${urls.length} page${urls.length === 1 ? "" : "s"}`, value: id, urls }))
+            .toArray();
     },
 });
 
@@ -254,7 +294,10 @@ function sight(sightings: Sightings, key: string, value: string, page: string) {
 
 // One site finding for a key seen with more than one value, each value located with its page count.
 function conflict(url: string, values: Map<string, Set<string>>, message: string, severity: Finding["severity"]): Finding {
-    const locations = values.entries().map(([value, urls]) => `${value} on ${urls.size} page${urls.size === 1 ? "" : "s"}`).toArray();
+    const locations = values
+        .entries()
+        .map(([value, urls]) => `${value} on ${urls.size} page${urls.size === 1 ? "" : "s"}`)
+        .toArray();
     return { rule: "structured-data/entities", severity, scope: "site", url, message, value: values.keys().toArray(), locations, urls: [...new Set(values.values().flatMap((urls) => urls.values()))] };
 }
 
@@ -280,31 +323,47 @@ const entities: Make = (severity) => ({
         }
         for (const [entity, values] of identities) {
             log.debug({ rule: "structured-data/entities", entity, ids: values.size }, "entity identity judged");
-            if (values.size > 1) findings.push(conflict(values.keys().toArray().toSorted((a, b) => a.localeCompare(b))[0] ?? entity, values, `${entity} is carried under ${values.size} different @ids`, severity));
+            if (values.size > 1)
+                findings.push(
+                    conflict(
+                        values
+                            .keys()
+                            .toArray()
+                            .toSorted((a, b) => a.localeCompare(b))[0] ?? entity,
+                        values,
+                        `${entity} is carried under ${values.size} different @ids`,
+                        severity,
+                    ),
+                );
         }
         return findings;
     },
 });
 
 // The term schema.org supersedes `term` with, if any.
-const successor = (term: string): string | undefined => Object.hasOwn(SUPERSEDED, term) ? SUPERSEDED[term] : undefined;
+const successor = (term: string): string | undefined => (Object.hasOwn(SUPERSEDED, term) ? SUPERSEDED[term] : undefined);
 
 // Types, properties and schema.org enumeration values that schema.org marks `supersededBy`.
-const deprecated = pageRule("structured-data/deprecated", ["html.jsonld", ID], (page) => {
-    if (!page.html) return;
-    const locations = new Set<string>();
-    const nodes = allNodes(page);
-    for (const node of nodes) {
-        for (const type of typesOf(node)) if (successor(type)) locations.add(`type ${type} → ${successor(type)}`);
-        for (const [key, value] of Object.entries(node)) {
-            if (!key.startsWith("@") && successor(key)) locations.add(`property ${key} → ${successor(key)}`);
-            const iris = [value].flat().filter((term): term is string => typeof term === "string" && /^https?:\/\/schema\.org\/\w+$/.test(term));
-            for (const iri of iris) if (successor(bare(iri))) locations.add(`value ${bare(iri)} → ${successor(bare(iri))}`);
+const deprecated = pageRule(
+    "structured-data/deprecated",
+    ["html.jsonld", ID],
+    (page) => {
+        if (!page.html) return;
+        const locations = new Set<string>();
+        const nodes = allNodes(page);
+        for (const node of nodes) {
+            for (const type of typesOf(node)) if (successor(type)) locations.add(`type ${type} → ${successor(type)}`);
+            for (const [key, value] of Object.entries(node)) {
+                if (!key.startsWith("@") && successor(key)) locations.add(`property ${key} → ${successor(key)}`);
+                const iris = [value].flat().filter((term): term is string => typeof term === "string" && /^https?:\/\/schema\.org\/\w+$/.test(term));
+                for (const iri of iris) if (successor(bare(iri))) locations.add(`value ${bare(iri)} → ${successor(bare(iri))}`);
+            }
         }
-    }
-    log.debug({ url: page.url.href, superseded: locations.size }, "vocabulary judged");
-    return locations.size === 0 ? [] : [{ message: `${locations.size} schema.org term${locations.size === 1 ? " is" : "s are"} superseded`, value: [...locations], locations: [...locations] }];
-}, { docs: "https://schema.org/docs/attic.home.html", fix: "Rename each term to the one schema.org supersedes it with." });
+        log.debug({ url: page.url.href, superseded: locations.size }, "vocabulary judged");
+        return locations.size === 0 ? [] : [{ message: `${locations.size} schema.org term${locations.size === 1 ? " is" : "s are"} superseded`, value: [...locations], locations: [...locations] }];
+    },
+    { docs: "https://schema.org/docs/attic.home.html", fix: "Rename each term to the one schema.org supersedes it with." },
+);
 
 // A date-valued property by name.
 const isDateProperty = (key: string) => key.startsWith("date") || key.endsWith("Date") || DATES.has(key);
@@ -313,22 +372,29 @@ const isDateProperty = (key: string) => key.startsWith("date") || key.endsWith("
 const time = (value: unknown) => (typeof value === "string" ? Date.parse(value) : NaN);
 
 // Dates that are not ISO 8601, a modification before publication, and a publication date disagreeing with `article:published_time`.
-const dates = pageRule("structured-data/dates", ["html.jsonld", ID, "html.property"], (page) => {
-    if (!page.html) return;
-    const meta = page.html.property;
-    const locations = allNodes(page).flatMap((node) => {
-        const type = typesOf(node)[0] ?? "node";
-        const invalid = Object.entries(node).filter(([key, value]) => isDateProperty(key) && typeof value === "string" && (!ISO_DATE.test(value.trim()) || Number.isNaN(Date.parse(value)))).map(([key, value]) => `${type} ${key} “${String(value)}” is not ISO 8601`);
-        const [published, modified, shown] = [time(node.datePublished), time(node.dateModified), time(meta["article:published_time"])];
-        return [
-            ...invalid,
-            ...(published > modified ? [`${type} dateModified ${String(node.dateModified)} is before datePublished ${String(node.datePublished)}`] : []),
-            ...(published !== shown && !Number.isNaN(published) && !Number.isNaN(shown) ? [`${type} datePublished ${String(node.datePublished)} disagrees with article:published_time ${meta["article:published_time"]}`] : []),
-        ];
-    });
-    log.debug({ url: page.url.href, invalid: locations.length }, "dates judged");
-    return locations.length === 0 ? [] : [{ message: `${locations.length} structured data date${locations.length === 1 ? " is" : "s are"} malformed or contradictory`, value: locations, locations }];
-}, { docs: "https://developers.google.com/search/docs/appearance/structured-data/article", fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`." });
+const dates = pageRule(
+    "structured-data/dates",
+    ["html.jsonld", ID, "html.property"],
+    (page) => {
+        if (!page.html) return;
+        const meta = page.html.property;
+        const locations = allNodes(page).flatMap((node) => {
+            const type = typesOf(node)[0] ?? "node";
+            const invalid = Object.entries(node)
+                .filter(([key, value]) => isDateProperty(key) && typeof value === "string" && (!ISO_DATE.test(value.trim()) || Number.isNaN(Date.parse(value))))
+                .map(([key, value]) => `${type} ${key} “${String(value)}” is not ISO 8601`);
+            const [published, modified, shown] = [time(node.datePublished), time(node.dateModified), time(meta["article:published_time"])];
+            return [
+                ...invalid,
+                ...(published > modified ? [`${type} dateModified ${String(node.dateModified)} is before datePublished ${String(node.datePublished)}`] : []),
+                ...(published !== shown && !Number.isNaN(published) && !Number.isNaN(shown) ? [`${type} datePublished ${String(node.datePublished)} disagrees with article:published_time ${meta["article:published_time"]}`] : []),
+            ];
+        });
+        log.debug({ url: page.url.href, invalid: locations.length }, "dates judged");
+        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data date${locations.length === 1 ? " is" : "s are"} malformed or contradictory`, value: locations, locations }];
+    },
+    { docs: "https://developers.google.com/search/docs/appearance/structured-data/article", fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`." },
+);
 
 export default definePlugin({
     name: "structured-data",

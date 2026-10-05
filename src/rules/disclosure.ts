@@ -34,7 +34,12 @@ const VERSION = /(?:^|[/\s(])v?\d/i;
 
 // A value with `Via`’s received-protocol dropped, since `1.1` there is HTTP’s version, not the proxy’s.
 function stripped(field: string, value: string): string {
-    return field === "via" ? value.split(",").map((hop) => hop.trim().replace(/^\S+\s+/, "")).join(", ") : value.trim();
+    return field === "via"
+        ? value
+              .split(",")
+              .map((hop) => hop.trim().replace(/^\S+\s+/, ""))
+              .join(", ")
+        : value.trim();
 }
 
 // The severity one field earns, or undefined when it discloses nothing the owner can change.
@@ -64,7 +69,14 @@ function domainOf(host: string): string {
 
 // One finding per host, field and value across every page and every resource under a crawled registrable domain.
 const serverDisclosure: Make = (severity) => ({
-    meta: { id: "http/server-disclosure", severity, scope: "site", facts: ["http.headers", "html.meta.generator", "resources"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Server", fix: "Remove the version from the Server header and drop X-Powered-By and debug headers at the server or proxy." },
+    meta: {
+        id: "http/server-disclosure",
+        severity,
+        scope: "site",
+        facts: ["http.headers", "html.meta.generator", "resources"],
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Server",
+        fix: "Remove the version from the Server header and drop X-Powered-By and debug headers at the server or proxy.",
+    },
     check(pages: Facts[]) {
         const domains = new Set(pages.map((page) => domainOf(page.url.host)));
         const seen = new Map<string, { host: string; field: string; value: string; urls: Set<string> }>();

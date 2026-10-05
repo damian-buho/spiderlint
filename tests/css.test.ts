@@ -48,8 +48,14 @@ describe("css plugin", () => {
 
     it("places a style attribute’s messages in the document and spares grammar gaps and guarded features", async () => {
         const facts = await inline(`<!DOCTYPE html>\n<p>x</p>\n  <div class="a" style="colour: red; word-wrap: anywhere; padding-bottom: env(safe-area-inset-bottom)">x</div>\n<style>@page { margin: 2cm; @bottom-center { content: counter(page) } }\n@supports (display: grid) { a { display: grid } }</style>`);
-        assert.deepEqual(facts?.messages.map((message) => `${message.line}:${message.column} ${message.in} ${message.source}`), ["3:25 <div style> colour: red"]);
-        assert.deepEqual(facts?.features.map((used) => used.feature), ["wordwrap", "css-env-function", "css-paged-media", "css-counters"]);
+        assert.deepEqual(
+            facts?.messages.map((message) => `${message.line}:${message.column} ${message.in} ${message.source}`),
+            ["3:25 <div style> colour: red"],
+        );
+        assert.deepEqual(
+            facts?.features.map((used) => used.feature),
+            ["wordwrap", "css-env-function", "css-paged-media", "css-counters"],
+        );
         assert.equal(await inline("<!DOCTYPE html><p>no CSS</p>"), undefined);
     });
 });

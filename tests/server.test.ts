@@ -147,7 +147,20 @@ describe("server pages without Redis", () => {
 
     it("renders a finished report in English with the numbers of a de-DE reader, labelled statistics only", async () => {
         const stat = { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 31_536_000 };
-        const summary = { started: "2026-10-03T00:00:00Z", durationMs: 1000, pages: 2, bytes: 10, groups: { default: 2 }, statuses: {}, findings: { total: 0, error: 0, warning: 0, info: 0, hint: 0 }, rules: 0, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, byRule: {}, cost: {}, stats: { "resources.length": stat, "html.text": stat } };
+        const summary = {
+            started: "2026-10-03T00:00:00Z",
+            durationMs: 1000,
+            pages: 2,
+            bytes: 10,
+            groups: { default: 2 },
+            statuses: {},
+            findings: { total: 0, error: 0, warning: 0, info: 0, hint: 0 },
+            rules: 0,
+            checks: { total: 0, passed: 0, failed: 0, errored: 0 },
+            byRule: {},
+            cost: {},
+            stats: { "resources.length": stat, "html.text": stat },
+        };
         const job = { id: "j1", data: { url: "https://a.test/", host: "a.test" }, returnvalue: { summary, findings: [] }, getState: async () => "completed" };
         const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j1", { headers: { "accept-language": "de-DE,de;q=0.9" } });
         const html = await response.text();
@@ -224,8 +237,14 @@ describe("web presets", () => {
     });
 
     it("answers a policy that does not allow the preset with forbidden-rule, and an unknown one with unknown-rule", () => {
-        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: presetSettings("web-quick") }, SETTINGS)), "forbidden-rule");
-        assert.equal(refusal(() => presetSettings("all")), "unknown-rule");
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/", settings: presetSettings("web-quick") }, SETTINGS)),
+            "forbidden-rule",
+        );
+        assert.equal(
+            refusal(() => presetSettings("all")),
+            "unknown-rule",
+        );
     });
 });
 
@@ -372,21 +391,57 @@ describe("server policy", () => {
     });
 
     it("refuses bans, bad seeds and settings a request may not set", () => {
-        assert.equal(refusal(() => admit({ url: "https://кремль.рф/" }, SETTINGS)), "banned");
-        assert.equal(refusal(() => admit({ url: "file:///etc/passwd" }, SETTINGS)), "invalid-url");
-        assert.equal(refusal(() => admit({ url: "https://user:pass@example.com/" }, SETTINGS)), "invalid-url");
-        assert.equal(refusal(() => admit({ url: "https://example.com/", settings: { plugins: ["./x.ts"] } }, SETTINGS)), "forbidden-setting");
-        assert.equal(refusal(() => admit({ url: "https://example.com/", settings: { robots: false } }, SETTINGS)), "forbidden-setting");
-        assert.equal(refusal(() => admit({ url: "https://example.com/", settings: { "max-pages": -1 } }, SETTINGS)), "invalid-settings");
-        assert.equal(refusal(() => admit({ url: "https://example.com/", settings: { fetch: "browser" } }, SETTINGS)), "forbidden-fetch");
+        assert.equal(
+            refusal(() => admit({ url: "https://кремль.рф/" }, SETTINGS)),
+            "banned",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "file:///etc/passwd" }, SETTINGS)),
+            "invalid-url",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://user:pass@example.com/" }, SETTINGS)),
+            "invalid-url",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://example.com/", settings: { plugins: ["./x.ts"] } }, SETTINGS)),
+            "forbidden-setting",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://example.com/", settings: { robots: false } }, SETTINGS)),
+            "forbidden-setting",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://example.com/", settings: { "max-pages": -1 } }, SETTINGS)),
+            "invalid-settings",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://example.com/", settings: { fetch: "browser" } }, SETTINGS)),
+            "forbidden-fetch",
+        );
     });
 
     it("allows named rules only, and treats no rules as recommended", () => {
-        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["seo", "http/hsts"] } }, SETTINGS)), "admitted");
-        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["http/alt-svc-h3"] } }, SETTINGS)), "forbidden-rule");
-        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["all"] } }, SETTINGS)), "forbidden-rule");
-        assert.equal(refusal(() => admit({ url: "https://a.ua/" }, SETTINGS)), "forbidden-rule");
-        assert.equal(refusal(() => admit({ url: "https://a.ua/", settings: { groups: { blog: { match: ["/blog/**"], rules: ["seo"] } } } }, SETTINGS)), "forbidden-rule");
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["seo", "http/hsts"] } }, SETTINGS)),
+            "admitted",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["http/alt-svc-h3"] } }, SETTINGS)),
+            "forbidden-rule",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["all"] } }, SETTINGS)),
+            "forbidden-rule",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/" }, SETTINGS)),
+            "forbidden-rule",
+        );
+        assert.equal(
+            refusal(() => admit({ url: "https://a.ua/", settings: { groups: { blog: { match: ["/blog/**"], rules: ["seo"] } } } }, SETTINGS)),
+            "forbidden-rule",
+        );
     });
 
     it("refuses an unknown rule before any window is charged, and resolves a known one", async () => {

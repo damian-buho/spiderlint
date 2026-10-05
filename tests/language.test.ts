@@ -9,7 +9,8 @@ import type { AddressInfo } from "node:net";
 import { audit, type Report } from "../src/index.ts";
 
 // A page declaring `lang`, with its title and description.
-const page = (lang: string, title: string, description: string) => `<!DOCTYPE html><html lang="${lang}"><head><title>${title}</title><meta name="description" content="${description}"></head><body><h1>${title}</h1><a href="/en">en</a><a href="/es">es</a><a href="/uk">uk</a><a href="/es-mixed">mixed</a><a href="/short">short</a></body></html>`;
+const page = (lang: string, title: string, description: string) =>
+    `<!DOCTYPE html><html lang="${lang}"><head><title>${title}</title><meta name="description" content="${description}"></head><body><h1>${title}</h1><a href="/en">en</a><a href="/es">es</a><a href="/uk">uk</a><a href="/es-mixed">mixed</a><a href="/short">short</a></body></html>`;
 const PAGES: Record<string, string> = {
     "/en": page("en-GB", "How to bake sourdough bread at home", "A step-by-step guide to a crisp crust and an open crumb, from starter to oven."),
     "/es": page("es", "Cómo hacer pan de masa madre en casa", "Una guía paso a paso para lograr una corteza crujiente y una miga abierta."),
@@ -38,7 +39,10 @@ describe("localised metadata", () => {
     const detected = (path: string) => report.pages.find((facts) => facts.url.href === `${origin}${path}`)?.html?.detected;
 
     it("fails an es page with an English title and passes matching en, es and uk pages", () => {
-        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.url.slice(origin.length), finding.message]), [["i18n/metadata-language", "/es-mixed", "lang is “es”, but the title reads as en (0.81)"]]);
+        assert.deepEqual(
+            report.findings.map((finding) => [finding.rule, finding.url.slice(origin.length), finding.message]),
+            [["i18n/metadata-language", "/es-mixed", "lang is “es”, but the title reads as en (0.81)"]],
+        );
     });
 
     it("detects title and description languages above the minimum length only", () => {

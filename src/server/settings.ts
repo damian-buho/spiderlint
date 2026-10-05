@@ -60,7 +60,12 @@ export interface ServerSettings {
 // Origins run by different operators, so one bad clock cannot pass for ours.
 const CLOCK_REFERENCES = ["https://www.cloudflare.com/", "https://www.google.com/", "https://www.wikipedia.org/"];
 
-const duration = { oneOf: [{ type: "string", pattern: String.raw`^\d+[smhd]?$` }, { type: "integer", minimum: 1 }] };
+const duration = {
+    oneOf: [
+        { type: "string", pattern: String.raw`^\d+[smhd]?$` },
+        { type: "integer", minimum: 1 },
+    ],
+};
 const positive = { type: "integer", minimum: 1 };
 const rate = { type: "object", additionalProperties: false, required: ["jobs", "per"], properties: { jobs: positive, per: duration } };
 
@@ -82,7 +87,12 @@ const schema = {
             type: "object",
             additionalProperties: false,
             properties: {
-                matomo: { type: "object", additionalProperties: false, required: ["url", "site-id", "site", "privacy"], properties: { url: { type: "string", pattern: "^https?://" }, "site-id": positive, site: { type: "string", pattern: "^https?://" }, privacy: { type: "string", pattern: "^https?://" }, "include-hosts": { type: "boolean" } } },
+                matomo: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["url", "site-id", "site", "privacy"],
+                    properties: { url: { type: "string", pattern: "^https?://" }, "site-id": positive, site: { type: "string", pattern: "^https?://" }, privacy: { type: "string", pattern: "^https?://" }, "include-hosts": { type: "boolean" } },
+                },
             },
         },
         clients: { type: "object", additionalProperties: false, properties: { rate: { oneOf: [rate, { const: false }] }, "trusted-proxies": { type: "array", items: { type: "string", minLength: 1 } }, "trust-providers": { type: "array", uniqueItems: true, items: { enum: Object.keys(PROVIDERS) } } } },
@@ -122,7 +132,11 @@ interface RawPolicy {
 
 // `ua`, `.ua`, `*.ua` and `україна` as the punycode suffix a hostname ends with; `*` stays.
 export function hostSuffix(raw: string): string {
-    const bare = raw.trim().toLowerCase().replace(/^\*?\./, "").replace(/\.$/, "");
+    const bare = raw
+        .trim()
+        .toLowerCase()
+        .replace(/^\*?\./, "")
+        .replace(/\.$/, "");
     if (bare === "*") return bare;
     if (!URL.canParse(`http://${bare}/`)) throw new ConfigError(`policies: invalid host ${raw}`);
     return new URL(`http://${bare}/`).hostname;
@@ -168,7 +182,13 @@ function trustedOf(entries: string[]): BlockList {
 export function settingsOf(raw: unknown): ServerSettings {
     const document = raw ?? {};
     if (!validate(document)) throw new ConfigError((validate.errors ?? []).map((error) => describe(error, "server")).join("; "));
-    const value = document as Record<string, unknown> & { page?: { directory?: string; assets?: string }; analytics?: { matomo?: { url: string; "site-id": number; site: string; privacy: string; "include-hosts"?: boolean } }; listen?: { host?: string; port?: number }; policies?: RawPolicy[]; clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[]; "trust-providers"?: string[] } };
+    const value = document as Record<string, unknown> & {
+        page?: { directory?: string; assets?: string };
+        analytics?: { matomo?: { url: string; "site-id": number; site: string; privacy: string; "include-hosts"?: boolean } };
+        listen?: { host?: string; port?: number };
+        policies?: RawPolicy[];
+        clients?: { rate?: RawPolicy["rate"] | false; "trusted-proxies"?: string[]; "trust-providers"?: string[] };
+    };
     const allowPrivate = (value["allow-private"] as boolean | undefined) ?? false;
     const defaults = validateSubtree(value.defaults ?? {}, "server/defaults");
     const policies = (value.policies ?? [{ name: "default", hosts: ["*"] }]).map((policy) => policyOf(policy, allowPrivate));

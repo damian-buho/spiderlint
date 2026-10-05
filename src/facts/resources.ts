@@ -19,7 +19,10 @@ const SOURCES: [string, ResourceFacts["kind"], string][] = [
 
 // Every candidate URL of a `srcset`, descriptors dropped.
 function srcset(raw: string | undefined): string[] {
-    return (raw ?? "").split(",").map((entry) => entry.trim().split(/\s+/, 1)[0] ?? "").filter((entry) => entry.length > 0);
+    return (raw ?? "")
+        .split(",")
+        .map((entry) => entry.trim().split(/\s+/, 1)[0] ?? "")
+        .filter((entry) => entry.length > 0);
 }
 
 // The http(s) URL `raw` names relative to the page, or undefined.

@@ -81,7 +81,9 @@ async function extract(host: string, client: DnsClient, asked: string[] = [], is
 // `[rule, host]` of every finding of the `network` preset, hints included, sorted.
 function findings(hosts: Record<string, Record<string, unknown> | undefined>): [string, string][] {
     const site = { sitemaps: [], hosts: Object.fromEntries(Object.entries(hosts).map(([host, facts]) => [host, { network: facts }])) };
-    return runRules([], new Map([["default", compileRulesets(["network"], {})]]), site).findings.map((finding): [string, string] => [finding.rule, finding.url]).toSorted(([a, x], [b, y]) => a.localeCompare(b) || x.localeCompare(y));
+    return runRules([], new Map([["default", compileRulesets(["network"], {})]]), site)
+        .findings.map((finding): [string, string] => [finding.rule, finding.url])
+        .toSorted(([a, x], [b, y]) => a.localeCompare(b) || x.localeCompare(y));
 }
 
 function off(): Bucket<StoredReply> {

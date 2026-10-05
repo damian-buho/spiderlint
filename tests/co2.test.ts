@@ -31,6 +31,9 @@ describe("co2 per view", () => {
 
     it("passes a light page and fails it under a tighter budget a ruleset sets", () => {
         assert.deepEqual(first.findings, []);
-        assert.deepEqual(second.findings.map((finding) => finding.rule), ["green/page-weight-co2"]);
+        assert.deepEqual(
+            second.findings.map((finding) => finding.rule),
+            ["green/page-weight-co2"],
+        );
     });
 });

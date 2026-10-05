@@ -137,7 +137,10 @@ describe("browser fetch", { skip }, () => {
         const mixed = await audit({ seeds: [`${site.origin}/`], groups: { app: { match: ["/app/**"], fetch: "browser", rules: ["seo"] }, default: { rules: ["seo"] } }, excludeUrls: ["/tmp/**"] });
         const at = (pathname: string) => mixed.pages.find((entry) => entry.url.pathname === pathname);
         assert.deepEqual(mixed.summary.fetch, { app: "browser", default: "http" });
-        assert.deepEqual(mixed.pages.map((entry) => entry.url.pathname).toSorted((a, b) => a.localeCompare(b)), ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"]);
+        assert.deepEqual(
+            mixed.pages.map((entry) => entry.url.pathname).toSorted((a, b) => a.localeCompare(b)),
+            ["/", "/about", "/app/", "/atom.xml", "/duplicate", "/feed.xml", "/missing", "/orphan", "/posts/1", "/posts/2", "/posts/3", "/posts/4", "/posts/5", "/tags/a", "/tags/b", "/tags/c"],
+        );
         assert.equal(at("/app/")?.html?.meta.description, "Rendered by the application shell once its script runs in a browser.");
         assert.ok(at("/app/")?.browser);
         assert.equal(at("/about")?.browser, undefined);
@@ -166,7 +169,10 @@ describe("browser fetch", { skip }, () => {
         const facts = redirected.pages[0];
         assert.equal(facts?.url.pathname, "/about");
         assert.equal(facts?.crawl.requested, `${site.origin}/old-about`);
-        assert.deepEqual(facts?.http.redirects.map((hop) => [hop.url, hop.status]), [[`${site.origin}/about`, 301]]);
+        assert.deepEqual(
+            facts?.http.redirects.map((hop) => [hop.url, hop.status]),
+            [[`${site.origin}/about`, 301]],
+        );
         assert.deepEqual(facts?.http.remote, { address: "127.0.0.1", family: "IPv4" });
         assert.equal(facts?.http.headers.server, "fixture-a");
         assert.equal(facts?.http.version, "1.1", "Chromium speaks HTTP/1.1 over plain text");
@@ -184,8 +190,15 @@ describe("browser fetch", { skip }, () => {
             const [http, browser] = [await audit(config), await audit({ ...config, fetch: "browser" })];
             const requested = gallery.requested.slice(gallery.requested.lastIndexOf("/") + 1);
             assert.deepEqual(browser.summary.cost.resources, { requests: 0, cached: 0, logged: 4 });
-            assert.deepEqual(requested.toSorted((a, b) => a.localeCompare(b)), ["/heavy.png", "/logo.svg", "/small.webp", "/wide.jpg"], "each image once, by the browser");
-            assert.deepEqual(browser.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)), http.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)));
+            assert.deepEqual(
+                requested.toSorted((a, b) => a.localeCompare(b)),
+                ["/heavy.png", "/logo.svg", "/small.webp", "/wide.jpg"],
+                "each image once, by the browser",
+            );
+            assert.deepEqual(
+                browser.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)),
+                http.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b)),
+            );
         } finally {
             await gallery.close();
         }
@@ -217,13 +230,25 @@ describe("browser fetch", { skip }, () => {
     it("judges cookies scripts write through document.cookie, without their values", async () => {
         const written = await audit({ seeds: [`${site.origin}/cookie-sources`], maxPages: 1, sitemap: false, fetchResources: false, groups: { default: { rules: ["browser"] } } });
         assert.deepEqual(written.pages[0]?.browser?.cookies, [{ name: "tracker", secure: false, "http-only": false, "max-age": 99_999_999 }]);
-        assert.deepEqual(written.findings.map((finding) => finding.rule).filter((rule) => rule.startsWith("cookies/")).toSorted((a, b) => a.localeCompare(b)), ["cookies/script-lifetime", "cookies/script-same-site"]);
+        assert.deepEqual(
+            written.findings
+                .map((finding) => finding.rule)
+                .filter((rule) => rule.startsWith("cookies/"))
+                .toSorted((a, b) => a.localeCompare(b)),
+            ["cookies/script-lifetime", "cookies/script-same-site"],
+        );
     });
 
     it("finds a third-party cookie set before any interaction, and passes a page setting only a session cookie", async () => {
         const report = await audit({ seeds: [`${site.origin}/consent-tracked`, `${site.origin}/consent-clean`], maxPages: 2, sitemap: false, fetchResources: false, groups: { default: { rules: ["privacy"], sample: "all" } } });
         const tracked = report.pages.find((entry) => entry.url.pathname === "/consent-tracked");
-        assert.deepEqual(tracked?.consent, { cookies: [{ name: "sid", domain: "127.0.0.1", party: "first" }, { name: "uid", domain: "localhost", party: "third", lifetime: (tracked?.consent as { cookies: { lifetime?: number }[] }).cookies[1]?.lifetime }], storage: [] });
+        assert.deepEqual(tracked?.consent, {
+            cookies: [
+                { name: "sid", domain: "127.0.0.1", party: "first" },
+                { name: "uid", domain: "localhost", party: "third", lifetime: (tracked?.consent as { cookies: { lifetime?: number }[] }).cookies[1]?.lifetime },
+            ],
+            storage: [],
+        });
         const findings = report.findings.filter((finding) => finding.rule === "cookies/before-consent").map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(findings, ["/consent-tracked"]);
         assert.ok(!JSON.stringify(report.pages.map((entry) => entry.consent)).includes("uid=1"));
@@ -236,18 +261,52 @@ describe("browser fetch", { skip }, () => {
 
     it("walks keyboard, motion, dark and increased contrast, forced colours, listeners, fields and storage on a fresh page, failing every defect and passing the clean twin", async () => {
         const report = await audit({ seeds: ["/live-bad", "/live-clean", "/live-skip"].map((path) => `${site.origin}${path}`), maxPages: 3, sitemap: false, fetchResources: false, groups: { default: { rules: ["keyboard", "live", "privacy"], sample: "all" } } });
-        const failed = report.findings.filter((finding) => finding.rule !== "groups/heterogeneous").map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`).toSorted((a, b) => a.localeCompare(b));
-        const bad = ["cookies/before-consent", "cookies/storage-before-consent", "keyboard/focus-obscured", "keyboard/focus-visible", "keyboard/forced-focus", "keyboard/skip-link", "keyboard/tab-walk", "live/click-listener", "live/contrast-enhanced", "live/dark-contrast", "live/forced-icons", "live/forced-opt-out", "live/input-font-size", "live/reduced-motion"];
+        const failed = report.findings
+            .filter((finding) => finding.rule !== "groups/heterogeneous")
+            .map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`)
+            .toSorted((a, b) => a.localeCompare(b));
+        const bad = [
+            "cookies/before-consent",
+            "cookies/storage-before-consent",
+            "keyboard/focus-obscured",
+            "keyboard/focus-visible",
+            "keyboard/forced-focus",
+            "keyboard/skip-link",
+            "keyboard/tab-walk",
+            "live/click-listener",
+            "live/contrast-enhanced",
+            "live/dark-contrast",
+            "live/forced-icons",
+            "live/forced-opt-out",
+            "live/input-font-size",
+            "live/reduced-motion",
+        ];
         assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk", "/live-skip live/contrast-more"]);
         const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
         assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
-        assert.deepEqual(keyboard("/live-skip")?.unreached.map((element) => element.target), ["#y"]);
+        assert.deepEqual(
+            keyboard("/live-skip")?.unreached.map((element) => element.target),
+            ["#y"],
+        );
         assert.deepEqual(keyboard("/live-clean")?.first, { target: "body > a", "in-main": false, "skips-to": { target: "#main", main: true } });
         assert.ok(keyboard("/live-clean")?.complete);
-        assert.deepEqual(keyboard("/live-bad")?.stops.filter((stop) => stop.forced === false).map((stop) => stop.target), ["#ring"], "a box-shadow ring vanishes under forced colours");
+        assert.deepEqual(
+            keyboard("/live-bad")
+                ?.stops.filter((stop) => stop.forced === false)
+                .map((stop) => stop.target),
+            ["#ring"],
+            "a box-shadow ring vanishes under forced colours",
+        );
         const live = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.live as LiveFacts | undefined;
-        assert.deepEqual(live("/live-bad")?.forced.icons.map((element) => element.target), ["body > main > button:nth-of-type(2)", "body > main > button:nth-of-type(3)"], "gradient and masked icons vanish, text and inline SVG stay");
-        assert.deepEqual(live("/live-bad")?.forced["opt-out"].map((element) => element.target), ["body > main > p:nth-of-type(2)"]);
+        assert.deepEqual(
+            live("/live-bad")?.forced.icons.map((element) => element.target),
+            ["body > main > button:nth-of-type(2)", "body > main > button:nth-of-type(3)"],
+            "gradient and masked icons vanish, text and inline SVG stay",
+        );
+        assert.deepEqual(
+            live("/live-bad")?.forced["opt-out"].map((element) => element.target),
+            ["body > main > p:nth-of-type(2)"],
+        );
         assert.equal((report.pages.find((entry) => entry.url.pathname === "/live-skip")?.live as { dark?: unknown } | undefined)?.dark, undefined, "a page claiming no dark scheme is not judged in one");
     });
 
@@ -362,7 +421,10 @@ describe("rel=me in a browser", { skip }, () => {
 
     it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me", "links/rel-me-rendered"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me", "links/rel-me-rendered"], sample: "all" } } });
-        assert.deepEqual(report.findings.map((finding) => [finding.rule, finding.value]), [["links/rel-me-rendered", `${profile}/@none`]]);
+        assert.deepEqual(
+            report.findings.map((finding) => [finding.rule, finding.value]),
+            [["links/rel-me-rendered", `${profile}/@none`]],
+        );
         assert.ok(!requested.includes("/@blocked"), "robots.txt keeps the browser off a disallowed profile");
         const live = report.pages[0]?.["rel-me-live"] as { profiles: { url: string; error?: string }[] };
         assert.equal(live.profiles.find((entry) => entry.url === `${profile}/@blocked`)?.error, "robots.txt disallows it");

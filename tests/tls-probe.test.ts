@@ -79,13 +79,25 @@ describe("probed browser TLS", () => {
 async function probed(origin: string, settings?: unknown): Promise<Record<string, unknown> | undefined> {
     const [extractor] = tlsProbe.sites ?? [];
     const signal = AbortSignal.timeout(60_000);
-    return extractor?.extract(origin, { pages: [], signal, settings: settings ?? { scan: true }, dns: undefined as unknown as DnsClient, fetch: () => Promise.reject(new Error("no http here")), delegated: () => Promise.reject(new Error("no http here")), link: () => Promise.reject(new Error("no http here")), cached: () => Promise.reject(new Error("no http here")), address: async () => "127.0.0.1" }) as Promise<Record<string, unknown> | undefined>;
+    return extractor?.extract(origin, {
+        pages: [],
+        signal,
+        settings: settings ?? { scan: true },
+        dns: undefined as unknown as DnsClient,
+        fetch: () => Promise.reject(new Error("no http here")),
+        delegated: () => Promise.reject(new Error("no http here")),
+        link: () => Promise.reject(new Error("no http here")),
+        cached: () => Promise.reject(new Error("no http here")),
+        address: async () => "127.0.0.1",
+    }) as Promise<Record<string, unknown> | undefined>;
 }
 
 // `[rule, severity]` of each `tls-probe` finding over one origin’s facts, sorted.
 function judged(origin: string, facts: unknown): [string, string][] {
     const site: SiteFacts = { sitemaps: [], origins: { [origin]: { "tls-probe": facts } } };
-    return runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), site).findings.map((finding): [string, string] => [finding.rule, finding.severity]).toSorted(([a], [b]) => a.localeCompare(b));
+    return runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), site)
+        .findings.map((finding): [string, string] => [finding.rule, finding.severity])
+        .toSorted(([a], [b]) => a.localeCompare(b));
 }
 
 // A minimal OCSPResponse whose status is `successful`.
@@ -143,7 +155,10 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
         try {
             const facts = await probed(modern?.origin ?? "");
             assert.deepEqual([facts?.protocols, facts?.legacy, facts?.chain, facts?.ocsp, facts?.["early-data"], facts?.["forward-secrecy"]], [["TLSv1.3"], [], { sent: 1, complete: true }, { responder: true, stapled: true }, false, "all"]);
-            assert.deepEqual((facts?.ciphers as string[]).toSorted((a, b) => a.localeCompare(b)), ["TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"]);
+            assert.deepEqual(
+                (facts?.ciphers as string[]).toSorted((a, b) => a.localeCompare(b)),
+                ["TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"],
+            );
             assert.ok((facts?.groups as string[]).includes("x25519"));
             assert.equal("server-order" in (facts ?? {}), false);
             assert.deepEqual(judged(modern?.origin ?? "", facts), []);
@@ -158,7 +173,11 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
             const facts = await probed(classic?.origin ?? "");
             assert.deepEqual([facts?.protocols, facts?.ocsp, facts?.["server-order"], facts?.["secure-renegotiation"], facts?.vulnerabilities], [["TLSv1.2"], { responder: true, stapled: true }, false, true, []]);
             assert.equal("fallback-scsv" in (facts ?? {}), false);
-            assert.deepEqual(judged(classic?.origin ?? "", facts), [["tls-probe/server-cipher-order", "info"], ["tls-probe/tls13-missing", "info"], ["tls-probe/weak-ciphers", "warning"]]);
+            assert.deepEqual(judged(classic?.origin ?? "", facts), [
+                ["tls-probe/server-cipher-order", "info"],
+                ["tls-probe/tls13-missing", "info"],
+                ["tls-probe/weak-ciphers", "warning"],
+            ]);
         } finally {
             await classic?.close();
         }

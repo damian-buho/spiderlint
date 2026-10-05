@@ -27,7 +27,10 @@ describe("w3c feedvalidator sample", () => {
     after(() => site?.close());
 
     it("fires a feeds rule everywhere the validator fires, naming the rest", () => {
-        assert.ok(W3C_CASES.some((item) => item.rule === undefined), "the sample keeps at least one uncovered case");
+        assert.ok(
+            W3C_CASES.some((item) => item.rule === undefined),
+            "the sample keeps at least one uncovered case",
+        );
         for (const entry of W3C_CASES) {
             if (entry.rule === undefined) {
                 assert.ok(UNCOVERED[entry.expects], `${entry.source} expects ${entry.expects} with no rule and no uncovered reason`);

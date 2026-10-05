@@ -9,7 +9,9 @@ import type { Origin } from "./origin.ts";
 
 // A square opaque PNG of `size` pixels.
 export function png(size: number): Promise<Buffer> {
-    return sharp({ create: { width: size, height: size, channels: 3, background: "#336699" } }).png().toBuffer();
+    return sharp({ create: { width: size, height: size, channels: 3, background: "#336699" } })
+        .png()
+        .toBuffer();
 }
 
 // An ICO whose entries are the PNGs of `sizes`.
@@ -43,7 +45,15 @@ export async function serveIcons(kind: "good" | "bad"): Promise<Origin> {
     const head = isGood
         ? `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="mask-icon" href="/mask.svg" color="#336699"><link rel="manifest" href="/site.webmanifest"><meta name="msapplication-TileImage" content="/tile.png"><meta name="msapplication-config" content="/browserconfig.xml">`
         : `<link rel="icon" href="/favicon.ico"><link rel="icon" href="/icon.svg"><link rel="apple-touch-icon" href="/touch.png" sizes="180x180"><link rel="mask-icon" href="/mask.svg" color="#336699"><link rel="manifest" href="/site.webmanifest"><meta name="msapplication-config" content="/browserconfig.xml">`;
-    const manifest = JSON.stringify({ name: "Icons", start_url: "/", display: "standalone", icons: [{ src: "/192.png", sizes: "192x192", type: "image/png" }, { src: "/512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }] });
+    const manifest = JSON.stringify({
+        name: "Icons",
+        start_url: "/",
+        display: "standalone",
+        icons: [
+            { src: "/192.png", sizes: "192x192", type: "image/png" },
+            { src: "/512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+        ],
+    });
     const files: Record<string, [string, Buffer | string]> = {
         "/": ["text/html; charset=utf-8", page(head)],
         "/other": ["text/html; charset=utf-8", page(isGood ? head : "")],

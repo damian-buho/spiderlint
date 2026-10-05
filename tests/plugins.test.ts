@@ -67,7 +67,9 @@ describe("htmlhint extractor", () => {
 
 describe("rulesets", () => {
     it("links docs from every shipped rule but the site-specific consistent-origin and minority-value", () => {
-        const bare = listRules({ ...defaults(), rules: ["all"] }, ["all"]).filter((rule) => !rule.docs).map((rule) => rule.id);
+        const bare = listRules({ ...defaults(), rules: ["all"] }, ["all"])
+            .filter((rule) => !rule.docs)
+            .map((rule) => rule.id);
         assert.deepEqual(bare, ["http/consistent-origin", "insight/minority-value"]);
     });
 
@@ -143,7 +145,10 @@ describe("plugins", () => {
         assert.equal(resolveRuleset("all", {})["words/enough"]?.severity, "warning");
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["words"], cacheMode: "off" });
         assert.ok(report.pages.every((page) => page.words !== undefined));
-        assert.deepEqual(report.findings.map((finding) => new URL(finding.url).pathname), ["/missing"]);
+        assert.deepEqual(
+            report.findings.map((finding) => new URL(finding.url).pathname),
+            ["/missing"],
+        );
     });
 
     it("keeps all for every shipped rule, refusing a ruleset that takes the name", () => {

@@ -59,7 +59,12 @@ export async function charge(redis: Redis, admitted: Admitted): Promise<void> {
     const { rate } = admitted.policy;
     if (!rate) return;
     const key = `${PREFIX}:rate:${admitted.policy.name}:${admitted.host}`;
-    const reply = await redis.multi().incr(key).pexpire(key, rate.seconds * 1000, "NX").pttl(key).exec();
+    const reply = await redis
+        .multi()
+        .incr(key)
+        .pexpire(key, rate.seconds * 1000, "NX")
+        .pttl(key)
+        .exec();
     const used = Number(reply?.[0]?.[1] ?? 0);
     const left = Math.ceil(Number(reply?.[2]?.[1] ?? 0) / 1000);
     log.info({ host: admitted.host, policy: admitted.policy.name, used, jobs: rate.jobs, left }, "rate window charged");

@@ -85,7 +85,15 @@ function outliers(pages: Facts[], path: string, settings: NumericSettings, sever
     const next = sorted.slice(-NEXT - 1, -1).reduce((sum, value) => sum + value, 0);
     const dominates = sorted.length > NEXT && top.value > next ? english._(SENTENCES.dominates, { url: top.url, count: NEXT }) : "";
     const listed = far.map((entry) => `${entry.url} ${withUnit(path, entry.value, format)}${middle > 0 ? ` (${format(entry.value / middle)}×)` : ""}`).join(", ");
-    return { rule: "insight/numeric-outlier", severity, scope: "site", url: top.url, message: english._(SENTENCES.outlier, { label: label(path) ?? path, median: withUnit(path, middle, format), count: measured.length, listed, dominates }), value: { median: middle, ...Object.fromEntries(far.map((entry) => [entry.url, entry.value])) }, urls: far.map((entry) => entry.url) };
+    return {
+        rule: "insight/numeric-outlier",
+        severity,
+        scope: "site",
+        url: top.url,
+        message: english._(SENTENCES.outlier, { label: label(path) ?? path, median: withUnit(path, middle, format), count: measured.length, listed, dominates }),
+        value: { median: middle, ...Object.fromEntries(far.map((entry) => [entry.url, entry.value])) },
+        urls: far.map((entry) => entry.url),
+    };
 }
 
 // The pages holding a rare value of `path` while most pages share one other value.

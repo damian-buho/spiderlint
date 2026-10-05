@@ -69,27 +69,69 @@ const ZONES: Record<string, Zone> = {
     "good.fixture|SOA": { answers: [soa("good.fixture", 7)], authoritative: true },
     "good.fixture|A": { ad: true, answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.1" }, rrsig("good.fixture", FAR)] },
     "good.fixture|AAAA": { answers: [{ type: "AAAA", name: "good.fixture", ttl: 300, data: "2001:db8::1" }] },
-    "good.fixture|UNKNOWN_65": { answers: [{ type: "UNKNOWN_65", name: "good.fixture", ttl: 300, data: svcb(1, ".", [[1, alpn("h2", "h3")], [4, Buffer.from([192, 0, 2, 1])], [6, Buffer.from("20010db8000000000000000000000001", "hex")]]) } as unknown as Answer] },
-    "good.fixture|CAA": { answers: [{ type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "issue", value: "letsencrypt.org" } }, { type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "iodef", value: "mailto:caa@good.fixture" } }] },
+    "good.fixture|UNKNOWN_65": {
+        answers: [
+            {
+                type: "UNKNOWN_65",
+                name: "good.fixture",
+                ttl: 300,
+                data: svcb(1, ".", [
+                    [1, alpn("h2", "h3")],
+                    [4, Buffer.from([192, 0, 2, 1])],
+                    [6, Buffer.from("20010db8000000000000000000000001", "hex")],
+                ]),
+            } as unknown as Answer,
+        ],
+    },
+    "good.fixture|CAA": {
+        answers: [
+            { type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "issue", value: "letsencrypt.org" } },
+            { type: "CAA", name: "good.fixture", ttl: 300, data: { flags: 0, tag: "iodef", value: "mailto:caa@good.fixture" } },
+        ],
+    },
     "good.fixture|DS": { answers: [{ type: "DS", name: "good.fixture", ttl: 300, data: { keyTag: 1, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
     "good.fixture|DNSKEY": { answers: [{ type: "DNSKEY", name: "good.fixture", ttl: 300, data: { flags: 257, algorithm: 13, key: Buffer.alloc(64) } }] },
     "good.fixture|NSEC3PARAM": { answers: [{ type: "NSEC3PARAM", name: "good.fixture", ttl: 300, data: Buffer.from([1, 0, 0, 0, 0]) } as unknown as Answer] },
-    "good.fixture|NS": { answers: [{ type: "NS", name: "good.fixture", ttl: 300, data: "ns1.good.fixture" }, { type: "NS", name: "good.fixture", ttl: 300, data: "ns2.good.fixture" }] },
+    "good.fixture|NS": {
+        answers: [
+            { type: "NS", name: "good.fixture", ttl: 300, data: "ns1.good.fixture" },
+            { type: "NS", name: "good.fixture", ttl: 300, data: "ns2.good.fixture" },
+        ],
+    },
     "ns1.good.fixture|A": { answers: [{ type: "A", name: "ns1.good.fixture", ttl: 300, data: "127.0.0.1" }] },
     "ns2.good.fixture|AAAA": { answers: [{ type: "AAAA", name: "ns2.good.fixture", ttl: 300, data: "::1" }] },
     "ns2.good.fixture|A": { answers: [{ type: "A", name: "ns2.good.fixture", ttl: 300, data: "127.0.0.1" }] },
     "big.good.fixture|A": { truncate: true, answers: [{ type: "A", name: "big.good.fixture", ttl: 300, data: "192.0.2.9" }] },
     "bad.fixture|SOA": { answers: [soa("bad.fixture", 3, 3600)] },
-    "www.bad.fixture|A": { answers: [{ type: "CNAME", name: "www.bad.fixture", ttl: 300, data: "a.bad.fixture" }, { type: "CNAME", name: "a.bad.fixture", ttl: 300, data: "b.bad.fixture" }, { type: "CNAME", name: "b.bad.fixture", ttl: 300, data: "c.bad.fixture" }, { type: "A", name: "c.bad.fixture", ttl: 300, data: "198.51.100.1" }, rrsig("c.bad.fixture", SOON)] },
+    "www.bad.fixture|A": {
+        answers: [
+            { type: "CNAME", name: "www.bad.fixture", ttl: 300, data: "a.bad.fixture" },
+            { type: "CNAME", name: "a.bad.fixture", ttl: 300, data: "b.bad.fixture" },
+            { type: "CNAME", name: "b.bad.fixture", ttl: 300, data: "c.bad.fixture" },
+            { type: "A", name: "c.bad.fixture", ttl: 300, data: "198.51.100.1" },
+            rrsig("c.bad.fixture", SOON),
+        ],
+    },
     "bad.fixture|DS": { answers: [{ type: "DS", name: "bad.fixture", ttl: 300, data: { keyTag: 2, algorithm: 5, digestType: 1, digest: Buffer.alloc(20) } }] },
     "bad.fixture|DNSKEY": { answers: [{ type: "DNSKEY", name: "bad.fixture", ttl: 300, data: { flags: 257, algorithm: 5, key: Buffer.alloc(64) } }] },
     "bad.fixture|NSEC3PARAM": { answers: [{ type: "NSEC3PARAM", name: "bad.fixture", ttl: 300, data: Buffer.from([1, 0, 0, 10, 4, 1, 2, 3, 4]) } as unknown as Answer] },
-    "bad.fixture|NS": { answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }], referral: [{ type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns1.bad.fixture" }, { type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns.old-host.fixture" }] },
+    "bad.fixture|NS": {
+        answers: [{ type: "NS", name: "bad.fixture", ttl: 300, data: "ns1.bad.fixture" }],
+        referral: [
+            { type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns1.bad.fixture" },
+            { type: "NS", name: "bad.fixture", ttl: 172_800, data: "ns.old-host.fixture" },
+        ],
+    },
     "ns1.bad.fixture|A": { answers: [{ type: "A", name: "ns1.bad.fixture", ttl: 300, data: "127.0.0.1" }] },
     "old.bad.fixture|A": { rcode: "NXDOMAIN", answers: [{ type: "CNAME", name: "old.bad.fixture", ttl: 300, data: "gone.elsewhere.fixture" }] },
     "quiet.fixture|SOA": { answers: [soa("quiet.fixture", 1)] },
     "quiet.fixture|MX": { answers: [{ type: "MX", name: "quiet.fixture", ttl: 300, data: { preference: 0, exchange: "." } }] },
-    "quiet.fixture|TXT": { answers: [{ type: "TXT", name: "quiet.fixture", ttl: 300, data: ["v=spf1", " -all"] }, { type: "TXT", name: "quiet.fixture", ttl: 300, data: ["site-verification=1"] }] },
+    "quiet.fixture|TXT": {
+        answers: [
+            { type: "TXT", name: "quiet.fixture", ttl: 300, data: ["v=spf1", " -all"] },
+            { type: "TXT", name: "quiet.fixture", ttl: 300, data: ["site-verification=1"] },
+        ],
+    },
     "_dmarc.quiet.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.quiet.fixture", ttl: 300, data: ["v=DMARC1; p=reject"] }] },
     "_for-sale.quiet.fixture|TXT": { answers: [{ type: "TXT", name: "_for-sale.quiet.fixture", ttl: 300, data: ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"] }] },
     "_agents.quiet.fixture|UNKNOWN_64": { answers: [{ type: "UNKNOWN_64", name: "_agents.quiet.fixture", ttl: 300, data: svcb(1, "agents.quiet.fixture", [[1, alpn("h2")]]) } as unknown as Answer] },
@@ -97,8 +139,18 @@ const ZONES: Record<string, Zone> = {
     "www.bad.fixture|TXT": { answers: [{ type: "TXT", name: "www.bad.fixture", ttl: 300, data: ["v=spf1 include:mail.bad.fixture ~all"] }] },
     "_dmarc.bad.fixture|TXT": { answers: [{ type: "TXT", name: "_dmarc.bad.fixture", ttl: 300, data: ["v=DMARC1; p=reject; sp=none"] }] },
     "mixed.fixture|SOA": { answers: [soa("mixed.fixture", 1)] },
-    "mixed.fixture|MX": { answers: [{ type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mixed.fixture" } }, { type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 0, exchange: "." } }] },
-    "mixed.fixture|TXT": { answers: [{ type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 mx ?all"] }, { type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 -all"] }] },
+    "mixed.fixture|MX": {
+        answers: [
+            { type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mixed.fixture" } },
+            { type: "MX", name: "mixed.fixture", ttl: 300, data: { preference: 0, exchange: "." } },
+        ],
+    },
+    "mixed.fixture|TXT": {
+        answers: [
+            { type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 mx ?all"] },
+            { type: "TXT", name: "mixed.fixture", ttl: 300, data: ["v=spf1 -all"] },
+        ],
+    },
     "only.fixture|A": { answers: [{ type: "A", name: "only.fixture", ttl: 300, data: "127.0.0.1" }] },
     "bogus.fixture|SOA": { answers: [soa("bogus.fixture", 1)] },
     "bogus.fixture|DS": { answers: [{ type: "DS", name: "bogus.fixture", ttl: 300, data: { keyTag: 3, algorithm: 13, digestType: 2, digest: Buffer.alloc(32) } }] },
@@ -144,8 +196,23 @@ const MAIL_ZONES: Record<string, Zone> = {
     ...mailZones("twospf.fixture", { "twospf.fixture|TXT": { answers: [...(txt("twospf.fixture", "v=spf1 mx -all").answers ?? []), ...(txt("twospf.fixture", "v=spf1 include:spf.twospf.fixture -all").answers ?? [])] } }),
     ...mailZones("dmarcnone.fixture", { "_dmarc.dmarcnone.fixture|TXT": txt("_dmarc.dmarcnone.fixture", "v=DMARC1; p=none; rua=mailto:dmarc@reports.fixture") }),
     ...mailZones("weakdkim.fixture", { "selector1._domainkey.weakdkim.fixture|TXT": txt("selector1._domainkey.weakdkim.fixture", dkim(512)) }),
-    ...mailZones("cnamemx.fixture", { "mx.cnamemx.fixture|A": { answers: [{ type: "CNAME", name: "mx.cnamemx.fixture", ttl: 300, data: "real.cnamemx.fixture" }, { type: "A", name: "real.cnamemx.fixture", ttl: 300, data: "192.0.2.25" }] } }),
-    ...mailZones("mtasts.fixture", { "mtasts.fixture|MX": { answers: [{ type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mtasts.fixture" } }, { type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 20, exchange: "backup.mtasts.fixture" } }] }, "backup.mtasts.fixture|A": { answers: [{ type: "A", name: "backup.mtasts.fixture", ttl: 300, data: "192.0.2.27" }] } }),
+    ...mailZones("cnamemx.fixture", {
+        "mx.cnamemx.fixture|A": {
+            answers: [
+                { type: "CNAME", name: "mx.cnamemx.fixture", ttl: 300, data: "real.cnamemx.fixture" },
+                { type: "A", name: "real.cnamemx.fixture", ttl: 300, data: "192.0.2.25" },
+            ],
+        },
+    }),
+    ...mailZones("mtasts.fixture", {
+        "mtasts.fixture|MX": {
+            answers: [
+                { type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 10, exchange: "mx.mtasts.fixture" } },
+                { type: "MX", name: "mtasts.fixture", ttl: 300, data: { preference: 20, exchange: "backup.mtasts.fixture" } },
+            ],
+        },
+        "backup.mtasts.fixture|A": { answers: [{ type: "A", name: "backup.mtasts.fixture", ttl: 300, data: "192.0.2.27" }] },
+    }),
     ...mailZones("messy.fixture", {
         "messy.fixture|TXT": txt("messy.fixture", "v=spf1 ptr mx mx include:gone.messy.fixture -all a"),
         "_dmarc.messy.fixture|TXT": txt("_dmarc.messy.fixture", "v=DMARC1; p=reject; pct=50; adkim=x; rua=https://reports.messy.fixture/"),
@@ -178,7 +245,13 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides:
     const isBogus = zone.bogus === true && isValidating && isChecked;
     const isTruncated = zone.truncate === true && !isTcp;
     const isReferral = isDirect && zone.referral !== undefined;
-    const flags = (isBogus || zone.rcode === "SERVFAIL" ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) | (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) | (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) | (!isDirect && zone.recursive ? dnsPacket.RECURSION_AVAILABLE : 0) | (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) | dnsPacket.RECURSION_DESIRED;
+    const flags =
+        (isBogus || zone.rcode === "SERVFAIL" ? 2 : zone.rcode === "NXDOMAIN" ? 3 : 0) |
+        (isValidating && zone.ad ? dnsPacket.AUTHENTIC_DATA : 0) |
+        (isDirect && zone.authoritative ? dnsPacket.AUTHORITATIVE_ANSWER : 0) |
+        (!isDirect && zone.recursive ? dnsPacket.RECURSION_AVAILABLE : 0) |
+        (isTruncated ? dnsPacket.TRUNCATED_RESPONSE : 0) |
+        dnsPacket.RECURSION_DESIRED;
     return dnsPacket.encode({ type: "response", id: query.id, flags, questions: query.questions, answers: isBogus || isTruncated || isReferral ? [] : (zone.answers ?? []), ...(isReferral && { authorities: zone.referral }) } as Packet);
 }
 

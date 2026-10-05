@@ -16,7 +16,11 @@ const HTML = "text/html; charset=utf-8";
 function valid(origin: string): Record<string, File> {
     const expires = new Date(Date.now() + 180 * DAY_MS).toISOString();
     return {
-        "/": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Home</title><link rel="alternate" type="text/markdown" href="/index.md"></head><body><h1>Home</h1><form><input type="password" autocomplete="current-password"></form><a href="/page">Page</a><a href="/.well-known/security.txt">Security</a></body></html>'],
+        "/": [
+            200,
+            HTML,
+            '<!DOCTYPE html><html lang="en"><head><title>Home</title><link rel="alternate" type="text/markdown" href="/index.md"></head><body><h1>Home</h1><form><input type="password" autocomplete="current-password"></form><a href="/page">Page</a><a href="/.well-known/security.txt">Security</a></body></html>',
+        ],
         "/page": [200, HTML, '<!DOCTYPE html><html lang="en"><head><title>Page</title></head><body><h1>Page</h1></body></html>'],
         "/index.md": [200, "text/markdown", "# Home\n"],
         "/page.md": [200, "text/markdown", "# Page\n"],
@@ -38,7 +42,20 @@ function valid(origin: string): Record<string, File> {
         "/.well-known/tdmrep.json": [200, JSON_TYPE, '[{"location": "/*", "tdm-reservation": 1}]'],
         "/llms.txt": [200, "text/markdown", "# Home\n\n> A fixture.\n\n- [Page](/page)\n"],
         "/llms-full.txt": [200, "text/markdown", "# Home\n\nEverything.\n"],
-        "/.well-known/agent-card.json": [200, JSON_TYPE, JSON.stringify({ name: "a", description: "d", version: "1", supportedInterfaces: [{ url: `${origin}/a2a`, protocolBinding: "JSONRPC", protocolVersion: "1.0" }], capabilities: {}, defaultInputModes: ["text/plain"], defaultOutputModes: ["text/plain"], skills: [{ id: "s", name: "s", description: "d", tags: [] }] })],
+        "/.well-known/agent-card.json": [
+            200,
+            JSON_TYPE,
+            JSON.stringify({
+                name: "a",
+                description: "d",
+                version: "1",
+                supportedInterfaces: [{ url: `${origin}/a2a`, protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
+                capabilities: {},
+                defaultInputModes: ["text/plain"],
+                defaultOutputModes: ["text/plain"],
+                skills: [{ id: "s", name: "s", description: "d", tags: [] }],
+            }),
+        ],
         "/.well-known/ai-catalog.json": [200, JSON_TYPE, JSON.stringify({ specVersion: "1.0", host: { name: "fixture" }, entries: [{ identifier: "urn:fixture:a", displayName: "A", mediaType: JSON_TYPE, url: `${origin}/a` }] })],
         "/.well-known/mcp/server-card.json": [200, JSON_TYPE, '{"name": "fixture", "version": "1.0.0"}'],
         "/.well-known/agent-skills/index.json": [200, JSON_TYPE, JSON.stringify({ $schema: "https://schemas.agentskills.io/discovery/0.2.0/schema.json", skills: [{ name: "s", type: "skill", description: "d", url: "/s/SKILL.md", digest: "sha256:0" }] })],

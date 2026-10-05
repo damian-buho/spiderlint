@@ -26,7 +26,10 @@ const MINUS = "\u{2212}";
 
 // The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
 function number(value: number, options: Intl.NumberFormatOptions = {}): string {
-    return new Intl.NumberFormat(environmentLocale(), { maximumFractionDigits: 1, ...options }).formatToParts(value).map((part) => (part.type === "group" ? "\u{202F}" : part.value)).join("");
+    return new Intl.NumberFormat(environmentLocale(), { maximumFractionDigits: 1, ...options })
+        .formatToParts(value)
+        .map((part) => (part.type === "group" ? "\u{202F}" : part.value))
+        .join("");
 }
 
 // A count and its noun, plural unless it is exactly one.
@@ -41,7 +44,10 @@ function row(label: string, value: string): string {
 
 // At most `limit` URLs on the detail line, the rest as a count.
 function list(urls: string[], origin: string, limit: number): string {
-    const shown = urls.slice(0, limit).map((url) => relative(url, origin)).join(", ");
+    const shown = urls
+        .slice(0, limit)
+        .map((url) => relative(url, origin))
+        .join(", ");
     return urls.length > limit ? `${shown} … and ${urls.length - limit} more` : shown;
 }
 
@@ -57,9 +63,7 @@ function sampled(finding: Finding, origin: string, paint: Paint, limit: number):
     const samples = finding.samples ?? [];
     const byPage = finding.sampleLocations;
     const isShared = new Set(samples.map((url) => JSON.stringify(byPage?.[url] ?? []))).size === 1;
-    return !byPage || isShared
-        ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin, limit)}`), ...located(byPage?.[samples[0] as string], NESTED, paint, limit)]
-        : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint, limit)]);
+    return !byPage || isShared ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin, limit)}`), ...located(byPage?.[samples[0] as string], NESTED, paint, limit)] : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint, limit)]);
 }
 
 function heading(finding: Finding, paint: Paint): string {
@@ -183,13 +187,20 @@ export function measure(value: number, path = ""): string {
 // Rows as aligned columns, the first padded at its end and the rest at their start, the header bold.
 export function aligned(rows: string[][], paint: Paint): string[] {
     const widths = (rows[0] as string[]).map((_, column) => Math.max(...rows.map((row) => (row[column] ?? "").length)));
-    const lines = rows.map((row) => row.map((cell, column) => (column === 0 ? cell.padEnd(widths[0] as number) : cell.padStart(widths[column] as number))).join("  ").trimEnd());
+    const lines = rows.map((row) =>
+        row
+            .map((cell, column) => (column === 0 ? cell.padEnd(widths[0] as number) : cell.padStart(widths[column] as number)))
+            .join("  ")
+            .trimEnd(),
+    );
     return [paint("bold", lines[0] as string), ...lines.slice(1)];
 }
 
 // One aligned row per labelled numeric fact by its label: pages, then min, median, p95, max and total in its unit, under a header.
 export function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: Paint): string[] {
-    const cells = Object.entries(stats).filter(([path]) => isLabelled(path)).map(([path, stat]) => [printable(label(path) ?? path), measure(stat.count), ...[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => (value === undefined ? "–" : measure(value, path)))]);
+    const cells = Object.entries(stats)
+        .filter(([path]) => isLabelled(path))
+        .map(([path, stat]) => [printable(label(path) ?? path), measure(stat.count), ...[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => (value === undefined ? "–" : measure(value, path)))]);
     return cells.length === 0 ? [row("stats", "none")] : aligned([["stats", "pages", "min", "median", "p95", "max", "total"], ...cells], paint);
 }
 
@@ -201,7 +212,12 @@ function costRows({ browser, http, resources, extractors, extractorsCached = {} 
         browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}${browser.tlsProbes > 0 ? `, ${counted(browser.tlsProbes, "TLS probe")}` : ""}`) : "",
         http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
         browser || http ? "" : row("fetch", "none"),
-        resources ? row("resources", `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache${resources.failuresCached ? `, ${counted(resources.failuresCached, "failure")}` : ""})` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`) : "",
+        resources
+            ? row(
+                  "resources",
+                  `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache${resources.failuresCached ? `, ${counted(resources.failuresCached, "failure")}` : ""})` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`,
+              )
+            : "",
         runs.length > 0 ? row("extractors", runs.join(", ")) : "",
         hits.length > 0 ? row("cached", hits.join(", ")) : "",
     ].filter(Boolean);

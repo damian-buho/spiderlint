@@ -85,7 +85,10 @@ export function untracked(raw: string, base: string): string {
     const href = resolve(raw, base);
     if (!URL.canParse(href)) return href;
     const url = new URL(href);
-    const tracking = url.searchParams.keys().filter((name) => TRACKING.test(name)).toArray();
+    const tracking = url.searchParams
+        .keys()
+        .filter((name) => TRACKING.test(name))
+        .toArray();
     for (const name of tracking) url.searchParams.delete(name);
     return url.href;
 }
@@ -122,7 +125,10 @@ function isLanguage(tag: string): boolean {
 // The UUIDv5 Podcasting 2.0 derives from a feed URL without its scheme and trailing slashes.
 export function podcastGuid(feedUrl: string): string {
     const name = feedUrl.replace(/^[a-z]+:\/\//i, "").replace(/\/+$/, "");
-    const hash = createHash("sha1").update(Buffer.from(PODCAST_NAMESPACE.replaceAll("-", ""), "hex")).update(name).digest();
+    const hash = createHash("sha1")
+        .update(Buffer.from(PODCAST_NAMESPACE.replaceAll("-", ""), "hex"))
+        .update(name)
+        .digest();
     hash[6] = ((hash[6] as number) & 0x0f) | 0x50;
     hash[8] = ((hash[8] as number) & 0x3f) | 0x80;
     const hex = hash.subarray(0, 16).toString("hex");
@@ -159,8 +165,11 @@ function judgeSpec(model: Model, problems: Problems, base: string): void {
         for (const date of [item.published, item.updated]) if (date && !isoOf(model.format, date)) problems.add("date-format", `${at} ${date.field} “${date.raw}”`);
         if (item.id !== undefined) {
             const first = ids.get(item.id);
-            if (first === undefined) {ids.set(item.id, item.position);}
-            else {problems.add("duplicate-id", `${at} repeats the id of item ${first}: ${item.id}`);}
+            if (first === undefined) {
+                ids.set(item.id, item.position);
+            } else {
+                problems.add("duplicate-id", `${at} repeats the id of item ${first}: ${item.id}`);
+            }
             if (URL.canParse(item.id) && new URL(item.id).searchParams.keys().some((name) => TRACKING.test(name))) problems.add("id-tracking", `${at}: ${item.id}`);
         }
         if (item.isPermalink && item.id !== undefined && !/^https?:\/\//i.test(item.id)) problems.add("permalink", `${at} guid “${item.id}”`);
@@ -237,12 +246,14 @@ async function extract(page: Facts, body: string): Promise<FeedFacts | undefined
         return { position: item.position, ...(item.id && { id: item.id }), ...(item.link && { link: untracked(item.link, page.url.href) }), ...(item.title && { title: item.title }), ...(published && { published }), ...(words > 0 && { words }) };
     });
     const updated = model.updated && isoOf(model.format, model.updated);
-    const enclosures = model.items.flatMap((item): FeedEnclosure[] => item.enclosures.flatMap((enclosure) => {
-        if (!enclosure.url || !URL.canParse(enclosure.url, page.url.href)) return [];
-        const url = new URL(enclosure.url, page.url.href);
-        url.hash = "";
-        return /^https?:$/.test(url.protocol) ? [{ url: url.href, ...(enclosure.length !== undefined && { length: enclosure.length }), ...(enclosure.type !== undefined && { type: enclosure.type }), position: item.position }] : [];
-    }));
+    const enclosures = model.items.flatMap((item): FeedEnclosure[] =>
+        item.enclosures.flatMap((enclosure) => {
+            if (!enclosure.url || !URL.canParse(enclosure.url, page.url.href)) return [];
+            const url = new URL(enclosure.url, page.url.href);
+            url.hash = "";
+            return /^https?:$/.test(url.protocol) ? [{ url: url.href, ...(enclosure.length !== undefined && { length: enclosure.length }), ...(enclosure.type !== undefined && { type: enclosure.type }), position: item.position }] : [];
+        }),
+    );
     const image = model.itunes.image ? resolve(model.itunes.image, page.url.href) : undefined;
     const itunesImage = image && URL.canParse(image) && /^https?:$/.test(new URL(image).protocol) ? new URL(image).href : undefined;
     log.debug({ url: page.url.href, format, self, hubs: hubs.length, items: model.items.length, isPodcast, problems: Object.keys(problems.lists).length }, "feed read");
@@ -291,74 +302,118 @@ const DOCS = {
     discovery: "https://www.rssboard.org/rss-autodiscovery",
 };
 
-const wellFormed = pageRule("feeds/well-formed", [`${ID}.error`], (page) => {
-    const feed = feedOf(page);
-    return feed && (feed.error ? [{ message: `${feed.format} feed does not parse: ${feed.error}`, value: feed.error }] : []);
-}, { docs: "https://www.w3.org/TR/xml/#sec-well-formed", fix: "Serve the feed from an XML or JSON serialiser instead of a text template, so every value is escaped." });
+const wellFormed = pageRule(
+    "feeds/well-formed",
+    [`${ID}.error`],
+    (page) => {
+        const feed = feedOf(page);
+        return feed && (feed.error ? [{ message: `${feed.format} feed does not parse: ${feed.error}`, value: feed.error }] : []);
+    },
+    { docs: "https://www.w3.org/TR/xml/#sec-well-formed", fix: "Serve the feed from an XML or JSON serialiser instead of a text template, so every value is escaped." },
+);
 
-const self = pageRule("feeds/self", [`${ID}.self`], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    if (!feed.self) return [{ message: `${feed.format} feed names no self URL` }];
-    const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
-    return here.includes(feed.self) ? [] : [{ message: `${feed.format} feed names ${feed.self} as its self URL, not this one`, value: feed.self }];
-}, { docs: DOCS.rss, fix: "Add `<atom:link rel=\"self\">` (RSS), `<link rel=\"self\">` (Atom) or `feed_url` (JSON Feed) naming the feed’s own URL." });
+const self = pageRule(
+    "feeds/self",
+    [`${ID}.self`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        if (!feed.self) return [{ message: `${feed.format} feed names no self URL` }];
+        const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
+        return here.includes(feed.self) ? [] : [{ message: `${feed.format} feed names ${feed.self} as its self URL, not this one`, value: feed.self }];
+    },
+    { docs: DOCS.rss, fix: 'Add `<atom:link rel="self">` (RSS), `<link rel="self">` (Atom) or `feed_url` (JSON Feed) naming the feed’s own URL.' },
+);
 
-const itemId = pageRule("feeds/item-id", [`${ID}.unidentified`], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    const count = feed.unidentified.length;
-    return count === 0 ? [] : [{ message: `${count} of ${feed.items} ${feed.format} feed items carry no stable identifier, so readers show them again as new`, value: feed.unidentified, locations: feed.unidentified.map((position) => `item ${position}`) }];
-}, { docs: DOCS.rss, fix: "Give every item a `guid` (RSS), `id` (Atom or JSON Feed) that never changes once published." });
+const itemId = pageRule(
+    "feeds/item-id",
+    [`${ID}.unidentified`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        const count = feed.unidentified.length;
+        return count === 0 ? [] : [{ message: `${count} of ${feed.items} ${feed.format} feed items carry no stable identifier, so readers show them again as new`, value: feed.unidentified, locations: feed.unidentified.map((position) => `item ${position}`) }];
+    },
+    { docs: DOCS.rss, fix: "Give every item a `guid` (RSS), `id` (Atom or JSON Feed) that never changes once published." },
+);
 
-const websub = pageRule("feeds/websub", [`${ID}.hubs`, `${ID}.self`], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    return feed.hubs.length === 0 || feed.self ? [] : [{ message: `${feed.format} feed names WebSub hub ${feed.hubs.join(", ")} but no self URL to subscribe to`, value: feed.hubs }];
-}, { docs: DOCS.websub, fix: "Declare `rel=\"self\"` beside `rel=\"hub\"`, in the feed or its `Link` header." });
+const websub = pageRule(
+    "feeds/websub",
+    [`${ID}.hubs`, `${ID}.self`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        return feed.hubs.length === 0 || feed.self ? [] : [{ message: `${feed.format} feed names WebSub hub ${feed.hubs.join(", ")} but no self URL to subscribe to`, value: feed.hubs }];
+    },
+    { docs: DOCS.websub, fix: 'Declare `rel="self"` beside `rel="hub"`, in the feed or its `Link` header.' },
+);
 
 // The first value of a header that may repeat.
 const firstHeader = (value: string | string[] | undefined): string | undefined => (Array.isArray(value) ? value[0] : value);
 
 // An enclosure HEAD answer judged against its declaration: reachability, byte and type agreement, range support.
-const enclosure = pageRule("feeds/enclosure", [`${ID}.enclosures`, "resources"], (page) => {
-    const feed = parsed(page);
-    if (!feed?.enclosures || !feed.podcast) return;
-    const answers = new Map((page.resources ?? []).filter((resource) => resource.kind === "enclosure").map((resource) => [resource.url, resource.http]));
-    const locations = feed.enclosures.flatMap(({ url, length: declaredLength, type: declaredType, position }) => {
-        const answer = answers.get(url);
-        if (!answer) return [];
-        if (answer.status < 200 || answer.status > 299) return [`item ${position} ${url} answers ${answer.status}`];
-        const faults = [];
-        const length = firstHeader(answer.headers["content-length"]);
-        if (length !== undefined && declaredLength !== undefined && length !== declaredLength) faults.push(`serves ${length} bytes, the feed declares ${declaredLength}`);
-        const type = firstHeader(answer.headers["content-type"])?.split(";", 1)[0]?.trim().toLowerCase();
-        if (type !== undefined && declaredType !== undefined && type !== declaredType.toLowerCase()) faults.push(`serves ${type}, the feed declares ${declaredType}`);
-        const ranges = [answer.headers["accept-ranges"] ?? []].flat().join(",").toLowerCase();
-        if (!ranges.split(",").map((token) => token.trim()).includes("bytes")) faults.push("sends no Accept-Ranges: bytes");
-        return faults.map((fault) => `item ${position} ${url} ${fault}`);
-    });
-    log.debug({ rule: "feeds/enclosure", url: page.url.href, enclosures: feed.enclosures.length, locations: locations.length }, "enclosures judged");
-    return locations.length === 0 ? [] : [{ message: `${feed.format} feed enclosures disagree with their host: ${locations[0]}${locations.length > 1 ? ` and ${locations.length - 1} more` : ""}`, value: locations.length, locations }];
-}, { docs: DOCS.itunes, fix: "Serve every enclosure with its declared Content-Type and Content-Length over a host answering HEAD and byte ranges." });
+const enclosure = pageRule(
+    "feeds/enclosure",
+    [`${ID}.enclosures`, "resources"],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed?.enclosures || !feed.podcast) return;
+        const answers = new Map((page.resources ?? []).filter((resource) => resource.kind === "enclosure").map((resource) => [resource.url, resource.http]));
+        const locations = feed.enclosures.flatMap(({ url, length: declaredLength, type: declaredType, position }) => {
+            const answer = answers.get(url);
+            if (!answer) return [];
+            if (answer.status < 200 || answer.status > 299) return [`item ${position} ${url} answers ${answer.status}`];
+            const faults = [];
+            const length = firstHeader(answer.headers["content-length"]);
+            if (length !== undefined && declaredLength !== undefined && length !== declaredLength) faults.push(`serves ${length} bytes, the feed declares ${declaredLength}`);
+            const type = firstHeader(answer.headers["content-type"])?.split(";", 1)[0]?.trim().toLowerCase();
+            if (type !== undefined && declaredType !== undefined && type !== declaredType.toLowerCase()) faults.push(`serves ${type}, the feed declares ${declaredType}`);
+            const ranges = [answer.headers["accept-ranges"] ?? []].flat().join(",").toLowerCase();
+            if (
+                !ranges
+                    .split(",")
+                    .map((token) => token.trim())
+                    .includes("bytes")
+            )
+                faults.push("sends no Accept-Ranges: bytes");
+            return faults.map((fault) => `item ${position} ${url} ${fault}`);
+        });
+        log.debug({ rule: "feeds/enclosure", url: page.url.href, enclosures: feed.enclosures.length, locations: locations.length }, "enclosures judged");
+        return locations.length === 0 ? [] : [{ message: `${feed.format} feed enclosures disagree with their host: ${locations[0]}${locations.length > 1 ? ` and ${locations.length - 1} more` : ""}`, value: locations.length, locations }];
+    },
+    { docs: DOCS.itunes, fix: "Serve every enclosure with its declared Content-Type and Content-Length over a host answering HEAD and byte ranges." },
+);
 
 // A podcast feed without `<podcast:locked>`, which leaves the feed importable anywhere.
-const podcastLocked = pageRule("feeds/podcast-locked", [`${ID}.locked`], (page) => {
-    const feed = parsed(page);
-    if (!feed?.podcast) return;
-    if (feed.locked === undefined) return [{ message: `${feed.format} podcast feed sets no podcast:locked, so any platform may import it` }];
-    return feed.locked === "yes" || feed.locked === "no" ? [] : [{ message: `${feed.format} podcast feed locks with “${feed.locked}”, which is neither yes nor no`, value: feed.locked }];
-}, { docs: DOCS.locked, fix: "Add `<podcast:locked>yes</podcast:locked>` to keep the feed where it is, or `no` to let platforms import it." });
+const podcastLocked = pageRule(
+    "feeds/podcast-locked",
+    [`${ID}.locked`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed?.podcast) return;
+        if (feed.locked === undefined) return [{ message: `${feed.format} podcast feed sets no podcast:locked, so any platform may import it` }];
+        return feed.locked === "yes" || feed.locked === "no" ? [] : [{ message: `${feed.format} podcast feed locks with “${feed.locked}”, which is neither yes nor no`, value: feed.locked }];
+    },
+    { docs: DOCS.locked, fix: "Add `<podcast:locked>yes</podcast:locked>` to keep the feed where it is, or `no` to let platforms import it." },
+);
 
 // A rule reporting one problem list the extractor filled, one finding per feed with each problem as a location; `podcast` rules skip other feeds.
 function problemRule(name: string, label: string, reference: string, fix: string, isPodcast = false): [string, Make] {
     const id = `feeds/${name}`;
-    return [id, pageRule(id, [`${ID}.problems.${name}`], (page) => {
-        const feed = parsed(page);
-        if (!feed?.problems || (isPodcast && !feed.podcast)) return;
-        const list = feed.problems[name] ?? [];
-        return list.length === 0 ? [] : [{ message: `${feed.format} feed ${label}: ${list[0]}${list.length > 1 ? ` and ${list.length - 1} more` : ""}`, value: list, locations: list }];
-    }, { docs: reference, fix })];
+    return [
+        id,
+        pageRule(
+            id,
+            [`${ID}.problems.${name}`],
+            (page) => {
+                const feed = parsed(page);
+                if (!feed?.problems || (isPodcast && !feed.podcast)) return;
+                const list = feed.problems[name] ?? [];
+                return list.length === 0 ? [] : [{ message: `${feed.format} feed ${label}: ${list[0]}${list.length > 1 ? ` and ${list.length - 1} more` : ""}`, value: list, locations: list }];
+            },
+            { docs: reference, fix },
+        ),
+    ];
 }
 
 const PROBLEM_RULES = Object.fromEntries([
@@ -366,18 +421,18 @@ const PROBLEM_RULES = Object.fromEntries([
     problemRule("date-format", "carries a date readers cannot parse", DOCS.rss, "Write RSS dates as RFC 822 with a four-digit year and a zone, `Wed, 02 Oct 2026 14:00:00 +0000`, and Atom and JSON Feed dates as RFC 3339, `2026-10-02T14:00:00Z`."),
     problemRule("duplicate-id", "repeats an item identifier", DOCS.rss, "Give every item its own `guid` or `id`, so readers neither merge two posts nor drop one."),
     problemRule("id-tracking", "puts a tracking parameter into an item identifier", DOCS.rss, "Keep `utm_*` and other campaign parameters out of `guid` and `id`; put them on the item link only, so the identifier never changes."),
-    problemRule("permalink", "names a guid that is not a URL while claiming it is a permalink", DOCS.rss2, "Add `isPermaLink=\"false\"` to a `guid` that is not the item’s URL."),
+    problemRule("permalink", "names a guid that is not a URL while claiming it is a permalink", DOCS.rss2, 'Add `isPermaLink="false"` to a `guid` that is not the item’s URL.'),
     problemRule("absolute-url", "carries a relative URL", DOCS.rss, "Write every channel, item and enclosure URL absolute, `https://example.org/posts/1`."),
     problemRule("language", "declares a language that is not a BCP 47 tag", "https://www.rfc-editor.org/info/bcp47", "Declare the language as a BCP 47 tag, `en` or `pt-BR`."),
     problemRule("unknown-element", "carries elements RSS 2.0 does not define", DOCS.rss2, "Move an extension element into its own namespace, `<dc:creator>`, or remove it."),
     problemRule("email", "names an email field that is not `address (Name)`", DOCS.rss2, "Write `managingEditor`, `webMaster` and `author` as `editor@example.org (Ana Silva)`."),
-    problemRule("json-version", "uses an outdated JSON Feed form", DOCS.json, "Declare `\"version\": \"https://jsonfeed.org/version/1.1\"` and list `authors` instead of `author`."),
+    problemRule("json-version", "uses an outdated JSON Feed form", DOCS.json, 'Declare `"version": "https://jsonfeed.org/version/1.1"` and list `authors` instead of `author`.'),
     problemRule("raw-markup", "delivers unrendered Markdown or MDX to readers", DOCS.rss, "Render each item’s Markdown or MDX to HTML before it goes into the feed, as the page itself does."),
     problemRule("template-leak", "delivers template placeholders or missing values to readers", DOCS.rss, "Fill every template value before the feed is written, and leave out a field that has no value."),
     problemRule("relative-url", "links images or pages by a relative URL, which breaks in every reader", DOCS.rss, "Make every `href` and `src` inside item content absolute, or set `xml:base` on the Atom content."),
     problemRule("unsafe-html", "carries markup readers strip", DOCS.rss, "Leave scripts, frames, forms, event handlers and positioned styles out of item content; readers remove them."),
     problemRule("double-escaped", "escapes item content twice, so readers show tags and entities as text", DOCS.rss, "Escape item HTML once: either wrap it in CDATA or escape it, not both."),
-    problemRule("content-type", "holds HTML in a plain-text field", DOCS.atom, "Declare Atom `type=\"html\"` on content holding tags, or put HTML into JSON Feed `content_html`."),
+    problemRule("content-type", "holds HTML in a plain-text field", DOCS.atom, 'Declare Atom `type="html"` on content holding tags, or put HTML into JSON Feed `content_html`.'),
     problemRule("title-markup", "carries markup or placeholders in an item title", DOCS.rss, "Write item titles as plain text, with no tags, entities or template values."),
     problemRule("media-type", "is served with a type readers do not treat as a feed", DOCS.rss, "Serve RSS as `application/rss+xml`, Atom as `application/atom+xml` and JSON Feed as `application/feed+json`."),
     problemRule("charset", "declares or decodes its encoding inconsistently", "https://www.w3.org/TR/xml/#charencoding", "Serve the feed as UTF-8 and declare the same encoding in `Content-Type` and the XML declaration."),
@@ -386,62 +441,94 @@ const PROBLEM_RULES = Object.fromEntries([
 ]);
 
 // An item dated after the response that served it.
-const dateFuture = pageRule("feeds/date-future", [`${ID}.entries`], (page) => {
-    const feed = parsed(page);
-    if (!feed?.entries) return;
-    const now = Date.parse(header(page, "date")) || Date.now();
-    const future = feed.entries.filter((entry) => entry.published && Date.parse(entry.published) > now + DAY_MS / 24);
-    log.debug({ rule: "feeds/date-future", url: page.url.href, now: new Date(now).toISOString(), future: future.length }, "feed dates compared");
-    return future.length === 0 ? [] : [{ message: `${future.length} of ${feed.items} ${feed.format} feed items are dated after the response, so readers sort them above everything else`, locations: future.map((entry) => `item ${entry.position}: ${entry.published}`) }];
-}, { docs: DOCS.rss, fix: "Date each item when it was published; hold a scheduled post out of the feed until then." });
+const dateFuture = pageRule(
+    "feeds/date-future",
+    [`${ID}.entries`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed?.entries) return;
+        const now = Date.parse(header(page, "date")) || Date.now();
+        const future = feed.entries.filter((entry) => entry.published && Date.parse(entry.published) > now + DAY_MS / 24);
+        log.debug({ rule: "feeds/date-future", url: page.url.href, now: new Date(now).toISOString(), future: future.length }, "feed dates compared");
+        return future.length === 0 ? [] : [{ message: `${future.length} of ${feed.items} ${feed.format} feed items are dated after the response, so readers sort them above everything else`, locations: future.map((entry) => `item ${entry.position}: ${entry.published}`) }];
+    },
+    { docs: DOCS.rss, fix: "Date each item when it was published; hold a scheduled post out of the feed until then." },
+);
 
 // A feed whose newest item, or whose build date, is old.
-const stale: Make = (severity, settings) => pageRule("feeds/stale", [`${ID}.entries`, `${ID}.updated`], (page) => {
-    const feed = parsed(page);
-    if (!feed?.entries || feed.entries.length === 0) return;
-    const days = (settings as FeedsSettings | undefined)?.["stale-days"] ?? 365;
-    const now = Date.parse(header(page, "date")) || Date.now();
-    const newest = Math.max(...feed.entries.map((entry) => (entry.published ? Date.parse(entry.published) : 0)));
-    const locations = [...(newest > 0 && now - newest > days * DAY_MS ? [`newest item ${new Date(newest).toISOString()} is over ${days} days old`] : []), ...(feed.updated && newest > 0 && Date.parse(feed.updated) + DAY_MS < newest ? [`build date ${feed.updated} is before the newest item`] : [])];
-    log.debug({ rule: "feeds/stale", url: page.url.href, newest, days, locations: locations.length }, "feed age judged");
-    return locations.length === 0 ? [] : [{ message: `${feed.format} feed looks stale: ${locations[0]}`, locations }];
-}, { docs: DOCS.rss, fix: "Publish the feed with every new post, and set `lastBuildDate` or `updated` when it is rebuilt." })(severity);
+const stale: Make = (severity, settings) =>
+    pageRule(
+        "feeds/stale",
+        [`${ID}.entries`, `${ID}.updated`],
+        (page) => {
+            const feed = parsed(page);
+            if (!feed?.entries || feed.entries.length === 0) return;
+            const days = (settings as FeedsSettings | undefined)?.["stale-days"] ?? 365;
+            const now = Date.parse(header(page, "date")) || Date.now();
+            const newest = Math.max(...feed.entries.map((entry) => (entry.published ? Date.parse(entry.published) : 0)));
+            const locations = [...(newest > 0 && now - newest > days * DAY_MS ? [`newest item ${new Date(newest).toISOString()} is over ${days} days old`] : []), ...(feed.updated && newest > 0 && Date.parse(feed.updated) + DAY_MS < newest ? [`build date ${feed.updated} is before the newest item`] : [])];
+            log.debug({ rule: "feeds/stale", url: page.url.href, newest, days, locations: locations.length }, "feed age judged");
+            return locations.length === 0 ? [] : [{ message: `${feed.format} feed looks stale: ${locations[0]}`, locations }];
+        },
+        { docs: DOCS.rss, fix: "Publish the feed with every new post, and set `lastBuildDate` or `updated` when it is rebuilt." },
+    )(severity);
 
 // A feed readers must download in full on every poll.
-const conditionalGet = pageRule("feeds/conditional-get", [`${ID}.format`, "http.headers.etag", "http.headers.last-modified", "http.unmodified"], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    if (page.http.unmodified) return [{ message: `${feed.format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll` }];
-    const isValidated = header(page, "etag") !== "" || header(page, "last-modified") !== "";
-    return isValidated ? [] : [{ message: `${feed.format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll` }];
-}, { docs: "https://www.rfc-editor.org/rfc/rfc9110#section-13.1", fix: "Send `ETag` or `Last-Modified` with the feed and answer conditional requests with 304." });
+const conditionalGet = pageRule(
+    "feeds/conditional-get",
+    [`${ID}.format`, "http.headers.etag", "http.headers.last-modified", "http.unmodified"],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        if (page.http.unmodified) return [{ message: `${feed.format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll` }];
+        const isValidated = header(page, "etag") !== "" || header(page, "last-modified") !== "";
+        return isValidated ? [] : [{ message: `${feed.format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll` }];
+    },
+    { docs: "https://www.rfc-editor.org/rfc/rfc9110#section-13.1", fix: "Send `ETag` or `Last-Modified` with the feed and answer conditional requests with 304." },
+);
 
 // Caching that makes every poll a full fetch, or contradicts the feed’s own refresh hint.
-const cache = pageRule("feeds/cache", [`${ID}.ttl`, "http.headers.cache-control"], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    const control = header(page, "cache-control").toLowerCase();
-    const maxAge = /(?:^|,)\s*max-age\s*=\s*(\d+)/.exec(control)?.[1];
-    const locations = [...(/(?:^|,)\s*no-store\b/.test(control) ? ["Cache-Control: no-store"] : []), ...(maxAge && feed.ttl && (Number(maxAge) > feed.ttl * 600 || Number(maxAge) * 10 < feed.ttl * 60) ? [`ttl ${feed.ttl} min against max-age ${maxAge} s`] : [])];
-    return locations.length === 0 ? [] : [{ message: `${feed.format} feed caching works against its readers: ${locations[0]}`, locations }];
-}, { docs: "https://www.rfc-editor.org/rfc/rfc9111#section-5.2", fix: "Let readers cache the feed for as long as `ttl` says, `Cache-Control: max-age=3600` for a one-hour `ttl`, and never `no-store`." });
+const cache = pageRule(
+    "feeds/cache",
+    [`${ID}.ttl`, "http.headers.cache-control"],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        const control = header(page, "cache-control").toLowerCase();
+        const maxAge = /(?:^|,)\s*max-age\s*=\s*(\d+)/.exec(control)?.[1];
+        const locations = [...(/(?:^|,)\s*no-store\b/.test(control) ? ["Cache-Control: no-store"] : []), ...(maxAge && feed.ttl && (Number(maxAge) > feed.ttl * 600 || Number(maxAge) * 10 < feed.ttl * 60) ? [`ttl ${feed.ttl} min against max-age ${maxAge} s`] : [])];
+        return locations.length === 0 ? [] : [{ message: `${feed.format} feed caching works against its readers: ${locations[0]}`, locations }];
+    },
+    { docs: "https://www.rfc-editor.org/rfc/rfc9111#section-5.2", fix: "Let readers cache the feed for as long as `ttl` says, `Cache-Control: max-age=3600` for a one-hour `ttl`, and never `no-store`." },
+);
 
 // A feed body too large, or large and uncompressed.
-const size: Make = (severity, settings) => pageRule("feeds/size", [`${ID}.format`, "http.size", "http.headers.content-encoding"], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    const limit = (settings as FeedsSettings | undefined)?.["max-bytes"] ?? 1_048_576;
-    const decoded = page.http.size.decoded;
-    const locations = [...(decoded > limit ? [`${decoded} bytes, over ${limit}`] : []), ...(decoded > 10_240 && !header(page, "content-encoding") ? [`${decoded} bytes served uncompressed`] : [])];
-    return locations.length === 0 ? [] : [{ message: `${feed.format} feed costs every poll ${decoded} bytes: ${locations[0]}`, value: decoded, locations }];
-}, { docs: DOCS.rss, fix: "Keep the newest items only, and serve the feed compressed with `br` or `gzip`." })(severity);
+const size: Make = (severity, settings) =>
+    pageRule(
+        "feeds/size",
+        [`${ID}.format`, "http.size", "http.headers.content-encoding"],
+        (page) => {
+            const feed = parsed(page);
+            if (!feed) return;
+            const limit = (settings as FeedsSettings | undefined)?.["max-bytes"] ?? 1_048_576;
+            const decoded = page.http.size.decoded;
+            const locations = [...(decoded > limit ? [`${decoded} bytes, over ${limit}`] : []), ...(decoded > 10_240 && !header(page, "content-encoding") ? [`${decoded} bytes served uncompressed`] : [])];
+            return locations.length === 0 ? [] : [{ message: `${feed.format} feed costs every poll ${decoded} bytes: ${locations[0]}`, value: decoded, locations }];
+        },
+        { docs: DOCS.rss, fix: "Keep the newest items only, and serve the feed compressed with `br` or `gzip`." },
+    )(severity);
 
 // A feed styled through XSLT, which Chrome stops applying.
-const xslt = pageRule("feeds/xslt", [`${ID}.stylesheet`], (page) => {
-    const feed = parsed(page);
-    if (!feed) return;
-    return feed.stylesheet ? [{ message: `${feed.format} feed is styled by ${feed.stylesheet}; Chrome 158 (2026-11-17) stops applying XSLT, so visitors there see raw XML`, value: feed.stylesheet }] : [];
-}, { docs: DOCS.xslt, fix: "Link a human-readable page from the feed instead of relying on an XSL stylesheet." });
+const xslt = pageRule(
+    "feeds/xslt",
+    [`${ID}.stylesheet`],
+    (page) => {
+        const feed = parsed(page);
+        if (!feed) return;
+        return feed.stylesheet ? [{ message: `${feed.format} feed is styled by ${feed.stylesheet}; Chrome 158 (2026-11-17) stops applying XSLT, so visitors there see raw XML`, value: feed.stylesheet }] : [];
+    },
+    { docs: DOCS.xslt, fix: "Link a human-readable page from the feed instead of relying on an XSL stylesheet." },
+);
 
 // Crawled pages by URL and by the URL that was requested.
 function indexOf(pages: Facts[]): Map<string, Facts> {
@@ -484,44 +571,78 @@ function target(entry: FeedEntry, index: Map<string, Facts>, site?: SiteFacts): 
     return { page: index.get(entry.link) ?? (landing ? index.get(landing) : undefined), ...(landing && { landing }) };
 }
 
-const itemStatus = siteRule("feeds/item-status", [`${ID}.entries`, "http.status", "site.redirects"], "links items to pages that fail or redirect", (feed, _page, index, site) => (feed.entries ?? []).flatMap((entry) => {
-    const { page, landing } = target(entry, index, site);
-    if (landing) return [`item ${entry.position} ${entry.link} redirects to ${landing}`];
-    return page && !isOk(page) ? [`item ${entry.position} ${entry.link} answers ${page.http.status}`] : [];
-}), { docs: DOCS.rss, fix: "Point each item link at the final URL of a page that answers 200." });
+const itemStatus = siteRule(
+    "feeds/item-status",
+    [`${ID}.entries`, "http.status", "site.redirects"],
+    "links items to pages that fail or redirect",
+    (feed, _page, index, site) =>
+        (feed.entries ?? []).flatMap((entry) => {
+            const { page, landing } = target(entry, index, site);
+            if (landing) return [`item ${entry.position} ${entry.link} redirects to ${landing}`];
+            return page && !isOk(page) ? [`item ${entry.position} ${entry.link} answers ${page.http.status}`] : [];
+        }),
+    { docs: DOCS.rss, fix: "Point each item link at the final URL of a page that answers 200." },
+);
 
-const itemCanonical = siteRule("feeds/item-canonical", [`${ID}.entries`, "html.canonical"], "links items away from their canonical URL", (feed, _page, index, site) => (feed.entries ?? []).flatMap((entry) => {
-    const { page, landing } = target(entry, index, site);
-    if (landing || !page?.html?.canonical || !entry.link || !isOk(page)) return [];
-    const canonical = resolve(page.html.canonical, page.url.href);
-    const here = [page.url.href, page.url.twin, entry.link].flatMap((href) => (href ? [resolve(href, href)] : []));
-    return here.includes(canonical) ? [] : [`item ${entry.position} links ${entry.link}, its canonical is ${canonical}`];
-}), { docs: DOCS.rss, fix: "Link each item to its page’s canonical URL." });
+const itemCanonical = siteRule(
+    "feeds/item-canonical",
+    [`${ID}.entries`, "html.canonical"],
+    "links items away from their canonical URL",
+    (feed, _page, index, site) =>
+        (feed.entries ?? []).flatMap((entry) => {
+            const { page, landing } = target(entry, index, site);
+            if (landing || !page?.html?.canonical || !entry.link || !isOk(page)) return [];
+            const canonical = resolve(page.html.canonical, page.url.href);
+            const here = [page.url.href, page.url.twin, entry.link].flatMap((href) => (href ? [resolve(href, href)] : []));
+            return here.includes(canonical) ? [] : [`item ${entry.position} links ${entry.link}, its canonical is ${canonical}`];
+        }),
+    { docs: DOCS.rss, fix: "Link each item to its page’s canonical URL." },
+);
 
-const itemTitle = siteRule("feeds/item-title", [`${ID}.entries`, "html.title", "html.property"], "titles items unlike the pages they link", (feed, _page, index, site) => (feed.entries ?? []).flatMap((entry) => {
-    const { page, landing } = target(entry, index, site);
-    if (landing || !page?.html || !entry.title || !isOk(page)) return [];
-    const titles = [page.html.title, page.html.property["og:title"]].flatMap((title) => (title ? [normal(title)] : []));
-    return titles.length === 0 || titles.some((title) => title.includes(normal(entry.title as string))) ? [] : [`item ${entry.position} “${entry.title}” against “${page.html.title ?? page.html.property["og:title"]}”`];
-}), { docs: DOCS.rss, fix: "Use the page’s own title as the item title." });
+const itemTitle = siteRule(
+    "feeds/item-title",
+    [`${ID}.entries`, "html.title", "html.property"],
+    "titles items unlike the pages they link",
+    (feed, _page, index, site) =>
+        (feed.entries ?? []).flatMap((entry) => {
+            const { page, landing } = target(entry, index, site);
+            if (landing || !page?.html || !entry.title || !isOk(page)) return [];
+            const titles = [page.html.title, page.html.property["og:title"]].flatMap((title) => (title ? [normal(title)] : []));
+            return titles.length === 0 || titles.some((title) => title.includes(normal(entry.title as string))) ? [] : [`item ${entry.position} “${entry.title}” against “${page.html.title ?? page.html.property["og:title"]}”`];
+        }),
+    { docs: DOCS.rss, fix: "Use the page’s own title as the item title." },
+);
 
-const itemDate = siteRule("feeds/item-date", [`${ID}.entries`, "html.published"], "dates items unlike the pages they link", (feed, _page, index, site) => (feed.entries ?? []).flatMap((entry) => {
-    const { page, landing } = target(entry, index, site);
-    const published = landing ? undefined : page?.html?.published;
-    if (!published || !entry.published || Number.isNaN(Date.parse(published))) return [];
-    return Math.abs(Date.parse(published) - Date.parse(entry.published)) > DAY_MS ? [`item ${entry.position} ${entry.published}, the page says ${published}`] : [];
-}), { docs: DOCS.rss, fix: "Take the item date from the same field the page’s `article:published_time` or `datePublished` comes from." });
+const itemDate = siteRule(
+    "feeds/item-date",
+    [`${ID}.entries`, "html.published"],
+    "dates items unlike the pages they link",
+    (feed, _page, index, site) =>
+        (feed.entries ?? []).flatMap((entry) => {
+            const { page, landing } = target(entry, index, site);
+            const published = landing ? undefined : page?.html?.published;
+            if (!published || !entry.published || Number.isNaN(Date.parse(published))) return [];
+            return Math.abs(Date.parse(published) - Date.parse(entry.published)) > DAY_MS ? [`item ${entry.position} ${entry.published}, the page says ${published}`] : [];
+        }),
+    { docs: DOCS.rss, fix: "Take the item date from the same field the page’s `article:published_time` or `datePublished` comes from." },
+);
 
 // A feed carrying summaries where readers expect full posts: every linked page far longer than its item.
-const summaryOnly = siteRule("feeds/summary-only", [`${ID}.entries`, "html.text"], "carries summaries while the linked pages say far more", (feed, _page, index, site) => {
-    const judged = (feed.entries ?? []).flatMap((entry) => {
-        const { page, landing } = target(entry, index, site);
-        const pageWords = page?.html?.text;
-        return landing || !page || !pageWords || entry.words === undefined || !isOk(page) || pageWords < 150 ? [] : [{ entry, words: entry.words, pageWords }];
-    });
-    const short = judged.filter(({ words, pageWords }) => words < pageWords * 0.3);
-    return short.length === judged.length && judged.length > 0 ? short.map(({ entry, words, pageWords }) => `item ${entry.position}: ${words} words against ${pageWords} on the page`) : [];
-}, { docs: DOCS.rss, fix: "Put the full post text into each item’s `content:encoded`, `content` or `content_html`, not a summary." });
+const summaryOnly = siteRule(
+    "feeds/summary-only",
+    [`${ID}.entries`, "html.text"],
+    "carries summaries while the linked pages say far more",
+    (feed, _page, index, site) => {
+        const judged = (feed.entries ?? []).flatMap((entry) => {
+            const { page, landing } = target(entry, index, site);
+            const pageWords = page?.html?.text;
+            return landing || !page || !pageWords || entry.words === undefined || !isOk(page) || pageWords < 150 ? [] : [{ entry, words: entry.words, pageWords }];
+        });
+        const short = judged.filter(({ words, pageWords }) => words < pageWords * 0.3);
+        return short.length === judged.length && judged.length > 0 ? short.map(({ entry, words, pageWords }) => `item ${entry.position}: ${words} words against ${pageWords} on the page`) : [];
+    },
+    { docs: DOCS.rss, fix: "Put the full post text into each item’s `content:encoded`, `content` or `content_html`, not a summary." },
+);
 
 // Pages advertising a feed through a head link, by the feed’s URL.
 function advertisers(pages: Facts[]): Map<string, { page: Facts; type: string }[]> {
@@ -540,35 +661,56 @@ function advertisers(pages: Facts[]): Map<string, { page: Facts; type: string }[
 
 const primary = (tag: string) => tag.toLowerCase().split(/[-_]/, 1)[0];
 
-const pageLanguage = siteRule("feeds/page-language", [`${ID}.language`, "html.lang", "html.head.links"], "declares a language other than the pages advertising it", (feed, page, index) => {
-    if (!feed.language) return [];
-    const byFeed = advertisers([...new Set(index.values())]);
-    const pages = [...(byFeed.get(page.url.href) ?? []), ...(page.crawl.requested ? (byFeed.get(resolve(page.crawl.requested, page.url.href)) ?? []) : [])];
-    return pages.filter(({ page: advertiser }) => advertiser.html?.lang && primary(advertiser.html.lang) !== primary(feed.language as string)).map(({ page: advertiser }) => `${advertiser.url.href} is ${advertiser.html?.lang}, the feed ${feed.language}`);
-}, { docs: DOCS.discovery, fix: "Link each locale’s own feed from its pages, and declare that locale as the feed’s language." });
+const pageLanguage = siteRule(
+    "feeds/page-language",
+    [`${ID}.language`, "html.lang", "html.head.links"],
+    "declares a language other than the pages advertising it",
+    (feed, page, index) => {
+        if (!feed.language) return [];
+        const byFeed = advertisers([...new Set(index.values())]);
+        const pages = [...(byFeed.get(page.url.href) ?? []), ...(page.crawl.requested ? (byFeed.get(resolve(page.crawl.requested, page.url.href)) ?? []) : [])];
+        return pages.filter(({ page: advertiser }) => advertiser.html?.lang && primary(advertiser.html.lang) !== primary(feed.language as string)).map(({ page: advertiser }) => `${advertiser.url.href} is ${advertiser.html?.lang}, the feed ${feed.language}`);
+    },
+    { docs: DOCS.discovery, fix: "Link each locale’s own feed from its pages, and declare that locale as the feed’s language." },
+);
 
-const stylesheet = siteRule("feeds/stylesheet", [`${ID}.stylesheet`, "http.status", "http.content-type"], "names a stylesheet browsers will not apply", (feed, page, index) => {
-    if (!feed.stylesheet) return [];
-    if (new URL(feed.stylesheet).origin !== page.url.origin) return [`${feed.stylesheet} is on another origin, which browsers refuse for XSLT`];
-    const sheet = index.get(feed.stylesheet);
-    if (!sheet) return [];
-    if (!isOk(sheet)) return [`${feed.stylesheet} answers ${sheet.http.status}`];
-    return XSL_TYPES.has(sheet.http["content-type"]) ? [] : [`${feed.stylesheet} is served as ${sheet.http["content-type"] || "no type"}`];
-}, { docs: "https://www.w3.org/TR/xml-stylesheet/", fix: "Serve the XSL stylesheet from the feed’s own origin as `text/xsl`." });
+const stylesheet = siteRule(
+    "feeds/stylesheet",
+    [`${ID}.stylesheet`, "http.status", "http.content-type"],
+    "names a stylesheet browsers will not apply",
+    (feed, page, index) => {
+        if (!feed.stylesheet) return [];
+        if (new URL(feed.stylesheet).origin !== page.url.origin) return [`${feed.stylesheet} is on another origin, which browsers refuse for XSLT`];
+        const sheet = index.get(feed.stylesheet);
+        if (!sheet) return [];
+        if (!isOk(sheet)) return [`${feed.stylesheet} answers ${sheet.http.status}`];
+        return XSL_TYPES.has(sheet.http["content-type"]) ? [] : [`${feed.stylesheet} is served as ${sheet.http["content-type"] || "no type"}`];
+    },
+    { docs: "https://www.w3.org/TR/xml-stylesheet/", fix: "Serve the XSL stylesheet from the feed’s own origin as `text/xsl`." },
+);
 
-const archive = siteRule("feeds/archive", [`${ID}.archives`, `${ID}.problems.archive`, "http.status"], "names archive pages readers cannot follow", (feed, _page, index) => [
-    ...(feed.problems?.archive ?? []),
-    ...Object.entries(feed.archives ?? {}).flatMap(([relation, href]) => {
-        const linked = index.get(href);
-        if (!linked) return [];
-        if (!isOk(linked)) return [`${relation} ${href} answers ${linked.http.status}`];
-        return parsed(linked) ? [] : [`${relation} ${href} is not a feed`];
-    }),
-], { docs: DOCS.archive, fix: "Point `prev-archive`, `next-archive` and `current` at feed documents that answer 200, and drop them from a complete feed." });
+const archive = siteRule(
+    "feeds/archive",
+    [`${ID}.archives`, `${ID}.problems.archive`, "http.status"],
+    "names archive pages readers cannot follow",
+    (feed, _page, index) => [
+        ...(feed.problems?.archive ?? []),
+        ...Object.entries(feed.archives ?? {}).flatMap(([relation, href]) => {
+            const linked = index.get(href);
+            if (!linked) return [];
+            if (!isOk(linked)) return [`${relation} ${href} answers ${linked.http.status}`];
+            return parsed(linked) ? [] : [`${relation} ${href} is not a feed`];
+        }),
+    ],
+    { docs: DOCS.archive, fix: "Point `prev-archive`, `next-archive` and `current` at feed documents that answer 200, and drop them from a complete feed." },
+);
 
 const ARTWORK_MIN = 1400;
 const ARTWORK_MAX = 3000;
-const ARTWORK_TYPES = new Map([["jpeg", "JPEG"], ["png", "PNG"]]);
+const ARTWORK_TYPES = new Map([
+    ["jpeg", "JPEG"],
+    ["png", "PNG"],
+]);
 
 // What a `itunes:image` URL answered: its served type, format and pixel sizes.
 export interface FeedImageFile {
@@ -603,10 +745,14 @@ const feedImages: SiteExtractor = {
     per: "origin",
     crawled: true,
     async extract(origin, context) {
-        const declared = [...new Set(context.pages.flatMap((page) => {
-            const feed = page.feed as FeedFacts | undefined;
-            return feed?.podcast && feed.itunesImage ? [feed.itunesImage] : [];
-        }))];
+        const declared = [
+            ...new Set(
+                context.pages.flatMap((page) => {
+                    const feed = page.feed as FeedFacts | undefined;
+                    return feed?.podcast && feed.itunesImage ? [feed.itunesImage] : [];
+                }),
+            ),
+        ];
         if (declared.length === 0) return;
         const fetchOne = async (url: string): Promise<FeedImageFile> => {
             try {
@@ -648,10 +794,14 @@ const feedHubs: SiteExtractor = {
     per: "origin",
     crawled: true,
     async extract(origin, context) {
-        const hubs = [...new Set(context.pages.flatMap((page) => {
-            const feed = page.feed as FeedFacts | undefined;
-            return feed && !feed.error ? feed.hubs : [];
-        }))];
+        const hubs = [
+            ...new Set(
+                context.pages.flatMap((page) => {
+                    const feed = page.feed as FeedFacts | undefined;
+                    return feed && !feed.error ? feed.hubs : [];
+                }),
+            ),
+        ];
         if (hubs.length === 0) return;
         if (!(context.settings as FeedsSettings | undefined)?.websub) {
             log.info({ origin, hubs: hubs.length }, "feeds/websub-hub skipped: opt in with org.spiderlint.feeds.websub");
@@ -674,7 +824,8 @@ const feedHubs: SiteExtractor = {
 };
 
 // Head links announcing a feed type the target is not, or a target that is no feed at all; one finding per target.
-const discoveryType: Make = (severity) => ({    meta: { id: "feeds/discovery-type", severity, scope: "site", facts: ["html.head.links", ID], docs: DOCS.discovery, fix: "Give each `rel=alternate` the type the feed is served as, and point it at the feed itself." },
+const discoveryType: Make = (severity) => ({
+    meta: { id: "feeds/discovery-type", severity, scope: "site", facts: ["html.head.links", ID], docs: DOCS.discovery, fix: "Give each `rel=alternate` the type the feed is served as, and point it at the feed itself." },
     check(pages: Facts[]) {
         const index = indexOf(pages);
         const findings: Finding[] = [];
@@ -792,7 +943,15 @@ export default definePlugin({
                 "feeds/itunes-required": { severity: "warning", score: 5.8 },
                 "feeds/podcast-guid": { severity: "warning", score: 5.4 },
                 "feeds/enclosure": { severity: "warning", score: 6.2 },
-                "feeds/itunes-image": { score: 5, fact: "site.origins.*.feed-images.itunes-image", expect: { maxItems: 0 }, message: "podcast artwork is missing or unfit: {got}", severity: "warning", docs: DOCS.itunes, fix: "Serve the channel itunes:image as a square JPEG or PNG between 1400 and 3000 px on each side." },
+                "feeds/itunes-image": {
+                    score: 5,
+                    fact: "site.origins.*.feed-images.itunes-image",
+                    expect: { maxItems: 0 },
+                    message: "podcast artwork is missing or unfit: {got}",
+                    severity: "warning",
+                    docs: DOCS.itunes,
+                    fix: "Serve the channel itunes:image as a square JPEG or PNG between 1400 and 3000 px on each side.",
+                },
                 "feeds/podcast-locked": { severity: "info", score: 2.4 },
             },
         },

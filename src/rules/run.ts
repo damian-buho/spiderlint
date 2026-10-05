@@ -63,8 +63,7 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
                 const found = rule.check(members, group, facts) ?? [];
                 judged(run, found, rule, members.length);
                 run.findings.push(...found);
-            }
-            else if (!site.has(rule.meta.id)) site.set(rule.meta.id, rule);
+            } else if (!site.has(rule.meta.id)) site.set(rule.meta.id, rule);
             log.debug({ rule: rule.meta.id, group, pages: members.length, findings: run.findings.length - before }, "rule ran");
         }
     }

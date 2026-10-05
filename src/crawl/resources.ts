@@ -73,7 +73,12 @@ export type ResourceBucket = Bucket<Stored<Consumed>>;
 
 // The media type of a content-type header, lower-cased.
 function mediaType(raw: string | string[] | null | undefined): string {
-    return String(raw ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    return (
+        String(raw ?? "")
+            .split(";", 1)[0]
+            ?.trim()
+            .toLowerCase() ?? ""
+    );
 }
 
 // Extractors that read a 2xx body of `contentType`.
@@ -191,7 +196,14 @@ async function headRemembered(url: string, bucket: ResourceBucket, failures: Fai
 // One cached or retried GET with `sent` headers; a final failure is status 0 with its error.
 async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache, sent: Record<string, string>): Promise<ResourceResults[string]> {
     try {
-        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors, cache), false, (stored) => isServed(stored, extractors), sent);
+        const { status, headers, value, ms, cached, revalidated } = await fetchCached(
+            bucket,
+            url,
+            (response) => consume(url, response, max, extractors, cache),
+            false,
+            (stored) => isServed(stored, extractors),
+            sent,
+        );
         const { bytes, facts } = value;
         log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
         const contentType = mediaType(headers["content-type"]);
@@ -245,7 +257,14 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const worker = async () => {
         for (const url of queue) {
             const answer = logged.get(url);
-            results.set(url, headed.has(url) && !isUsable(answer) ? await headRemembered(url, bucket, failures, config.cacheFailureTtl, ACCEPT_ENCODING) : isUsable(answer) ? await fromLog(url, answer, config.maxBodySize, extractors, cache) : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }));
+            results.set(
+                url,
+                headed.has(url) && !isUsable(answer)
+                    ? await headRemembered(url, bucket, failures, config.cacheFailureTtl, ACCEPT_ENCODING)
+                    : isUsable(answer)
+                      ? await fromLog(url, answer, config.maxBodySize, extractors, cache)
+                      : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }),
+            );
             progressCount(results.size);
         }
     };

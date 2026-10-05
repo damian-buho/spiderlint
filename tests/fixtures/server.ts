@@ -24,7 +24,6 @@ const SITE = new URL("site/", import.meta.url);
 const ICONS: Record<string, [string, Buffer | string]> = { "/favicon.ico": ["image/x-icon", await ico([16, 32])], "/favicon.svg": ["image/svg+xml", SVG], "/apple-touch-icon.png": ["image/png", await png(180)] };
 const TYPES: Record<string, string> = { html: "text/html; charset=utf-8", css: "text/css", txt: "text/plain", xml: "application/xml", webmanifest: "application/manifest+json" };
 
-
 // Size of `/big.bin`, a binary no crawl should download.
 const BIG = 50_000_000;
 
@@ -84,7 +83,7 @@ input { font-size: 16px }
 <script>document.getElementById("x").addEventListener("keydown", (event) => { if (event.key === "Tab" && !event.shiftKey) { event.preventDefault(); document.getElementById("z").focus(); } });</script></body></html>`,
 };
 
-const PLAIN ="<!DOCTYPE html><html lang=\"en\"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>";
+const PLAIN = '<!DOCTYPE html><html lang="en"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>';
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
 async function body(pathname: string, origin: string, local: string): Promise<[string, Buffer] | undefined> {
@@ -99,7 +98,15 @@ async function body(pathname: string, origin: string, local: string): Promise<[s
             const cdn = local.replace("//127.0.0.1:", "//localhost:");
             // eslint-disable-next-line unicorn/prefer-https -- the CDN placeholder mirrors the same plain-http server
             const cdnPlaceholder = "http://fixture-cdn.test";
-            return [type, Buffer.from(raw.toString("utf8").replaceAll(placeholder, () => origin).replaceAll(cdnPlaceholder, () => cdn))]; // `fixture.test` is the site, `fixture-cdn.test` the same server under another origin.
+            return [
+                type,
+                Buffer.from(
+                    raw
+                        .toString("utf8")
+                        .replaceAll(placeholder, () => origin)
+                        .replaceAll(cdnPlaceholder, () => cdn),
+                ),
+            ]; // `fixture.test` is the site, `fixture-cdn.test` the same server under another origin.
         } catch {
             continue;
         }
@@ -115,7 +122,11 @@ function isolateUserCache(): string | undefined {
 }
 
 // The coding `/` is sent in, the first of `br`, `zstd` and `gzip` a request accepts.
-const CODINGS: [string, (body: Buffer) => Buffer][] = [["br", brotliCompressSync], ["zstd", zstdCompressSync], ["gzip", gzipSync]];
+const CODINGS: [string, (body: Buffer) => Buffer][] = [
+    ["br", brotliCompressSync],
+    ["zstd", zstdCompressSync],
+    ["gzip", gzipSync],
+];
 
 // Serves tests/fixtures/site on an ephemeral loopback port, `/` in the coding asked for, `x.gz` as gzipped `x`, a matching `If-None-Match` as 304, and records every path asked for; `builtFor` bakes pages for another origin.
 export async function serveFixture(builtFor?: string): Promise<Fixture> {
@@ -162,17 +173,17 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
         }
         if (pathname === "/forbidden") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8" });
-            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>403</title></head><body><h1>Forbidden</h1></body></html>");
+            response.end('<!DOCTYPE html><html lang="en"><head><title>403</title></head><body><h1>Forbidden</h1></body></html>');
             return;
         }
         if (pathname === "/walled") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8", "cf-mitigated": "challenge" });
-            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>Just a moment…</title></head><body></body></html>");
+            response.end('<!DOCTYPE html><html lang="en"><head><title>Just a moment…</title></head><body></body></html>');
             return;
         }
         if (pathname === "/edge-blocked") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8", "server-timing": "cfEdge;dur=14,cfOrigin;dur=0" });
-            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>Forbidden</title></head><body></body></html>");
+            response.end('<!DOCTYPE html><html lang="en"><head><title>Forbidden</title></head><body></body></html>');
             return;
         }
         const hinted = HINTED[pathname];
@@ -260,7 +271,7 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
         const found = await body(isGzip ? pathname.slice(0, -3) : pathname, builtFor ?? local, local);
         if (!found) {
             response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
-            response.end("<!DOCTYPE html><html lang=\"en\"><head><title>404</title><link rel=\"canonical\" href=\"/\"></head><body><h1>Not found</h1></body></html>");
+            response.end('<!DOCTYPE html><html lang="en"><head><title>404</title><link rel="canonical" href="/"></head><body><h1>Not found</h1></body></html>');
             return;
         }
         const server = pathname.startsWith("/posts/") ? "fixture-b" : "fixture-a";

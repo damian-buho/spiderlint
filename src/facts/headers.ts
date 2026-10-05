@@ -116,7 +116,28 @@ const referrerPolicy: Parser = (text, errors) => {
 };
 
 // CSP 3 and Trusted Types directives, with those taking a source list.
-const SOURCE_LISTS = new Set(["child-src", "connect-src", "default-src", "fenced-frame-src", "font-src", "frame-src", "img-src", "manifest-src", "media-src", "object-src", "script-src", "script-src-elem", "script-src-attr", "style-src", "style-src-elem", "style-src-attr", "worker-src", "base-uri", "form-action", "frame-ancestors"]);
+const SOURCE_LISTS = new Set([
+    "child-src",
+    "connect-src",
+    "default-src",
+    "fenced-frame-src",
+    "font-src",
+    "frame-src",
+    "img-src",
+    "manifest-src",
+    "media-src",
+    "object-src",
+    "script-src",
+    "script-src-elem",
+    "script-src-attr",
+    "style-src",
+    "style-src-elem",
+    "style-src-attr",
+    "worker-src",
+    "base-uri",
+    "form-action",
+    "frame-ancestors",
+]);
 const OTHER_DIRECTIVES = new Set(["sandbox", "report-uri", "report-to", "require-trusted-types-for", "trusted-types", "upgrade-insecure-requests", "webrtc"]);
 const KEYWORDS = new Set(["'none'", "'self'", "'unsafe-inline'", "'unsafe-eval'", "'strict-dynamic'", "'unsafe-hashes'", "'report-sample'", "'unsafe-allow-redirects'", "'wasm-unsafe-eval'", "'inline-speculation-rules'", "'report-sha256'"]);
 // CSP 3 §2.3.1 nonce-source, hash-source, scheme-source and host-source.

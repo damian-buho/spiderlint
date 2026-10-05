@@ -20,7 +20,12 @@ export function tokens(text: string): Set<string> {
     } catch {
         log.debug({ text }, "slug not percent-decodable");
     }
-    return new Set(anyAscii(decoded.normalize("NFKC")).toLowerCase().split(/[^a-z\d]+/).filter((token) => token.length > 0));
+    return new Set(
+        anyAscii(decoded.normalize("NFKC"))
+            .toLowerCase()
+            .split(/[^a-z\d]+/)
+            .filter((token) => token.length > 0),
+    );
 }
 
 // The last non-empty path segment without its extension; empty for the root.
@@ -46,7 +51,10 @@ const readableSlug: Make = (severity) => ({
 
 // A site finding naming the majority form and every page in the minority, when both forms appear.
 function minority(id: string, severity: Finding["severity"], label: string, forms: Map<string, Facts[]>): Finding | undefined {
-    const ranked = forms.entries().toArray().toSorted(([, a], [, b]) => b.length - a.length);
+    const ranked = forms
+        .entries()
+        .toArray()
+        .toSorted(([, a], [, b]) => b.length - a.length);
     const [[major, most] = ["", []], ...rest] = ranked;
     const urls = rest.flatMap(([, pages]) => pages.map((page) => page.url.href));
     log.debug({ rule: id, label, major, most: most.length, minor: urls.length }, "url forms counted");
@@ -75,7 +83,14 @@ const trailingSlash: Make = (severity) => ({
         const judged = pages.filter((page) => page.url.pathname !== "/" && !FILE.test(page.url.pathname));
         return Map.groupBy(judged, (page) => page.group)
             .entries()
-            .map(([group, members]) => minority("url/trailing-slash", severity, `trailing slashes differ in group ${group}`, Map.groupBy(members, (page) => (page.url.pathname.endsWith("/") ? "with /" : "without /"))))
+            .map(([group, members]) =>
+                minority(
+                    "url/trailing-slash",
+                    severity,
+                    `trailing slashes differ in group ${group}`,
+                    Map.groupBy(members, (page) => (page.url.pathname.endsWith("/") ? "with /" : "without /")),
+                ),
+            )
             .filter((finding) => finding !== undefined)
             .toArray();
     },

@@ -33,7 +33,10 @@ describe("icons plugin", () => {
     it("gives one finding per defect family on a broken origin", async () => {
         const report = await audit({ seeds: [`${bad.origin}/`], rules: ["icons"], cacheMode: "off" });
         const found = byRule(report);
-        assert.deepEqual(Object.keys(found).toSorted((a, b) => a.localeCompare(b)), ["icons/apple-touch", "icons/declared-size", "icons/mask-icon", "icons/ms-tile", "icons/svg"]);
+        assert.deepEqual(
+            Object.keys(found).toSorted((a, b) => a.localeCompare(b)),
+            ["icons/apple-touch", "icons/declared-size", "icons/mask-icon", "icons/ms-tile", "icons/svg"],
+        );
         assert.match(found["icons/apple-touch"] ?? "", /1 pages link no apple-touch-icon and \S+\/apple-touch-icon\.png answers 404/);
         assert.match(found["icons/declared-size"] ?? "", /touch\.png declares 180x180 but is 16x16.*512\.png declares 512x512 but is 256x256/);
         assert.match(found["icons/ms-tile"] ?? "", /missing-tile\.png answers 404/);

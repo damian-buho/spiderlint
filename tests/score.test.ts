@@ -41,7 +41,6 @@ function graded(answers: Record<string, number[]>): string | undefined {
     return rate({ ...checks, passed: checks.total - checks.failed }, [])?.grade;
 }
 
-
 function cost(scores: number[]): number {
     return scores.reduce((sum, score) => sum + (score / 5) ** 2, 0);
 }
@@ -52,7 +51,16 @@ function finding(patch: Partial<Finding>): Finding {
 
 describe("score bands", () => {
     it("derives the level from the score at every edge", () => {
-        const cases: [number, string][] = [[0, "hint"], [0.9, "hint"], [1, "info"], [3.2, "info"], [3.3, "warning"], [6.5, "warning"], [6.6, "error"], [9.9, "error"]];
+        const cases: [number, string][] = [
+            [0, "hint"],
+            [0.9, "hint"],
+            [1, "info"],
+            [3.2, "info"],
+            [3.3, "warning"],
+            [6.5, "warning"],
+            [6.6, "error"],
+            [9.9, "error"],
+        ];
         for (const [score, level] of cases) assert.equal(levelOf(score), level, String(score));
     });
 
@@ -63,7 +71,10 @@ describe("score bands", () => {
     });
 
     it("reads a scale between its points and flat beyond them", () => {
-        const scale: [number, number][] = [[0, 6.8], [2, 5.2]];
+        const scale: [number, number][] = [
+            [0, 6.8],
+            [2, 5.2],
+        ];
         assert.equal(interpolate(scale, 1), 6);
         assert.equal(interpolate(scale, -3), 6.8);
         assert.equal(interpolate(scale, 40), 5.2);
@@ -94,14 +105,18 @@ describe("tls/cert-expiring", () => {
 
     it("stays in the warning band when a level pins it", () => {
         const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/cert-expiring": "warning" } } };
-        const [found] = compileRulesets(["mine"], rules as never).filter((rule) => rule.meta.id === "tls/cert-expiring").flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
+        const [found] = compileRulesets(["mine"], rules as never)
+            .filter((rule) => rule.meta.id === "tls/cert-expiring")
+            .flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
         assert.equal(found?.severity, "warning");
         assert.equal(found?.score, 6.5);
     });
 
     it("takes a number from the config as the score and its level from the band", () => {
         const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/cert-expiring": 2.4 } } };
-        const [found] = compileRulesets(["mine"], rules as never).filter((rule) => rule.meta.id === "tls/cert-expiring").flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
+        const [found] = compileRulesets(["mine"], rules as never)
+            .filter((rule) => rule.meta.id === "tls/cert-expiring")
+            .flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
         assert.equal(found?.severity, "info");
         assert.equal(found?.score, 2.4);
     });
@@ -142,7 +157,10 @@ describe("sarif score", () => {
         const rules = sarif.runs[0].tool.driver.rules as { id: string; properties?: Record<string, unknown> }[];
         assert.equal(rules.find((rule) => rule.id === "tls/authorized")?.properties?.["security-severity"], "8.4");
         assert.equal(rules.find((rule) => rule.id === "html/title")?.properties, undefined);
-        assert.deepEqual(sarif.runs[0].results.map((result: { rank: number }) => result.rank), [84, 50]);
+        assert.deepEqual(
+            sarif.runs[0].results.map((result: { rank: number }) => result.rank),
+            [84, 50],
+        );
         assert.ok(validate(sarif), JSON.stringify(validate.errors));
     });
 });

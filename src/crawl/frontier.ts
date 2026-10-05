@@ -290,7 +290,23 @@ export class Frontier {
     }
 
     // Crawler options every adapter passes through unchanged; crawlers running side by side split the rate.
-    options(mode: CrawlerMode, storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; requestHandlerTimeoutSecs: number; navigationTimeoutSecs: number; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
+    options(
+        mode: CrawlerMode,
+        storage?: CrawlStorage,
+        proxy?: string,
+    ): {
+        requestQueue?: RequestQueue;
+        autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> };
+        sessionPoolOptions: { blockedStatusCodes: number[] };
+        requestHandlerTimeoutSecs: number;
+        navigationTimeoutSecs: number;
+        maxRequestsPerCrawl?: number;
+        maxRequestsPerMinute?: number;
+        maxCrawlDepth?: number;
+        proxyConfiguration?: ProxyConfiguration;
+        respectRobotsTxtFile: false | { userAgent: string };
+        onSkippedRequest: (skip: { url: string; reason: string }) => void;
+    } {
         return {
             ...(storage && { requestQueue: storage.queues[mode] }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
@@ -422,7 +438,10 @@ export class Frontier {
         const reasons = Object.groupBy(this.#skipped.values(), (reason) => reason);
         if (this.#skipped.size > 0) log.debug({ skipped: this.#skipped.size, ...Object.fromEntries(Object.entries(reasons).map(([reason, all]) => [reason, all?.length])) }, "links skipped");
         for (const seed of this.#seeds) this.#explainSkippedSeed(seed);
-        const vendors = this.#vendors.entries().map(([entry, tally]) => ({ vendor: entry.vendor, match: entry.match, pages: tally.pages.size, links: tally.links })).toArray();
+        const vendors = this.#vendors
+            .entries()
+            .map(([entry, tally]) => ({ vendor: entry.vendor, match: entry.match, pages: tally.pages.size, links: tally.links }))
+            .toArray();
         if (vendors.length > 0) log.debug({ vendors }, "vendor paths kept out of the crawl");
     }
 }

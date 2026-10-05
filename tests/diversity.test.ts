@@ -35,8 +35,13 @@ describe("spread pool", () => {
     });
 
     it("keeps arrival order inside one section", () => {
-        const urls = pool(100, numbered("/post/", 5)).take(5).map((candidate) => candidate.url);
-        assert.deepEqual(urls, numbered("/post/", 5).map((path) => `${ORIGIN}${path}`));
+        const urls = pool(100, numbered("/post/", 5))
+            .take(5)
+            .map((candidate) => candidate.url);
+        assert.deepEqual(
+            urls,
+            numbered("/post/", 5).map((path) => `${ORIGIN}${path}`),
+        );
     });
 
     it("drops a repeat, a fragment variant and a page past its directory’s limit", () => {
@@ -49,7 +54,10 @@ describe("spread pool", () => {
     });
 
     it("loses no page when names past the fan-out fold into one share", () => {
-        const spread = pool(1000, numbered("/user/name", 200).map((path) => `${path}/page`));
+        const spread = pool(
+            1000,
+            numbered("/user/name", 200).map((path) => `${path}/page`),
+        );
         assert.equal(spread.size, 200);
         assert.equal(spread.take(1000).length, 200);
         assert.equal(spread.size, 0);
@@ -61,7 +69,10 @@ describe("spread pool", () => {
 });
 
 const page = (body: string) => `<!doctype html><html lang="en"><head><title>t</title></head><body><main>${body}</main></body></html>`;
-const links = (prefix: string) => numbered(`${prefix}/`, 12).map((href) => `<a href="${href}">${href}</a>`).join("");
+const links = (prefix: string) =>
+    numbered(`${prefix}/`, 12)
+        .map((href) => `<a href="${href}">${href}</a>`)
+        .join("");
 
 describe("page budget spread over a crawl", () => {
     let server: Server;
@@ -91,8 +102,14 @@ describe("page budget spread over a crawl", () => {
         const paths = await crawl(true);
         assert.equal(paths.length, 6);
         for (const section of ["/project/", "/about"]) assert.ok(paths.includes(section), paths.join(" "));
-        assert.ok(paths.some((path) => path.startsWith("/post/")), paths.join(" "));
-        assert.ok(paths.some((path) => path.startsWith("/tag/")), paths.join(" "));
+        assert.ok(
+            paths.some((path) => path.startsWith("/post/")),
+            paths.join(" "),
+        );
+        assert.ok(
+            paths.some((path) => path.startsWith("/tag/")),
+            paths.join(" "),
+        );
     });
 
     it("visits the unseen sections first without a page limit, and still every page", async () => {

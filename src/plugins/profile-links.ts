@@ -96,10 +96,17 @@ const extract = async (page: Facts, _body: string, live?: Page, context?: PageCo
     return { profiles };
 };
 
-const rendered = pageRule("links/rel-me-rendered", [`${ID}.profiles`], (page) => {
-    if (page[ID] === undefined) return;
-    return examined(page).filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299).map((profile) => ({ message: `rel=me profile ${profile.url} does not link back to ${page.url.origin}, even after its scripts ran in a browser${profile.at ? ` (${readNote({ at: profile.at, ...(profile.cached && { cached: profile.cached }) })}; --refresh loads it again)` : ""}`, value: profile.url }));
-}, { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." });
+const rendered = pageRule(
+    "links/rel-me-rendered",
+    [`${ID}.profiles`],
+    (page) => {
+        if (page[ID] === undefined) return;
+        return examined(page)
+            .filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299)
+            .map((profile) => ({ message: `rel=me profile ${profile.url} does not link back to ${page.url.origin}, even after its scripts ran in a browser${profile.at ? ` (${readNote({ at: profile.at, ...(profile.cached && { cached: profile.cached }) })}; --refresh loads it again)` : ""}`, value: profile.url }));
+    },
+    { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." },
+);
 
 export default definePlugin({
     name: "rel-me",

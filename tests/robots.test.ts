@@ -30,8 +30,14 @@ describe("robots.txt", () => {
 
     it("picks the groups naming the agent, else those naming *", () => {
         const facts = parseRobots(URL_, 200, "User-agent: *\nDisallow: /a\nUser-agent: spiderlint\nDisallow: /b\n");
-        assert.deepEqual(groupsFor(facts, "spiderlint").flatMap((group) => group.disallow), ["/b"]);
-        assert.deepEqual(groupsFor(facts, "other").flatMap((group) => group.disallow), ["/a"]);
+        assert.deepEqual(
+            groupsFor(facts, "spiderlint").flatMap((group) => group.disallow),
+            ["/b"],
+        );
+        assert.deepEqual(
+            groupsFor(facts, "other").flatMap((group) => group.disallow),
+            ["/a"],
+        );
     });
 
     it("reports a blanket Disallow: / for *, and passes one with an Allow back", () => {

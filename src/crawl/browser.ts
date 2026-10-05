@@ -274,7 +274,9 @@ function resourcesDigest(requests: Request[], responses: Map<string, Logged>): s
         const { origin, pathname } = new URL(url);
         pairs.add(`${origin}${pathname} ${digest}`);
     }
-    return createHash("sha256").update([...pairs].toSorted((a, b) => a.localeCompare(b)).join("\n")).digest("hex");
+    return createHash("sha256")
+        .update([...pairs].toSorted((a, b) => a.localeCompare(b)).join("\n"))
+        .digest("hex");
 }
 
 // The Playwright launcher for `name`; a browser other than the bundled Chromium must be installed where Playwright looks.

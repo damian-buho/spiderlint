@@ -29,7 +29,10 @@ const clockSkew: Make = (severity) => ({
     meta: { id: "http/clock-skew", severity, scope: "site", facts: ["http.date-skew"], docs: "https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1", fix: "Synchronise the server clock with NTP (chrony or systemd-timesyncd)." },
     check(pages: Facts[]) {
         const measured = pages.filter((page) => page.http["date-skew"] !== undefined);
-        const hosts = Map.groupBy(measured, (page) => page.url.host).entries().map(([host, members]) => ({ host, skew: median(members.map((page) => page.http["date-skew"] as number)), urls: members.map((page) => page.url.href) })).toArray();
+        const hosts = Map.groupBy(measured, (page) => page.url.host)
+            .entries()
+            .map(([host, members]) => ({ host, skew: median(members.map((page) => page.http["date-skew"] as number)), urls: members.map((page) => page.url.href) }))
+            .toArray();
         const skews = hosts.map((entry) => entry.skew);
         log.debug({ rule: "http/clock-skew", hosts: hosts.length, skews }, "host clocks compared");
         if (isOwnClock(skews)) {

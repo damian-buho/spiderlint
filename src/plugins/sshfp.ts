@@ -17,7 +17,15 @@ const KEYSCAN_SECONDS = 8;
 // Milliseconds before the whole ssh-keyscan run is killed, one connection per key type.
 const KEYSCAN_MS = 4 * KEYSCAN_SECONDS * 1000;
 // https://www.iana.org/assignments/dns-sshfp-rr-parameters: public key algorithm numbers by key type; 5 is unassigned.
-const ALGORITHMS = new Map([["ssh-rsa", 1], ["ssh-dss", 2], ["ecdsa-sha2-nistp256", 3], ["ecdsa-sha2-nistp384", 3], ["ecdsa-sha2-nistp521", 3], ["ssh-ed25519", 4], ["ssh-ed448", 6]]);
+const ALGORITHMS = new Map([
+    ["ssh-rsa", 1],
+    ["ssh-dss", 2],
+    ["ecdsa-sha2-nistp256", 3],
+    ["ecdsa-sha2-nistp384", 3],
+    ["ecdsa-sha2-nistp521", 3],
+    ["ssh-ed25519", 4],
+    ["ssh-ed448", 6],
+]);
 // Fingerprint types of the same registry: 1 SHA-1, 2 SHA-256.
 const DIGESTS: Record<number, string> = { 1: "sha1", 2: "sha256" };
 // DSA, which OpenSSH no longer reads, so its records are never compared.
@@ -35,7 +43,10 @@ interface SshfpRecord {
 
 // The SSHFP fingerprint of a key blob under `hash`, upper-case hex as dns-packet decodes it.
 export function fingerprint(blob: Buffer, hash: number): string {
-    return createHash(DIGESTS[hash] ?? "sha256").update(blob).digest("hex").toUpperCase();
+    return createHash(DIGESTS[hash] ?? "sha256")
+        .update(blob)
+        .digest("hex")
+        .toUpperCase();
 }
 
 // Each `host type base64` line of ssh-keyscan output as its key type and RFC 4253 blob.

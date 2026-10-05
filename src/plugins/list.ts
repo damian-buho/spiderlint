@@ -14,7 +14,10 @@ export default definePlugin({
             follow: false,
             urls: async (file, signal) => {
                 const text = await readFile(file === "-" ? "/dev/stdin" : file, { encoding: "utf8", signal });
-                return text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0 && !line.startsWith("#"));
+                return text
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter((line) => line.length > 0 && !line.startsWith("#"));
             },
         },
     ],

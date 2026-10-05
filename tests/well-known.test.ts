@@ -40,8 +40,36 @@ describe("well-known plugin", () => {
 
     it("faults every malformed file, the missing change-password and an unregistered suffix", async () => {
         const report = await audit({ seeds: [`${broken.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
-        const expected = ["agent-card", "agent-skills", "ai-catalog", "api-catalog", "apple-app-site-association", "assetlinks", "change-password", "gpc", "llms-full-txt-valid", "llms-txt-valid", "markdown-source", "mcp-server-card", "nodeinfo", "oauth-authorization-server", "oauth-protected-resource", "okf", "openid-configuration", "registered", "schemamap", "security-txt-expires", "security-txt-valid", "tdmrep", "traffic-advice", "webauthn"];
-        assert.deepEqual(rules(report), expected.map((id) => `well-known/${id}`));
+        const expected = [
+            "agent-card",
+            "agent-skills",
+            "ai-catalog",
+            "api-catalog",
+            "apple-app-site-association",
+            "assetlinks",
+            "change-password",
+            "gpc",
+            "llms-full-txt-valid",
+            "llms-txt-valid",
+            "markdown-source",
+            "mcp-server-card",
+            "nodeinfo",
+            "oauth-authorization-server",
+            "oauth-protected-resource",
+            "okf",
+            "openid-configuration",
+            "registered",
+            "schemamap",
+            "security-txt-expires",
+            "security-txt-valid",
+            "tdmrep",
+            "traffic-advice",
+            "webauthn",
+        ];
+        assert.deepEqual(
+            rules(report),
+            expected.map((id) => `well-known/${id}`),
+        );
         const message = (id: string): string => report.findings.find((finding) => finding.rule === `well-known/${id}`)?.message ?? "";
         assert.match(message("security-txt-valid"), /line 2 is not a field.*Contact nope is not a URI/);
         assert.match(message("registered"), /“made-up”/);
@@ -79,7 +107,10 @@ describe("well-known plugin", () => {
         try {
             const report = await audit({ seeds: [`${withheld.origin}/`], rules: ["well-known"], cacheMode: "off" });
             assert.deepEqual(rules(report), ["well-known/registered"]);
-            assert.deepEqual(withheld.requested.filter((requested) => requested.startsWith("/.well-known/")), []);
+            assert.deepEqual(
+                withheld.requested.filter((requested) => requested.startsWith("/.well-known/")),
+                [],
+            );
         } finally {
             await withheld.close();
         }
@@ -124,7 +155,10 @@ describe("well-known plugin", () => {
         const before = valid.requested.length;
         const report = await audit({ seeds: [`${valid.origin}/`], groups: { default: { rules: ["agents"], sample: 1 } }, cacheMode: "off" });
         const sources = report.pages.flatMap((page) => (page.markdown ? [page.markdown as { present: boolean; twin: { url: string } }] : []));
-        assert.deepEqual(sources.map((source) => [source.present, new URL(source.twin.url).pathname]), [[true, "/index.md"]]);
+        assert.deepEqual(
+            sources.map((source) => [source.present, new URL(source.twin.url).pathname]),
+            [[true, "/index.md"]],
+        );
         assert.ok(!valid.requested.slice(before).includes("/page.md"));
         assert.deepEqual(rules(report), []);
     });
@@ -149,7 +183,10 @@ describe("well-known plugin", () => {
         try {
             const report = await audit({ seeds: [`${origin}/dir/`], rules: ["agents"], cacheMode: "off" });
             const source = report.pages.flatMap((page) => (page.url.pathname === "/dir/" && page.markdown ? [page.markdown as { present: boolean; twin: { url: string } }] : []));
-            assert.deepEqual(source.map((entry) => [entry.present, new URL(entry.twin.url).pathname]), [[true, "/dir.md"]]);
+            assert.deepEqual(
+                source.map((entry) => [entry.present, new URL(entry.twin.url).pathname]),
+                [[true, "/dir.md"]],
+            );
             assert.ok(!rules(report).includes("well-known/markdown-source"));
         } finally {
             await new Promise<void>((resolve) => server.close(() => resolve()));

@@ -14,7 +14,10 @@ import { definePlugin, type Extractor } from "./types.ts";
 import { visit } from "./visit.ts";
 
 // Every hand-kept tracking cookie name as one anchored pattern, `*` as any suffix.
-const TRACKING = `^(?:${Object.values(TRACKING_COOKIES).flat().map((name) => name.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`).replaceAll("*", ".*")).join("|")})$`;
+const TRACKING = `^(?:${Object.values(TRACKING_COOKIES)
+    .flat()
+    .map((name) => name.replaceAll(/[.+?^${}()|[\]\\]/g, String.raw`\$&`).replaceAll("*", ".*"))
+    .join("|")})$`;
 
 const ajv = new Ajv2020({ strictTypes: false });
 
@@ -35,7 +38,16 @@ interface Check {
 
 const CHECKS: Check[] = [
     { name: "secure", item: { properties: { secure: { const: true } } }, isHttpsOnly: true, severity: "warning", score: 6.5, message: "a cookie is set without the Secure flag", fix: "Add Secure to every cookie set over https:.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
-    { name: "http-only", item: { properties: { "http-only": { const: true } } }, isHeaderOnly: true, severity: "info", score: 2.8, message: "a cookie is set without the HttpOnly flag", fix: "Add HttpOnly to cookies scripts do not need to read.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
+    {
+        name: "http-only",
+        item: { properties: { "http-only": { const: true } } },
+        isHeaderOnly: true,
+        severity: "info",
+        score: 2.8,
+        message: "a cookie is set without the HttpOnly flag",
+        fix: "Add HttpOnly to cookies scripts do not need to read.",
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies",
+    },
     { name: "same-site", item: { required: ["same-site"] }, severity: "info", score: 2.4, message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
     {
         name: "host-prefix",
@@ -46,7 +58,15 @@ const CHECKS: Check[] = [
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes",
         fix: "Add Secure and Path=/, and omit Domain, from every __Host- cookie.",
     },
-    { name: "secure-prefix", item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Secure-)" } } } }, { properties: { secure: { const: true } } }] }, severity: "warning", score: 5.8, message: "a __Secure- cookie lacks Secure, so browsers reject it", fix: "Add Secure to every __Secure- cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes" },
+    {
+        name: "secure-prefix",
+        item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Secure-)" } } } }, { properties: { secure: { const: true } } }] },
+        severity: "warning",
+        score: 5.8,
+        message: "a __Secure- cookie lacks Secure, so browsers reject it",
+        fix: "Add Secure to every __Secure- cookie.",
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes",
+    },
     {
         name: "same-site-none",
         item: { anyOf: [{ not: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] } }, { properties: { secure: { const: true } } }] },
@@ -56,7 +76,15 @@ const CHECKS: Check[] = [
         fix: "Add Secure to every SameSite=None cookie.",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#none",
     },
-    { name: "lifetime", item: { properties: { "max-age": { maximum: 34_560_000 } } }, severity: "info", score: 1.8, message: "a cookie outlives 400 days, which browsers cap", fix: "Set Max-Age to 34560000 seconds (400 days) or less.", docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute" },
+    {
+        name: "lifetime",
+        item: { properties: { "max-age": { maximum: 34_560_000 } } },
+        severity: "info",
+        score: 1.8,
+        message: "a cookie outlives 400 days, which browsers cap",
+        fix: "Set Max-Age to 34560000 seconds (400 days) or less.",
+        docs: "https://httpwg.org/http-extensions/draft-ietf-httpbis-rfc6265bis.html#name-the-max-age-attribute",
+    },
 ];
 
 // The check over every cookie of `fact`, a page rule that folds by group.
@@ -122,7 +150,17 @@ const consent: Extractor = {
 
 const BEFORE_CONSENT: RuleSpec = {
     fact: "consent.cookies",
-    expect: { type: "array", items: { not: { anyOf: [{ properties: { party: { const: "third" } }, required: ["party"] }, { properties: { name: { pattern: TRACKING } }, required: ["name"] }] } } },
+    expect: {
+        type: "array",
+        items: {
+            not: {
+                anyOf: [
+                    { properties: { party: { const: "third" } }, required: ["party"] },
+                    { properties: { name: { pattern: TRACKING } }, required: ["name"] },
+                ],
+            },
+        },
+    },
     severity: "info",
     score: 2.6,
     message: "a third-party or tracking cookie is set on first load, before any interaction ({got})",
@@ -146,8 +184,16 @@ export default definePlugin({
     extractors: [consent],
     rules: RESOURCES,
     presets: {
-        cookies: { description: "Secure, HttpOnly and SameSite on every cookie a page or resource sets, valid __Host- and __Secure- prefixes, and a lifetime browsers keep", rules: { ...PAGE, ...Object.fromEntries(CHECKS.map((check) => [`cookies/resource-${check.name}`, { severity: check.severity, score: check.score }])) } },
+        cookies: {
+            description: "Secure, HttpOnly and SameSite on every cookie a page or resource sets, valid __Host- and __Secure- prefixes, and a lifetime browsers keep",
+            rules: { ...PAGE, ...Object.fromEntries(CHECKS.map((check) => [`cookies/resource-${check.name}`, { severity: check.severity, score: check.score }])) },
+        },
         "cookies:browser": { description: "The cookie expectations over what scripts write through document.cookie", rules: SCRIPTS },
-        privacy: { description: "Tracking vendors, and third-party or tracking cookies and web storage set before any interaction", extends: ["spiderlint:trackers"], when: { "http.status": { minimum: 200, maximum: 299 } }, rules: { "cookies/before-consent": BEFORE_CONSENT, "cookies/storage-before-consent": STORAGE_BEFORE_CONSENT } },
+        privacy: {
+            description: "Tracking vendors, and third-party or tracking cookies and web storage set before any interaction",
+            extends: ["spiderlint:trackers"],
+            when: { "http.status": { minimum: 200, maximum: 299 } },
+            rules: { "cookies/before-consent": BEFORE_CONSENT, "cookies/storage-before-consent": STORAGE_BEFORE_CONSENT },
+        },
     },
 });

@@ -73,7 +73,11 @@ describe("cli", () => {
         // Port 1023 is privileged and not a Fetch bad port, so no parallel test file can be listening on it.
         const run = await spiderlint(directory, "audit", "http://127.0.0.1:1023/", "--no-cache", "--no-sitemap");
         assert.equal(run.code, 3, run.stderr);
-        const seed = run.stderr.split("\n").filter(Boolean).map((line) => JSON.parse(line) as { msg: string; error?: string }).find((entry) => entry.msg.startsWith("seed not crawled"));
+        const seed = run.stderr
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line) as { msg: string; error?: string })
+            .find((entry) => entry.msg.startsWith("seed not crawled"));
         assert.match(seed?.error ?? "", /ECONNREFUSED/);
     });
 
@@ -271,7 +275,10 @@ describe("cli", () => {
         const own = await spiderlint(directory, "audit", "--help");
         const named = await spiderlint(directory, "help", "audit");
         assert.equal(own.stdout, named.stdout);
-        assert.ok(["Crawl:", "Rules:", "Report:", "Store:", "Examples:"].every((heading) => own.stdout.includes(`\n${heading}\n`)), own.stdout);
+        assert.ok(
+            ["Crawl:", "Rules:", "Report:", "Store:", "Examples:"].every((heading) => own.stdout.includes(`\n${heading}\n`)),
+            own.stdout,
+        );
         assert.ok(own.stdout.includes(path.join(directory, "cache", "spiderlint", "<host>")), own.stdout);
         const listing = await spiderlint(directory, "list-presets", "--help");
         assert.doesNotMatch(listing.stdout, /Crawl:|--store/);
@@ -291,7 +298,10 @@ describe("cli", () => {
         const contents = await Promise.all(entries.filter((file) => file.endsWith(".ts")).map((file) => readFile(path.join(sources, file), "utf8")));
         const code = contents.join("\n");
         assert.ok(named.size > 20, [...named].join(", "));
-        assert.deepEqual([...named].filter((name) => !code.includes(`.${name}`)), []);
+        assert.deepEqual(
+            [...named].filter((name) => !code.includes(`.${name}`)),
+            [],
+        );
     });
 
     it("lists every rule with the severity this configuration runs it at", async () => {
@@ -336,7 +346,10 @@ describe("cli", () => {
         const run = await spiderlint(directory, "audit", `${site.origin}/`, "--format", "json", "--fail-on", "never", "--rules", "security-headers,links");
         const rules = new Set((parsed(run) as { findings: { rule: string }[] }).findings.map((finding) => finding.rule));
         assert.ok(rules.size > 0, run.stderr);
-        assert.ok(rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")), [...rules].join(", "));
+        assert.ok(
+            rules.values().every((rule) => rule.startsWith("http/") || rule.startsWith("links/")),
+            [...rules].join(", "),
+        );
     });
 
     it("refuses a browser Playwright has not installed, naming how to install it", async () => {

@@ -29,7 +29,14 @@ import { FILES, serveDns, soa, svcb, type DnsFixture } from "./fixtures/dns.ts";
 // A page on `host` served by `issuer`, linking `links` and advertising `altSvc`.
 function page(host: string, issuer: string, links: string[] = [], altSvc?: string): Facts {
     const href = `https://${host}/`;
-    return { url: { href, origin: `https://${host}`, protocol: "https:", host, pathname: "/", search: "" }, group: "default", crawl: { depth: 0, "discovered-via": "seed", referrers: [] }, http: { status: 200, redirects: [], headers: altSvc ? { "alt-svc": altSvc } : {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" }, tls: { cert: { issuer, san: [host] } }, html: { links: { internal: [], external: links, nofollow: [] } } } as unknown as Facts;
+    return {
+        url: { href, origin: `https://${host}`, protocol: "https:", host, pathname: "/", search: "" },
+        group: "default",
+        crawl: { depth: 0, "discovered-via": "seed", referrers: [] },
+        http: { status: 200, redirects: [], headers: altSvc ? { "alt-svc": altSvc } : {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" },
+        tls: { cert: { issuer, san: [host] } },
+        html: { links: { internal: [], external: links, nofollow: [] } },
+    } as unknown as Facts;
 }
 
 // A stub reply carrying `answers`, authoritative when `isAuthoritative`.
@@ -55,7 +62,17 @@ async function delegated(url: string): Promise<Probe> {
 // Every dns and mail extractor’s facts for `host`, keyed as the site document holds them; `mailSettings` as `org.spiderlint.mail`.
 async function extract(host: string, pages: Facts[], client: DnsClient, mailSettings: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     const signal = new AbortController().signal;
-    const context = { pages, signal, dns: client, settings: { compare: [], rdap: false }, fetch: () => Promise.reject(new Error("no http here")), delegated, link: () => Promise.reject(new Error("no http here")), cached: () => Promise.reject(new Error("no http here")), address: () => Promise.reject(new Error("no socket here")) };
+    const context = {
+        pages,
+        signal,
+        dns: client,
+        settings: { compare: [], rdap: false },
+        fetch: () => Promise.reject(new Error("no http here")),
+        delegated,
+        link: () => Promise.reject(new Error("no http here")),
+        cached: () => Promise.reject(new Error("no http here")),
+        address: () => Promise.reject(new Error("no socket here")),
+    };
     const facts: Record<string, unknown> = {};
     const extractors = [...(dns.sites ?? []), ...(mail.sites ?? [])];
     for (const extractor of extractors) {
@@ -79,7 +96,11 @@ function keyed(site: SiteFacts, preset: string): [string, string][] {
 describe("resolver setting", () => {
     it("accepts system and address lists, and refuses anything else", () => {
         assert.equal(parseResolver("system"), "system");
-        assert.deepEqual(servers(parseResolver("9.9.9.9, [2620:fe::fe]:5353,::1")), [{ address: "9.9.9.9", port: 53 }, { address: "2620:fe::fe", port: 5353 }, { address: "::1", port: 53 }]);
+        assert.deepEqual(servers(parseResolver("9.9.9.9, [2620:fe::fe]:5353,::1")), [
+            { address: "9.9.9.9", port: 53 },
+            { address: "2620:fe::fe", port: 5353 },
+            { address: "::1", port: 53 },
+        ]);
         assert.throws(() => parseResolver("dns.quad9.net"), ConfigError);
         assert.throws(() => parseResolver("9.9.9.9:99999"), ConfigError);
     });
@@ -88,12 +109,19 @@ describe("resolver setting", () => {
 describe("svcb parser", () => {
     it("reads the RFC 9460 appendix D vectors", () => {
         assert.deepEqual(parseSvcb(Buffer.from("000103666f6f076578616d706c6503636f6d00", "hex")), { priority: 1, target: "foo.example.com" });
-        assert.deepEqual(parseSvcb(Buffer.from('001003666f6f076578616d706c6503636f6d00000300020035', "hex")), { priority: 16, target: "foo.example.com", port: 53 });
-        assert.deepEqual(parseSvcb(Buffer.from('0001000006002020010db800000000000000000000000120010db8000000000000000000530001', "hex")), { priority: 1, target: ".", ipv6hint: ["2001:db8::1", "2001:db8::53:1"] });
+        assert.deepEqual(parseSvcb(Buffer.from("001003666f6f076578616d706c6503636f6d00000300020035", "hex")), { priority: 16, target: "foo.example.com", port: 53 });
+        assert.deepEqual(parseSvcb(Buffer.from("0001000006002020010db800000000000000000000000120010db8000000000000000000530001", "hex")), { priority: 1, target: ".", ipv6hint: ["2001:db8::1", "2001:db8::53:1"] });
     });
 
     it("reads every key it knows and names the rest", () => {
-        const data = svcb(1, "svc.example", [[0, Buffer.from([0, 1])], [1, Buffer.from([2, 0x68, 0x32, 2, 0x68, 0x33])], [2, Buffer.alloc(0)], [4, Buffer.from([192, 0, 2, 1, 192, 0, 2, 2])], [5, Buffer.from([0, 1, 2])], [667, Buffer.from("hi")]]);
+        const data = svcb(1, "svc.example", [
+            [0, Buffer.from([0, 1])],
+            [1, Buffer.from([2, 0x68, 0x32, 2, 0x68, 0x33])],
+            [2, Buffer.alloc(0)],
+            [4, Buffer.from([192, 0, 2, 1, 192, 0, 2, 2])],
+            [5, Buffer.from([0, 1, 2])],
+            [667, Buffer.from("hi")],
+        ]);
         assert.deepEqual(parseSvcb(data), { priority: 1, target: "svc.example", mandatory: ["alpn"], alpn: ["h2", "h3"], "no-default-alpn": true, ipv4hint: ["192.0.2.1", "192.0.2.2"], ech: true, unknown: [667] });
     });
 });
@@ -127,7 +155,10 @@ describe("dns plugin", () => {
         const bucket = new Bucket<StoredReply>("dns" as BucketName, path.join(directory, "dns"), 60, "use");
         const client = dnsClient(fixture.server, bucket, false);
         const reply = await client.query("big.good.fixture", "A");
-        assert.deepEqual(reply.answers.map((record) => (record as { data: unknown }).data), ["192.0.2.9"]);
+        assert.deepEqual(
+            reply.answers.map((record) => (record as { data: unknown }).data),
+            ["192.0.2.9"],
+        );
         const asked = fixture.queries.length;
         await client.query("big.good.fixture", "A");
         assert.equal(fixture.queries.length, asked, "the second answer comes from the bucket");
@@ -156,7 +187,10 @@ describe("dns plugin", () => {
         assert.deepEqual(servers.delegation, { servers: ["ns1.good.fixture", "ns2.good.fixture"], matches: true });
         assert.deepEqual(servers.soa, { mname: "ns1.good.fixture", refresh: 3600, retry: 600, expire: 1_209_600, minimum: 300, "retry-below-refresh": true, "mname-listed": true });
         assert.deepEqual(servers.ttl, { ns: 300, a: 300, aaaa: 300 });
-        assert.deepEqual(findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl"), ["dns/ttl"]);
+        assert.deepEqual(
+            findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl"),
+            ["dns/ttl"],
+        );
     });
 
     it("names the SOA field out of range and spares a zone whose provider fixes the SOA", () => {
@@ -182,7 +216,10 @@ describe("dns plugin", () => {
         const open = await serveDns(true, { "a.root-servers.net|A": { recursive: true, answers: [a("a.root-servers.net", "198.41.0.4")] } });
         try {
             const facts = await extract("good.fixture", [page("good.fixture", "Let's Encrypt", [], 'h3=":443"')], dnsClient(open.server, off(), true, open.port));
-            assert.deepEqual((facts.nameservers as { servers: { recursive: boolean }[] }).servers.map((server) => server.recursive), [true, true]);
+            assert.deepEqual(
+                (facts.nameservers as { servers: { recursive: boolean }[] }).servers.map((server) => server.recursive),
+                [true, true],
+            );
             assert.deepEqual(findings({ "good.fixture": facts }), ["dns/open-recursion"]);
         } finally {
             await open.close();
@@ -254,11 +291,30 @@ describe("dns plugin", () => {
         const messy = facts.mail as Record<string, Record<string, unknown>>;
         assert.deepEqual(messy["spf-walk"], { errors: [], lookups: 4, "void-lookups": 1, ptr: true, "after-all": ["a"], redundant: ["mx"], "missing-includes": ["gone.messy.fixture"] });
         assert.deepEqual([messy.dmarc?.errors, messy.dmarc?.testing, messy.dmarc?.["not-mailto"]], [["bad adkim=x"], true, ["https://reports.messy.fixture/"]]);
-        assert.deepEqual((messy.dkim?.found as { selector: string; testing: boolean; revoked: boolean }[]).map(({ selector, testing, revoked }) => [selector, testing, revoked]), [["selector1", true, false], ["selector2", false, true]]);
+        assert.deepEqual(
+            (messy.dkim?.found as { selector: string; testing: boolean; revoked: boolean }[]).map(({ selector, testing, revoked }) => [selector, testing, revoked]),
+            [
+                ["selector1", true, false],
+                ["selector2", false, true],
+            ],
+        );
         assert.deepEqual(messy["tls-rpt"]?.errors, ["rua ftp://messy.fixture/ is neither mailto: nor https:"]);
         assert.deepEqual([(messy["mta-sts"]?.policy as Record<string, unknown>).mode, (messy["mta-sts"]?.policy as Record<string, unknown>).unmatched], ["testing", []]);
         assert.deepEqual((messy.bimi?.logo as { errors: string[] }).errors, ["<script> is not allowed", "href https://elsewhere.fixture/x.png is an external reference", "version is 1.1, not 1.2", "baseProfile is missing, not tiny-ps", "no <title>"]);
-        assert.deepEqual(findings({ "messy.fixture": { mail: messy } }, "mail"), ["mail/bimi-dmarc", "mail/bimi-logo", "mail/dkim-revoked", "mail/dkim-testing", "mail/dmarc-syntax", "mail/mta-sts-max-age", "mail/mta-sts-mode", "mail/spf-after-all", "mail/spf-include", "mail/spf-ptr", "mail/spf-redundant", "mail/tls-rpt-syntax"]);
+        assert.deepEqual(findings({ "messy.fixture": { mail: messy } }, "mail"), [
+            "mail/bimi-dmarc",
+            "mail/bimi-logo",
+            "mail/dkim-revoked",
+            "mail/dkim-testing",
+            "mail/dmarc-syntax",
+            "mail/mta-sts-max-age",
+            "mail/mta-sts-mode",
+            "mail/spf-after-all",
+            "mail/spf-include",
+            "mail/spf-ptr",
+            "mail/spf-redundant",
+            "mail/tls-rpt-syntax",
+        ]);
     });
 
     it("keeps a name without mail to the no-mail rules, and follows a configured mode", async () => {
@@ -273,10 +329,30 @@ describe("dns plugin", () => {
 
     it("runs a domains extractor on each crawled host’s registrable domain too", async () => {
         const seen: string[] = [];
-        const probe = { id: "probe", per: "host" as const, domains: true as const, cached: false as const, extract: async (subject: string, context: SiteContext) => { seen.push(`${subject}:${context.pages.length}`); return { subject }; } };
+        const probe = {
+            id: "probe",
+            per: "host" as const,
+            domains: true as const,
+            cached: false as const,
+            extract: async (subject: string, context: SiteContext) => {
+                seen.push(`${subject}:${context.pages.length}`);
+                return { subject };
+            },
+        };
         const site: SiteFacts = { sitemaps: [] };
-        await extractSites([page("www.clean.fixture", "Let's Encrypt"), page("blog.clean.fixture", "Let's Encrypt")], site, [probe], { allowPrivate: true, concurrency: 1, linkExclude: [], timeout: 60 }, new Bucket("origins", undefined, 60, "off"), dnsClient(fixture.server, off(), false), new Bucket<LinkFacts>("probes", undefined, 60, "off"));
-        assert.deepEqual(seen.toSorted((a, b) => a.localeCompare(b)), ["blog.clean.fixture:1", "clean.fixture:2", "www.clean.fixture:1"]);
+        await extractSites(
+            [page("www.clean.fixture", "Let's Encrypt"), page("blog.clean.fixture", "Let's Encrypt")],
+            site,
+            [probe],
+            { allowPrivate: true, concurrency: 1, linkExclude: [], timeout: 60 },
+            new Bucket("origins", undefined, 60, "off"),
+            dnsClient(fixture.server, off(), false),
+            new Bucket<LinkFacts>("probes", undefined, 60, "off"),
+        );
+        assert.deepEqual(
+            seen.toSorted((a, b) => a.localeCompare(b)),
+            ["blog.clean.fixture:1", "clean.fixture:2", "www.clean.fixture:1"],
+        );
     });
 
     it("records _for-sale and _agents as facts only", async () => {
@@ -298,8 +374,14 @@ describe("dns plugin", () => {
         assert.deepEqual(site.hosts?.["old.bad.fixture"]?.dns, { cname: [{ name: "old.bad.fixture", target: "gone.elsewhere.fixture", ttl: 300 }], dangling: "gone.elsewhere.fixture" });
         assert.equal((site.hosts?.["www.bad.fixture"]?.dns as { dangling: unknown }).dangling, false);
         const reported = keyed(site, "dns");
-        assert.deepEqual(reported.filter(([rule]) => rule === "dns/dangling-cname"), [["dns/dangling-cname", "old.bad.fixture"]]);
-        assert.ok(reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/dangling-cname"), "only the linked rule judges the linked host");
+        assert.deepEqual(
+            reported.filter(([rule]) => rule === "dns/dangling-cname"),
+            [["dns/dangling-cname", "old.bad.fixture"]],
+        );
+        assert.ok(
+            reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/dangling-cname"),
+            "only the linked rule judges the linked host",
+        );
     });
 
     it("finds name servers answering the host apart from each other and from the resolver", async () => {
@@ -309,7 +391,11 @@ describe("dns plugin", () => {
             validating: async () => false,
             async query(name, type, options = {}) {
                 if (type === "SOA") return reply(name === "split.fixture" ? [soa("split.fixture", 1)] : [], options.server !== undefined);
-                if (type === "NS") return reply([{ type: "NS", name, ttl: 300, data: "ns1.split.fixture" }, { type: "NS", name, ttl: 300, data: "ns2.split.fixture" }]);
+                if (type === "NS")
+                    return reply([
+                        { type: "NS", name, ttl: 300, data: "ns1.split.fixture" },
+                        { type: "NS", name, ttl: 300, data: "ns2.split.fixture" },
+                    ]);
                 if (type !== "A") return reply([]);
                 if (options.server) return reply([a(name, direct[options.server] as string)], true);
                 return reply([a(name, name === "ns1.split.fixture" ? "192.0.2.53" : name === "ns2.split.fixture" ? "192.0.2.54" : "203.0.113.9")]);
@@ -318,7 +404,10 @@ describe("dns plugin", () => {
         const nameservers = dns.sites?.find((site) => site.id === "nameservers");
         const facts = (await nameservers?.extract("split.fixture", { pages: [], signal: new AbortController().signal, dns: stub } as unknown as SiteContext)) as Record<string, unknown>;
         assert.deepEqual([facts["answer-sets"], facts["resolver-agrees"], facts.resolver], [2, false, ["A 203.0.113.9"]]);
-        assert.deepEqual(findings({ "split.fixture": { nameservers: facts } }).filter((rule) => /^dns\/ns-(answers|resolver)$/.test(rule)), ["dns/ns-answers", "dns/ns-resolver"]);
+        assert.deepEqual(
+            findings({ "split.fixture": { nameservers: facts } }).filter((rule) => /^dns\/ns-(answers|resolver)$/.test(rule)),
+            ["dns/ns-answers", "dns/ns-resolver"],
+        );
     });
 
     it("compares public resolvers only when asked, and names their disagreements", async () => {
@@ -331,7 +420,10 @@ describe("dns plugin", () => {
             assert.deepEqual([good.rcodes, good["answer-sets"], good.validated], [["NOERROR"], 2, [true, false]]);
             const bogus = (await resolvers?.extract("bogus.fixture", context([plain.server]))) as Record<string, unknown>;
             assert.deepEqual(bogus.rcodes, ["SERVFAIL", "NOERROR"]);
-            assert.deepEqual(findings({ "good.fixture": { resolvers: good, dnssec: { signed: true } }, "bogus.fixture": { resolvers: bogus } }).filter((rule) => rule.startsWith("dns/resolver-")), ["dns/resolver-answers", "dns/resolver-rcode", "dns/resolver-validation"]);
+            assert.deepEqual(
+                findings({ "good.fixture": { resolvers: good, dnssec: { signed: true } }, "bogus.fixture": { resolvers: bogus } }).filter((rule) => rule.startsWith("dns/resolver-")),
+                ["dns/resolver-answers", "dns/resolver-rcode", "dns/resolver-validation"],
+            );
         } finally {
             await other.close();
         }
@@ -339,7 +431,13 @@ describe("dns plugin", () => {
 
     it("never asks a name server directly when direct queries are off", async () => {
         const facts = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
-        assert.deepEqual((facts.nameservers as { servers: object[] }).servers.map((server) => Object.keys(server)), [["name", "addresses"], ["name", "addresses"]]);
+        assert.deepEqual(
+            (facts.nameservers as { servers: object[] }).servers.map((server) => Object.keys(server)),
+            [
+                ["name", "addresses"],
+                ["name", "addresses"],
+            ],
+        );
         await assert.rejects(dnsClient(fixture.server, off(), false).query("good.fixture", "SOA", { server: "127.0.0.1" }), /refused/);
     });
 });
@@ -398,7 +496,11 @@ describe("rdap", () => {
     it("finds an expiring, an unlocked and a moved domain, one finding each", async () => {
         const run = context();
         const hosts = Object.fromEntries(await Promise.all(["www.expiring.fixture", "unlocked.fixture", "moved.fixture"].map(async (host) => [host, { rdap: await rdap?.extract(host, run) }])));
-        assert.deepEqual(keyed({ sitemaps: [], hosts }, "dns"), [["domain/expiring", "www.expiring.fixture"], ["domain/lock", "unlocked.fixture"], ["domain/ns-registry", "moved.fixture"]]);
+        assert.deepEqual(keyed({ sitemaps: [], hosts }, "dns"), [
+            ["domain/expiring", "www.expiring.fixture"],
+            ["domain/lock", "unlocked.fixture"],
+            ["domain/ns-registry", "moved.fixture"],
+        ]);
         assert.deepEqual((hosts["www.expiring.fixture"] as { rdap: { nameservers: string[]; "ns-matches": boolean } }).rdap.nameservers, ["ns1.expiring.fixture"]);
         assert.equal(requests.filter((url) => url === "/bootstrap").length, 1, "the bootstrap is fetched once");
         const stored = JSON.parse(await readFile(path.join(directory, "spiderlint", "rdap", "dns.json"), "utf8")) as { services: unknown[] };

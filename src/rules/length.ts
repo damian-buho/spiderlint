@@ -7,7 +7,6 @@ import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { Finding, Make } from "./types.ts";
 
-
 // What is wrong with a response’s framing headers, or undefined when nothing is.
 export function framingFault(status: number, headers: Record<string, string | string[]>, error?: string): string | undefined {
     const hasLength = headers["content-length"] !== undefined;

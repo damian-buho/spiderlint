@@ -203,7 +203,11 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.origins.*.tls-probe.dh-bits": { type: "number" } },
         message: "the server’s DHE prime has {got} bits, short of 2048",
         severity: "warning",
-        score: [[512, 6.4], [1024, 5.4], [2047, 3.4]],
+        score: [
+            [512, 6.4],
+            [1024, 5.4],
+            [2047, 3.4],
+        ],
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.5",
         fix: "Use a DH group of at least 2048 bits, or drop the DHE suites for ECDHE.",
     },

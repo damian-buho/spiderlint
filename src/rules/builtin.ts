@@ -28,7 +28,15 @@ const brokenInternal: Make = (severity) => ({
         for (const page of pages) {
             if (page.http.status > 0 && page.http.status < 400) continue;
             log.debug({ url: page.url.href, status: page.http.status, referrers: page.crawl.referrers.length }, "broken link");
-            findings.push({ rule: "links/broken-internal", severity, scope: "site", url: page.url.href, message: `${page.http.error ? `http.error is ${page.http.error}` : `http.status is ${page.http.status}`}; linked from ${pageCount(page.crawl.referrers.length)}`, value: page.http.status, urls: page.crawl.referrers });
+            findings.push({
+                rule: "links/broken-internal",
+                severity,
+                scope: "site",
+                url: page.url.href,
+                message: `${page.http.error ? `http.error is ${page.http.error}` : `http.status is ${page.http.status}`}; linked from ${pageCount(page.crawl.referrers.length)}`,
+                value: page.http.status,
+                urls: page.crawl.referrers,
+            });
         }
         return findings;
     },
@@ -92,7 +100,10 @@ const redirectedInternal: Make = (severity) => ({
             for (const href of hrefs) if (landing.has(href)) linking.set(href, [...(linking.get(href) ?? []), page.url.href]);
         }
         log.debug({ rule: "links/redirected-internal", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
-        return linking.entries().map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, message: `redirects to ${landing.get(href)}; linked from ${pageCount(urls.length)}`, value: landing.get(href), urls })).toArray();
+        return linking
+            .entries()
+            .map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, message: `redirects to ${landing.get(href)}; linked from ${pageCount(urls.length)}`, value: landing.get(href), urls }))
+            .toArray();
     },
 });
 
@@ -114,7 +125,14 @@ export function header(page: Facts, name: string): string {
 
 // Framing refused by CSP `frame-ancestors` or by `X-Frame-Options` DENY or SAMEORIGIN.
 const frameOptions: Make = (severity) => ({
-    meta: { id: "http/frame-options", severity, scope: "page", facts: ["http.csp.directives", "http.headers.x-frame-options"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors", fix: "Send a Content-Security-Policy frame-ancestors directive, or X-Frame-Options: DENY." },
+    meta: {
+        id: "http/frame-options",
+        severity,
+        scope: "page",
+        facts: ["http.csp.directives", "http.headers.x-frame-options"],
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors",
+        fix: "Send a Content-Security-Policy frame-ancestors directive, or X-Frame-Options: DENY.",
+    },
     check(page: Facts) {
         const hasAncestors = page.http.csp?.directives?.["frame-ancestors"] !== undefined;
         const options = header(page, "x-frame-options").trim();
@@ -163,7 +181,12 @@ function originOf(href: string | undefined): string | undefined {
 // Head links and `Link` header entries whose `rel` carries one of `relations`.
 function withRelation(page: Facts, relations: string[]): HeadLink[] {
     const headers = linksOf(page.http.parsed?.link).map((link): HeadLink => ({ ...link, href: resolve(link.href ?? "", page.url.href) }));
-    return [...(page.html?.head.links ?? []), ...headers].filter((link) => (link.rel ?? "").toLowerCase().split(/\s+/).some((token) => relations.includes(token)));
+    return [...(page.html?.head.links ?? []), ...headers].filter((link) =>
+        (link.rel ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .some((token) => relations.includes(token)),
+    );
 }
 
 // Origins warmed by `preconnect` or `dns-prefetch`, with the relation that names each.
@@ -178,7 +201,10 @@ const preconnectUnused = pageRule(
     (page) => {
         if (!page.browser || !page.html) return;
         const used = new Set((page.resources ?? []).map((resource) => originOf(resource.url)));
-        const unused = hintedOrigins(page).entries().filter(([origin]) => !used.has(origin)).toArray();
+        const unused = hintedOrigins(page)
+            .entries()
+            .filter(([origin]) => !used.has(origin))
+            .toArray();
         log.debug({ rule: "html/preconnect-unused", url: page.url.href, used: used.size, unused: unused.length }, "resource hints matched");
         return unused.map(([origin, relation]) => ({ message: `rel=${relation} warms ${origin}, which no resource of the page loads`, value: origin }));
     },
@@ -204,7 +230,10 @@ const viewportSyntax = pageRule(
     (page) => {
         const content = page.html?.meta.viewport;
         if (content === undefined) return;
-        const entries = content.replaceAll(/\s*=\s*/g, "=").split(/[\s,;]+/).filter((entry) => entry.length > 0);
+        const entries = content
+            .replaceAll(/\s*=\s*/g, "=")
+            .split(/[\s,;]+/)
+            .filter((entry) => entry.length > 0);
         const dropped = entries.filter((entry) => {
             const [key = "", value] = entry.split("=", 2);
             return value === undefined || !VIEWPORT[key.toLowerCase()]?.test(value);
@@ -233,7 +262,9 @@ const themeColorSyntax = pageRule(
 // Cross origins serving a head script without `async`, `defer` or `type=module`, or a style sheet for every medium.
 function blockingOrigins(page: Facts): Map<string, string> {
     const scripts = (page.html?.scripts ?? []).filter((script) => script.head && !script.async && !script.defer && script.type !== "module").map((script) => [originOf(script.src), "script"]);
-    const styles = withRelation(page, ["stylesheet"]).filter((link) => !link.media || /\b(?:all|screen)\b/i.test(link.media)).map((link) => [originOf(link.href), "style sheet"]);
+    const styles = withRelation(page, ["stylesheet"])
+        .filter((link) => !link.media || /\b(?:all|screen)\b/i.test(link.media))
+        .map((link) => [originOf(link.href), "style sheet"]);
     return new Map([...scripts, ...styles].filter((entry): entry is [string, string] => entry[0] !== undefined && entry[0] !== page.url.origin));
 }
 
@@ -244,7 +275,10 @@ const preconnectMissing = pageRule(
     (page) => {
         if (!page.html) return;
         const warmed = new Set([...hintedOrigins(page).keys(), ...withRelation(page, ["preload"]).map((link) => originOf(link.href))]);
-        const cold = blockingOrigins(page).entries().filter(([origin]) => !warmed.has(origin)).toArray();
+        const cold = blockingOrigins(page)
+            .entries()
+            .filter(([origin]) => !warmed.has(origin))
+            .toArray();
         log.debug({ rule: "html/preconnect-missing", url: page.url.href, warmed: warmed.size, cold: cold.length }, "render-blocking origins matched");
         return cold.map(([origin, kind]) => ({ message: `${origin} serves a render-blocking ${kind} and nothing preconnects to it`, value: origin }));
     },
@@ -257,7 +291,12 @@ const preconnectCrossorigin = pageRule(
     ["html.head.links", "http.parsed.link", "resources"],
     (page) => {
         if (!page.html) return;
-        const fonts = new Set([...(page.resources ?? []).filter((resource) => resource.kind === "font").map((resource) => originOf(resource.url)), ...withRelation(page, ["preload"]).filter((link) => link.as === "font").map((link) => originOf(link.href))]);
+        const fonts = new Set([
+            ...(page.resources ?? []).filter((resource) => resource.kind === "font").map((resource) => originOf(resource.url)),
+            ...withRelation(page, ["preload"])
+                .filter((link) => link.as === "font")
+                .map((link) => originOf(link.href)),
+        ]);
         const preconnects = withRelation(page, ["preconnect"]).filter((link) => originOf(link.href) !== undefined && fonts.has(originOf(link.href)));
         const anonymous = new Set(preconnects.filter((link) => link.crossorigin !== undefined).map((link) => originOf(link.href)));
         const bare = [...new Set(preconnects.map((link) => originOf(link.href))).difference(anonymous)];
@@ -314,7 +353,9 @@ function varies(severity: Exclude<Severity, "off">, host: string, members: Facts
 const consistentOrigin: Make = (severity) => ({
     meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact), fix: "Make every page of the host serve the same certificate, TLS protocol and Server header." },
     check(pages: Facts[]) {
-        const hosts = Map.groupBy(pages, (page) => page.url.host).entries().toArray();
+        const hosts = Map.groupBy(pages, (page) => page.url.host)
+            .entries()
+            .toArray();
         return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, label, read]) => varies(severity, host, members, fact, label, read)).filter((finding) => finding !== undefined));
     },
 });
@@ -366,7 +407,8 @@ export function resourceRule(id: string, isUsed: (page: Facts, resource: Resourc
 const isAnyUse = () => true;
 
 // A fetched resource answering outside 2xx, or not at all.
-const resourceStatus: Verdict = (resource, pages) => {    const http = resource.http;
+const resourceStatus: Verdict = (resource, pages) => {
+    const http = resource.http;
     if (!http || (http.status >= 200 && http.status < 300)) return;
     return http.status === 0 ? `${resource.kind} could not be fetched (${http.error}); used by ${pages} pages` : `${resource.kind} answers ${http.status}; used by ${pages} pages`;
 };
@@ -440,7 +482,14 @@ export const builtin: Record<string, Make> = {
     ...insightRules,
     ...lengthRules,
     ...relationRules,
-    "resources/status": resourceRule("resources/status", (_page, resource) => resource.kind !== "enclosure", resourceStatus, undefined, (resource) => resource.http?.status ?? 0, { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." }),
+    "resources/status": resourceRule(
+        "resources/status",
+        (_page, resource) => resource.kind !== "enclosure",
+        resourceStatus,
+        undefined,
+        (resource) => resource.http?.status ?? 0,
+        { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." },
+    ),
     "resources/mixed-content": resourceRule(
         "resources/mixed-content",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),

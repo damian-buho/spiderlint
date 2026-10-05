@@ -38,7 +38,11 @@ describe("progress ETA", () => {
         assert.deepEqual(etaSpan([12.4, 40.2]), { low: 12, high: 41, unit: "second" });
         assert.deepEqual(etaSpan([150, 250]), { low: 2, high: 5, unit: "minute" });
         assert.deepEqual(etaSpan([7300, 9000]), { low: 2, high: 3, unit: "hour" });
-        for (const range of [[0.2, 59.1], [3.3, 3599.9], [1, 90_000]] as [number, number][]) {
+        for (const range of [
+            [0.2, 59.1],
+            [3.3, 3599.9],
+            [1, 90_000],
+        ] as [number, number][]) {
             const { low, high } = etaSpan(range);
             assert.ok(Number.isSafeInteger(low) && Number.isSafeInteger(high), String(range));
         }
@@ -52,7 +56,10 @@ describe("progress listener", () => {
             heard.push(progress);
         });
         for (const done of [1, 2, 3, 4]) progressDone(done);
-        assert.deepEqual(heard.map((progress) => progress.done), [1, 2, 3, 4]);
+        assert.deepEqual(
+            heard.map((progress) => progress.done),
+            [1, 2, 3, 4],
+        );
         assert.equal(heard.at(-1)?.total, 4);
         assert.equal(heard[0]?.eta, undefined);
     });
@@ -74,7 +81,10 @@ describe("progress phases", () => {
         progressCount(1);
         progressCount(2);
         progressEnd();
-        assert.deepEqual(heard.map((progress) => progress.phase), ["crawl", "resources", "probes", "site", "lint", "resources", "resources"]);
+        assert.deepEqual(
+            heard.map((progress) => progress.phase),
+            ["crawl", "resources", "probes", "site", "lint", "resources", "resources"],
+        );
         assert.deepEqual(heard.at(-1)?.step, { done: 2, total: 2 });
         assert.equal(heard[4]?.step, undefined);
         assert.equal(heard.at(-1)?.eta, undefined);

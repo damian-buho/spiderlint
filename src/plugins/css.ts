@@ -87,7 +87,10 @@ const DEFERRED = new Set(["AtRuleInvalid", "EndOfInput"]);
 function around(css: string, offset: number): string {
     const start = Math.max(...[";", "{", "}"].map((mark) => css.lastIndexOf(mark, offset - 1))) + 1;
     const ends = [";", "{", "}"].map((mark) => css.indexOf(mark, offset)).filter((index) => index >= 0);
-    const text = css.slice(start, ends.length > 0 ? Math.min(...ends) : css.length).trim().replaceAll(/\s+/g, " ");
+    const text = css
+        .slice(start, ends.length > 0 ? Math.min(...ends) : css.length)
+        .trim()
+        .replaceAll(/\s+/g, " ");
     return text.length > SOURCE_MAX ? `${text.slice(0, SOURCE_MAX)}…` : text;
 }
 
@@ -217,7 +220,16 @@ async function extractInline(page: Facts, body: string): Promise<CssFacts | unde
     log.debug({ url: page.url.href, blocks: blocks.length }, "inline css found");
     if (blocks.length === 0) return undefined;
     const linted = await Promise.all(blocks.map((block) => lint(block.css, block.origin, block.isDeclarations, block.element)));
-    return { messages: linted.flatMap((facts) => facts.messages).slice(0, MESSAGES_MAX), features: Map.groupBy(linted.flatMap((facts) => facts.features), (used) => used.feature).values().map((uses) => ({ ...(uses[0] as CssFeature), count: uses.reduce((sum, used) => sum + used.count, 0) })).toArray() };
+    return {
+        messages: linted.flatMap((facts) => facts.messages).slice(0, MESSAGES_MAX),
+        features: Map.groupBy(
+            linted.flatMap((facts) => facts.features),
+            (used) => used.feature,
+        )
+            .values()
+            .map((uses) => ({ ...(uses[0] as CssFeature), count: uses.reduce((sum, used) => sum + used.count, 0) }))
+            .toArray(),
+    };
 }
 
 // `count` with the noun or verb form agreeing with it.
@@ -229,7 +241,7 @@ const KINDS: Record<Kind, { name: string; says: (count: number, where: string) =
         name: "parse-error",
         says: (count, where) => `${count} syntax ${agree(count, "error", "errors")} in ${where}, so browsers drop the rule or block ${agree(count, "it sits", "they sit")} in`,
         docs: "https://www.w3.org/TR/css-syntax-3/#error-handling",
-        fix: "Close every block and string, and write selectors browsers accept, as in a::before { content: \"\" }.",
+        fix: 'Close every block and string, and write selectors browsers accept, as in a::before { content: "" }.',
     },
     property: {
         name: "unknown-property",
@@ -255,15 +267,27 @@ const located = (message: CssMessage) => [`${message.line}:${message.column}`, m
 function kindRules(kind: Kind): Record<string, Make> {
     const { name, says, docs, fix } = KINDS[kind];
     const of = (facts: CssFacts | undefined) => facts?.messages.filter((message) => message.kind === kind) ?? [];
-    const sheet = resourceRule(`css/${name}`, isLinted, (resource, pages) => {
-        const hits = of(cssOf(resource));
-        return hits.length === 0 ? undefined : { message: `${says(hits.length, "the style sheet")}; used by ${pages} pages`, locations: hits.map((hit) => located(hit)) };
-    }, [`resources.${ID}`], (resource) => of(cssOf(resource)), { docs, fix });
-    const inline = pageRule(`css/inline-${name}`, [`${ID}.messages`], (page) => {
-        const facts = page[ID] as CssFacts | undefined;
-        const hits = of(facts);
-        return facts && (hits.length === 0 ? [] : [{ message: says(hits.length, "inline CSS"), value: hits, locations: hits.map((hit) => located(hit)) }]);
-    }, { docs, fix });
+    const sheet = resourceRule(
+        `css/${name}`,
+        isLinted,
+        (resource, pages) => {
+            const hits = of(cssOf(resource));
+            return hits.length === 0 ? undefined : { message: `${says(hits.length, "the style sheet")}; used by ${pages} pages`, locations: hits.map((hit) => located(hit)) };
+        },
+        [`resources.${ID}`],
+        (resource) => of(cssOf(resource)),
+        { docs, fix },
+    );
+    const inline = pageRule(
+        `css/inline-${name}`,
+        [`${ID}.messages`],
+        (page) => {
+            const facts = page[ID] as CssFacts | undefined;
+            const hits = of(facts);
+            return facts && (hits.length === 0 ? [] : [{ message: says(hits.length, "inline CSS"), value: hits, locations: hits.map((hit) => located(hit)) }]);
+        },
+        { docs, fix },
+    );
     return { [`css/${name}`]: sheet, [`css/inline-${name}`]: inline };
 }
 
@@ -301,11 +325,14 @@ function lacking(feature: string, browsers: string[]): string[] {
     if (!unpacked.has(feature)) unpacked.set(feature, caniuse.features[feature] && caniuse.feature(caniuse.features[feature]));
     const stats = unpacked.get(feature)?.stats ?? {};
     const lacks = browsers.map((browser) => browser.split(" ") as [string, string]).filter(([name, version]) => /^[np]\b/.test(stats[name]?.[version] ?? "y"));
-    return Map.groupBy(lacks, ([name]) => name).entries().map(([name, entries]) => {
-        const versions = entries.map(([, version]) => version).toSorted((a, b) => a.localeCompare(b, "en", { numeric: true }));
-        const [first, last] = [versions[0], versions.at(-1)];
-        return `${caniuse.agents[name]?.browser ?? name} ${first}${first === last ? "" : `–${last}`}`;
-    }).toArray();
+    return Map.groupBy(lacks, ([name]) => name)
+        .entries()
+        .map(([name, entries]) => {
+            const versions = entries.map(([, version]) => version).toSorted((a, b) => a.localeCompare(b, "en", { numeric: true }));
+            const [first, last] = [versions[0], versions.at(-1)];
+            return `${caniuse.agents[name]?.browser ?? name} ${first}${first === last ? "" : `–${last}`}`;
+        })
+        .toArray();
 }
 
 // The features of `facts` the targets lack, as a message and one location each.
@@ -324,17 +351,37 @@ function targeted(rule: Rule, settings: CssSettings): Rule {
 }
 
 // Style sheets using features the declared browser targets lack, keyed by URL.
-const unsupported: Make = (severity, settings) => targeted(resourceRule("css/unsupported", isLinted, (resource, pages) => {
-    const judged = unsupportedIn(cssOf(resource) as CssFacts, targetsOf(settings as CssSettings) as Targets);
-    return judged && { message: `style sheet ${judged.message}; used by ${pages} pages`, locations: judged.locations };
-}, [`resources.${ID}`], (resource) => cssOf(resource)?.features, UNSUPPORTED)(severity), settings as CssSettings);
+const unsupported: Make = (severity, settings) =>
+    targeted(
+        resourceRule(
+            "css/unsupported",
+            isLinted,
+            (resource, pages) => {
+                const judged = unsupportedIn(cssOf(resource) as CssFacts, targetsOf(settings as CssSettings) as Targets);
+                return judged && { message: `style sheet ${judged.message}; used by ${pages} pages`, locations: judged.locations };
+            },
+            [`resources.${ID}`],
+            (resource) => cssOf(resource)?.features,
+            UNSUPPORTED,
+        )(severity),
+        settings as CssSettings,
+    );
 
 // Inline CSS using features the declared browser targets lack, per page.
-const inlineUnsupported: Make = (severity, settings) => targeted(pageRule("css/inline-unsupported", [`${ID}.features`], (page) => {
-    const facts = page[ID] as CssFacts | undefined;
-    const judged = facts && unsupportedIn(facts, targetsOf(settings as CssSettings) as Targets);
-    return facts && (judged ? [{ message: `inline CSS ${judged.message}`, value: facts.features.length, locations: judged.locations }] : []);
-}, UNSUPPORTED)(severity), settings as CssSettings);
+const inlineUnsupported: Make = (severity, settings) =>
+    targeted(
+        pageRule(
+            "css/inline-unsupported",
+            [`${ID}.features`],
+            (page) => {
+                const facts = page[ID] as CssFacts | undefined;
+                const judged = facts && unsupportedIn(facts, targetsOf(settings as CssSettings) as Targets);
+                return facts && (judged ? [{ message: `inline CSS ${judged.message}`, value: facts.features.length, locations: judged.locations }] : []);
+            },
+            UNSUPPORTED,
+        )(severity),
+        settings as CssSettings,
+    );
 
 export default definePlugin({
     name: "css",
@@ -345,7 +392,16 @@ export default definePlugin({
     presets: {
         css: {
             description: "Style sheets and inline CSS as browsers parse them: syntax errors, unknown properties, values outside the grammar, and features the declared browser targets lack",
-            rules: { "css/parse-error": { severity: "warning", score: 5.6 }, "css/unknown-property": { severity: "warning", score: 4.6 }, "css/invalid-value": { severity: "warning", score: 4.4 }, "css/unsupported": { severity: "info", score: 2.2 }, "css/inline-parse-error": { severity: "warning", score: 5.2 }, "css/inline-unknown-property": { severity: "warning", score: 4.2 }, "css/inline-invalid-value": { severity: "warning", score: 4 }, "css/inline-unsupported": { severity: "info", score: 1.8 } },
+            rules: {
+                "css/parse-error": { severity: "warning", score: 5.6 },
+                "css/unknown-property": { severity: "warning", score: 4.6 },
+                "css/invalid-value": { severity: "warning", score: 4.4 },
+                "css/unsupported": { severity: "info", score: 2.2 },
+                "css/inline-parse-error": { severity: "warning", score: 5.2 },
+                "css/inline-unknown-property": { severity: "warning", score: 4.2 },
+                "css/inline-invalid-value": { severity: "warning", score: 4 },
+                "css/inline-unsupported": { severity: "info", score: 1.8 },
+            },
         },
     },
 });

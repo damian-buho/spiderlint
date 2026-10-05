@@ -86,10 +86,12 @@ export function vendorFacts(pages: Facts[], site: SiteFacts, isOn: boolean): voi
 // Site findings about a vendor’s resource carry the vendor, so formatters list them apart from the site’s own.
 export function attributeVendors(findings: Finding[], isOn: boolean): void {
     if (!isOn) return;
-    const attributed = findings.filter((finding) => finding.scope === "site").flatMap((finding) => {
-        const entry = vendorPath(finding.url, "resource");
-        if (entry) finding.vendor = entry.vendor;
-        return entry ? [finding.rule] : [];
-    });
+    const attributed = findings
+        .filter((finding) => finding.scope === "site")
+        .flatMap((finding) => {
+            const entry = vendorPath(finding.url, "resource");
+            if (entry) finding.vendor = entry.vendor;
+            return entry ? [finding.rule] : [];
+        });
     log.debug({ findings: attributed.length, rules: [...new Set(attributed)] }, "vendor findings attributed");
 }

@@ -54,7 +54,10 @@ type Parsed = { tags: Map<string, string>; errors: string[] };
 function tagList(record: string, first: string, version: RegExp): Parsed {
     const tags = new Map<string, string>();
     const errors: string[] = [];
-    const parts = record.split(";").map((part) => part.trim()).filter(Boolean);
+    const parts = record
+        .split(";")
+        .map((part) => part.trim())
+        .filter(Boolean);
     for (const [index, part] of parts.entries()) {
         const match = /^([a-z][a-z0-9_]*)\s*=\s*(.*)$/is.exec(part);
         if (!match) errors.push(`malformed tag “${part}”`);
@@ -67,7 +70,11 @@ function tagList(record: string, first: string, version: RegExp): Parsed {
 
 // A domain-spec with `%{d}` and `%{o}` filled; undefined when a sender macro is left, since no sender is known.
 function expand(spec: string, domain: string): string | undefined {
-    const filled = spec.replaceAll(/%\{[do]r?\}/gi, () => domain).replaceAll("%%", "%").replaceAll("%_", " ").replaceAll("%-", "%20");
+    const filled = spec
+        .replaceAll(/%\{[do]r?\}/gi, () => domain)
+        .replaceAll("%%", "%")
+        .replaceAll("%_", " ")
+        .replaceAll("%-", "%20");
     return filled.includes("%") ? undefined : filled.replace(/\.$/, "");
 }
 
@@ -224,7 +231,12 @@ function dmarcTags(record: string): Parsed {
 
 // The report URIs of one tag, without a size limit suffix.
 function reportUris(tags: Map<string, string>): string[] {
-    return ["rua", "ruf"].flatMap((tag) => (tags.get(tag) ?? "").split(",").map((uri) => uri.trim().replace(/!\d+[kmgt]?$/i, "")).filter(Boolean));
+    return ["rua", "ruf"].flatMap((tag) =>
+        (tags.get(tag) ?? "")
+            .split(",")
+            .map((uri) => uri.trim().replace(/!\d+[kmgt]?$/i, ""))
+            .filter(Boolean),
+    );
 }
 
 // A DMARC record’s grammar, testing state, subdomain policy, non-mailto report URIs and external destinations that do not accept its reports (RFC 9990 §4).
@@ -260,7 +272,10 @@ function dkimKey(selector: string, record: string): Record<string, unknown> {
             errors.push(`p= is not an RSA public key: ${reason(error)}`);
         }
     }
-    const flags = (tags.get("t") ?? "").toLowerCase().split(":").map((flag) => flag.trim());
+    const flags = (tags.get("t") ?? "")
+        .toLowerCase()
+        .split(":")
+        .map((flag) => flag.trim());
     return { selector, errors, k, ...(bits !== undefined && { bits }), testing: flags.includes("y"), revoked: tags.has("p") && p === "" };
 }
 
@@ -313,7 +328,10 @@ async function mtaStsCheck(domain: string, exchanges: string[], context: SiteCon
         policy.status = answer.status;
         if (answer.status !== 200) policy.errors.push(`answers ${answer.status}`);
         if (!/^text\/plain\b/i.test(type)) policy.errors.push(`served as ${type || "no type"}`);
-        const fields = answer.body.split(/\r?\n/).map((line) => /^([a-z_]+):\s*(.*?)\s*$/i.exec(line)).filter((match) => match !== null);
+        const fields = answer.body
+            .split(/\r?\n/)
+            .map((line) => /^([a-z_]+):\s*(.*?)\s*$/i.exec(line))
+            .filter((match) => match !== null);
         const one = (key: string) => fields.find((match) => match[1] === key)?.[2];
         const patterns = fields.filter((match) => match[1] === "mx").map((match) => match[2] as string);
         const [version, mode, maxAge] = [one("version"), one("mode"), one("max_age")];
@@ -335,7 +353,10 @@ async function tlsRptCheck(domain: string, dns: DnsClient): Promise<Record<strin
     if (found.length === 0) return {};
     const { tags, errors } = tagList(found[0] as string, "v", /^TLSRPTv1$/);
     if (found.length > 1) errors.push(`${found.length} records`);
-    const uris = (tags.get("rua") ?? "").split(",").map((uri) => uri.trim()).filter(Boolean);
+    const uris = (tags.get("rua") ?? "")
+        .split(",")
+        .map((uri) => uri.trim())
+        .filter(Boolean);
     if (uris.length === 0) errors.push("no rua=");
     for (const uri of uris) if (!/^(mailto:[^@\s]+@[^@\s]+|https:\/\/\S+)$/i.test(uri)) errors.push(`rua ${uri} is neither mailto: nor https:`);
     log.debug({ domain, errors }, "tls-rpt read");
@@ -427,7 +448,12 @@ function reverseName(address: string): string {
     const [head = "", tail = ""] = address.split("::", 2);
     const [left, right] = [head ? head.split(":") : [], tail ? tail.split(":") : []];
     const groups = address.includes("::") ? [...left, ...Array.from({ length: 8 - left.length - right.length }, () => "0"), ...right] : left;
-    return `${groups.map((group) => group.padStart(4, "0")).join("").split("").toReversed().join(".")}.ip6.arpa`;
+    return `${groups
+        .map((group) => group.padStart(4, "0"))
+        .join("")
+        .split("")
+        .toReversed()
+        .join(".")}.ip6.arpa`;
 }
 
 // The SMTP reply lines up to the last of one reply, which has a space after its code.
@@ -497,7 +523,11 @@ async function starttlsCheck(exchanges: string[], context: SiteContext): Promise
 }
 
 // Whether an SPF record lets some host send: a mechanism with no `-`, `~` or `?` qualifier, or a `redirect=`.
-const isAuthorizing = (record: string): boolean => record.split(/\s+/).slice(1).some((term) => /^\+?(all$|a\b|mx\b|ptr\b|ip4:|ip6:|include:|exists:)|^redirect=/i.test(term));
+const isAuthorizing = (record: string): boolean =>
+    record
+        .split(/\s+/)
+        .slice(1)
+        .some((term) => /^\+?(all$|a\b|mx\b|ptr\b|ip4:|ip6:|include:|exists:)|^redirect=/i.test(term));
 
 // MX, SPF and DMARC of one host or registrable domain, the `intent` its MX and SPF declare and the `mode` it is judged in; a mail name adds every authentication record.
 const mail: SiteExtractor = {
@@ -883,7 +913,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.3,
         docs: "https://datatracker.ietf.org/doc/draft-svg-tiny-ps-abrotman/",
-        fix: "Serve the logo the `l=` tag names as an SVG with `version=\"1.2\" baseProfile=\"tiny-ps\"`, a `<title>`, no script and no external reference.",
+        fix: 'Serve the logo the `l=` tag names as an SVG with `version="1.2" baseProfile="tiny-ps"`, a `<title>`, no script and no external reference.',
     },
     "mail/bimi-vmc": {
         fact: "site.hosts.*.mail.bimi.vmc.parses",
@@ -951,7 +981,11 @@ function asWarning(id: string): RuleSpec {
 // Mail authentication of every crawled host and its registrable domain: SPF, DMARC, DKIM, MX, MTA-STS, TLS-RPT, BIMI, and opt-in DANE and STARTTLS.
 export default definePlugin({
     name: "mail",
-    settings: { type: "object", additionalProperties: false, properties: { mode: { enum: ["auto", "mail", "none"], default: "auto" }, "dkim-selectors": { type: "array", items: { type: "string", pattern: "^[A-Za-z0-9._-]+$" }, default: [] }, dane: { type: "boolean", default: false }, starttls: { type: "boolean", default: false } } },
+    settings: {
+        type: "object",
+        additionalProperties: false,
+        properties: { mode: { enum: ["auto", "mail", "none"], default: "auto" }, "dkim-selectors": { type: "array", items: { type: "string", pattern: "^[A-Za-z0-9._-]+$" }, default: [] }, dane: { type: "boolean", default: false }, starttls: { type: "boolean", default: false } },
+    },
     sites: [mail],
     presets: {
         mail: { description: "Mail authentication of names that take or send mail: SPF grammar and lookups, DMARC, DKIM keys, MX, MTA-STS, TLS-RPT and BIMI; DANE and STARTTLS once turned on", rules: ALL },

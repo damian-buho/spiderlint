@@ -17,7 +17,52 @@ const LEVELS = ["error", "warning", "info", "hint"] as const;
 type Level = (typeof LEVELS)[number];
 const DISCOVER_NAMES = ["projectfile.yaml", "projectfile.toml", "projectfile.json"];
 
-export type Settings = Partial<Pick<Config, "seeds" | "canonicalOrigin" | "role" | "fetch" | "browser" | "scope" | "concurrency" | "rate" | "timeout" | "profile" | "proxy" | "maxPages" | "maxDepth" | "maxBodySize" | "keepalive" | "fetchResources" | "maxResourcesPerPage" | "linkExclude" | "includeUrls" | "excludeUrls" | "vendorPaths" | "diversify" | "robots" | "sitemap" | "fold" | "failOn" | "format" | "excludeRules" | "overrides" | "rules" | "groups" | "rulesets" | "plugins" | "sources" | "cacheMode" | "cacheTtl" | "cacheFailureTtl" | "allowPrivate" | "resolver" | "resolve" | "pluginSettings">>;
+export type Settings = Partial<
+    Pick<
+        Config,
+        | "seeds"
+        | "canonicalOrigin"
+        | "role"
+        | "fetch"
+        | "browser"
+        | "scope"
+        | "concurrency"
+        | "rate"
+        | "timeout"
+        | "profile"
+        | "proxy"
+        | "maxPages"
+        | "maxDepth"
+        | "maxBodySize"
+        | "keepalive"
+        | "fetchResources"
+        | "maxResourcesPerPage"
+        | "linkExclude"
+        | "includeUrls"
+        | "excludeUrls"
+        | "vendorPaths"
+        | "diversify"
+        | "robots"
+        | "sitemap"
+        | "fold"
+        | "failOn"
+        | "format"
+        | "excludeRules"
+        | "overrides"
+        | "rules"
+        | "groups"
+        | "rulesets"
+        | "plugins"
+        | "sources"
+        | "cacheMode"
+        | "cacheTtl"
+        | "cacheFailureTtl"
+        | "allowPrivate"
+        | "resolver"
+        | "resolve"
+        | "pluginSettings"
+    >
+>;
 
 // [subtree key, Settings field] — kebab-case document keys to the camelCase Config shape.
 // `override` is excluded: its three severity buckets flatten into one field, below.

@@ -73,7 +73,15 @@ function score(category: string, label: string, link: string, scale: Scale): Rul
 
 // A lab metric at most `limit`, the bound Lighthouse marks good.
 function metric(key: keyof typeof VITALS, limit: number, unit: string, link: string, scale: Scale): RuleSpec {
-    return { fact: `${ID}.vitals.${key}`, expect: { type: "number", maximum: limit }, severity: "warning", score: scale, message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`, docs: link, fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.` };
+    return {
+        fact: `${ID}.vitals.${key}`,
+        expect: { type: "number", maximum: limit },
+        severity: "warning",
+        score: scale,
+        message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`,
+        docs: link,
+        fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.`,
+    };
 }
 
 export default definePlugin({
@@ -83,14 +91,38 @@ export default definePlugin({
         lighthouse: {
             description: "Lighthouse on sampled pages: performance, accessibility, best-practices and SEO scores, and lab LCP, CLS, TBT and FCP",
             rules: {
-                "lighthouse/performance": score("performance", "performance", "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring", [[0, 6.4], [0.9, 3.3]]),
-                "lighthouse/accessibility": score("accessibility", "accessibility", "https://developer.chrome.com/docs/lighthouse/accessibility/scoring", [[0, 6.2], [0.9, 3.3]]),
-                "lighthouse/best-practices": score("best-practices", "best-practices", "https://developer.chrome.com/docs/lighthouse/overview", [[0, 5.6], [0.9, 3.3]]),
-                "lighthouse/seo": score("seo", "SEO", "https://developer.chrome.com/docs/lighthouse/overview", [[0, 5.4], [0.9, 3.3]]),
-                "lighthouse/lcp": metric("lcp", 2500, " ms", "https://web.dev/articles/lcp", [[2500, 3.4], [6000, 6]]),
-                "lighthouse/cls": metric("cls", 0.1, "", "https://web.dev/articles/cls", [[0.1, 3.4], [0.25, 6]]),
-                "lighthouse/tbt": metric("tbt", 200, " ms", "https://web.dev/articles/tbt", [[200, 3.4], [600, 6]]),
-                "lighthouse/fcp": metric("fcp", 1800, " ms", "https://web.dev/articles/fcp", [[1800, 3.4], [3000, 6]]),
+                "lighthouse/performance": score("performance", "performance", "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring", [
+                    [0, 6.4],
+                    [0.9, 3.3],
+                ]),
+                "lighthouse/accessibility": score("accessibility", "accessibility", "https://developer.chrome.com/docs/lighthouse/accessibility/scoring", [
+                    [0, 6.2],
+                    [0.9, 3.3],
+                ]),
+                "lighthouse/best-practices": score("best-practices", "best-practices", "https://developer.chrome.com/docs/lighthouse/overview", [
+                    [0, 5.6],
+                    [0.9, 3.3],
+                ]),
+                "lighthouse/seo": score("seo", "SEO", "https://developer.chrome.com/docs/lighthouse/overview", [
+                    [0, 5.4],
+                    [0.9, 3.3],
+                ]),
+                "lighthouse/lcp": metric("lcp", 2500, " ms", "https://web.dev/articles/lcp", [
+                    [2500, 3.4],
+                    [6000, 6],
+                ]),
+                "lighthouse/cls": metric("cls", 0.1, "", "https://web.dev/articles/cls", [
+                    [0.1, 3.4],
+                    [0.25, 6],
+                ]),
+                "lighthouse/tbt": metric("tbt", 200, " ms", "https://web.dev/articles/tbt", [
+                    [200, 3.4],
+                    [600, 6],
+                ]),
+                "lighthouse/fcp": metric("fcp", 1800, " ms", "https://web.dev/articles/fcp", [
+                    [1800, 3.4],
+                    [3000, 6],
+                ]),
             },
         },
     },

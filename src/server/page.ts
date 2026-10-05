@@ -22,7 +22,24 @@ export interface Sources {
 const SLOTS: Slot[] = ["head", "header", "footer"];
 const FILE = /^(head|header|footer)(?:\.([a-z]{2,3}))?\.html$/;
 const RELOAD_MS = 5000;
-const MEDIA: Record<string, string> = { js: "text/javascript", mjs: "text/javascript", css: "text/css", json: "application/json", map: "application/json", txt: "text/plain; charset=utf-8", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif", ico: "image/x-icon", woff2: "font/woff2", woff: "font/woff" };
+const MEDIA: Record<string, string> = {
+    js: "text/javascript",
+    mjs: "text/javascript",
+    css: "text/css",
+    json: "application/json",
+    map: "application/json",
+    txt: "text/plain; charset=utf-8",
+    svg: "image/svg+xml",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+    avif: "image/avif",
+    ico: "image/x-icon",
+    woff2: "font/woff2",
+    woff: "font/woff",
+};
 
 // The CSP hash source of `text`.
 function hashOf(text: string): string {
@@ -65,14 +82,20 @@ export class Fragments {
 
     // The files of the directory with their modification times.
     private scan(): string {
-        return readdirSync(this.directory).filter((file) => FILE.test(file)).toSorted((a, b) => a.localeCompare(b)).map((file) => `${file}:${statSync(path.join(this.directory, file)).mtimeMs}`).join("\n");
+        return readdirSync(this.directory)
+            .filter((file) => FILE.test(file))
+            .toSorted((a, b) => a.localeCompare(b))
+            .map((file) => `${file}:${statSync(path.join(this.directory, file)).mtimeMs}`)
+            .join("\n");
     }
 
     // Reads every fragment and renders it for every language; throws ConfigError on a bad one.
     private read(): void {
         let files: string[];
         try {
-            files = readdirSync(this.directory).filter((file) => FILE.test(file)).toSorted((a, b) => a.localeCompare(b));
+            files = readdirSync(this.directory)
+                .filter((file) => FILE.test(file))
+                .toSorted((a, b) => a.localeCompare(b));
         } catch (error) {
             throw new ConfigError(`page/directory: ${this.directory} cannot be read (${error instanceof Error ? error.message : String(error)})`);
         }

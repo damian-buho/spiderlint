@@ -106,7 +106,9 @@ const escapeText = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<
 
 // The markup of a parsed element, as an `xhtml` construct’s content is read.
 function serialize(node: Node): string {
-    const attributes = Object.entries(node.attributes).map(([name, value]) => ` ${name}="${escapeText(value).replaceAll('"', "&quot;")}"`).join("");
+    const attributes = Object.entries(node.attributes)
+        .map(([name, value]) => ` ${name}="${escapeText(value).replaceAll('"', "&quot;")}"`)
+        .join("");
     const inner = node.markup ?? "";
     return !inner && VOID.has(node.local) ? `<${node.local}${attributes}/>` : `<${node.local}${attributes}>${inner}</${node.local}>`;
 }
@@ -270,7 +272,9 @@ function atomEntry(node: Node, position: number, base: string): Item {
         hasAuthor,
         emails: [],
         contents: [...atomContent(childOf(node, "content", NS.atom), "content"), ...atomContent(childOf(node, "summary", NS.atom), "summary")],
-        enclosures: childrenOf(node, "link", NS.atom).filter((link) => link.attributes.rel === "enclosure").map((link) => ({ url: link.attributes.href, length: link.attributes.length, type: link.attributes.type })),
+        enclosures: childrenOf(node, "link", NS.atom)
+            .filter((link) => link.attributes.rel === "enclosure")
+            .map((link) => ({ url: link.attributes.href, length: link.attributes.length, type: link.attributes.type })),
         unknown: [],
         missing: ["id", "title", "updated"].filter((name) => !childOf(node, name, NS.atom)),
         durations: [],

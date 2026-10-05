@@ -124,13 +124,24 @@ function link(url: string, origin: string): string {
 // A list whose items past the first few fold into a disclosure.
 function items(t: Translator, values: string[]): string {
     if (values.length === 0) return "";
-    const shown = `<ul>${values.slice(0, LIST).map((value) => `<li>${value}</li>`).join("")}</ul>`;
-    return values.length > LIST ? `${shown}<details><summary>${escape(t._("{count} more", { count: t.number(values.length - LIST) }))}</summary><ul>${values.slice(LIST).map((value) => `<li>${value}</li>`).join("")}</ul></details>` : shown;
+    const shown = `<ul>${values
+        .slice(0, LIST)
+        .map((value) => `<li>${value}</li>`)
+        .join("")}</ul>`;
+    return values.length > LIST
+        ? `${shown}<details><summary>${escape(t._("{count} more", { count: t.number(values.length - LIST) }))}</summary><ul>${values
+              .slice(LIST)
+              .map((value) => `<li>${value}</li>`)
+              .join("")}</ul></details>`
+        : shown;
 }
 
 // Locations under what they locate, as code.
 function locations(t: Translator, found: string[] | undefined): string {
-    return items(t, (found ?? []).map((location) => `<code>${escape(location)}</code>`));
+    return items(
+        t,
+        (found ?? []).map((location) => `<code>${escape(location)}</code>`),
+    );
 }
 
 // What a bundle names, how many pages it spans and those pages, each with its locations.
@@ -156,7 +167,10 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
     const { subject, isWhole, pages } = reach(t, same, origin, total);
     const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
     const hasLocations = same.some((finding) => finding.locations?.length) || Object.keys(first.sampleLocations ?? {}).length > 0;
-    const share = first.occurrences === undefined ? "" : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}</p>`;
+    const share =
+        first.occurrences === undefined
+            ? ""
+            : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}</p>`;
     const own = same.length === 1 && first.occurrences === undefined ? locations(t, first.locations) : "";
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
     return `<details class="finding"><summary><span class="score ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span> ${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</summary><div>${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details>`;
@@ -177,12 +191,18 @@ function ruleCard(t: Translator, same: Finding[], origin: string, guides: Report
     const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
     const extra = same.length > 1 ? ` <small class="muted">· ${escape(t._("{count} findings", { count: t.number(same.length) }))}</small>` : "";
     const foot = `<span>${escape(t._("Severity"))}: <span class="${worst.severity}">${escape(severityName(t, worst.severity))} ${scoreOf(worst).toFixed(1)}</span></span><span>${escape(t._("Impact"))}: ${escape(impact.toFixed(1))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
-    return `<details class="rule-card ${worst.severity}" open><summary class="rule-head"><span class="badge ${worst.severity}">${escape(severityName(t, worst.severity))}</span><code>${escape(first.rule)}</code><span class="rule-message">${escape(message)}${extra}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${bundle(same).map((bundled) => entry(t, bundled, origin, guides, total)).join("")}</div><footer class="rule-foot">${foot}</footer></details>`;
+    return `<details class="rule-card ${worst.severity}" open><summary class="rule-head"><span class="badge ${worst.severity}">${escape(severityName(t, worst.severity))}</span><code>${escape(first.rule)}</code><span class="rule-message">${escape(message)}${extra}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${bundle(
+        same,
+    )
+        .map((bundled) => entry(t, bundled, origin, guides, total))
+        .join("")}</div><footer class="rule-foot">${foot}</footer></details>`;
 }
 
 // Findings by rule, one card per rule, the most important rule first.
 function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number): string {
-    return ordered(findings, total).map((same) => ruleCard(t, same, origin, guides, total)).join("");
+    return ordered(findings, total)
+        .map((same) => ruleCard(t, same, origin, guides, total))
+        .join("");
 }
 
 // A fact’s translated label with its path on hover, or the path as code when it has none.
@@ -193,7 +213,9 @@ function factName(t: Translator, path: string): string {
 
 // Every labelled numeric fact’s pages, then min, median, p95, max and total in its unit, in a closed disclosure; nothing without statistics.
 function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): string {
-    const rows = Object.entries(stats).filter(([path]) => isLabelled(path)).map(([path, stat]) => `<tr><td>${factName(t, path)}</td><td>${escape(t.number(stat.count))}</td>${[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(value === undefined ? "–" : withUnit(path, value, t.number))}</td>`).join("")}</tr>`);
+    const rows = Object.entries(stats)
+        .filter(([path]) => isLabelled(path))
+        .map(([path, stat]) => `<tr><td>${factName(t, path)}</td><td>${escape(t.number(stat.count))}</td>${[stat.min, stat.median, stat.p95, stat.max, stat.total].map((value) => `<td>${escape(value === undefined ? "–" : withUnit(path, value, t.number))}</td>`).join("")}</tr>`);
     const head = [t._("Fact"), t._("Pages"), t._("Minimum"), t._("Median"), t._("95th percentile"), t._("Maximum"), t._("Total")].map((label) => `<th>${escape(label)}</th>`).join("");
     return rows.length === 0 ? "" : `<section><details><summary><h2>${escape(t._("Statistics"))}</h2></summary><table><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></details></section>`;
 }
@@ -252,10 +274,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     const section = (heading: string, findings: Finding[]) => `<section>${heading && `<h2>${heading}</h2>`}${rules(t, findings, origin, report.rules, summary.pages)}</section>`;
     const isOnlyDefault = groups.keys().every((group) => group === "" || group === "default") && Object.keys(summary.groups).length <= 1;
     const groupHeading = (group: string) => (group === "" ? escape(t._("Whole site")) : isOnlyDefault ? "" : escape(t._("Group: {name} · Pages: {count}", { name: group, count: t.number(summary.groups[group] ?? 0) })));
-    const sections = [
-        ...[...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => section(groupHeading(group), findings)),
-        ...[...vendors].map(([vendor, findings]) => section(escape(t._("Vendor: {name}", { name: vendor })), findings)),
-    ];
+    const sections = [...[...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => section(groupHeading(group), findings)), ...[...vendors].map(([vendor, findings]) => section(escape(t._("Vendor: {name}", { name: vendor })), findings))];
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
     if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${rules(t, hints, origin, report.rules, summary.pages)}</details></section>`);
     return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;

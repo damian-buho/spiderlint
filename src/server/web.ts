@@ -36,7 +36,12 @@ const BODY_MAX = 64 * 1024;
 const ASSET_MAX_AGE_S = 3600;
 const REFRESH_S = 5;
 const BADGE_MAX_AGE_S = 300;
-const LINKS: [name: string, href: string][] = [["dbuho.me", "https://dbuho.me/project/spiderlint/"], ["Kiota", "https://kiota.ch/damian-buho/spiderlint"], ["GitHub", "https://github.com/damian-buho/spiderlint"], ["Codeberg", "https://codeberg.org/damian-buho/spiderlint"]];
+const LINKS: [name: string, href: string][] = [
+    ["dbuho.me", "https://dbuho.me/project/spiderlint/"],
+    ["Kiota", "https://kiota.ch/damian-buho/spiderlint"],
+    ["GitHub", "https://github.com/damian-buho/spiderlint"],
+    ["Codeberg", "https://codeberg.org/damian-buho/spiderlint"],
+];
 // Resolves from src/ and dist/ alike, since the package ships both.
 const LOGO = readFileSync(new URL("../../src/server/logo.png", import.meta.url));
 const ICONS = '<link rel="icon" type="image/png" sizes="192x192" href="/logo.png"><link rel="apple-touch-icon" href="/logo.png">';
@@ -186,7 +191,18 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
     const phaseText = named ? (step ? t._("{phase}: {done} of {total}", { phase: named, done: t.number(step.done), total: t.number(step.total) }) : named) : "";
     const state = status === "running" ? t._("Scanning…") : t._("Waiting in the queue…");
     const values = total === undefined ? "" : ` max="${total}" value="${done ?? 0}"`;
-    const attributes = [["events", `/v1/jobs/${job.id}/events`], ["locale", t.locale], ["running", t._("Scanning…")], ["count", count], ["eta", t._("About {range} left", { range: "{range}" })], ["under", t._("Less than {range} left", { range: "{range}" })], ["step", stepText], ["phases", JSON.stringify(names)]].map(([name, value]) => `data-${name}="${escape(value as string)}"`).join(" ");
+    const attributes = [
+        ["events", `/v1/jobs/${job.id}/events`],
+        ["locale", t.locale],
+        ["running", t._("Scanning…")],
+        ["count", count],
+        ["eta", t._("About {range} left", { range: "{range}" })],
+        ["under", t._("Less than {range} left", { range: "{range}" })],
+        ["step", stepText],
+        ["phases", JSON.stringify(names)],
+    ]
+        .map(([name, value]) => `data-${name}="${escape(value as string)}"`)
+        .join(" ");
     const rulesets = (job.data.settings?.rules as string[] | undefined)?.join(", ");
     return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
 }
@@ -201,7 +217,9 @@ function scanNote(t: Translator, job: ScanJob, wait: number, isRepeat: boolean):
 
 // The report with its scan note, downloads and badge.
 function doneBody(t: Translator, job: ScanJob, wait: number, isRepeat: boolean): string {
-    const downloads = formatNames().map((name) => `<a href="/v1/jobs/${escape(job.id)}/report/${escape(name)}">${escape(name)}</a>`).join(" · ");
+    const downloads = formatNames()
+        .map((name) => `<a href="/v1/jobs/${escape(job.id)}/report/${escape(name)}">${escape(name)}</a>`)
+        .join(" · ");
     const badge = `/badge/${escape(job.data.host)}.svg`;
     return `${scanNote(t, job, wait, isRepeat)}${reportBody(job.returnvalue, t, shown(job.data.url), new URL(job.data.url).origin)}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
 }

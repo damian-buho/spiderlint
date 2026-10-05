@@ -64,7 +64,10 @@ const htmlValidateIds = Object.keys(severities(BASE));
 for (const id of htmlValidateIds) {
     try {
         const documentation = validators.http.getContextualDocumentationSync({ ruleId: id, context: undefined });
-        const summary = documentation?.description?.split("\n").map((line) => line.trim()).find(Boolean);
+        const summary = documentation?.description
+            ?.split("\n")
+            .map((line) => line.trim())
+            .find(Boolean);
         if (summary) DESCRIPTIONS.set(id, summary);
         else {
             log.debug({ id }, "html-validate rule has no description");
@@ -145,7 +148,7 @@ const SCORES: Record<string, number> = {
     "close-attr": 6.7,
     "doctype-html": 6.6,
     "doctype-style": 6.6,
-    "deprecated": 6.6,
+    deprecated: 6.6,
     "no-deprecated-attr": 6.6,
     "script-type": 6.6,
     "tel-non-breaking": 6.6,
@@ -181,10 +184,12 @@ async function extract(page: Facts, body: string): Promise<HtmlValidateFacts | u
     }
     const mode = page.browser ? "browser" : "http";
     const report = await validators[mode].validateString(body, page.url.href);
-    const messages = report.results.flatMap((result) => result.messages).map(({ ruleId, message, severity, line, column, offset, size, selector, context }) => {
-        const source = sourceAt(body, offset);
-        return { rule: ruleId, message, severity, line, column, offset, size, ...(selector && { selector }), ...(source && { source }), ...(context !== undefined && { context: context as unknown }) };
-    });
+    const messages = report.results
+        .flatMap((result) => result.messages)
+        .map(({ ruleId, message, severity, line, column, offset, size, selector, context }) => {
+            const source = sourceAt(body, offset);
+            return { rule: ruleId, message, severity, line, column, offset, size, ...(selector && { selector }), ...(source && { source }), ...(context !== undefined && { context: context as unknown }) };
+        });
     log.debug({ url: page.url.href, mode, messages: messages.length }, "html validated");
     return { messages };
 }

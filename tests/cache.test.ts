@@ -89,7 +89,10 @@ describe("cache", () => {
         assert.deepEqual(await purgeCache(store, "resources", 3600), { resources: 1 });
         assert.deepEqual(await purgeCache(store, "resources", 0), { resources: 1 });
         const emptied = await cacheStatus(store);
-        assert.equal(emptied.find((status) => status.bucket === "resources"), undefined);
+        assert.equal(
+            emptied.find((status) => status.bucket === "resources"),
+            undefined,
+        );
     });
 
     it("purges the probes bucket with the rest", async () => {

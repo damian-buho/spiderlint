@@ -69,8 +69,8 @@ function grain(width: number, height: number): Buffer {
     const pixels = Buffer.alloc(width * height * 3);
     let seed = 1;
     for (let index = 0; index < pixels.length; index += 1) {
-        seed = (seed * 1_103_515_245 + 12_345) & 0x7F_FF_FF_FF;
-        pixels[index] = (Math.floor(((index / 3) % width) * (200 / width)) + ((seed >> 16) % 48)) & 0xFF;
+        seed = (seed * 1_103_515_245 + 12_345) & 0x7f_ff_ff_ff;
+        pixels[index] = (Math.floor(((index / 3) % width) * (200 / width)) + ((seed >> 16) % 48)) & 0xff;
     }
     return pixels;
 }
@@ -79,16 +79,28 @@ function grain(width: number, height: number): Buffer {
 async function images(): Promise<Record<string, [string, Buffer]>> {
     const raw = { raw: { width: 640, height: 480, channels: 3 as const } };
     const flat = { create: { width: 64, height: 64, channels: 3 as const, background: "#3a6" } };
-    const twin = await sharp({ create: { ...flat.create, width: 80, height: 60, background: "#a36" } }).jpeg().toBuffer();
+    const twin = await sharp({ create: { ...flat.create, width: 80, height: 60, background: "#a36" } })
+        .jpeg()
+        .toBuffer();
     return {
         "/heavy.png": ["image/png", await sharp(grain(640, 480), raw).png({ compressionLevel: 0 }).toBuffer()],
         "/small.webp": ["image/webp", await sharp(flat).webp().toBuffer()],
-        "/wide.jpg": ["image/jpeg", await sharp({ create: { ...flat.create, width: 400, height: 300 } }).jpeg({ quality: 70 }).toBuffer()],
+        "/wide.jpg": [
+            "image/jpeg",
+            await sharp({ create: { ...flat.create, width: 400, height: 300 } })
+                .jpeg({ quality: 70 })
+                .toBuffer(),
+        ],
         "/logo.svg": ["image/svg+xml", Buffer.from(LOGO)],
         "/twin-a.jpg": ["image/jpeg", twin],
         "/twin-b.jpg": ["image/jpeg", twin],
         "/bloated.svg": ["image/svg+xml", Buffer.from(BLOATED_SVG)],
-        "/negotiated.png": ["image/png", await sharp(grain(320, 240), { raw: { width: 320, height: 240, channels: 3 } }).png({ compressionLevel: 0 }).toBuffer()],
+        "/negotiated.png": [
+            "image/png",
+            await sharp(grain(320, 240), { raw: { width: 320, height: 240, channels: 3 } })
+                .png({ compressionLevel: 0 })
+                .toBuffer(),
+        ],
         "/fonts.css": ["text/css", Buffer.from(FONTS_CSS)],
         "/bloated.js": ["text/javascript", Buffer.from(BLOATED_JS)],
         "/tight.js": ["text/javascript", Buffer.from("function a(b){return b+1}\n")],

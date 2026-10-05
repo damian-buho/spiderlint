@@ -87,7 +87,10 @@ describe("store", () => {
         const before = site.requested.length;
         const pages = await crawl({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"] }, directory, true);
         const paths = new Set(pages.map((page) => page.url.pathname));
-        assert.deepEqual(site.requested.slice(before).filter((request) => paths.has(request)), []);
+        assert.deepEqual(
+            site.requested.slice(before).filter((request) => paths.has(request)),
+            [],
+        );
         assert.equal(pages.length, 16);
     });
 
@@ -205,6 +208,9 @@ describe("store", () => {
         assert.equal(pages?.entries, 16);
         assert.ok((pages?.bytes ?? 0) > 0);
         const absent = await cacheStatus(path.join(directory, "absent"));
-        assert.deepEqual(absent.map((bucket) => bucket.bucket).filter((bucket) => !["robots", "probes"].includes(bucket)), []);
+        assert.deepEqual(
+            absent.map((bucket) => bucket.bucket).filter((bucket) => !["robots", "probes"].includes(bucket)),
+            [],
+        );
     });
 });

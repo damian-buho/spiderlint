@@ -120,7 +120,10 @@ describe("formatHtml", () => {
     it("is a valid document naming every rule that found something", async () => {
         const html = formatHtml(report, undefined, false, "en");
         const result = await new HtmlValidate({ extends: ["html-validate:recommended"] }).validateString(html);
-        assert.deepEqual(result.results.flatMap((file) => file.messages.map((message) => `${message.ruleId}: ${message.message}`)), []);
+        assert.deepEqual(
+            result.results.flatMap((file) => file.messages.map((message) => `${message.ruleId}: ${message.message}`)),
+            [],
+        );
         const rules = new Set(report.findings.map((finding) => finding.rule));
         for (const rule of rules) assert.ok(html.includes(`<code>${rule}</code>`), rule);
     });
@@ -175,9 +178,17 @@ describe("formatHtml", () => {
 
     it("lists every rule that failed nowhere once, its counts summing to the checks, and counts them for an agent", () => {
         const checked = Object.values(report.summary.checked ?? {});
-        assert.equal(checked.reduce((sum, rule) => sum + rule.checks, 0), report.summary.checks.total);
-        assert.equal(checked.reduce((sum, rule) => sum + rule.failed, 0), report.summary.checks.failed);
-        const clean = Object.entries(report.summary.checked ?? {}).filter(([, rule]) => rule.failed === 0).map(([id]) => id);
+        assert.equal(
+            checked.reduce((sum, rule) => sum + rule.checks, 0),
+            report.summary.checks.total,
+        );
+        assert.equal(
+            checked.reduce((sum, rule) => sum + rule.failed, 0),
+            report.summary.checks.failed,
+        );
+        const clean = Object.entries(report.summary.checked ?? {})
+            .filter(([, rule]) => rule.failed === 0)
+            .map(([id]) => id);
         assert.ok(clean.length > 0);
         const section = formatHtml(report, undefined, false, "en").split("<summary><h2>Passed: ", 2)[1] ?? "";
         for (const id of clean) assert.equal(section.split(`<code>${id}</code>`).length - 1, 1, id);

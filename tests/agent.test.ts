@@ -24,7 +24,10 @@ describe("agent format", () => {
     before(async () => {
         site = await serveFixture();
         report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"] });
-        output = `${formatAgent({ ...report, summary: { ...report.summary, stats: undefined } }).replaceAll(site.origin, "ORIGIN").replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL").replaceAll(/checked \d{4}-\d\d-\d\d \d\d:\d\d UTC/g, "checked TIME")}\n`;
+        output = `${formatAgent({ ...report, summary: { ...report.summary, stats: undefined } })
+            .replaceAll(site.origin, "ORIGIN")
+            .replaceAll(/http:\/\/localhost:\d+/g, "EXTERNAL")
+            .replaceAll(/checked \d{4}-\d\d-\d\d \d\d:\d\d UTC/g, "checked TIME")}\n`;
     });
     after(() => site.close());
 
@@ -49,7 +52,10 @@ describe("agent format", () => {
 
     it("ends with the CO2, bytes, requests and timings of the crawl, timings varying run to run", () => {
         const table = formatAgent(report).split("\n\n# Site statistics\n\n", 2)[1] ?? "";
-        const paths = table.matchAll(/^\| `([^`]+)`/gm).map((match) => match[1]).toArray();
+        const paths = table
+            .matchAll(/^\| `([^`]+)`/gm)
+            .map((match) => match[1])
+            .toArray();
         assert.deepEqual(paths.slice(0, 2), ["co2.bytes", "co2.grams"]);
         assert.ok(paths.includes("resources.length") && paths.includes("http.timing.total"), table);
         assert.ok(!paths.includes("graph.rank"), table);
@@ -66,7 +72,13 @@ describe("agent format", () => {
             const first = await readFile(path.join(directory, "html-one-h1.md"), "utf8");
             await writeAgentFiles(directory, report);
             const written = await readdir(directory);
-            assert.deepEqual(written.toSorted((a, b) => a.localeCompare(b)), agentFiles(report).keys().toArray().toSorted((a, b) => a.localeCompare(b)));
+            assert.deepEqual(
+                written.toSorted((a, b) => a.localeCompare(b)),
+                agentFiles(report)
+                    .keys()
+                    .toArray()
+                    .toSorted((a, b) => a.localeCompare(b)),
+            );
             assert.equal(await readFile(path.join(directory, "html-one-h1.md"), "utf8"), first);
             assert.match(first, /^# spiderlint: html\/one-h1 on http:\/\/127\.0\.0\.1:\d+\n\n## html\/one-h1 \(error 7\.4\)\n/);
         } finally {

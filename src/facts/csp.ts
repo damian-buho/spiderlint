@@ -59,7 +59,10 @@ export function combine(policies: Directives[]): Directives | undefined {
 
 // Policy texts of one header, which may repeat or join several with a comma.
 function texts(value: string | string[] | undefined): string[] {
-    return [value ?? []].flat().flatMap((line) => line.split(",")).filter((text) => text.trim());
+    return [value ?? []]
+        .flat()
+        .flatMap((line) => line.split(","))
+        .filter((text) => text.trim());
 }
 
 // The enforced and the report-only policies of a page, from its headers and `<meta http-equiv>` elements, each set combined as the browser enforces it.

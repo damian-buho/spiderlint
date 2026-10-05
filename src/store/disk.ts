@@ -50,7 +50,6 @@ async function openStorages(config: Configuration): Promise<Storages> {
     return [await Dataset.open("facts", { config }), await KeyValueStore.open("bodies", { config }), await KeyValueStore.open("records", { config }), await RequestQueue.open("frontier", { config }), await RequestQueue.open("frontier-browser", { config })];
 }
 
-
 // `lint` or `show-report` found no stored crawl; the run exits 3.
 export class NothingStored extends Error {}
 

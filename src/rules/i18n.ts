@@ -50,7 +50,10 @@ const hreflangReciprocal: Make = (severity) => ({
                 if (!isNamedBack) unanswered.set(alternate.url.href, [...(unanswered.get(alternate.url.href) ?? []), page.url.href]);
             }
         }
-        return unanswered.entries().map(([url, urls]): Finding => ({ rule: "i18n/hreflang-reciprocal", severity, scope: "site", url, message: `does not name back ${urls.length} page${urls.length === 1 ? "" : "s"} listing it as an hreflang alternate`, value: urls, urls })).toArray();
+        return unanswered
+            .entries()
+            .map(([url, urls]): Finding => ({ rule: "i18n/hreflang-reciprocal", severity, scope: "site", url, message: `does not name back ${urls.length} page${urls.length === 1 ? "" : "s"} listing it as an hreflang alternate`, value: urls, urls }))
+            .toArray();
     },
 });
 

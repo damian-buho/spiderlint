@@ -65,7 +65,10 @@ describe("network", () => {
         await assert.rejects(openNetwork({ rate: 0, proxy: "http://127.0.0.1:1", allowPrivate: false, resolver: "system", resolve: [], seeds: [], timeout: 60 }), ConfigError);
     });
 
-    for (const [kind, serve] of [["http", serveHttpProxy], ["socks5h", serveSocksProxy]] as const) {
+    for (const [kind, serve] of [
+        ["http", serveHttpProxy],
+        ["socks5h", serveSocksProxy],
+    ] as const) {
         it(`sends pages, resources and robots.txt through the ${kind} proxy`, async () => {
             const proxy = await serve();
             try {

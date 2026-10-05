@@ -21,7 +21,10 @@ function edges(pages: Facts[], redirects: Record<string, string>): Map<Facts, Fa
 
 // Fewest links from any seed to each page; a page no link path reaches has none.
 function depths(out: Map<Facts, Facts[]>): Map<Facts, number> {
-    const seeds = out.keys().filter((page) => page.crawl["discovered-via"] === "seed").toArray();
+    const seeds = out
+        .keys()
+        .filter((page) => page.crawl["discovered-via"] === "seed")
+        .toArray();
     const depth = new Map(seeds.map((page) => [page, 0]));
     let frontier = seeds;
     for (let next = 1; frontier.length > 0; next++) {

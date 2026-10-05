@@ -47,7 +47,7 @@ export function describe(value: unknown): string {
 // The rule’s own sentence with `{got}` and `{field}` filled in, else AJV’s wording against the fact path.
 function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): string {
     const got = value === undefined ? "none" : describe(at(value, error.instancePath));
-    const field = error.instancePath.slice(1).replaceAll("/", ".") || fact.split(".").at(-1) as string;
+    const field = error.instancePath.slice(1).replaceAll("/", ".") || (fact.split(".").at(-1) as string);
     if (text) return text.replaceAll("{got}", () => got).replaceAll("{field}", () => field);
     const name = label(fact) ?? fact;
     return value === undefined ? `${name} is absent` : `${name}${error.instancePath} ${error.message} (got ${got})`;
@@ -159,12 +159,14 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
             const unjudged = new Set(spec.linked === true ? [] : (site?.linked ?? []));
             const judged = Object.entries(site?.[subject.kind] ?? {}).filter(([name, facts]) => facts[subject.id] !== undefined && !unjudged.has(name) && !isSkipped(facts, name) && !isWithheld(facts, subject.path, id, name));
             log.debug({ rule: id, subjects: judged.length, linked: spec.linked === true }, "subjects judged");
-            return judged.length === 0 ? undefined : judged.flatMap(([name, facts]) => {
-                const value = get(facts, subject.path);
-                if (validate(value)) return [];
-                const error = validate.errors?.[0] as ErrorObject;
-                return [{ rule: id, severity, scope: "site" as const, url: name, message: message(fact, value, error, spec.message), value }];
-            });
+            return judged.length === 0
+                ? undefined
+                : judged.flatMap(([name, facts]) => {
+                      const value = get(facts, subject.path);
+                      if (validate(value)) return [];
+                      const error = validate.errors?.[0] as ErrorObject;
+                      return [{ rule: id, severity, scope: "site" as const, url: name, message: message(fact, value, error, spec.message), value }];
+                  });
         },
     };
 }
@@ -194,9 +196,7 @@ function scored(rule: Rule, spec: RuleSpec): Rule {
         return { ...finding, score, severity: levelOf(score) };
     };
     const all = (found: Finding[] | undefined) => found?.map((finding) => grade(finding));
-    return isPageRule(rule)
-        ? { meta: { ...meta, scope: "page" }, check: (page: Facts, site?: SiteFacts) => all(rule.check(page, site)) }
-        : { meta: { ...meta, scope: rule.meta.scope }, check: (pages: Facts[], group?: string, site?: SiteFacts) => all(rule.check(pages, group, site)) };
+    return isPageRule(rule) ? { meta: { ...meta, scope: "page" }, check: (page: Facts, site?: SiteFacts) => all(rule.check(page, site)) } : { meta: { ...meta, scope: rule.meta.scope }, check: (pages: Facts[], group?: string, site?: SiteFacts) => all(rule.check(pages, group, site)) };
 }
 
 // A rule from its spec, every finding scored.

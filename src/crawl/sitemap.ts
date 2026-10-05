@@ -79,10 +79,17 @@ function extensions(content: string): Map<string, Extension> {
     const found = new Map<string, Extension>();
     if (!/<(?:xhtml|image|video):/.test(content)) return found;
     const $ = load(content, { xml: true });
-    const texts = (selection: ReturnType<typeof $>) => selection.map((_, element) => $(element).text().trim()).get().filter((text) => text.length > 0);
+    const texts = (selection: ReturnType<typeof $>) =>
+        selection
+            .map((_, element) => $(element).text().trim())
+            .get()
+            .filter((text) => text.length > 0);
     for (const element of $("url")) {
         const url = $(element);
-        const alternates = url.children(String.raw`xhtml\:link[rel='alternate'][hreflang][href]`).map((_, link) => ({ lang: String($(link).attr("hreflang")), href: String($(link).attr("href")) })).get();
+        const alternates = url
+            .children(String.raw`xhtml\:link[rel='alternate'][hreflang][href]`)
+            .map((_, link) => ({ lang: String($(link).attr("hreflang")), href: String($(link).attr("href")) }))
+            .get();
         const images = texts(url.find(String.raw`image\:image > image\:loc`));
         const videos = texts(url.find(String.raw`video\:video > video\:content_loc, video\:video > video\:player_loc`));
         found.set(url.children("loc").text().trim(), { ...(alternates.length > 0 && { alternates }), ...(images.length > 0 && { images }), ...(videos.length > 0 && { videos }) });
@@ -126,7 +133,10 @@ async function readSitemap(url: string, index: SitemapIndex, queue: string[], fe
     try {
         const { status, headers, value } = await fetch(url);
         file.status = status;
-        const contentType = String(headers["content-type"] ?? "").split(";", 1)[0]?.trim() || undefined;
+        const contentType =
+            String(headers["content-type"] ?? "")
+                .split(";", 1)[0]
+                ?.trim() || undefined;
         if (status < 200 || status >= 300) file.error = `answers ${status}`;
         else if (contentType === "text/html") file.error = `is ${contentType}, not a sitemap`;
         else await collect(file, contentType, Buffer.from(value, "base64"), index, queue, canonical);

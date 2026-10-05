@@ -39,7 +39,10 @@ function nibbles(address: string): string {
     const [head = "", tail = ""] = address.split("::", 2);
     const [left, right] = [head ? head.split(":") : [], tail ? tail.split(":") : []];
     const groups = address.includes("::") ? [...left, ...Array.from({ length: 8 - left.length - right.length }, () => "0"), ...right] : left;
-    return groups.map((group) => group.padStart(4, "0")).join("").toLowerCase();
+    return groups
+        .map((group) => group.padStart(4, "0"))
+        .join("")
+        .toLowerCase();
 }
 
 // The address’s labels in reverse order, octets for IPv4 and nibbles for IPv6.
@@ -91,7 +94,9 @@ async function validityOf(asn: number, prefix: string, context: SiteContext): Pr
 // The mail exchangers `host` names, a null MX left out.
 async function exchangesOf(host: string, dns: DnsClient): Promise<string[]> {
     const reply = await dns.query(host, "MX");
-    return records<MxData>(reply, "MX").map(({ data }) => data.exchange).filter((exchange) => exchange !== "." && exchange !== "");
+    return records<MxData>(reply, "MX")
+        .map(({ data }) => data.exchange)
+        .filter((exchange) => exchange !== "." && exchange !== "");
 }
 
 // The name servers of `zone`.
@@ -154,10 +159,12 @@ const network: SiteExtractor = {
         const [web, exchanges, servers] = await Promise.all([isLiteral ? [host] : addressesOf(host, context.dns), isLiteral ? [] : exchangesOf(host, context.dns), zone ? serversOf(zone, context.dns) : []]);
         const { identify, answered } = identifier(context);
         const named = async (names: string[]) => {
-            const addresses = await Promise.all(names.map(async (name) => {
-                const found = await addressesOf(name, context.dns);
-                return found.map((address) => ({ address, name }));
-            }));
+            const addresses = await Promise.all(
+                names.map(async (name) => {
+                    const found = await addressesOf(name, context.dns);
+                    return found.map((address) => ({ address, name }));
+                }),
+            );
             return Promise.all(addresses.flat().map(({ address, name }) => identify(address, name)));
         };
         const [webIds, mailIds, serverIds] = await Promise.all([Promise.all(web.map((address) => identify(address))), named(exchanges), named(servers)]);

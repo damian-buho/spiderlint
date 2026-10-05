@@ -17,7 +17,10 @@ const everyLocation = (report: Report, rule: string) => report.findings.filter((
 
 // Rule and path of each plugin finding, sorted.
 function found(report: Report, origin: string): string[] {
-    return report.findings.filter((finding) => !finding.rule.startsWith("groups/")).map((finding) => `${finding.rule} ${finding.url.replace(origin, "")}`).toSorted((a, b) => a.localeCompare(b));
+    return report.findings
+        .filter((finding) => !finding.rule.startsWith("groups/"))
+        .map((finding) => `${finding.rule} ${finding.url.replace(origin, "")}`)
+        .toSorted((a, b) => a.localeCompare(b));
 }
 
 describe("page plugins", () => {
@@ -92,7 +95,10 @@ describe("page plugins", () => {
         assert.deepEqual(report.findings.find((finding) => finding.rule === "structured-data/references")?.urls, [`${site.origin}/bad`]);
         assert.deepEqual(everyLocation(report, "structured-data/deprecated"), ["property ingredients → recipeIngredient", "type Taxi → TaxiService"]);
         assert.deepEqual(everyLocation(report, "structured-data/dates"), ["Article dateCreated “yesterday” is not ISO 8601", "Article dateModified 2026-09-01 is before datePublished 2026-09-02"]);
-        assert.deepEqual(everyLocation(report, "structured-data/entities").toSorted((a, b) => a.localeCompare(b)), ["Corporation on 1 page", `${site.origin}/#me on 1 page`, `${site.origin}/bad#me on 1 page`, "Organization on 1 page"]);
+        assert.deepEqual(
+            everyLocation(report, "structured-data/entities").toSorted((a, b) => a.localeCompare(b)),
+            ["Corporation on 1 page", `${site.origin}/#me on 1 page`, `${site.origin}/bad#me on 1 page`, "Organization on 1 page"],
+        );
     });
 
     it("reads Microdata and RDFa items into the JSON-LD node shape", () => {
@@ -114,7 +120,14 @@ describe("markup/lang-switcher", () => {
     const rule = markup.rules?.["markup/lang-switcher"]?.("warning") as PageRule;
 
     it("ignores same-language navigation and still judges cross-language links", () => {
-        const monolingual = switcherPage("en", [{ lang: "en", href: "https://a.test/" }, { lang: "x-default", href: "https://a.test/" }], [{ href: "https://a.test/" }]);
+        const monolingual = switcherPage(
+            "en",
+            [
+                { lang: "en", href: "https://a.test/" },
+                { lang: "x-default", href: "https://a.test/" },
+            ],
+            [{ href: "https://a.test/" }],
+        );
         assert.deepEqual(rule.check(monolingual), []);
         const undeclared = switcherPage("en-GB", [{ lang: "es", href: "https://a.test/es/" }], [{ href: "https://a.test/es/" }]);
         assert.equal(rule.check(undeclared)?.length, 1);
@@ -124,8 +137,7 @@ describe("markup/lang-switcher", () => {
 });
 
 // A page with `hreflang` alternates and collected switcher links.
-const switcherPage = (lang: string | undefined, hreflang: { lang: string; href: string }[], switcher: MarkupFacts["switcher"]) =>
-    ({ url: { href: "https://a.test/" }, html: { lang, hreflang }, markup: { switcher, videos: [] } }) as unknown as Facts;
+const switcherPage = (lang: string | undefined, hreflang: { lang: string; href: string }[], switcher: MarkupFacts["switcher"]) => ({ url: { href: "https://a.test/" }, html: { lang, hreflang }, markup: { switcher, videos: [] } }) as unknown as Facts;
 
 // A page loading scripts from `urls`.
 const page = (href: string, urls: string[]) => ({ url: { href }, resources: urls.map((url) => ({ url, kind: "script", origin: "cross" })) }) as unknown as Facts;
@@ -135,6 +147,9 @@ describe("trackers/inventory", () => {
 
     it("lists each vendor once with its hosts and pages, and ignores other hosts", () => {
         const findings = rule.check([page("https://a.test/", ["https://www.googletagmanager.com/gtag.js", "https://cdn.a.test/app.js"]), page("https://a.test/b", ["https://www.google-analytics.com/g.js", "https://notclarity.ms/x.js"])]) ?? [];
-        assert.deepEqual(findings.map(({ message, urls }) => ({ message, urls })), [{ message: "Google Analytics loads from www.googletagmanager.com, www.google-analytics.com on 2 pages", urls: ["https://a.test/", "https://a.test/b"] }]);
+        assert.deepEqual(
+            findings.map(({ message, urls }) => ({ message, urls })),
+            [{ message: "Google Analytics loads from www.googletagmanager.com, www.google-analytics.com on 2 pages", urls: ["https://a.test/", "https://a.test/b"] }],
+        );
     });
 });

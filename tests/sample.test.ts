@@ -69,7 +69,12 @@ describe("sample", () => {
         const store = path.join(directory, "store");
         await crawl({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["seo"] }, store);
         const linted = await lintStore({ groups: GROUPS }, store);
-        const sampled = posts(linted.pages).filter((page) => page.heavy !== undefined).map((page) => page.url.pathname);
-        assert.deepEqual(sampled.toSorted((a, b) => a.localeCompare(b)), ["/posts/1", "/posts/2"]);
+        const sampled = posts(linted.pages)
+            .filter((page) => page.heavy !== undefined)
+            .map((page) => page.url.pathname);
+        assert.deepEqual(
+            sampled.toSorted((a, b) => a.localeCompare(b)),
+            ["/posts/1", "/posts/2"],
+        );
     });
 });

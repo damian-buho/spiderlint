@@ -186,7 +186,20 @@ const addresses: SiteExtractor = {
         const v6 = records<string>(aaaa, "AAAA").map(({ data, ttl }) => ({ address: data, ttl }));
         const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { "hints-match"?: boolean } => {
             const isHinted = record.ipv4hint !== undefined || record.ipv6hint !== undefined;
-            return isHinted && (record.target === "." || isSameName(record.target, host)) ? { ...record, "hints-match": isSameSet(record.ipv4hint ?? [], v4.map((entry) => entry.address)) && isSameSet(record.ipv6hint ?? [], v6.map((entry) => entry.address)) } : record;
+            return isHinted && (record.target === "." || isSameName(record.target, host))
+                ? {
+                      ...record,
+                      "hints-match":
+                          isSameSet(
+                              record.ipv4hint ?? [],
+                              v4.map((entry) => entry.address),
+                          ) &&
+                          isSameSet(
+                              record.ipv6hint ?? [],
+                              v6.map((entry) => entry.address),
+                          ),
+                  }
+                : record;
         });
         const forSale = texts(sale);
         const agentServices = services(host, agents, "UNKNOWN_64");
@@ -240,7 +253,7 @@ const dnssec: SiteExtractor = {
         const keys = records<DnskeyData>(dnskey, "DNSKEY").map(({ data }) => ({ algorithm: data.algorithm, flags: data.flags }));
         const soonest = records<RrsigData>(a, "RRSIG").toSorted((x, y) => x.data.expiration - y.data.expiration)[0]?.data;
         const isSigned = delegation.length > 0;
-        const failed = isSigned && await bogus(host, a, context);
+        const failed = isSigned && (await bogus(host, a, context));
         log.debug({ host, zone, ds: delegation.length, dnskey: keys.length, ad: a.ad, rcode: a.rcode, bogus: failed }, "dnssec read");
         return {
             zone,
@@ -261,7 +274,10 @@ function network(address: string): string {
     const [head = "", tail = ""] = address.split("::", 2);
     const [left, right] = [head ? head.split(":") : [], tail ? tail.split(":") : []];
     const groups = address.includes("::") ? [...left, ...Array.from({ length: 8 - left.length - right.length }, () => "0"), ...right] : left;
-    return groups.slice(0, 3).map((group) => Number.parseInt(group, 16).toString(16)).join(":");
+    return groups
+        .slice(0, 3)
+        .map((group) => Number.parseInt(group, 16).toString(16))
+        .join(":");
 }
 
 // The host’s A, AAAA and CNAME answers as sorted `TYPE data` lines, so two servers’ answers compare as sets.
@@ -326,7 +342,12 @@ async function soaOf(zone: string, names: string[], dns: DnsClient): Promise<Rec
 
 // The smallest TTL per record type as `server` serves them, not as a resolver’s cache counts them down.
 async function ttlsOf(zone: string, host: string, server: string, dns: DnsClient): Promise<Record<string, number>> {
-    const asked: [string, string, string][] = [["ns", zone, "NS"], ["a", host, "A"], ["aaaa", host, "AAAA"], ["mx", host, "MX"]];
+    const asked: [string, string, string][] = [
+        ["ns", zone, "NS"],
+        ["a", host, "A"],
+        ["aaaa", host, "AAAA"],
+        ["mx", host, "MX"],
+    ];
     const ttls = await Promise.all(asked.map(async ([key, name, type]) => [key, records<unknown>(await dns.query(name, type, { server }), type).map((record) => record.ttl ?? 0)] as const));
     log.debug({ zone, host, server, ttls }, "authoritative ttls read");
     return Object.fromEntries(ttls.flatMap(([key, found]) => (found.length > 0 ? [[key, Math.min(...found)]] : [])));
@@ -415,7 +436,9 @@ const rdap: SiteExtractor = {
             return;
         }
         if (!found) return;
-        const zoned = records<string>(await context.dns.query(domain, "NS"), "NS").map(({ data }) => nsName(data)).toSorted((a, b) => a.localeCompare(b));
+        const zoned = records<string>(await context.dns.query(domain, "NS"), "NS")
+            .map(({ data }) => nsName(data))
+            .toSorted((a, b) => a.localeCompare(b));
         const daysLeft = found.expires === undefined ? undefined : Math.floor((Date.parse(found.expires) - Date.now()) / 86_400_000);
         log.debug({ host, domain, daysLeft, status: found.status, registry: found.nameservers, zone: zoned }, "registration read");
         return { domain, ...found, ...(daysLeft !== undefined && { "days-left": daysLeft }), ...(found.nameservers.length > 0 && zoned.length > 0 && { "ns-matches": isSameSet(found.nameservers, zoned) }) };
@@ -765,7 +788,10 @@ const RULES: Record<string, RuleSpec> = {
         when: { "site.hosts.*.rdap.days-left": { minimum: 7 } },
         message: "the domain registration expires in {got} days",
         severity: "warning",
-        score: [[7, 6.5], [30, 3.5]],
+        score: [
+            [7, 6.5],
+            [30, 3.5],
+        ],
         docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
         fix: "Renew `{domain}` at its registrar and turn on automatic renewal.",
     },
@@ -774,7 +800,10 @@ const RULES: Record<string, RuleSpec> = {
         expect: { type: "integer", minimum: 7 },
         message: "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses",
         severity: "error",
-        score: [[0, 9.6], [7, 6.6]],
+        score: [
+            [0, 9.6],
+            [7, 6.6],
+        ],
         docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
         fix: "Renew `{domain}` at its registrar now and find out why automatic renewal did not run.",
     },

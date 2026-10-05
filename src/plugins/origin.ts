@@ -26,7 +26,12 @@ const CODINGS = ["br", "zstd", "gzip"];
 
 // A response’s media type without parameters.
 export function mediaType(answer: Probe): string {
-    return String(answer.headers["content-type"] ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    return (
+        String(answer.headers["content-type"] ?? "")
+            .split(";", 1)[0]
+            ?.trim()
+            .toLowerCase() ?? ""
+    );
 }
 
 // The answer to a random path, logged so an owner can find it in their access log.
@@ -151,15 +156,17 @@ const variants: SiteExtractor = {
         const deep = `${seed?.url.pathname ?? "/"}?spiderlint=${randomUUID()}`;
         const urls = [...new Set(["/", deep].flatMap((path) => hosts.flatMap((host) => schemes.map((scheme) => `${scheme}//${host}${port ? `:${port}` : ""}${path}`))))];
         log.info({ origin, urls }, `${urls.length} entry variants of ${origin} probed`);
-        const settled = await Promise.all(urls.map(async (url) => {
-            try {
-                return await walk(url, context);
-            } catch (error) {
-                if (!(error instanceof RobotsDisallowed)) throw error;
-                log.info({ url, error: reason(error) }, "robots.txt withholds the entry variant");
-                return;
-            }
-        }));
+        const settled = await Promise.all(
+            urls.map(async (url) => {
+                try {
+                    return await walk(url, context);
+                } catch (error) {
+                    if (!(error instanceof RobotsDisallowed)) throw error;
+                    log.info({ url, error: reason(error) }, "robots.txt withholds the entry variant");
+                    return;
+                }
+            }),
+        );
         const probes = settled.filter((variant) => variant !== undefined);
         const landed = probes.filter((variant) => variant.resolves && !variant.error);
         return {
@@ -189,7 +196,7 @@ const hostCanonical: Make = (severity) => ({
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
             const canonical = canonicalOf(subject, pages);
-            const astray = ((facts.variants as { probes: Variant[] }).probes).filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
+            const astray = (facts.variants as { probes: Variant[] }).probes.filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
             log.debug({ rule: "origin/host-canonical", subject, canonical, astray: astray.length }, "entry variants judged");
             return astray.length === 0 ? [] : [{ rule: "origin/host-canonical", severity, scope: "site", url: subject, message: `entry variants do not land on ${canonical}: ${astray.map((variant) => `${variant.url} → ${variant.error ?? variant.final}`).join("; ")}`, value: astray }];
         });
@@ -223,7 +230,10 @@ const encodings: SiteExtractor = {
         const served: string[] = [];
         for (const coding of CODINGS) {
             const answer = await context.fetch(url, { headers: { "accept-encoding": coding }, redirect: "manual" });
-            const isServed = String(answer.headers["content-encoding"] ?? "").trim().toLowerCase() === coding;
+            const isServed =
+                String(answer.headers["content-encoding"] ?? "")
+                    .trim()
+                    .toLowerCase() === coding;
             log.debug({ url, coding, status: answer.status, isServed }, "encoding probed");
             if (isServed) served.push(coding);
         }
@@ -324,7 +334,10 @@ const meProfiles: SiteExtractor = {
                 const answer = await context.cached(target);
                 fetched[target] = { status: answer.status, at: answer.at, ...(answer.cached && { cached: answer.cached }), ...(answer.revalidated && { revalidated: answer.revalidated }) };
                 const $ = load(answer.body);
-                const back = $("a[rel][href], link[rel][href]").filter((_, element) => /(?:^|\s)me(?:\s|$)/i.test(String($(element).attr("rel")))).map((_, element) => String($(element).attr("href"))).get();
+                const back = $("a[rel][href], link[rel][href]")
+                    .filter((_, element) => /(?:^|\s)me(?:\s|$)/i.test(String($(element).attr("rel"))))
+                    .map((_, element) => String($(element).attr("href")))
+                    .get();
                 const isBack = back.some((href) => URL.canParse(href, answer.url) && ours.has(bare(new URL(href, answer.url).href)));
                 log.debug({ origin, target, status: answer.status, links: back.length, isBack }, "rel=me profile probed");
                 if (answer.status < 200 || answer.status > 299) unreachable.push(target);
@@ -349,12 +362,14 @@ const meBackLink: Make = (severity) => ({
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { unverified, declared, fetched } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]>; fetched?: Record<string, { at: string; cached?: true; revalidated?: true }> };
             log.debug({ rule: "links/rel-me", subject, unverified: unverified.length }, "rel=me profiles judged");
-            return unverified.filter((profile) => !verdicts.has(bare(profile))).map((profile) => {
-                const pages = declared?.[profile] ?? [subject];
-                const seen = fetched?.[profile];
-                const when = seen ? ` (${readNote(seen)}; --refresh reads it again)` : "";
-                return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts${when}`, value: profile, ...(pages.length > 1 && { urls: pages }) };
-            });
+            return unverified
+                .filter((profile) => !verdicts.has(bare(profile)))
+                .map((profile) => {
+                    const pages = declared?.[profile] ?? [subject];
+                    const seen = fetched?.[profile];
+                    const when = seen ? ` (${readNote(seen)}; --refresh reads it again)` : "";
+                    return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts${when}`, value: profile, ...(pages.length > 1 && { urls: pages }) };
+                });
         });
     },
 });

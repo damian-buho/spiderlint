@@ -94,15 +94,17 @@ export function presetSettings(name: string): Record<string, unknown> {
 // The web presets some admitting policy lets a request name, in the form’s order; the host typed picks the policy, so each stays checked on submit.
 export function presetsOffered(server: ServerSettings): string[] {
     const policies = server.policies.filter((policy) => policy.ban === undefined);
-    const offered = Object.keys(WEB_PRESETS).filter((name) => policies.some((policy) => {
-        try {
-            checkRules({ rules: [name] }, policy);
-            return true;
-        } catch (error) {
-            if (error instanceof Refusal) return false;
-            throw error;
-        }
-    }));
+    const offered = Object.keys(WEB_PRESETS).filter((name) =>
+        policies.some((policy) => {
+            try {
+                checkRules({ rules: [name] }, policy);
+                return true;
+            } catch (error) {
+                if (error instanceof Refusal) return false;
+                throw error;
+            }
+        }),
+    );
     log.debug({ offered, policies: policies.length }, "web presets offered");
     return offered;
 }

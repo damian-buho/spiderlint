@@ -176,7 +176,10 @@ export function keyShares(): { shares: KeyShare[]; client(hello: Buffer): Client
     const x25519 = generateKeyPairSync("x25519");
     const p256 = createECDH("prime256v1");
     p256.generateKeys();
-    const shares = [{ group: X25519, key: x25519.publicKey.export({ format: "der", type: "spki" }).subarray(-32) }, { group: SECP256R1, key: p256.getPublicKey() }];
+    const shares = [
+        { group: X25519, key: x25519.publicKey.export({ format: "der", type: "spki" }).subarray(-32) },
+        { group: SECP256R1, key: p256.getPublicKey() },
+    ];
     const agree = (group: number, share: Buffer) => {
         if (group === SECP256R1) return p256.computeSecret(share);
         if (group !== X25519) return;
@@ -255,7 +258,7 @@ function readCertificates(body: Buffer, flight: Flight): void {
     let at = isModern ? 1 + (body[0] ?? 0) : 0;
     const end = at + 3 + body.readUIntBE(at, 3);
     const certificates: Buffer[] = [];
-    for (at += 3; at + 3 <= end; ) {
+    for (at += 3; at + 3 <= end;) {
         const size = body.readUIntBE(at, 3);
         certificates.push(body.subarray(at + 3, at + 3 + size));
         at += 3 + size;
@@ -316,7 +319,7 @@ export function readFlight(data: Buffer, client?: Client): Flight {
     let stream = Buffer.alloc(0);
     let at = 0;
     try {
-        for (let offset = 0; offset + 5 <= data.length; ) {
+        for (let offset = 0; offset + 5 <= data.length;) {
             const header = data.subarray(offset, offset + 5);
             const body = data.subarray(offset + 5, offset + 5 + header.readUInt16BE(3));
             if (body.length < header.readUInt16BE(3)) break;

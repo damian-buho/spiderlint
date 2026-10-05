@@ -81,7 +81,9 @@ export function listRules(config: Config, names: string[]): RuleExplanation[] {
     }
     const specs = Object.assign({}, ...(names.length > 0 ? names : all).map((name) => resolveRuleset(name, config.rulesets))) as ReturnType<typeof resolveRuleset>;
     log.debug({ rulesets: names, rules: Object.keys(specs).length }, "catalog rules resolved");
-    return Object.entries(specs).toSorted(([a], [b]) => a.localeCompare(b)).map(([id, spec]) => describeRule(id, spec, severities, homes.get(id) ?? []));
+    return Object.entries(specs)
+        .toSorted(([a], [b]) => a.localeCompare(b))
+        .map(([id, spec]) => describeRule(id, spec, severities, homes.get(id) ?? []));
 }
 
 // A rule’s score as `5.0`, or the scale a dynamic one follows as `0 days → 6.8, 2 → 5.2`.
@@ -118,11 +120,18 @@ export function listPresets(config: Config): PresetInfo[] {
 // Left-aligned columns sized to their widest cell; the header row bold.
 function table(rows: string[][], paint: Paint, style: (row: number, column: number, cell: string) => Style | undefined): string {
     const widths = rows[0]?.map((_cell, column) => Math.max(...rows.map((row) => (row[column] ?? "").length))) ?? [];
-    return rows.map((row, index) => row.map((cell, column) => {
-        const padded = column === row.length - 1 ? cell : cell.padEnd(widths[column] ?? 0);
-        const tone = index === 0 ? "bold" : style(index, column, cell);
-        return tone ? paint(tone, padded) : padded;
-    }).join("  ").trimEnd()).join("\n");
+    return rows
+        .map((row, index) =>
+            row
+                .map((cell, column) => {
+                    const padded = column === row.length - 1 ? cell : cell.padEnd(widths[column] ?? 0);
+                    const tone = index === 0 ? "bold" : style(index, column, cell);
+                    return tone ? paint(tone, padded) : padded;
+                })
+                .join("  ")
+                .trimEnd(),
+        )
+        .join("\n");
 }
 
 export function formatRules(rules: RuleInfo[], paint: Paint): string {

@@ -84,6 +84,9 @@ describe("images preset", () => {
     it("leaves image bodies unread when no rule needs them", async () => {
         const report = await audit({ seeds: [`${gallery.origin}/`], rules: ["resources"], sitemap: false, robots: false, cacheMode: "off" });
         assert.equal(report.summary.cost.extractors.images, undefined);
-        assert.equal(report.pages[0]?.resources?.some((resource) => resource.images !== undefined), false);
+        assert.equal(
+            report.pages[0]?.resources?.some((resource) => resource.images !== undefined),
+            false,
+        );
     });
 });

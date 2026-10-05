@@ -28,10 +28,16 @@ const ORDER: Protocol[] = ["SSLv2", ...LEGACY_HELLOS, "TLSv1.3"];
 // Versions RFC 8996 and RFC 7568 retire.
 const LEGACY = new Set<Protocol>(["SSLv2", "SSLv3", "TLSv1", "TLSv1.1"]);
 
-const MODERN_SUITES = Object.keys(SUITES).map(Number).filter((code) => !SUITES[code]?.includes("_WITH_"));
-const CLASSIC_SUITES = Object.keys(SUITES).map(Number).filter((code) => SUITES[code]?.includes("_WITH_"));
+const MODERN_SUITES = Object.keys(SUITES)
+    .map(Number)
+    .filter((code) => !SUITES[code]?.includes("_WITH_"));
+const CLASSIC_SUITES = Object.keys(SUITES)
+    .map(Number)
+    .filter((code) => SUITES[code]?.includes("_WITH_"));
 // Groups a TLS 1.2 ECDHE suite may use; finite-field ones are left out so a DHE suite shows the server’s own prime.
-const CURVES = Object.keys(GROUPS).map(Number).filter((code) => code < 256);
+const CURVES = Object.keys(GROUPS)
+    .map(Number)
+    .filter((code) => code < 256);
 const ALL_GROUPS = Object.keys(GROUPS).map(Number);
 
 // What a suite’s name says about its strength.
@@ -287,8 +293,24 @@ export async function scan(target: Target, isFull: boolean): Promise<ScanFacts> 
     const dhe = legacyFlights.filter((flight) => flight.keyExchange && /^TLS_DH(?:E_(?:RSA|DSS)|_anon)_/.test(SUITES[flight.suite ?? 0] ?? ""));
     const bits = dhe.length > 0 ? Math.min(...dhe.map((flight) => dhBits(flight.keyExchange as Buffer))) : undefined;
     const ecdhe = bestFlights.map((flight) => flight.suite ?? 0).filter((code) => /^TLS_ECDHE_(?:RSA|ECDSA)_/.test(SUITES[code] ?? ""));
-    const groups = [...(hasModern ? await enumerateGroups(target, "TLSv1.3", modern.map((flight) => flight.suite ?? 0), ALL_GROUPS) : []), ...(best && ecdhe.length > 0 ? await enumerateGroups(target, best, ecdhe, CURVES) : [])];
-    const order = best ? await serverOrder(target, best, bestFlights.map((flight) => flight.suite ?? 0)) : undefined;
+    const groups = [
+        ...(hasModern
+            ? await enumerateGroups(
+                  target,
+                  "TLSv1.3",
+                  modern.map((flight) => flight.suite ?? 0),
+                  ALL_GROUPS,
+              )
+            : []),
+        ...(best && ecdhe.length > 0 ? await enumerateGroups(target, best, ecdhe, CURVES) : []),
+    ];
+    const order = best
+        ? await serverOrder(
+              target,
+              best,
+              bestFlights.map((flight) => flight.suite ?? 0),
+          )
+        : undefined;
     const forward = all.map((name) => traits(name).isForward);
     log.debug({ host: target.host, ciphers: all.length, groups: groups.length, bits, order }, "tls suites scanned");
     return {

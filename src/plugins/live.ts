@@ -124,10 +124,12 @@ async function clickables(page: Page, url: string): Promise<Element[] | undefine
 // Text axe’s `rule` finds below its contrast ratio in the page as it renders now.
 async function faint(page: Page, rule = "color-contrast"): Promise<(Element & { contrast?: string })[]> {
     const results = await new AxeBuilder({ page }).withRules([rule]).analyze();
-    return results.violations.flatMap((violation) => violation.nodes).map((node) => {
-        const data = node.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number; expectedContrastRatio?: string } | undefined;
-        return { target: node.target.flat().join(" >>> "), html: /^<[^>]*>/.exec(node.html)?.[0] ?? node.html, ...(data?.contrastRatio !== undefined && { contrast: `${data.fgColor} on ${data.bgColor} ${data.contrastRatio}:1, needs ${data.expectedContrastRatio}` }) };
-    });
+    return results.violations
+        .flatMap((violation) => violation.nodes)
+        .map((node) => {
+            const data = node.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number; expectedContrastRatio?: string } | undefined;
+            return { target: node.target.flat().join(" >>> "), html: /^<[^>]*>/.exec(node.html)?.[0] ?? node.html, ...(data?.contrastRatio !== undefined && { contrast: `${data.fgColor} on ${data.bgColor} ${data.contrastRatio}:1, needs ${data.expectedContrastRatio}` }) };
+        });
 }
 
 // Text axe finds below 7:1 in a fresh copy of the page loaded as a visitor asking for more contrast.
@@ -152,7 +154,10 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<LiveFac
         const found = await clickables(fresh, page.url.href);
         await fresh.emulateMedia({ forcedColors: "active" });
         const forced = (await fresh.evaluate(FORCED)) as LiveFacts["forced"];
-        log.debug({ url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts["service-workers"].length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length, icons: forced.icons.length, optOut: forced["opt-out"].length, isContrast }, "live page read");
+        log.debug(
+            { url: page.url.href, motion: facts.motion.length, videos: facts.videos.length, inputs: facts.inputs.length, serviceWorkers: facts["service-workers"].length, webmcp: facts.webmcp?.tools.length, isDark, faint: dark?.length, icons: forced.icons.length, optOut: forced["opt-out"].length, isContrast },
+            "live page read",
+        );
         return { ...facts, ...(found && { clickables: found }), ...(dark && { dark }), forced, isContrast };
     });
     const { isContrast, ...facts } = read;
@@ -163,54 +168,114 @@ const liveOf = (page: Facts) => page[ID] as LiveFacts | undefined;
 const located = (element: Element) => `${element.target} ${element.html}`;
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
-const reducedMotion = pageRule("live/reduced-motion", [`${ID}.motion`, `${ID}.videos`], (page) => {
-    const facts = liveOf(page);
-    if (!facts) return;
-    const moving = [...facts.motion.map((entry) => `${located(entry)} ${entry.name} ${entry.seconds === undefined ? "endless" : `${entry.seconds} s`}`), ...facts.videos.map((video) => `${located(video)} autoplays`)];
-    return moving.length === 0 ? [] : [{ message: `${plural(facts.motion.length, "animation", "animations")} and ${plural(facts.videos.length, "video", "videos")} keep moving although the visitor asks for reduced motion`, value: moving, locations: moving }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html", fix: "Stop endless and long animations and autoplay inside `@media (prefers-reduced-motion: reduce)`." });
+const reducedMotion = pageRule(
+    "live/reduced-motion",
+    [`${ID}.motion`, `${ID}.videos`],
+    (page) => {
+        const facts = liveOf(page);
+        if (!facts) return;
+        const moving = [...facts.motion.map((entry) => `${located(entry)} ${entry.name} ${entry.seconds === undefined ? "endless" : `${entry.seconds} s`}`), ...facts.videos.map((video) => `${located(video)} autoplays`)];
+        return moving.length === 0 ? [] : [{ message: `${plural(facts.motion.length, "animation", "animations")} and ${plural(facts.videos.length, "video", "videos")} keep moving although the visitor asks for reduced motion`, value: moving, locations: moving }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html", fix: "Stop endless and long animations and autoplay inside `@media (prefers-reduced-motion: reduce)`." },
+);
 
-const clickListener = pageRule("live/click-listener", [`${ID}.clickables`], (page) => {
-    const found = liveOf(page)?.clickables;
-    if (!found) return;
-    return found.length === 0 ? [] : [{ message: `${plural(found.length, "<div> or <span> takes", "<div> or <span> elements take")} clicks with no role, so neither keyboards nor screen readers find ${found.length === 1 ? "it" : "them"}`, value: found.map((element) => element.target), locations: found.map((element) => located(element)) }];
-}, { docs: "https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/", fix: "Use `<button>` or `<a href>`; a custom control needs a role, `tabindex=\"0\"` and a key handler too." });
+const clickListener = pageRule(
+    "live/click-listener",
+    [`${ID}.clickables`],
+    (page) => {
+        const found = liveOf(page)?.clickables;
+        if (!found) return;
+        return found.length === 0
+            ? []
+            : [{ message: `${plural(found.length, "<div> or <span> takes", "<div> or <span> elements take")} clicks with no role, so neither keyboards nor screen readers find ${found.length === 1 ? "it" : "them"}`, value: found.map((element) => element.target), locations: found.map((element) => located(element)) }];
+    },
+    { docs: "https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/", fix: 'Use `<button>` or `<a href>`; a custom control needs a role, `tabindex="0"` and a key handler too.' },
+);
 
-const inputFontSize = pageRule("live/input-font-size", [`${ID}.inputs`], (page) => {
-    const small = liveOf(page)?.inputs;
-    if (!small) return;
-    return small.length === 0 ? [] : [{ message: `${plural(small.length, "form field is", "form fields are")} set under ${MIN_FONT} px, so iOS Safari zooms in on focus`, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
-}, { docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag", fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen." });
+const inputFontSize = pageRule(
+    "live/input-font-size",
+    [`${ID}.inputs`],
+    (page) => {
+        const small = liveOf(page)?.inputs;
+        if (!small) return;
+        return small.length === 0 ? [] : [{ message: `${plural(small.length, "form field is", "form fields are")} set under ${MIN_FONT} px, so iOS Safari zooms in on focus`, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag", fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen." },
+);
 
-const darkContrast = pageRule("live/dark-contrast", [`${ID}.dark`], (page) => {
-    const faintText = liveOf(page)?.dark;
-    if (!faintText) return;
-    return faintText.length === 0 ? [] : [{ message: `${plural(faintText.length, "element is", "elements are")} too faint to read in the dark scheme the page claims to support`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." });
+const darkContrast = pageRule(
+    "live/dark-contrast",
+    [`${ID}.dark`],
+    (page) => {
+        const faintText = liveOf(page)?.dark;
+        if (!faintText) return;
+        return faintText.length === 0
+            ? []
+            : [{ message: `${plural(faintText.length, "element is", "elements are")} too faint to read in the dark scheme the page claims to support`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." },
+);
 
-const forcedIcons = pageRule("live/forced-icons", [`${ID}.forced.icons`], (page) => {
-    const blank = liveOf(page)?.forced?.icons;
-    if (!blank) return;
-    return blank.length === 0 ? [] : [{ message: `${plural(blank.length, "control shows", "controls show")} nothing under forced colours: no visible text, and ${blank.length === 1 ? "its icon is" : "their icons are"} a gradient or a mask the system colours paint over`, value: blank.map((element) => element.target), locations: blank.map((element) => located(element)) }];
-}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`." });
+const forcedIcons = pageRule(
+    "live/forced-icons",
+    [`${ID}.forced.icons`],
+    (page) => {
+        const blank = liveOf(page)?.forced?.icons;
+        if (!blank) return;
+        return blank.length === 0
+            ? []
+            : [
+                  {
+                      message: `${plural(blank.length, "control shows", "controls show")} nothing under forced colours: no visible text, and ${blank.length === 1 ? "its icon is" : "their icons are"} a gradient or a mask the system colours paint over`,
+                      value: blank.map((element) => element.target),
+                      locations: blank.map((element) => located(element)),
+                  },
+              ];
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`." },
+);
 
-const forcedOptOut = pageRule("live/forced-opt-out", [`${ID}.forced.opt-out`], (page) => {
-    const kept = liveOf(page)?.forced?.["opt-out"];
-    if (!kept) return;
-    return kept.length === 0 ? [] : [{ message: `${plural(kept.length, "element keeps", "elements keep")} ${kept.length === 1 ? "its" : "their"} own text colours under forced colours`, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
-}, { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." });
+const forcedOptOut = pageRule(
+    "live/forced-opt-out",
+    [`${ID}.forced.opt-out`],
+    (page) => {
+        const kept = liveOf(page)?.forced?.["opt-out"];
+        if (!kept) return;
+        return kept.length === 0 ? [] : [{ message: `${plural(kept.length, "element keeps", "elements keep")} ${kept.length === 1 ? "its" : "their"} own text colours under forced colours`, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." },
+);
 
-const contrastMore = pageRule("live/contrast-more", [`${ID}.contrast.claimed`], (page) => {
-    const contrast = liveOf(page)?.contrast;
-    if (!contrast) return;
-    return contrast.claimed ? [] : [{ message: "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours", value: false }];
-}, { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast", fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1." });
+const contrastMore = pageRule(
+    "live/contrast-more",
+    [`${ID}.contrast.claimed`],
+    (page) => {
+        const contrast = liveOf(page)?.contrast;
+        if (!contrast) return;
+        return contrast.claimed ? [] : [{ message: "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours", value: false }];
+    },
+    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast", fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1." },
+);
 
-const contrastEnhanced = pageRule("live/contrast-enhanced", [`${ID}.contrast.faint`], (page) => {
-    const faintText = liveOf(page)?.contrast?.faint;
-    if (!faintText) return;
-    return faintText.length === 0 ? [] : [{ message: `${plural(faintText.length, "element stays", "elements stay")} below 7:1 when the visitor asks for the more contrast the page answers`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
-}, { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html", fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text." });
+const contrastEnhanced = pageRule(
+    "live/contrast-enhanced",
+    [`${ID}.contrast.faint`],
+    (page) => {
+        const faintText = liveOf(page)?.contrast?.faint;
+        if (!faintText) return;
+        return faintText.length === 0
+            ? []
+            : [
+                  {
+                      message: `${plural(faintText.length, "element stays", "elements stay")} below 7:1 when the visitor asks for the more contrast the page answers`,
+                      value: faintText.map((element) => element.target),
+                      locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`),
+                  },
+              ];
+    },
+    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html", fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text." },
+);
 
 export default definePlugin({
     name: "live",
@@ -219,7 +284,16 @@ export default definePlugin({
     presets: {
         live: {
             description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme and under increased contrast, icons and opt-outs under forced colours, click handlers on plain elements, form fields small enough to zoom",
-            rules: { "live/reduced-motion": { severity: "warning", score: 6.2 }, "live/dark-contrast": { severity: "warning", score: 5.6 }, "live/contrast-enhanced": { severity: "warning", score: 5 }, "live/forced-icons": { severity: "warning", score: 5.4 }, "live/click-listener": { severity: "warning", score: 5.2 }, "live/input-font-size": { severity: "info", score: 2.6 }, "live/contrast-more": { severity: "info", score: 1.6 }, "live/forced-opt-out": { severity: "info", score: 2.4 } },
+            rules: {
+                "live/reduced-motion": { severity: "warning", score: 6.2 },
+                "live/dark-contrast": { severity: "warning", score: 5.6 },
+                "live/contrast-enhanced": { severity: "warning", score: 5 },
+                "live/forced-icons": { severity: "warning", score: 5.4 },
+                "live/click-listener": { severity: "warning", score: 5.2 },
+                "live/input-font-size": { severity: "info", score: 2.6 },
+                "live/contrast-more": { severity: "info", score: 1.6 },
+                "live/forced-opt-out": { severity: "info", score: 2.4 },
+            },
         },
     },
 });

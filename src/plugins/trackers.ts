@@ -33,7 +33,18 @@ const inventory: Make = (severity) => ({
             }
         }
         log.debug({ rule: "trackers/inventory", pages: pages.length, vendors: found.keys().toArray() }, "trackers inventoried");
-        return found.entries().map(([vendor, { hosts, urls }]): Finding => ({ rule: "trackers/inventory", severity, scope: "site", url: `https://${hosts.values().next().value}/`, message: `${vendor} loads from ${hosts.values().toArray().join(", ")} on ${urls.size} page${urls.size === 1 ? "" : "s"}`, value: hosts.values().toArray(), urls: urls.values().toArray() })).toArray();
+        return found
+            .entries()
+            .map(([vendor, { hosts, urls }]): Finding => ({
+                rule: "trackers/inventory",
+                severity,
+                scope: "site",
+                url: `https://${hosts.values().next().value}/`,
+                message: `${vendor} loads from ${hosts.values().toArray().join(", ")} on ${urls.size} page${urls.size === 1 ? "" : "s"}`,
+                value: hosts.values().toArray(),
+                urls: urls.values().toArray(),
+            }))
+            .toArray();
     },
 });
 

@@ -137,7 +137,10 @@ export function redactHeaders(headers: Record<string, string | string[] | undefi
 
 // `DNS:a, IP Address:b` to `[a, b]`.
 function subjectAltNames(raw: string | undefined): string[] {
-    return (raw ?? "").split(",").map((entry) => entry.trim().replace(/^[^:]+:/, "")).filter((entry) => entry.length > 0);
+    return (raw ?? "")
+        .split(",")
+        .map((entry) => entry.trim().replace(/^[^:]+:/, ""))
+        .filter((entry) => entry.length > 0);
 }
 
 function isoDate(raw: string | undefined): string | undefined {

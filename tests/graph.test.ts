@@ -42,8 +42,14 @@ describe("link graph", () => {
     it("derives depth, degrees and a rank averaging 1", () => {
         const graph = linkGraph(pages);
         assert.deepEqual(graph, { pages: 6, edges: 11 });
-        assert.deepEqual(pages.map((facts) => facts.graph?.depth), [0, 1, 1, 2, 3, 4]);
-        assert.deepEqual(pages.map((facts) => facts.graph?.["in-degree"]), [3, 2, 2, 2, 1, 1]);
+        assert.deepEqual(
+            pages.map((facts) => facts.graph?.depth),
+            [0, 1, 1, 2, 3, 4],
+        );
+        assert.deepEqual(
+            pages.map((facts) => facts.graph?.["in-degree"]),
+            [3, 2, 2, 2, 1, 1],
+        );
         assert.equal(pages[5]?.graph?.["out-degree"], 0);
         const mean = pages.reduce((sum, facts) => sum + (facts.graph?.rank ?? 0), 0) / pages.length;
         assert.ok(Math.abs(mean - 1) < 0.01, String(mean));
@@ -54,12 +60,18 @@ describe("link graph", () => {
         linkGraph(pages);
         const rules = compileRulesets(["graph"], {}) as PageRule[];
         const found = rules.flatMap((rule) => pages.flatMap((facts) => rule.check(facts) ?? []).map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`));
-        assert.deepEqual(found.toSorted((a, b) => a.localeCompare(b)), ["links/click-depth /e", "links/dead-end /e", "links/weakly-linked /d", "links/weakly-linked /e"]);
+        assert.deepEqual(
+            found.toSorted((a, b) => a.localeCompare(b)),
+            ["links/click-depth /e", "links/dead-end /e", "links/weakly-linked /d", "links/weakly-linked /e"],
+        );
     });
 
     it("finds only the singly linked duplicate page on the fixture site, and marks a capped crawl", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off" });
-        assert.deepEqual(report.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`), ["links/weakly-linked /duplicate"]);
+        assert.deepEqual(
+            report.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`),
+            ["links/weakly-linked /duplicate"],
+        );
         const capped = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off", maxPages: 3 });
         assert.equal(capped.site.crawl?.complete, false);
         assert.ok(capped.findings.every((finding) => finding.message.includes("ended early")));
