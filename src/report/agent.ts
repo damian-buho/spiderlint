@@ -10,6 +10,8 @@ import type { Report } from "../index.ts";
 import { isRanked } from "../facts/flatten.ts";
 import { log } from "../logger.ts";
 import { fixFor } from "../rules/fix.ts";
+import { cachedReads, inEnglish, valuesAt } from "../rules/message.ts";
+import { utc } from "../facts/read-note.ts";
 import { importance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
@@ -39,16 +41,22 @@ export function ordered(findings: Finding[], pages: number): Finding[][] {
     return rules.toSorted((a, b) => top(b) - top(a) || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
 }
 
-// Where a finding sits: a fold’s samples, an aggregate’s URLs, or its pages, each with its locations.
+// Where a finding sits: a fold’s samples, an aggregate’s URLs, or its pages, each with its values and locations.
 function where(same: Finding[], origin: string): string[] {
     const finding = same[0] as Finding;
-    const at = (url: string, locations: string[] | undefined) => [`- ${relative(url, origin)}`, ...(locations ?? []).map((location) => `  - at ${location}`)];
+    const at = (url: string, locations: string[] | undefined, owner = finding) => [[`- ${relative(url, origin)}`, ...valuesAt(owner, url, inEnglish)].join(": "), ...(locations ?? []).map((location) => `  - at ${location}`)];
     if (finding.occurrences !== undefined) {
         const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
         return [`Where: ${pages} of group ${finding.group} (${Math.round((finding.coverage ?? 0) * 100)} %), for example:`, ...(finding.samples ?? []).flatMap((url) => at(url, finding.sampleLocations?.[url]))];
     }
     if (finding.urls) return [`Where: ${relative(finding.url, origin)}, used by or shared with:`, ...finding.urls.flatMap((url) => at(url, undefined)), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
-    return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations))] : [`Where: ${relative(finding.url, origin)}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];
+    return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations, page))] : [`Where: ${[relative(finding.url, origin), ...valuesAt(finding, finding.url, inEnglish)].join(": ")}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];
+}
+
+// The reads a bundle took from a cache, so the agent knows a fix may already be live.
+function cached(same: Finding[], origin: string): string[] {
+    const reads = cachedReads(same);
+    return reads.length === 0 ? [] : ["From the cache (`--refresh` reads them again):", ...reads.map((read) => `- ${relative(read.key, origin) || read.key}${read.at ? `, read ${utc(read.at)}` : ""}`)];
 }
 
 // One self-contained task over findings sharing rule and message: rule and severity, message, place, what the rule reads and expects, the fix and how to prove it.
@@ -64,6 +72,7 @@ function block(same: Finding[], guide: RuleGuide | undefined, origin: string): s
         origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message,
         "",
         ...where(same, origin),
+        ...cached(same, origin),
         ...[reads, fix, guide?.fix && guide.docs ? `Docs: ${guide.docs}` : ""].filter(Boolean),
         `Done when: \`spiderlint audit ${target}/ --rules ${finding.rule}\` reports no ${finding.rule} finding${facts}.`,
     ].join("\n");

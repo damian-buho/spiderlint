@@ -5,7 +5,9 @@
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { shippedRules } from "../rules/catalog.ts";
 import { fixFor } from "../rules/fix.ts";
+import { cachedReads, sentence, valuesAt } from "../rules/message.ts";
 import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
+import { utc } from "../facts/read-note.ts";
 import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
 import { impact, pagesOf, scoreOf } from "../rules/score.ts";
@@ -64,7 +66,7 @@ main { padding-block: 2.5rem; }
 .rule-head code, .rule-head > a { flex: none; }
 .rule-head .rule-message { overflow-wrap: anywhere; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
-.rule-findings { padding: 0 1.25rem .5rem; } .rule-findings p { margin-block: .5rem 0; }
+.rule-findings { padding: 0 1.25rem .5rem; } .rule-findings .data { color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-start: .75em; } .rule-findings p { margin-block: .5rem 0; }
 .rule-foot { display: grid; grid-template-columns: minmax(0, 1fr) 10rem 13rem; gap: .5rem 1.5rem; padding: .75rem 1.25rem; border-block-start: 1px solid var(--line); font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rule-foot > :nth-last-child(2) { grid-column: 2; } .rule-foot > :last-child { grid-column: 3; text-align: end; }
 table { inline-size: 100%; border-collapse: collapse; background: var(--surface); }
@@ -130,14 +132,30 @@ function locations(t: Translator, found: string[] | undefined): string {
     );
 }
 
-// What a bundle names, how many pages it spans and those pages, each with its locations.
+// What was measured at `url`, after it.
+function measured(t: Translator, finding: Finding, url: string): string {
+    const values = valuesAt(finding, url, t.number);
+    return values.length === 0 ? "" : `<span class="data">${escape(values.join("  "))}</span>`;
+}
+
+// What a bundle names, how many pages it spans and those pages, each with its values and locations.
 function reach(t: Translator, same: Finding[], origin: string, total: number): { subject: string; count?: number; isWhole: boolean; pages: string[] } {
     const [first] = same as [Finding];
-    const at = (url: string, found?: string[]) => `${link(url, origin)}${locations(t, found)}`;
-    if (same.length > 1) return { subject: "", count: same.length, isWhole: total > 0 && same.length >= total, pages: same.map((finding) => at(finding.url, finding.locations)) };
-    if (first.occurrences !== undefined) return { subject: "", count: first.occurrences, isWhole: (first.coverage ?? 0) >= 1, pages: (first.samples ?? []).map((url) => at(url, first.sampleLocations?.[url])) };
-    if (first.urls) return { subject: first.urls.includes(first.url) ? "" : first.url, count: first.urls.length, isWhole: total > 0 && first.urls.length >= total, pages: first.urls.map((url) => link(url, origin)) };
+    const at = (finding: Finding, url: string, found?: string[]) => `${link(url, origin)}${measured(t, finding, url)}${locations(t, found)}`;
+    if (same.length > 1) return { subject: "", count: same.length, isWhole: total > 0 && same.length >= total, pages: same.map((finding) => at(finding, finding.url, finding.locations)) };
+    if (first.occurrences !== undefined) return { subject: "", count: first.occurrences, isWhole: (first.coverage ?? 0) >= 1, pages: (first.samples ?? []).map((url) => at(first, url, first.sampleLocations?.[url])) };
+    if (first.urls) return { subject: first.urls.includes(first.url) ? "" : first.url, count: first.urls.length, isWhole: total > 0 && first.urls.length >= total, pages: first.urls.map((url) => at(first, url)) };
     return { subject: first.url, isWhole: first.scope === "site", pages: [] };
+}
+
+// The observations a bundle took from a cache, each with when it was read; nothing when every one came fresh.
+function cached(t: Translator, same: Finding[], origin: string): string {
+    const reads = cachedReads(same);
+    if (reads.length === 0) return "";
+    return `<p class="muted">${escape(t._("From the cache, so a refreshed run reads them again:"))}</p>${items(
+        t,
+        reads.map((read) => `${link(read.key, origin)}${read.at ? `<span class="data">${escape(t._("read {at}", { at: utc(read.at) }))}</span>` : ""}`),
+    )}`;
 }
 
 // The rule’s fix filled for this finding, then its docs link; nothing when the rule has neither.
@@ -156,18 +174,19 @@ function bundleImpact(same: Finding[], total: number): number {
 function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number): string {
     const [first] = same as [Finding];
     const { subject, isWhole, pages } = reach(t, same, origin, total);
-    const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
+    const said = sentence(first, t);
+    const message = origin ? said.replaceAll(`${origin}/`, "/") : said;
     const hasLocations = same.some((finding) => finding.locations?.length) || Object.keys(first.sampleLocations ?? {}).length > 0;
     const share =
         first.occurrences === undefined
             ? ""
             : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}</p>`;
-    const own = same.length === 1 && first.occurrences === undefined ? locations(t, first.locations) : "";
+    const own = same.length === 1 && first.occurrences === undefined && !first.urls ? `${measured(t, first, first.url)}${locations(t, first.locations)}` : "";
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
     const pageCount = same.reduce((sum, finding) => sum + pagesOf(finding, total), 0);
     const scope = isWhole || (total > 0 && pageCount >= total) ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
     const foot = `<code>${escape(first.rule)}</code><span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
-    return `<article class="rule-card ${first.severity}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span><span class="rule-message">${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot">${foot}</footer></article>`;
+    return `<article class="rule-card ${first.severity}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span><span class="rule-message">${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${cached(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot">${foot}</footer></article>`;
 }
 
 // One flat card per bundle, the highest impact first, a rule’s bundles in its own order on a tie.
@@ -221,7 +240,7 @@ function untested(t: Translator, ids: string[] = []): string {
     return `<section class="untested"><details><summary><h2>${heading}</h2></summary><p class="muted">${escape(t._("Rules this scan did not judge: its checks leave them out, or the site has nothing they apply to."))}</p>${rows.join("")}</details></section>`;
 }
 
-// The rating, the totals, then Findings (whole site, pages by group, vendors, hints), Passed, Statistics and Skipped; findings keep their English message.
+// The rating, the totals, then Findings (whole site, pages by group, vendors, hints), Passed, Statistics and Skipped; a finding’s sentence is translated when its template is catalogued.
 export function reportBody(report: Pick<Report, "summary" | "findings" | "rules">, t: Translator, title: string, origin: string): string {
     const { summary } = report;
     const { rating } = summary;

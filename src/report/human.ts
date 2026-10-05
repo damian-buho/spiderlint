@@ -7,6 +7,7 @@ import { environmentLocale } from "../i18n.ts";
 import { bytes as sized, isLabelled, label, withUnit } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor } from "../rules/fix.ts";
+import { cachedReads, valuesAt } from "../rules/message.ts";
 import { byImportance, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
@@ -19,7 +20,7 @@ const LIST = 5;
 const DETAIL = " ".repeat(10);
 const NESTED = " ".repeat(12);
 const LABEL = 11;
-const PLURAL: Record<string, string> = { rule: "rules", error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes" };
+const PLURAL: Record<string, string> = { rule: "rules", error: "errors", warning: "warnings", info: "info", hint: "hints", page: "pages", launch: "launches", fetch: "fetches", request: "requests", "TLS probe": "TLS probes", "cached read": "cached reads" };
 const ORANGE = "#ff8700";
 const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", C: ORANGE, D: ORANGE, E: "red", F: "red" };
 const MINUS = "\u{2212}";
@@ -51,6 +52,17 @@ function list(urls: string[], origin: string, limit: number): string {
     return urls.length > limit ? `${shown} … and ${urls.length - limit} more` : shown;
 }
 
+// A URL relative to the origin, then what was measured there.
+function shown(finding: Finding, url: string, origin: string): string {
+    return [relative(url, origin), ...valuesAt(finding, url, number)].join("  ");
+}
+
+// At most `limit` URLs one per line with their values, the rest as a count.
+function measured(finding: Finding, urls: string[], indent: string, origin: string, paint: Paint, limit: number): string[] {
+    const lines = urls.slice(0, limit).map((url) => paint("dim", `${indent}${shown(finding, url, origin)}`));
+    return urls.length > limit ? [...lines, paint("dim", `${indent}… and ${urls.length - limit} more`)] : lines;
+}
+
 // At most `limit` locations, each on its own line under what it locates, the rest as a count.
 function located(locations: string[] | undefined, indent: string, paint: Paint, limit: number): string[] {
     if (!locations || locations.length === 0) return [];
@@ -62,8 +74,8 @@ function located(locations: string[] | undefined, indent: string, paint: Paint, 
 function sampled(finding: Finding, origin: string, paint: Paint, limit: number): string[] {
     const samples = finding.samples ?? [];
     const byPage = finding.sampleLocations;
-    const isShared = new Set(samples.map((url) => JSON.stringify(byPage?.[url] ?? []))).size === 1;
-    return !byPage || isShared ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin, limit)}`), ...located(byPage?.[samples[0] as string], NESTED, paint, limit)] : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${relative(url, origin)}`), ...located(byPage[url], NESTED, paint, limit)]);
+    const isShared = !finding.data && new Set(samples.map((url) => JSON.stringify(byPage?.[url] ?? []))).size === 1;
+    return isShared ? [paint("dim", `${DETAIL}e.g. ${list(samples, origin, limit)}`), ...located(byPage?.[samples[0] as string], NESTED, paint, limit)] : samples.flatMap((url) => [paint("dim", `${DETAIL}e.g. ${shown(finding, url, origin)}`), ...located(byPage?.[url], NESTED, paint, limit)]);
 }
 
 function heading(finding: Finding, paint: Paint): string {
@@ -74,12 +86,12 @@ function shortMessage(finding: Finding, origin: string): string {
     return origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
 }
 
-// Page findings sharing severity, score, rule and message bundle together; folds and aggregates stay alone.
+// Page findings sharing severity, score, rule and sentence bundle together, by template when they carry one; folds and aggregates stay alone.
 export function bundle(findings: Finding[]): Finding[][] {
     const bundles = new Map<string, Finding[]>();
     for (const [index, finding] of findings.entries()) {
         const isPlain = finding.occurrences === undefined && !finding.urls;
-        const key = isPlain ? `${finding.severity}\t${scoreOf(finding)}\t${finding.rule}\t${finding.message}` : String(index);
+        const key = isPlain ? `${finding.severity}\t${scoreOf(finding)}\t${finding.rule}\t${finding.text === undefined ? finding.message : `${finding.text}\t${JSON.stringify(finding.variables ?? {})}`}` : String(index);
         bundles.set(key, [...(bundles.get(key) ?? []), finding]);
     }
     return bundles.values().toArray();
@@ -88,7 +100,7 @@ export function bundle(findings: Finding[]): Finding[][] {
 // A bundle prints its message once, then every page on its own line.
 function bundled(same: Finding[], origin: string, paint: Paint, limit: number): string[] {
     const first = same[0] as Finding;
-    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `          ${relative(finding.url, origin)}`), ...located(finding.locations, NESTED, paint, limit)])];
+    return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `${DETAIL}${shown(finding, finding.url, origin)}`), ...located(finding.locations, NESTED, paint, limit)])];
 }
 
 // A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
@@ -100,9 +112,10 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
         const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
         return [`${head} — ${pages} (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
     }
-    if (!finding.urls) return [`${head} ${url}: ${message}`, ...located(finding.locations, DETAIL, paint, limit)];
+    if (!finding.urls) return [`${head} ${url}: ${message}`, ...measured(finding, Object.hasOwn(finding.data ?? {}, finding.url) ? [finding.url] : [], DETAIL, origin, paint, limit), ...located(finding.locations, DETAIL, paint, limit)];
     const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
-    return [`${head} ${subject} ${message}`, paint("dim", `          ${list(finding.urls, origin, limit)}`), ...located(finding.locations, DETAIL, paint, limit)];
+    const urls = finding.data ? measured(finding, finding.urls, DETAIL, origin, paint, limit) : [paint("dim", `${DETAIL}${list(finding.urls, origin, limit)}`)];
+    return [`${head} ${subject} ${message}`, ...urls, ...located(finding.locations, DETAIL, paint, limit)];
 }
 
 // The grade and the rulesets it was earned under; a dash when nothing was judged.
@@ -150,10 +163,19 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     }
     for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
     if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    out.push(...cachedRow(findings, paint));
     if (isFull) out.push("", ...passedRows(report.summary, paint));
     if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
     out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
     return out.join("\n");
+}
+
+// How many observations behind the findings came from a cache, by bucket, and how to read them again; nothing when none did.
+function cachedRow(findings: Finding[], paint: Paint): string[] {
+    const reads = cachedReads(findings);
+    if (reads.length === 0) return [];
+    const buckets = [...new Set(reads.map((read) => read.bucket))].join(", ");
+    return ["", paint("dim", `${counted(reads.length, "cached read")} behind these findings (${buckets}); --refresh reads them again`)];
 }
 
 // Every rule that failed nowhere with the pages it covered, under a count; nothing when none ran.
