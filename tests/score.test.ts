@@ -24,7 +24,7 @@ const validate = new Ajv2020({ strict: false, validateFormats: false }).compile(
 
 // A page whose certificate has `days` left.
 function certPage(days: number): Facts {
-    return { url: { href: "https://site.test/", pathname: "/", protocol: "https:" }, group: "default", tls: { cert: { "days-left": days } } } as unknown as Facts;
+    return { url: { href: "https://site.test/", pathname: "/", protocol: "https:" }, group: "default", crawl: {}, http: {}, tls: { cert: { "days-left": days } } } as unknown as Facts;
 }
 
 // The scored findings of one TLS rule over a page with `days` left.
@@ -36,7 +36,7 @@ function expiring(days: number, rules: Record<string, never> = {}, id = "tls/cer
 // Ten pages, one rule answering each page with the findings its path maps to.
 function graded(answers: Record<string, number[]>): string | undefined {
     const rule: Rule = { meta: { id: "test/rule", severity: "warning", scope: "page", facts: [] }, check: (facts: Facts) => (answers[facts.url.pathname] ?? []).map((score) => ({ rule: "test/rule", severity: levelOf(score), score, scope: "page" as const, url: facts.url.href, message: "m" })) };
-    const pages = Array.from({ length: 10 }, (_, index) => ({ url: { href: `https://site.test/${index}`, pathname: `/${index}` }, group: "default" }) as Facts);
+    const pages = Array.from({ length: 10 }, (_, index) => ({ url: { href: `https://site.test/${index}`, pathname: `/${index}` }, group: "default", crawl: {}, http: {} }) as Facts);
     const { checks } = runRules(pages, new Map([["default", [rule]]]), {} as never);
     return rate({ ...checks, passed: checks.total - checks.failed }, [])?.grade;
 }

@@ -141,7 +141,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 const declared = Number(response.headers["content-length"]);
                 const skew = dateSkew(url.href, response.headers, cap?.source.timings?.upload, cap?.source.timings?.response);
                 const facts: Facts = {
-                    ...frontier.identity(request, url),
+                    ...frontier.identity(request, url, "http"),
                     http: {
                         status: response.statusCode ?? 0,
                         ...(cap?.source.httpVersion && { version: cap.source.httpVersion }),

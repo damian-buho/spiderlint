@@ -40,9 +40,25 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         const samples = [...new Set(findings.map((finding) => finding.url))].slice(0, 3);
         const first = findings[0] as Finding;
         const located = samples.map((url) => [url, findings.filter((finding) => finding.url === url).flatMap((finding) => finding.locations ?? [])] as const).filter(([, locations]) => locations.length > 0);
-        const { locations: _locations, ...shared } = first;
+        const { locations: _locations, data: _data, evidence: _evidence, ...shared } = first;
         const score = round(Math.max(...findings.map((finding) => scoreOf(finding))));
-        out.push({ ...shared, severity: levelOf(score), score, scope: "group", occurrences: failed, coverage: Number(ratio.toFixed(2)), samples, url: samples[0] as string, ...(run.sampled?.has(key) && { sampled: applicable }), ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }) });
+        const kept = findings.filter((finding) => samples.includes(finding.url));
+        const data = Object.assign({}, ...kept.map((finding) => finding.data ?? {})) as NonNullable<Finding["data"]>;
+        const evidence = new Map(kept.flatMap((finding) => finding.evidence ?? []).map((read) => [`${read.bucket}:${read.key}`, read])).values().toArray();
+        out.push({
+            ...shared,
+            severity: levelOf(score),
+            score,
+            scope: "group",
+            occurrences: failed,
+            coverage: Number(ratio.toFixed(2)),
+            samples,
+            url: samples[0] as string,
+            ...(run.sampled?.has(key) && { sampled: applicable }),
+            ...(located.length > 0 && { sampleLocations: Object.fromEntries(located) }),
+            ...(Object.keys(data).length > 0 && { data }),
+            ...(evidence.length > 0 && { evidence }),
+        });
     }
     log.debug({ before: run.findings.length, after: out.length }, "fold done");
     return out;

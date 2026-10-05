@@ -14,7 +14,7 @@ function checks(passed: number, total: number, errored = 0) {
 }
 
 function page(pathname: string): Facts {
-    return { url: { href: `https://site.test${pathname}`, pathname }, group: "default" } as Facts;
+    return { url: { href: `https://site.test${pathname}`, pathname }, group: "default", crawl: {}, http: {} } as Facts;
 }
 
 function finding(url: string, severity: Finding["severity"]): Finding {

@@ -17,6 +17,9 @@ export interface CrawlFacts {
     "discovered-via": "seed" | "sitemap" | "link";
     referrers: string[];
     requested?: string;
+    // When the crawl fetched the page, and which crawler did.
+    at?: string;
+    mode?: "http" | "browser";
 }
 
 export interface SitemapFacts {

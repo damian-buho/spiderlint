@@ -8,13 +8,32 @@ import type { Scale } from "./score.ts";
 export type Severity = "error" | "warning" | "info" | "hint" | "off";
 export type Scope = "page" | "group" | "site";
 
+// A value a formatter writes in the reader’s locale: as is, in its fact’s unit, as a multiple, as a time, or a fact’s label.
+export type Datum = string | number | { fact: string; value: number } | { ratio: number } | { at: string } | { name: string };
+
+// One observation a finding rests on: what was read, when the origin last confirmed it, and how this run got it.
+export interface Evidence {
+    bucket: string;
+    key: string;
+    at?: string;
+    via: "network" | "cache" | "revalidated";
+    mode?: "http" | "browser";
+}
+
 export interface Finding {
     rule: string;
     severity: Exclude<Severity, "off">;
     scope: Scope;
     url: string;
     group?: string;
+    // The English sentence, `text` with `variables` filled in.
     message: string;
+    // The sentence with `{name}` placeholders filled from `variables`, the same for every page; formatters bundle and translate by it.
+    text?: string;
+    variables?: Record<string, Datum>;
+    // What was measured at each URL the finding names, keyed by URL.
+    data?: Record<string, Record<string, Datum>>;
+    evidence?: Evidence[];
     value?: unknown;
     // 0.0 to 9.9; the pipeline sets it, and its band is `severity`.
     score?: number;

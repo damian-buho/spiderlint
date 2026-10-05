@@ -365,7 +365,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };
                 const timing = observation.isDownload ? {} : timingFacts(response.request().timing());
-                const facts: Facts = { ...frontier.identity(request, url), ...(await transportFacts(observation, size, timing, isDirect, prober, observation.protocols.get(response.url()))) };
+                const facts: Facts = { ...frontier.identity(request, url, "browser"), ...(await transportFacts(observation, size, timing, isDirect, prober, observation.protocols.get(response.url()))) };
                 const { startTime, requestStart, responseStart } = response.request().timing();
                 const skew = observation.isDownload || responseStart < 0 ? undefined : dateSkew(url.href, headers, startTime + requestStart, startTime + responseStart);
                 if (skew !== undefined) facts.http["date-skew"] = skew;

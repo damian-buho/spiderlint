@@ -6,7 +6,7 @@ import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleChecks } from "../report/rating.ts";
 import { scoreOf, weight } from "./score.ts";
-import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule } from "./types.ts";
+import { isPageRule, type AggregateRule, type Evidence, type Finding, type PageRule, type Rule } from "./types.ts";
 
 export interface RuleRun {
     findings: Finding[];
@@ -37,6 +37,11 @@ function judged(run: RuleRun, found: Finding[], rule: Rule, pages = 1): void {
     run.checks.cost = Number((run.checks.cost + weight(worst)).toFixed(4));
 }
 
+// How the crawl read a page: when, by which crawler, and whether the origin only confirmed a stored copy.
+export function pageEvidence(page: Facts): Evidence {
+    return { bucket: "pages", key: page.url.href, ...(page.crawl.at && { at: page.crawl.at }), via: page.http.revalidated ? "revalidated" : "network", ...(page.crawl.mode && { mode: page.crawl.mode }) };
+}
+
 // One page rule over one group; `undefined` results are `when`-skips and do not count.
 function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleRun, site: SiteFacts): void {
     let applicable = 0;
@@ -45,7 +50,8 @@ function runPageRule(rule: PageRule, members: Facts[], group: string, run: RuleR
         if (found === undefined) continue;
         applicable += 1;
         judged(run, found, rule);
-        run.findings.push(...found);
+        const read = pageEvidence(page);
+        run.findings.push(...found.map((finding) => ({ ...finding, evidence: [read, ...(finding.evidence ?? [])] })));
     }
     run.applicable.set(cell(group, rule.meta.id), applicable);
 }
