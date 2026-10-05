@@ -183,6 +183,19 @@ describe("formatHtml", () => {
         assert.ok(!formatAgent(report).includes(`✓`));
     });
 
+    it("heads the passed rules with rules, pages and checks, and ends with every shipped rule that judged nothing", () => {
+        const html = formatHtml(report, undefined, false, "en");
+        const clean = Object.values(report.summary.checked ?? {}).filter((rule) => rule.failed === 0);
+        const heading = `Passed: ${clean.length.toLocaleString("en")} rules, ${report.summary.pages.toLocaleString("en")} pages, ${clean.reduce((sum, rule) => sum + rule.checks, 0).toLocaleString("en")} checks`;
+        assert.ok(html.includes(`<summary><h2>${heading}</h2>`), heading);
+        const untested = report.summary.untested ?? [];
+        assert.ok(untested.length > 0 && untested.every((id) => !Object.hasOwn(report.summary.checked ?? {}, id)));
+        const tail = html.split('<section class="untested">', 2)[1] ?? "";
+        assert.ok(tail.includes(`Not tested: ${untested.length.toLocaleString("en")} rules`));
+        for (const id of untested.slice(0, 5)) assert.ok(tail.includes(`<code>${id}</code>`), id);
+        assert.ok(!formatHtml({ ...report, summary: { ...report.summary, untested: [] } }, undefined, false, "en").includes("Not tested"));
+    });
+
     it("names each labelled statistic by its translated label with the path on hover, leaves an unlabelled one out and shows a duration without a total", () => {
         const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 }, "http.parsed.strict-transport-security.value.max-age": { count: 2, min: 300, median: 300, p95: 31_536_000, max: 31_536_000 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");

@@ -20,35 +20,73 @@ const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;
 
 // The one stylesheet of the report and the server pages, inline so a saved report stands alone.
 export const STYLE = `
-:root { color-scheme: light dark; --fg: light-dark(#1b1b1f, #e6e6ea); --muted: light-dark(#5d5d66, #a3a3ad); --bg: light-dark(#fff, #16161a); --line: light-dark(#dcdce2, #34343c); --error: light-dark(#b3261e, #ff8a80); --warning: light-dark(#8a5a00, #ffcc66); --info: light-dark(#1d5fa8, #8ab4f8); --good: light-dark(#1e7a34, #7ee2a8); --mid: light-dark(#b45d00, #ffb870); }
+:root { color-scheme: light dark; --fg: light-dark(#26231c, #ece7da); --muted: light-dark(#6a6454, #a99f88); --bg: light-dark(#f7f5ef, #13110d); --surface: light-dark(#fff, #1b1812); --line: light-dark(#e3ded0, #353025); --accent: light-dark(#7a5c21, #dccfa6); --error: light-dark(#b3261e, #ff8a80); --warning: light-dark(#8a5a00, #ffcc66); --info: light-dark(#1d5fa8, #8ab4f8); --good: light-dark(#1e7a34, #7ee2a8); --good-bg: light-dark(#eef7f0, #14231a); --good-line: light-dark(#b9dcc3, #25492f); --mid: light-dark(#b45d00, #ffb870); --gap: 1.5rem; }
 * { box-sizing: border-box; }
-body { margin: 0 auto; max-inline-size: 72rem; padding: 1.5rem; font: 1rem/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
-a { color: var(--info); overflow-wrap: anywhere; }
-h1 { font-size: 1.5rem; margin-block: 0 .25rem; overflow-wrap: anywhere; }
-h2 { font-size: 1.15rem; margin-block: 2rem .5rem; }
+body { margin: 0 auto; max-inline-size: 68rem; padding: 0 var(--gap) 3rem; font: 1rem/1.6 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+a { color: var(--accent); overflow-wrap: anywhere; text-underline-offset: .2em; }
+h1 { font-size: 1.75rem; line-height: 1.25; margin-block: 0 .5rem; overflow-wrap: anywhere; }
+h2 { font-size: 1.25rem; margin-block: 3rem 1rem; }
+h3 { font-size: .95rem; font-weight: 600; margin-block: 2rem .75rem; }
+p { margin-block: 0 1rem; }
 small, .muted { color: var(--muted); }
 code { font-size: .9em; overflow-wrap: anywhere; }
-.head { display: flex; gap: 1rem; align-items: center; }
-.grade { display: grid; place-items: center; inline-size: 4rem; block-size: 4rem; flex: none; border-radius: .5rem; font-size: 2rem; font-weight: 700; color: var(--bg); background: var(--muted); margin: 0; }
+main { padding-block: 2.5rem; }
+.site { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: center; justify-content: space-between; padding-block: 1.5rem; border-block-end: 1px solid var(--line); }
+.site nav { display: flex; gap: 1.5rem; }
+.brand { display: inline-flex; gap: .75rem; align-items: center; color: var(--fg); font-size: 1.15rem; font-weight: 700; letter-spacing: .02em; text-decoration: none; }
+.brand img { display: block; }
+.site nav a, .foot a { text-decoration: none; } .site nav a:hover, .foot a:hover { text-decoration: underline; }
+.foot { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding-block: 1.5rem; border-block-start: 1px solid var(--line); font-size: .9rem; color: var(--muted); }
+.foot p { flex: 1 1 100%; margin: 0; }
+.hero { display: flex; gap: 2rem; align-items: center; padding: 2rem; background: var(--surface); border: 1px solid var(--line); }
+.hero p { margin: 0; }
+.grade { display: grid; place-items: center; inline-size: 5.5rem; block-size: 5.5rem; flex: none; font-size: 2.75rem; font-weight: 700; color: var(--bg); background: var(--muted); }
 .grade-S, .grade-A { background: var(--good); } .grade-B { background: var(--warning); } .grade-C, .grade-D { background: var(--mid); } .grade-E, .grade-F { background: var(--error); }
-.totals p { margin: 0; }
-h3 { font-size: 1rem; margin-block: 1rem .25rem; }
-.finding { border-block-end: 1px solid var(--line); padding-block: .25rem; }
-.finding > div { padding-inline-start: 1.25rem; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1rem; margin-block: 1rem; }
+.kpi { padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); }
+.kpi b { display: block; font-size: 1.5rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.kpi.good { background: var(--good-bg); border-color: var(--good-line); } .kpi.good b { color: var(--good); }
+.pills { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: 0; }
+.pill { padding: .25rem .75rem; border: 1px solid var(--line); font-size: .875rem; color: var(--muted); }
+.pill.error, .pill.warning, .pill.info { background: var(--surface); }
+.notice { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; justify-content: space-between; margin-block: 0 1.5rem; padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); border-inline-start: .25rem solid var(--accent); }
+.notice p { margin: 0; }
+.button, button { display: inline-block; font: inherit; padding: .75rem 1.5rem; border: 0; color: var(--bg); background: var(--accent); text-decoration: none; cursor: pointer; }
+.button:hover, button:hover { filter: brightness(1.1); }
+.finding { margin-block: .5rem; background: var(--surface); border: 1px solid var(--line); }
+.finding > summary { padding: 1rem 1.25rem; }
+.finding > div { padding: 0 1.25rem 1rem 2.75rem; }
+.finding p { margin-block: .5rem 0; }
 .score { display: inline-block; min-inline-size: 6.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-table { inline-size: 100%; border-collapse: collapse; }
-th, td { text-align: start; vertical-align: top; padding: .5rem; border-block-end: 1px solid var(--line); }
+table { inline-size: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { text-align: start; vertical-align: top; padding: .75rem 1rem; border-block-end: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 .error { color: var(--error); } .warning { color: var(--warning); } .info { color: var(--info); } .hint { color: var(--muted); }
-summary { cursor: pointer; } summary h2 { display: inline; }
-ul { margin: .25rem 0 0; padding-inline-start: 1.25rem; }
-form { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1.5rem; }
-fieldset { flex: 1 1 100%; border: 0; padding: 0; margin: .5rem 0 0; } fieldset label { display: block; }
-input[type=radio] { flex: none; inline-size: auto; margin-inline-end: .25rem; }
-input { flex: 1 1 20rem; font: inherit; padding: .5rem .75rem; border: 1px solid var(--line); border-radius: .375rem; color: inherit; background: transparent; }
-button { font: inherit; padding: .5rem 1.25rem; border: 0; border-radius: .375rem; color: var(--bg); background: var(--fg); cursor: pointer; }
-progress { inline-size: 100%; block-size: .75rem; }
-.alert { border-inline-start: .25rem solid var(--error); padding: .5rem 1rem; background: light-dark(#fdecea, #2c1614); }
+summary { cursor: pointer; } summary h2 { display: inline; margin: 0; }
+ul { margin: .5rem 0 0; padding-inline-start: 1.25rem; }
+.passed > details, .untested > details { background: var(--surface); border: 1px solid var(--line); }
+.passed > details { background: var(--good-bg); border-color: var(--good-line); border-inline-start: .25rem solid var(--good); }
+.passed summary, .untested summary { padding: 1.25rem 1.5rem; }
+.passed h2 { color: var(--good); }
+.passed ul, .untested .areas { margin: 0; padding: 0 1.5rem 1.5rem; list-style: none; }
+.passed li { padding-block: .5rem; border-block-start: 1px solid var(--good-line); }
+.passed li:first-child { border-block-start: 0; }
+.tick { color: var(--good); font-weight: 700; }
+.untested > details > p { margin: 0; padding-inline: 1.5rem; }
+.areas { display: grid; gap: 1rem; margin-block-start: 1rem; }
+.areas h3 { margin-block: 0 .5rem; color: var(--muted); font-weight: 500; }
+.areas ul { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; }
+.areas li { padding: .125rem .625rem; border: 1px solid var(--line); color: var(--muted); }
+form { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 2rem; }
+form label.muted { flex: 1 1 100%; }
+fieldset { flex: 1 1 100%; border: 0; padding: 0; margin: 1rem 0 0; display: grid; gap: .5rem; } fieldset label { display: block; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); }
+legend { padding: 0; }
+input[type=radio] { flex: none; inline-size: auto; margin-inline-end: .5rem; }
+input { flex: 1 1 20rem; font: inherit; padding: .75rem 1rem; border: 1px solid var(--line); color: inherit; background: var(--surface); }
+progress { inline-size: 100%; block-size: .75rem; accent-color: var(--accent); }
+.alert { border-inline-start: .25rem solid var(--error); padding: 1rem 1.25rem; background: light-dark(#fdecea, #2c1614); }
+@media (max-width: 40rem) { .hero { flex-direction: column; align-items: flex-start; padding: 1.5rem; } body { padding-inline: 1rem; } }
 `;
 
 // `value` as HTML text or a quoted attribute.
@@ -134,12 +172,27 @@ function statistics(t: Translator, stats: Report["summary"]["stats"] = {}): stri
 
 // The rules that ran and failed nowhere, closed: a green check, the rule, what it expects and the pages it covered; nothing without any.
 function passed(t: Translator, report: Pick<Report, "summary" | "rules">): string {
-    const rows = passing(report.summary.checked).map(([id, rule]) => {
+    const clean = passing(report.summary.checked);
+    const rows = clean.map(([id, rule]) => {
         const fix = report.rules?.[id]?.fix;
-        return `<li><span class="good" aria-hidden="true">✓</span> <code>${escape(id)}</code>${fix ? ` <small class="muted">${escape(fixFor(fix))}</small>` : ""} <small class="muted">· ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</small></li>`;
+        return `<li><span class="tick" aria-hidden="true">✓</span> <code>${escape(id)}</code>${fix ? ` <small class="muted">${escape(fixFor(fix))}</small>` : ""} <small class="muted">· ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</small></li>`;
     });
-    const heading = escape(t._("Passed: {count} checks", { count: t.number(report.summary.checks.passed) }));
-    return rows.length === 0 ? "" : `<section><details><summary><h2>${heading}</h2></summary><ul>${rows.join("")}</ul></details></section>`;
+    const counts = { rules: t.number(clean.length), pages: t.number(report.summary.pages), checks: t.number(clean.reduce((sum, [, rule]) => sum + rule.checks, 0)) };
+    const heading = escape(t._("Passed: {rules} rules, {pages} pages, {checks} checks", counts));
+    return rows.length === 0 ? "" : `<section class="passed"><details><summary><h2>${heading}</h2></summary><ul>${rows.join("")}</ul></details></section>`;
+}
+
+// The shipped rules that judged nothing, by area, closed; nothing when every rule ran.
+function untested(t: Translator, ids: string[] = []): string {
+    if (ids.length === 0) return "";
+    const areas = new Map<string, string[]>();
+    for (const id of ids) {
+        const area = id.split("/", 1)[0] as string;
+        areas.set(area, [...(areas.get(area) ?? []), id]);
+    }
+    const rows = [...areas].map(([area, found]) => `<div><h3>${escape(area)}</h3><ul>${found.map((id) => `<li><code>${escape(id)}</code></li>`).join("")}</ul></div>`);
+    const heading = escape(t._("Not tested: {count} rules", { count: t.number(ids.length) }));
+    return `<section class="untested"><details><summary><h2>${heading}</h2></summary><p class="muted">${escape(t._("Rules this scan did not judge: its checks leave them out, or the site has nothing they apply to."))}</p><div class="areas">${rows.join("")}</div></details></section>`;
 }
 
 // The rating, the totals and every finding grouped by group, site-wide ones next, each vendor’s last; findings keep their English message.
@@ -147,18 +200,19 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     const { summary } = report;
     const { rating } = summary;
     const started = new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(summary.started));
-    const head = `<header class="head"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
+    const head = `<header class="hero"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
+    const kpi = (value: string, name: string, tone = "") => `<div class="kpi${tone && ` ${tone}`}"><b>${escape(value)}</b><span>${escape(name)}</span></div>`;
     const measured = [
-        `${t._("Pages")}: ${t.number(summary.pages)}`,
-        `${t._("Size")}: ${bytes(summary.bytes, t.number)}`,
-        `${t._("Time")}: ${t.number(summary.durationMs / 1000, { style: "unit", unit: "second" })}`,
-        `${t._("Checks passed")}: ${t._("{passed} of {total}", { passed: t.number(summary.checks.passed), total: t.number(summary.checks.total) })}`,
+        kpi(t.number(summary.pages), t._("Pages")),
+        kpi(bytes(summary.bytes, t.number), t._("Size")),
+        kpi(t.number(summary.durationMs / 1000, { style: "unit", unit: "second" }), t._("Time")),
+        kpi(t._("{passed} of {total}", { passed: t.number(summary.checks.passed), total: t.number(summary.checks.total) }), t._("Checks passed"), "good"),
     ];
     const counted = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => {
-        const text = escape(`${severityName(t, severity)}: ${t.number(summary.findings[severity] ?? 0)}`);
-        return (summary.findings[severity] ?? 0) > 0 ? `<span class="${severity}">${text}</span>` : text;
+        const count = summary.findings[severity] ?? 0;
+        return `<span class="pill${count > 0 ? ` ${severity}` : ""}">${escape(`${severityName(t, severity)}: ${t.number(count)}`)}</span>`;
     });
-    const totals = `<div class="totals"><p>${measured.map((text) => escape(text)).join(" · ")}</p><p>${counted.join(" · ")}</p></div>`;
+    const totals = `<div class="kpis">${measured.join("")}</div><p class="pills">${counted.join("")}</p>`;
     const groups = new Map<string, Finding[]>();
     const vendors = new Map<string, Finding[]>();
     const hints = report.findings.filter((finding) => finding.severity === "hint");
@@ -176,7 +230,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     ];
     const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
     if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${rules(t, hints, origin, report.rules, summary.pages)}</details></section>`);
-    return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${passed(t, report)}${statistics(t, summary.stats)}`;
+    return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.

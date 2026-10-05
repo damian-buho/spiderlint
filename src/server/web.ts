@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { domainToUnicode } from "node:url";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { routePath } from "hono/route";
+import { LICENSE } from "../agent.ts";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
@@ -34,6 +36,10 @@ const BODY_MAX = 64 * 1024;
 const ASSET_MAX_AGE_S = 3600;
 const REFRESH_S = 5;
 const BADGE_MAX_AGE_S = 300;
+const LINKS: [name: string, href: string][] = [["dbuho.me", "https://dbuho.me/project/spiderlint/"], ["Kiota", "https://kiota.ch/damian-buho/spiderlint"], ["GitHub", "https://github.com/damian-buho/spiderlint"], ["Codeberg", "https://codeberg.org/damian-buho/spiderlint"]];
+// Resolves from src/ and dist/ alike, since the package ships both.
+const LOGO = readFileSync(new URL("../../src/server/logo.png", import.meta.url));
+const ICONS = '<link rel="icon" type="image/png" sizes="192x192" href="/logo.png"><link rel="apple-touch-icon" href="/logo.png">';
 const GRADE_COLOR: Record<Grade | "none", string> = { S: "#1e7a34", A: "#1e7a34", B: "#8a6d00", C: "#b45d00", D: "#b45d00", E: "#b3261e", F: "#b3261e", none: "#6b6b75" };
 
 // Progress over server-sent events, for a browser that runs scripts; without them the page refreshes itself.
@@ -120,12 +126,15 @@ function respond(c: Context, t: Translator, title: string, body: string, status:
     const slots = (["head", "header", "footer"] as const).map((slot) => owner.fragments?.slot(slot, t.lang) ?? { html: "", sources: { script: [], style: [] } });
     const [fromHead, fromHeader, fromFooter] = slots as [Fragment, Fragment, Fragment];
     const sources = { script: slots.flatMap((slot) => slot.sources.script), style: slots.flatMap((slot) => slot.sources.style) };
-    const privacy = matomo ? `<p class="muted"><a href="${escape(matomo.privacy)}" rel="noopener noreferrer">${escape(t._("Privacy"))}</a></p>` : "";
+    const privacy = matomo ? `<a href="${escape(matomo.privacy)}" rel="noopener noreferrer">${escape(t._("Privacy"))}</a>` : "";
+    const nav = `<header class="site"><a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36">spiderlint</a><nav><a href="/">${escape(t._("New scan"))}</a><a href="${LINKS[0]?.[1]}" rel="noopener noreferrer">${escape(t._("Self-host"))}</a></nav></header>`;
+    const links = LINKS.map(([name, href]) => `<a href="${escape(href)}" rel="noopener noreferrer">${escape(name)}</a>`).join("");
+    const foot = `<footer class="foot"><p>${escape(t._("Self-host spiderlint: free software under the {license} licence.", { license: LICENSE }))}</p>${links}${privacy}</footer>`;
     c.header("content-security-policy", pageCsp(sources, owner.assets !== undefined));
     c.header("cache-control", "no-cache");
     c.header("vary", "accept-language");
     track(matomo, c, routePath(c), URL.canParse(title) ? new URL(title).hostname : undefined);
-    return c.html(page(t, title, `${fromHeader.html}${body}${fromFooter.html}${privacy}`, head + fromHead.html), status);
+    return c.html(page(t, title, `${fromHeader.html}${nav}${body}${foot}${fromFooter.html}`, ICONS + head + fromHead.html), status);
 }
 
 // What each web preset is called and says, in the reader’s language.
@@ -182,11 +191,19 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
     return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done ?? 0), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
 }
 
-// The report with its downloads and badge.
-function doneBody(t: Translator, job: ScanJob): string {
+// When a fresh scan of the site may start, and the way to it; `isRepeat` adds why the reader sees an earlier scan.
+function scanNote(t: Translator, job: ScanJob, wait: number, isRepeat: boolean): string {
+    const lead = isRepeat ? `${t._("This site was scanned recently, so this is the existing report.")} ` : "";
+    const next = wait > 0 ? t._("A new scan of this site can start {when}.", { when: relative(t, wait) }) : t._("You can scan this site again now.");
+    const action = wait > 0 ? "" : `<a class="button" href="/?url=${encodeURIComponent(job.data.host)}">${escape(t._("Scan again"))}</a>`;
+    return `<div class="notice" role="status"><p>${escape(lead + next)}</p>${action}</div>`;
+}
+
+// The report with its scan note, downloads and badge.
+function doneBody(t: Translator, job: ScanJob, wait: number, isRepeat: boolean): string {
     const downloads = formatNames().map((name) => `<a href="/v1/jobs/${escape(job.id)}/report/${escape(name)}">${escape(name)}</a>`).join(" · ");
     const badge = `/badge/${escape(job.data.host)}.svg`;
-    return `${reportBody(job.returnvalue, t, shown(job.data.url), new URL(job.data.url).origin)}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
+    return `${scanNote(t, job, wait, isRepeat)}${reportBody(job.returnvalue, t, shown(job.data.url), new URL(job.data.url).origin)}<h2>${escape(t._("Downloads"))}</h2><p>${downloads}</p><h2>${escape(t._("Badge"))}</h2><p><a href="${badge}"><img src="${badge}" alt="${escape(t._("Rating badge"))}"></a></p>`;
 }
 
 // Pixels a badge half needs for `text` in 11px Verdana, roughly.
@@ -248,7 +265,14 @@ export function web(jobs: Jobs): Hono {
 
     const offered = () => presetsOffered(jobs.settings());
 
-    app.get("/", (c) => formPage(c, translate(c), offered()));
+    app.get("/logo.png", (c) => {
+        log.debug({ bytes: LOGO.length }, "logo served");
+        c.header("content-type", "image/png");
+        c.header("cache-control", `public, max-age=${ASSET_MAX_AGE_S}`);
+        return c.body(new Uint8Array(LOGO));
+    });
+
+    app.get("/", (c) => formPage(c, translate(c), offered(), c.req.query("url") ?? ""));
 
     app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: (c) => formPage(c, translate(c), offered(), "", new Refusal(400, "invalid-body", "form too large")) }), async (c) => {
         const t = translate(c);
@@ -259,7 +283,7 @@ export function web(jobs: Jobs): Hono {
             if (c.req.header("sec-fetch-site") === "cross-site") throw new Refusal(403, "cross-site", "form sent from another site");
             const { job, isRepeat } = await submit(jobs, { url: seedOf(typed), ...(preset !== undefined && { settings: presetSettings(preset) }) }, c);
             log.debug({ job: job.id, isRepeat, preset }, "form submitted");
-            return c.redirect(`/jobs/${job.id}`, 303);
+            return c.redirect(isRepeat ? `/jobs/${job.id}?repeat` : `/jobs/${job.id}`, 303);
         } catch (error) {
             if (!(error instanceof Refusal)) throw error;
             log.info({ code: error.code, status: error.status, preset }, "form refused");
@@ -278,10 +302,12 @@ export function web(jobs: Jobs): Hono {
         }
         const state = await job.getState();
         const title = shown(job.data.url);
-        log.debug({ job: job.id, state }, "job page rendered");
-        if (state === "completed") return respond(c, t, title, `<main>${doneBody(t, job)}<p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
+        const isRepeat = c.req.query("repeat") !== undefined;
+        const wait = job.data.repeatKey ? await jobs.redis.ttl(job.data.repeatKey) : 0;
+        log.debug({ job: job.id, state, isRepeat, wait }, "job page rendered");
+        if (state === "completed") return respond(c, t, title, `<main>${doneBody(t, job, wait, isRepeat)}</main>`);
         if (state === "failed") return respond(c, t, title, `<main><h1>${escape(title)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
-        const body = `<main><h1>${escape(title)}</h1>${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
+        const body = `<main><h1>${escape(title)}</h1>${isRepeat ? `<p class="notice">${escape(t._("This site was scanned recently, so this is the existing scan."))}</p>` : ""}${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
         return respond(c, t, title, body, 200, `<noscript><meta http-equiv="refresh" content="${REFRESH_S}"></noscript>`);
     });
 

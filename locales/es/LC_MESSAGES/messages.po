@@ -11,6 +11,9 @@ msgstr ""
 msgid "95th percentile"
 msgstr "Percentil 95"
 
+msgid "A new scan of this site can start {when}."
+msgstr "Se puede iniciar un nuevo análisis de este sitio {when}."
+
 msgid "A requested rule is not available on this instance."
 msgstr "Una de las reglas pedidas no está disponible en esta instancia."
 
@@ -161,6 +164,9 @@ msgstr "Mediana"
 msgid "Minimum"
 msgstr "Mínimo"
 
+msgid "New scan"
+msgstr "Nuevo análisis"
+
 msgid "No checks ran"
 msgstr "No se ejecutó ninguna comprobación"
 
@@ -169,6 +175,9 @@ msgstr "Sin hallazgos."
 
 msgid "not scanned"
 msgstr "sin analizar"
+
+msgid "Not tested: {count} rules"
+msgstr "Sin probar: {count} reglas"
 
 msgid "Page load"
 msgstr "Carga de la página"
@@ -188,8 +197,8 @@ msgstr "Páginas: {count} ({share})"
 msgid "Pages: {done} of {total}"
 msgstr "Páginas: {done} de {total}"
 
-msgid "Passed: {count} checks"
-msgstr "Superadas: {count} comprobaciones"
+msgid "Passed: {rules} rules, {pages} pages, {checks} checks"
+msgstr "Superadas: {rules} reglas, {pages} páginas, {checks} comprobaciones"
 
 msgid "Quick"
 msgstr "Rápido"
@@ -215,6 +224,9 @@ msgstr "Recursos contabilizados"
 msgid "Rule"
 msgstr "Regla"
 
+msgid "Rules this scan did not judge: its checks leave them out, or the site has nothing they apply to."
+msgstr "Reglas que este análisis no evaluó: sus comprobaciones las omiten o el sitio no tiene nada a lo que aplicarlas."
+
 msgid "Rulesets: {names}"
 msgstr "Conjuntos de reglas: {names}"
 
@@ -223,6 +235,9 @@ msgstr "Páginas de la muestra: {count} de {sampled} ({share})"
 
 msgid "Scan"
 msgstr "Analizar"
+
+msgid "Scan again"
+msgstr "Analizar de nuevo"
 
 msgid "Scan not found"
 msgstr "Análisis no encontrado"
@@ -241,6 +256,12 @@ msgstr "Transferencia de scripts"
 
 msgid "Scripts"
 msgstr "Scripts"
+
+msgid "Self-host"
+msgstr "Autoalojar"
+
+msgid "Self-host spiderlint: free software under the {license} licence."
+msgstr "Aloja spiderlint por tu cuenta: software libre bajo la licencia {license}."
 
 msgid "Server response time"
 msgstr "Tiempo de respuesta del servidor"
@@ -314,6 +335,12 @@ msgstr "Esta instancia no analiza este sitio."
 msgid "This scan does not exist or has expired."
 msgstr "Este análisis no existe o ya expiró."
 
+msgid "This site was scanned recently, so this is the existing report."
+msgstr "Este sitio se analizó hace poco, así que este es el informe existente."
+
+msgid "This site was scanned recently, so this is the existing scan."
+msgstr "Este sitio se analizó hace poco, así que este es el análisis existente."
+
 msgid "This site was scanned recently. Try again {when}."
 msgstr "Este sitio se analizó hace poco. Inténtalo de nuevo {when}."
 
@@ -353,6 +380,9 @@ msgstr "Advertencia"
 msgid "Whole site"
 msgstr "Todo el sitio"
 
+msgid "You can scan this site again now."
+msgstr "Ya puedes volver a analizar este sitio."
+
 msgid "You have started many scans. Try again {when}."
 msgstr "Iniciaste muchos análisis. Inténtalo de nuevo {when}."
 
@@ -365,4 +395,3 @@ msgstr "{passed} de {total}"
 
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} de {total}"
-

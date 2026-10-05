@@ -11,6 +11,9 @@ msgstr ""
 msgid "95th percentile"
 msgstr "95-й процентиль"
 
+msgid "A new scan of this site can start {when}."
+msgstr "Нову перевірку цього сайту можна почати {when}."
+
 msgid "A requested rule is not available on this instance."
 msgstr "Одне з запитаних правил недоступне на цьому сервері."
 
@@ -161,6 +164,9 @@ msgstr "Медіана"
 msgid "Minimum"
 msgstr "Мінімум"
 
+msgid "New scan"
+msgstr "Нова перевірка"
+
 msgid "No checks ran"
 msgstr "Жодної перевірки не виконано"
 
@@ -169,6 +175,9 @@ msgstr "Знахідок немає."
 
 msgid "not scanned"
 msgstr "не перевірено"
+
+msgid "Not tested: {count} rules"
+msgstr "Не перевірено: правил — {count}"
 
 msgid "Page load"
 msgstr "Завантаження сторінки"
@@ -188,8 +197,8 @@ msgstr "Сторінок: {count} ({share})"
 msgid "Pages: {done} of {total}"
 msgstr "Сторінок: {done} з {total}"
 
-msgid "Passed: {count} checks"
-msgstr "Пройдено: {count} перевірок"
+msgid "Passed: {rules} rules, {pages} pages, {checks} checks"
+msgstr "Пройдено: правил — {rules}, сторінок — {pages}, перевірок — {checks}"
 
 msgid "Quick"
 msgstr "Швидкі"
@@ -215,6 +224,9 @@ msgstr "Враховані ресурси"
 msgid "Rule"
 msgstr "Правило"
 
+msgid "Rules this scan did not judge: its checks leave them out, or the site has nothing they apply to."
+msgstr "Правила, яких ця перевірка не оцінювала: її набір їх не містить або на сайті немає до чого їх застосувати."
+
 msgid "Rulesets: {names}"
 msgstr "Набори правил: {names}"
 
@@ -223,6 +235,9 @@ msgstr "Сторінок у вибірці: {count} з {sampled} ({share})"
 
 msgid "Scan"
 msgstr "Перевірити"
+
+msgid "Scan again"
+msgstr "Перевірити знову"
 
 msgid "Scan not found"
 msgstr "Перевірку не знайдено"
@@ -241,6 +256,12 @@ msgstr "Передача скриптів"
 
 msgid "Scripts"
 msgstr "Скрипти"
+
+msgid "Self-host"
+msgstr "Розгорнути самостійно"
+
+msgid "Self-host spiderlint: free software under the {license} licence."
+msgstr "Розгорніть spiderlint самостійно: вільне програмне забезпечення за ліцензією {license}."
 
 msgid "Server response time"
 msgstr "Час відповіді сервера"
@@ -314,6 +335,12 @@ msgstr "Цей сервер не перевіряє цей сайт."
 msgid "This scan does not exist or has expired."
 msgstr "Ця перевірка не існує або вже застаріла."
 
+msgid "This site was scanned recently, so this is the existing report."
+msgstr "Цей сайт нещодавно перевіряли, тож це наявний звіт."
+
+msgid "This site was scanned recently, so this is the existing scan."
+msgstr "Цей сайт нещодавно перевіряли, тож це наявна перевірка."
+
 msgid "This site was scanned recently. Try again {when}."
 msgstr "Цей сайт нещодавно перевіряли. Спробуйте ще раз {when}."
 
@@ -353,6 +380,9 @@ msgstr "Попередження"
 msgid "Whole site"
 msgstr "Весь сайт"
 
+msgid "You can scan this site again now."
+msgstr "Тепер ви можете перевірити цей сайт знову."
+
 msgid "You have started many scans. Try again {when}."
 msgstr "Ви запустили забагато перевірок. Спробуйте ще раз {when}."
 
@@ -365,4 +395,3 @@ msgstr "{passed} з {total}"
 
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} з {total}"
-

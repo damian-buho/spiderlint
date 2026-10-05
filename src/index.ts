@@ -37,7 +37,7 @@ import { log, logRelativeTo } from "./logger.ts";
 import { isProgressOn, progressDone, progressEnd, progressPhase } from "./progress.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, pageReader, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
-import { compileRulesets, isRuleMatch, ruleIds } from "./rules/rulesets.ts";
+import { compileRulesets, isRuleMatch, resolveRuleset, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule, RuleGuide } from "./rules/types.ts";
 import { stopIfInterrupted } from "./interrupt.ts";
@@ -69,6 +69,8 @@ export interface Summary {
     checks: Checks;
     // Checks run, failed and pages covered by each rule that judged anything, so the passing ones are known.
     checked?: Record<string, RuleChecks>;
+    // Shipped rules that judged nothing in this run: left out of its rulesets, or never applicable.
+    untested?: string[];
     rating?: Rating;
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
@@ -148,6 +150,9 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
     const checks = { ...run.checks, passed: run.checks.total - run.checks.failed };
     const severities = tally(run.findings.map((finding) => finding.severity));
     const rating = rate(checks, rulesets);
+    const checked = Object.fromEntries(run.perRule.entries().toArray().toSorted(([a], [b]) => a.localeCompare(b)));
+    const untested = Object.keys(resolveRuleset("spiderlint:all", {})).filter((id) => !Object.hasOwn(checked, id)).toSorted((a, b) => a.localeCompare(b));
+    log.debug({ checked: Object.keys(checked).length, untested: untested.length }, "untested rules derived");
     const statuses = tally(pages.map((page) => String(page.http.status)));
     return {
         started: started.toISOString(),
@@ -160,7 +165,8 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         rules: rules.length,
         byRule,
         checks,
-        checked: Object.fromEntries(run.perRule.entries().toArray().toSorted(([a], [b]) => a.localeCompare(b))),
+        checked,
+        untested,
         ...(rating && { rating }),
         cost,
         stats: factStats(pages),
