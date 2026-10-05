@@ -5,9 +5,10 @@
 import type { Page } from "playwright";
 import type { Facts } from "../facts/types.ts";
 import { reason } from "../crawl/fetch.ts";
-import { readNote } from "../facts/read-note.ts";
+import { evidence } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
 import { pageRule } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import { definePlugin, type PageContext } from "./types.ts";
 import { visit, withPage } from "./visit.ts";
 
@@ -103,7 +104,7 @@ const rendered = pageRule(
         if (page[ID] === undefined) return;
         return examined(page)
             .filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299)
-            .map((profile) => ({ message: `rel=me profile ${profile.url} does not link back to ${page.url.origin}, even after its scripts ran in a browser${profile.at ? ` (${readNote({ at: profile.at, ...(profile.cached && { cached: profile.cached }) })}; --refresh loads it again)` : ""}`, value: profile.url }));
+            .map((profile) => ({ ...said("rel=me profile does not link back to {site}", { site: page.url.origin }), data: { [page.url.href]: { profile: profile.url } }, evidence: [evidence("profiles", profile.url, profile, "browser")], value: profile.url }));
     },
     { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." },
 );

@@ -5,6 +5,7 @@
 import anyAscii from "any-ascii";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // A slug that is only an identifier: digits, a hex run with a digit, or a UUID.
@@ -44,8 +45,9 @@ const readableSlug: Make = (severity) => ({
         const shared = tokens(slug).intersection(tokens(heading)).size;
         log.debug({ rule: "url/readable-slug", url: page.url.href, slug, isId, shared }, "slug read against the title");
         if (!isId && shared > 0) return [];
-        const message = isId ? `the slug ${slug} is an identifier, not words` : `the slug ${slug} shares no word with the title “${page.html?.title ?? page.html?.h1[0]}”`;
-        return [{ rule: "url/readable-slug", severity, scope: "page" as const, url: page.url.href, group: page.group, message, value: slug }];
+        const title = `“${page.html?.title ?? page.html?.h1[0]}”`;
+        const sentence = said(isId ? "the slug is an identifier, not words" : "the slug shares no word with the page title");
+        return [{ rule: "url/readable-slug", severity, scope: "page" as const, url: page.url.href, group: page.group, ...sentence, ...(!isId && { data: { [page.url.href]: { title } } }), value: slug }];
     },
 });
 

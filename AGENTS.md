@@ -67,7 +67,7 @@ plugins over one page cache.
 | Group     | A named set of pages, matched by URL glob or regular expression. A page is in exactly one group. A group approximates a template. |
 | Ruleset   | A named map of rules, extendable. Presets ship as rulesets.                                                                       |
 | Rule      | `fact` + `expect` (JSON Schema) + `severity`, or a TypeScript function. Scoped `page`, `group`, or `site`.                        |
-| Finding   | One violation: rule, severity, page (or group), message, the offending value.                                                     |
+| Finding   | One violation: rule, severity, page (or group), sentence, per-URL data, evidence, the offending value.                            |
 | Fold      | Collapsing per-page findings of one rule in one group into one template-level finding.                                            |
 | Store     | The on-disk page cache: facts, bodies, crawl frontier. Crawlee’s own storage, nothing custom.                                     |
 | Formatter | Findings to text. A plugin kind.                                                                                                  |
@@ -402,6 +402,8 @@ Runs after all page-scope findings exist, per `(group, rule)`:
 - Otherwise emit the per-page findings unchanged.
 - A group between `0.2` and `0.8` on the same rule gets an `info` advisory `groups/heterogeneous`: it likely hides two templates and wants splitting.
 - A finding may carry `locations`: one line per element it points at, or per spot inside the resource a site finding is keyed by. `human` prints up to five under each page (all of them with `--unfold`), and a fold’s samples share one list when their locations match.
+- A finding’s sentence is a template: `text` with `{name}` placeholders and the shared `variables`, `message` its English rendering. What differs per URL (a timing, a ratio, a title, a header value) goes in `data`, keyed by URL, never in the sentence, so findings bundle by template, a fold keeps each sample’s values, `text` is the catalog msgid and `sarif` emits it as a rule’s `messageStrings` with `arguments`. A `Datum` is a string, a number, `{ fact, value }` (written in the fact’s unit), `{ ratio }` or `{ at }`, formatted in the reader’s locale.
+- A finding’s `evidence` lists what it rests on: bucket, key, `at` (when the origin last confirmed it), `via` (`network`, `cache`, `revalidated`) and `mode`. The runner gives every page finding its page’s read from `crawl.at` and `crawl.mode`; a rule adds the outside reads (`profiles`, `probes` …) with `evidence()`. Rules never write provenance prose: formatters derive it, `human` and `agent` naming `--refresh` only when a read came from a cache.
 - `--unfold` (`fold: false`) keeps every per-page finding, and `human` then lists every URL and location instead of the first five. Folded findings map to SARIF `occurrenceCount` plus `relatedLocations`, so code-scanning UIs show one row.
 - Resource findings fold by resource URL across the whole site rather than by group: the offending artefact is the resource, the pages are its `usedBy`.
 

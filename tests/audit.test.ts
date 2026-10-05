@@ -87,7 +87,10 @@ describe("audit", () => {
         const home = report.pages.find((page) => page.url.pathname === "/");
         assert.deepEqual(home?.html?.links.external, [`${cdn()}/`]);
         assert.ok(home?.html?.links.internal.includes(`${site.origin}/posts/1`));
+        assert.ok(!Number.isNaN(Date.parse(home?.crawl.at ?? "")));
         assert.deepEqual(home?.crawl, {
+            at: home?.crawl.at,
+            mode: "http",
             depth: 0,
             "discovered-via": "seed",
             referrers: report.pages
@@ -157,7 +160,11 @@ describe("audit", () => {
         const [dead, ...rest] = of("links/broken-external");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${cdn()}/gone`);
-        assert.match(dead?.message ?? "", /^answers 404; linked from 1 page; checked \d{4}-\d\d-\d\d \d\d:\d\d UTC$/);
+        assert.equal(dead?.message, "the link answers 404; linked from these pages");
+        assert.deepEqual(
+            dead?.evidence?.map((read) => [read.bucket, read.via, Number.isNaN(Date.parse(read.at ?? ""))]),
+            [["probes", "network", false]],
+        );
         assert.deepEqual(dead?.urls, [`${site.origin}/about`]);
         const probes = () => site.requested.filter((pathname) => pathname === "/gone").length;
         assert.equal(probes(), 1);
@@ -661,7 +668,13 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/`] });
         const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/consistent-origin");
         assert.equal(rest.length, 0);
-        assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+: fixture-a \(10\), fixture-b \(5\)$/);
+        assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+$/);
+        assert.deepEqual(
+            Object.values(origin?.data ?? {})
+                .map((data) => String(data.value))
+                .toSorted((a, b) => a.localeCompare(b)),
+            [...Array.from({ length: 10 }, () => "fixture-a"), ...Array.from({ length: 5 }, () => "fixture-b")],
+        );
         assert.equal(origin?.urls?.length, 15);
     });
 

@@ -409,7 +409,11 @@ describe("rel=me in a browser", { skip }, () => {
             assert.equal(first.findings.length, 1);
             const second = await run("use");
             assert.equal(loads(), base, "a fresh verdict is reused without opening the profile");
-            assert.match(second.findings[0]?.message ?? "", /\(read \d{4}-\d\d-\d\d \d\d:\d\d UTC, from the cache; --refresh loads it again\)$/);
+            assert.match(second.findings[0]?.message ?? "", /^rel=me profile does not link back to /);
+            assert.deepEqual(
+                second.findings[0]?.evidence?.filter((read) => read.bucket === "profiles").map((read) => [read.via, read.mode]),
+                [["cache", "browser"]],
+            );
             await run("refresh");
             assert.equal(loads(), base + 1, "--refresh loads it again");
         } finally {

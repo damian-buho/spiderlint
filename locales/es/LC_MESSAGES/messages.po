@@ -407,3 +407,36 @@ msgstr "Hallazgos"
 
 msgid "Presets: {names}"
 msgstr "Preajustes: {names}"
+
+msgid "From the cache, so a refreshed run reads them again:"
+msgstr "Desde la caché; una ejecución con actualización los vuelve a leer:"
+
+msgid "read {at}"
+msgstr "leído {at}"
+
+msgid "the slug is an identifier, not words"
+msgstr "el slug es un identificador, no palabras"
+
+msgid "the slug shares no word with the page title"
+msgstr "el slug no comparte ninguna palabra con el título de la página"
+
+msgid "{label} is far above the median {median} of {count} pages"
+msgstr "{label} está muy por encima de la mediana {median} de {count} páginas"
+
+msgid "{label} is far above the median {median} of {count} pages; the first alone outweighs the next {next} pages combined"
+msgstr "{label} está muy por encima de la mediana {median} de {count} páginas; la primera supera por sí sola a las {next} siguientes juntas"
+
+msgid "{label} is {common} on {count} of {total} pages, but not on these"
+msgstr "{label} es {common} en {count} de {total} páginas, pero no en estas"
+
+msgid "rel=me profile does not link back to {site}"
+msgstr "el perfil rel=me no enlaza de vuelta a {site}"
+
+msgid "{label} varies across {host}"
+msgstr "{label} varía en {host}"
+
+msgid "the link could not be reached: {error}; linked from these pages"
+msgstr "no se pudo acceder al enlace: {error}; enlazado desde estas páginas"
+
+msgid "the link answers {status}; linked from these pages"
+msgstr "el enlace responde {status}; enlazado desde estas páginas"

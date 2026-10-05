@@ -7,7 +7,7 @@ import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
 import type { Facts, HtmlFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { parseCacheControl, parseLink } from "../facts/headers.ts";
-import { utc } from "../facts/read-note.ts";
+import { evidence } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
 import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
@@ -15,6 +15,7 @@ import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
 import { insightRules, partition } from "./insights.ts";
 import { lengthRules } from "./length.ts";
+import { said } from "./message.ts";
 import { relationRules } from "./relations.ts";
 import { robotsRules } from "./robots.ts";
 import { urlRules } from "./url.ts";
@@ -58,8 +59,8 @@ const brokenExternal: Make = (severity) => ({
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
             log.debug({ rule: "links/broken-external", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
             if (!isBroken) continue;
-            const verdict = answer.status === 0 ? `could not be reached (${answer.error})` : `answers ${answer.status}`;
-            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, message: `${verdict}; linked from ${pageCount(urls.length)}${answer.checked ? `; checked ${utc(answer.checked)}` : ""}`, value: answer.status, urls });
+            const verdict = answer.status === 0 ? said("the link could not be reached: {error}; linked from these pages", { error: answer.error ?? "" }) : said("the link answers {status}; linked from these pages", { status: String(answer.status) });
+            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, ...verdict, evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
         }
         return findings;
     },
@@ -345,8 +346,8 @@ function varies(severity: Exclude<Severity, "off">, host: string, members: Facts
     if (byValue.size < 2) return undefined;
     const entries = byValue.entries().toArray();
     const urls = entries.flatMap(([, group]) => group.map((page) => page.url.href));
-    const message = `${label} varies across ${host}: ${entries.map(([value, group]) => `${value} (${group.length})`).join(", ")}`;
-    return { rule: "http/consistent-origin", severity, scope: "site", url: urls[0] as string, message, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
+    const data = Object.fromEntries(entries.flatMap(([value, group]) => group.map((page) => [page.url.href, { value }])));
+    return { rule: "http/consistent-origin", severity, scope: "site", url: urls[0] as string, ...said("{label} varies across {host}", { label, host }), data, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
 }
 
 // One finding per host and fact whose value varies across its pages, with the URL count per value.
@@ -367,7 +368,7 @@ export type Verdict = (resource: ResourceFacts, pages: number) => string | Pick<
 export type Guide = Pick<RuleMeta, "docs" | "fix">;
 
 // What one page finding says; the rule fills in the rest.
-export type Offence = Pick<Finding, "message" | "value" | "locations">;
+export type Offence = Pick<Finding, "message" | "text" | "variables" | "data" | "evidence" | "value" | "locations">;
 
 // A page rule: one finding per offence `judge` returns, none when empty, skipped when undefined.
 export function pageRule(id: string, facts: string[], judge: (page: Facts) => Offence[] | undefined, guide: Guide = {}): Make {

@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Facts } from "../facts/types.ts";
-import { translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { median } from "../report/stats.ts";
 import { get } from "./declarative.ts";
-import type { Finding, Make } from "./types.ts";
+import { said } from "./message.ts";
+import type { Datum, Finding, Make } from "./types.ts";
 
 // Iglewicz and Hoaglin’s modified z-score scale and cut-off.
 const Z_SCALE = 0.6745;
@@ -55,16 +54,12 @@ function category(page: Facts, path: string): string | undefined {
     return ["string", "number", "boolean"].includes(typeof value) ? String(value) : undefined;
 }
 
-// The message sentences, one template each with its values passed in, so a translation can replace the template alone.
+// The message sentences; each listed page’s own value rides in the finding’s `data`.
 const SENTENCES = {
-    outlier: "{label} is far above the median {median} of {count} pages: {listed}{dominates}",
-    dominates: "; {url} alone outweighs the next {count} pages combined",
-    minority: "{label} is {common} on {count} of {total} pages, but {listed}",
+    outlier: "{label} is far above the median {median} of {count} pages",
+    dominates: "{label} is far above the median {median} of {count} pages; the first alone outweighs the next {next} pages combined",
+    minority: "{label} is {common} on {count} of {total} pages, but not on these",
 };
-const english = translator("en");
-
-// Numbers as English writes them, one decimal.
-const format: NumberFormat = (value, options) => english.number(value, options);
 
 // The pages whose `path` lies far above the rest by modified z-score and by `ratio` times the median.
 function outliers(pages: Facts[], path: string, settings: NumericSettings, severity: Finding["severity"]): Finding | undefined {
@@ -83,14 +78,15 @@ function outliers(pages: Facts[], path: string, settings: NumericSettings, sever
     const [top] = far;
     if (!top) return undefined;
     const next = sorted.slice(-NEXT - 1, -1).reduce((sum, value) => sum + value, 0);
-    const dominates = sorted.length > NEXT && top.value > next ? english._(SENTENCES.dominates, { url: top.url, count: NEXT }) : "";
-    const listed = far.map((entry) => `${entry.url} ${withUnit(path, entry.value, format)}${middle > 0 ? ` (${format(entry.value / middle)}×)` : ""}`).join(", ");
+    const isDominant = sorted.length > NEXT && top.value > next;
+    const data = Object.fromEntries(far.map((entry) => [entry.url, { value: { fact: path, value: entry.value }, ...(middle > 0 && { ratio: { ratio: entry.value / middle } }) } satisfies Record<string, Datum>]));
     return {
         rule: "insight/numeric-outlier",
         severity,
         scope: "site",
         url: top.url,
-        message: english._(SENTENCES.outlier, { label: label(path) ?? path, median: withUnit(path, middle, format), count: measured.length, listed, dominates }),
+        ...said(isDominant ? SENTENCES.dominates : SENTENCES.outlier, { label: { name: path }, median: { fact: path, value: middle }, count: measured.length, ...(isDominant && { next: NEXT }) }),
+        data,
         value: { median: middle, ...Object.fromEntries(far.map((entry) => [entry.url, entry.value])) },
         urls: far.map((entry) => entry.url),
     };
@@ -106,8 +102,8 @@ function minority(pages: Facts[], path: string, settings: MinoritySettings, seve
     log.debug({ rule: "insight/minority-value", fact: path, pages: total, values: byValue.length, top: top?.[0], rare: rare.length, isDominant }, "categorical fact compared");
     if (!top || !isDominant || total < settings["min-pages"] || rare.length === 0) return undefined;
     const urls = rare.flatMap(([, members]) => members.map((page) => page.url.href));
-    const listed = rare.map(([value, members]) => `${value} on ${members.map((page) => page.url.href).join(", ")}`).join("; ");
-    return { rule: "insight/minority-value", severity, scope: "site", url: urls[0] as string, message: english._(SENTENCES.minority, { label: label(path) ?? path, common: top[0], count: top[1].length, total, listed }), value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
+    const data = Object.fromEntries(rare.flatMap(([value, members]) => members.map((page) => [page.url.href, { value }])));
+    return { rule: "insight/minority-value", severity, scope: "site", url: urls[0] as string, ...said(SENTENCES.minority, { label: { name: path }, common: top[0], count: top[1].length, total }), data, value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
 }
 
 // One finding per numeric fact whose pages hold robust outliers above the median.

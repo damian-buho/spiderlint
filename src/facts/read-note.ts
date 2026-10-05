@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { Evidence } from "../rules/types.ts";
+
 // An ISO time as `2026-10-03 22:05 UTC`.
 export function utc(iso: string): string {
     return `${iso.slice(0, 16).replace("T", " ")} UTC`;
 }
 
-// When a page was read and what answered, as a finding says it.
-export function readNote(seen: { at: string; cached?: true; revalidated?: true }): string {
-    return `read ${utc(seen.at)}${seen.cached ? ", from the cache" : seen.revalidated ? ", confirmed unchanged" : ""}`;
+// What a rule read from `bucket` under `key`, when, and whether the cache or the origin answered.
+export function evidence(bucket: string, key: string, seen: { at?: string; cached?: true; revalidated?: true }, mode?: Evidence["mode"]): Evidence {
+    return { bucket, key, ...(seen.at && { at: seen.at }), via: seen.cached ? "cache" : seen.revalidated ? "revalidated" : "network", ...(mode && { mode }) };
 }

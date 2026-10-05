@@ -9,9 +9,10 @@ import { reason } from "../crawl/fetch.ts";
 import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { OfflineMiss } from "../cache/index.ts";
-import { readNote } from "../facts/read-note.ts";
+import { evidence } from "../facts/read-note.ts";
 import { judged } from "./profile-links.ts";
 import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
@@ -367,8 +368,7 @@ const meBackLink: Make = (severity) => ({
                 .map((profile) => {
                     const pages = declared?.[profile] ?? [subject];
                     const seen = fetched?.[profile];
-                    const when = seen ? ` (${readNote(seen)}; --refresh reads it again)` : "";
-                    return { rule: "links/rel-me", severity, scope: "site", url: pages[0] as string, message: `rel=me profile ${profile} does not link back to ${subject}, in the HTML it serves without running scripts${when}`, value: profile, ...(pages.length > 1 && { urls: pages }) };
+                    return { rule: "links/rel-me", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to {site}", { site: subject }), ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
                 });
         });
     },

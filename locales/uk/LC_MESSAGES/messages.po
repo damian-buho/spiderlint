@@ -407,3 +407,36 @@ msgstr "Знахідки"
 
 msgid "Presets: {names}"
 msgstr "Пресети: {names}"
+
+msgid "From the cache, so a refreshed run reads them again:"
+msgstr "З кешу; оновлений запуск прочитає їх знову:"
+
+msgid "read {at}"
+msgstr "прочитано {at}"
+
+msgid "the slug is an identifier, not words"
+msgstr "slug — ідентифікатор, а не слова"
+
+msgid "the slug shares no word with the page title"
+msgstr "slug не має жодного спільного слова із заголовком сторінки"
+
+msgid "{label} is far above the median {median} of {count} pages"
+msgstr "{label} значно перевищує медіану {median} для {count} сторінок"
+
+msgid "{label} is far above the median {median} of {count} pages; the first alone outweighs the next {next} pages combined"
+msgstr "{label} значно перевищує медіану {median} для {count} сторінок; перша сама переважує наступні {next} сторінок разом"
+
+msgid "{label} is {common} on {count} of {total} pages, but not on these"
+msgstr "{label}: {common} на {count} з {total} сторінок, але не на цих"
+
+msgid "rel=me profile does not link back to {site}"
+msgstr "профіль rel=me не посилається назад на {site}"
+
+msgid "{label} varies across {host}"
+msgstr "{label} відрізняється в межах {host}"
+
+msgid "the link could not be reached: {error}; linked from these pages"
+msgstr "посилання недоступне: {error}; на нього посилаються ці сторінки"
+
+msgid "the link answers {status}; linked from these pages"
+msgstr "посилання відповідає {status}; на нього посилаються ці сторінки"

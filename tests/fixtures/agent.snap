@@ -198,7 +198,7 @@ Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no
 
 ## url/readable-slug (info 2.0)
 
-the slug 1 is an identifier, not words
+the slug is an identifier, not words
 
 Where: 5 pages of group posts (100 %), for example:
 - /posts/1
@@ -334,7 +334,7 @@ Done when: `spiderlint audit ORIGIN/ --rules html/og-image` reports no html/og-i
 
 ## links/broken-external (warning 4.6)
 
-answers 404; linked from 1 page; checked TIME
+the link answers 404; linked from these pages
 
 Where: EXTERNAL/gone, used by or shared with:
 - /about
