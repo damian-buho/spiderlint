@@ -6,7 +6,7 @@ import nPlugin from "eslint-plugin-n";
 import { flatConfigs } from "eslint-plugin-import-x";
 import promisePlugin from "eslint-plugin-promise";
 import unicornPlugin from "eslint-plugin-unicorn";
-import prettierConfig from "eslint-config-prettier";
+import prettierRecommended from "eslint-plugin-prettier/recommended";
 import tsdocPlugin from "eslint-plugin-tsdoc";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -21,7 +21,7 @@ export default tseslint.config(
     flatConfigs.recommended,
     promisePlugin.configs["flat/recommended"],
     unicornPlugin.configs["flat/recommended"],
-    prettierConfig,
+    prettierRecommended,
     {
         files: ["**/*.js", "**/*.ts"],
         ignores: ["eslint.config.js"],
