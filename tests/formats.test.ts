@@ -161,11 +161,14 @@ describe("formatHtml", () => {
         const input = { ...report, pages: report.pages, findings: [fold, some], summary: { ...report.summary, pages: 100, groups: { default: 100 } } };
         const html = formatHtml(input, undefined, false, "en");
         assert.equal(html.match(/<details class="finding">/g)?.length, 2);
-        assert.equal(html.match(/<h3><code>/g)?.length, 2);
+        assert.equal(html.match(/<details class="rule-card (error|warning|info|hint)"/g)?.length, 2);
         assert.ok(!html.includes("<table><thead><tr><th>Severity"), "no findings table");
         assert.ok(!html.includes("Group:"), "default alone has no heading");
-        const wholeSite = html.split('<details class="finding">').find((part) => part.includes("title is missing"));
-        assert.ok(wholeSite?.includes("Whole site") && !wholeSite.includes("<ul>"), "whole-site finding lists no pages");
+        const wholeSite = html.split('<details class="rule-card ').find((part) => part.includes("title is missing"));
+        const inner = wholeSite?.split('<details class="finding">', 2)[1] ?? "";
+        assert.ok(wholeSite?.includes("Whole site") && !inner.includes("<ul>"), "whole-site finding lists no pages");
+        assert.ok(wholeSite?.includes("rule-foot") && wholeSite.includes("Severity") && wholeSite.includes("Impact") && wholeSite.includes("Scope"), "footer names severity, impact and scope");
+        assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
     });
