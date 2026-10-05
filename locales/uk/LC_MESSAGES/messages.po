@@ -836,3 +836,510 @@ msgstr "X-Content-Type-Options має бути nosniff, знайдено {got}"
 
 msgid "X-XSS-Protection should be absent or 0, found {got}"
 msgstr "X-XSS-Protection має бути відсутнім або 0, знайдено {got}"
+
+msgid "no /llms.txt summarises the site for language models"
+msgstr "жоден /llms.txt не підсумовує сайт для мовних моделей"
+
+msgid "/llms.txt is malformed: {got}"
+msgstr "/llms.txt неправильно сформовано: {got}"
+
+msgid "/llms.txt has no /llms-full.txt twin carrying the whole content"
+msgstr "/llms.txt не має двійника /llms-full.txt з усім вмістом"
+
+msgid "/llms-full.txt is malformed: {got}"
+msgstr "/llms-full.txt неправильно сформовано: {got}"
+
+msgid "/.well-known/agent-card.json is malformed: {got}"
+msgstr "/.well-known/agent-card.json неправильно сформовано: {got}"
+
+msgid "/.well-known/ai-catalog.json is malformed: {got}"
+msgstr "/.well-known/ai-catalog.json неправильно сформовано: {got}"
+
+msgid "/.well-known/mcp/server-card.json is malformed: {got}"
+msgstr "/.well-known/mcp/server-card.json неправильно сформовано: {got}"
+
+msgid "/.well-known/agent-skills/index.json is malformed: {got}"
+msgstr "/.well-known/agent-skills/index.json неправильно сформовано: {got}"
+
+msgid "/okf/index.md is malformed: {got}"
+msgstr "/okf/index.md неправильно сформовано: {got}"
+
+msgid "/schemamap.xml is malformed: {got}"
+msgstr "/schemamap.xml неправильно сформовано: {got}"
+
+msgid "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one"
+msgstr "немає джерела Markdown: ні двійник .md, ні Accept: text/markdown не повертають його"
+
+msgid "a cookie is set without the Secure flag"
+msgstr "cookie встановлено без прапорця Secure"
+
+msgid "a cookie is set without a SameSite attribute"
+msgstr "cookie встановлено без атрибута SameSite"
+
+msgid "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it"
+msgstr "cookie __Host- не має Secure чи Path=/ або задає Domain, тому браузери її відхиляють"
+
+msgid "a __Secure- cookie lacks Secure, so browsers reject it"
+msgstr "cookie __Secure- не має Secure, тому браузери її відхиляють"
+
+msgid "a SameSite=None cookie lacks Secure, so browsers reject it"
+msgstr "cookie SameSite=None не має Secure, тому браузери її відхиляють"
+
+msgid "a cookie outlives 400 days, which browsers cap"
+msgstr "cookie живе понад 400 днів, а браузери це обмежують"
+
+msgid "no carbon.txt discloses the site’s sustainability documents and providers"
+msgstr "жоден carbon.txt не розкриває документів зі сталості та провайдерів сайту"
+
+msgid "carbon.txt is malformed: {got}"
+msgstr "carbon.txt неправильно сформовано: {got}"
+
+msgid "carbon.txt names disclosures past their valid_until: {got}"
+msgstr "carbon.txt називає розкриття, що минули свій valid_until: {got}"
+
+msgid "carbon.txt was last updated {got} days ago, more than a year"
+msgstr "carbon.txt востаннє оновлено {got} днів тому, понад рік"
+
+msgid "a cookie is set without the HttpOnly flag"
+msgstr "cookie встановлено без прапорця HttpOnly"
+
+msgid "no HTTPS record, so a first visit learns h3 and ECH only from Alt-Svc, one connection late"
+msgstr "немає запису HTTPS, тож перший візит дізнається про h3 і ECH лише з Alt-Svc, на одне з’єднання пізніше"
+
+msgid "the HTTPS record and Alt-Svc disagree about h3 (got {got})"
+msgstr "запис HTTPS і Alt-Svc розходяться щодо h3 ({got})"
+
+msgid "ipv4hint or ipv6hint does not match the A and AAAA records"
+msgstr "ipv4hint або ipv6hint не збігається із записами A та AAAA"
+
+msgid "no CAA issue or issuewild record on the host or any parent, so any CA may issue for it"
+msgstr "немає запису CAA issue чи issuewild на хості або будь-якому батьківському, тому будь-який ЦС може видати сертифікат"
+
+msgid "CAA does not allow the CA that issued the served certificate (got {got})"
+msgstr "CAA не дозволяє ЦС, що видав поданий сертифікат ({got})"
+
+msgid "CAA names no iodef address for refused issuance reports"
+msgstr "CAA не називає адреси iodef для звітів про відмову у видачі"
+
+msgid "CAA marks a tag outside RFC 8659 critical, so a CA that does not know it refuses to issue at all (got {got})"
+msgstr "CAA позначає критичним тег поза RFC 8659, тому ЦС, що його не знає, відмовляється видавати сертифікат ({got})"
+
+msgid "no AAAA record, so the host is unreachable over IPv6"
+msgstr "немає запису AAAA, тому хост недосяжний через IPv6"
+
+msgid "the name resolves through {got} of CNAME hops"
+msgstr "ім’я розв’язується через {got} переходів CNAME"
+
+msgid "the name is a CNAME to a name that does not exist, open to takeover (got {got})"
+msgstr "ім’я є CNAME на неіснуюче ім’я, відкрите для перехоплення ({got})"
+
+msgid "the zone is not signed with DNSSEC"
+msgstr "зону не підписано DNSSEC"
+
+msgid "the zone is signed but fails validation, so every validating resolver answers SERVFAIL"
+msgstr "зону підписано, але перевірка не проходить, тому кожен резолвер із перевіркою відповідає SERVFAIL"
+
+msgid "the zone signs or digests with an algorithm RFC 8624 forbids"
+msgstr "зона підписує або хешує алгоритмом, який забороняє RFC 8624"
+
+msgid "less than a quarter of the host’s signature validity is left, so re-signing has stalled (got {got})"
+msgstr "залишилося менше чверті строку дії підпису хоста, тож повторне підписання зупинилося ({got})"
+
+msgid "NSEC3 uses extra iterations or a salt (got {got})"
+msgstr "NSEC3 використовує додаткові ітерації або сіль ({got})"
+
+msgid "the zone has {got} name servers, fewer than 2"
+msgstr "зона має {got} серверів імен, менше ніж 2"
+
+msgid "a name server is lame or the servers disagree on the SOA serial (got {got})"
+msgstr "сервер імен непридатний або сервери розходяться щодо серійного номера SOA ({got})"
+
+msgid "the name servers give {got} different answers for the host, so what a visitor reaches depends on which one their resolver asks"
+msgstr "сервери імен дають {got} різних відповідей для хоста, тож те, до чого потрапить відвідувач, залежить від того, який із них спитає його резолвер"
+
+msgid "the configured resolver answers the host differently from its name servers, a cached old answer or a split view"
+msgstr "налаштований резолвер відповідає для хоста інакше, ніж його сервери імен: стара відповідь у кеші або розділене подання"
+
+msgid "the compared resolvers disagree on whether the host resolves (got {got}); a SERVFAIL on a validating resolver alone points at DNSSEC"
+msgstr "порівняні резолвери розходяться щодо того, чи розв’язується хост ({got}); SERVFAIL лише на резолвері з перевіркою вказує на DNSSEC"
+
+msgid "the compared resolvers give {got} different answers for the host; geo-DNS does this on purpose, a stale or split view does not"
+msgstr "порівняні резолвери дають {got} різних відповідей для хоста; гео-DNS робить це навмисно, застаріле чи розділене подання — ні"
+
+msgid "some compared resolvers validate the signed zone and some do not (got {got})"
+msgstr "одні з порівняних резолверів перевіряють підписану зону, а інші ні ({got})"
+
+msgid "the parent zone delegates to other name servers than the zone’s own NS records, so resolvers reach a server the zone disowns (got {got})"
+msgstr "батьківська зона делегує іншим серверам імен, ніж власні записи NS зони, тому резолвери потрапляють на сервер, який зона не визнає ({got})"
+
+msgid "the zone apex is a CNAME to {got}, which cannot sit beside the apex’s SOA and NS records"
+msgstr "вершина зони є CNAME на {got}, який не може бути поруч із записами SOA та NS вершини"
+
+msgid "the SOA {field} is {got}, outside what RFC 1912 §2.2 recommends: refresh 1200–43200 s, retry below refresh, expire 1209600–2419200 s, minimum 300–86400 s, a listed name server as primary"
+msgstr "{field} у SOA дорівнює {got}, поза рекомендаціями RFC 1912 §2.2: refresh 1200–43200 с, retry менше за refresh, expire 1209600–2419200 с, minimum 300–86400 с, первинний сервер зі списку серверів імен"
+
+msgid "a record TTL sits outside 300 seconds to one day, two for NS; fine just before a migration, costly otherwise (got {got})"
+msgstr "TTL запису лежить поза діапазоном від 300 секунд до доби, для NS — двох; доречно перед міграцією, а в інший час коштовно ({got})"
+
+msgid "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning"
+msgstr "авторитетний сервер імен відповідає на рекурсивні запити для будь-якого імені, що відкриває його для атак підсилення та отруєння кешу"
+
+msgid "the domain registration expires in {got} days"
+msgstr "реєстрація домену спливає через {got} днів"
+
+msgid "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses"
+msgstr "реєстрація домену спливає через {got} днів, і сайт та його пошта перестануть розв’язуватися, коли вона мине"
+
+msgid "the registration carries no transfer lock, so whoever takes over the registrar account can move the domain away (status {got})"
+msgstr "реєстрація не має блокування переносу, тож хто заволодіє обліковим записом реєстратора, може забрати домен (статус {got})"
+
+msgid "the name servers the registry lists differ from the zone’s own NS records"
+msgstr "сервери імен, указані в реєстрі, відрізняються від власних записів NS зони"
+
+msgid "every name server address sits in one /24 or /48"
+msgstr "усі адреси серверів імен лежать в одній мережі /24 або /48"
+
+msgid "no null MX, so senders fall back to the name’s A or AAAA address and retry mail it never takes for days (got {got})"
+msgstr "немає нульового MX, тому відправники звертаються до адреси A чи AAAA імені й днями повторюють пошту, яку воно ніколи не приймає ({got})"
+
+msgid "SPF is not a lone v=spf1 -all, so receivers cannot refuse mail forged from this name (got {got})"
+msgstr "SPF не є самотнім v=spf1 -all, тому одержувачі не можуть відхиляти підроблену від цього імені пошту ({got})"
+
+msgid "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})"
+msgstr "до імені не застосовується жодна політика DMARC reject, тому одержувачі приймають підроблену від нього пошту ({got})"
+
+msgid "a null MX on a name that takes or sends mail, so senders may drop mail to it and receivers may refuse mail from it (got {got})"
+msgstr "нульовий MX на імені, що приймає чи надсилає пошту, тож відправники можуть відкидати пошту до нього, а одержувачі — пошту від нього ({got})"
+
+msgid "a name that takes or sends mail needs exactly one v=spf1 record, since none lets anyone send as it and two fail every check (got {got})"
+msgstr "ім’я, що приймає чи надсилає пошту, потребує рівно одного запису v=spf1: за його відсутності ніхто не може надсилати від імені, а два провалюють кожну перевірку ({got})"
+
+msgid "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})"
+msgstr "SPF не закінчується на -all чи ~all, тому одержувачі дозволяють будь-якому серверу надсилати від цього імені ({got})"
+
+msgid "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})"
+msgstr "до імені, що приймає чи надсилає пошту, не застосовується жодна політика DMARC quarantine чи reject, тому одержувачі доставляють підроблену від нього пошту ({got})"
+
+msgid "the favicon is missing or broken: {got}"
+msgstr "favicon відсутній або пошкоджений: {got}"
+
+msgid "no usable SVG favicon: {got}"
+msgstr "немає придатного SVG-favicon: {got}"
+
+msgid "the Apple touch icon is missing or unfit: {got}"
+msgstr "піктограма Apple touch відсутня або непридатна: {got}"
+
+msgid "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead: {got}"
+msgstr "піктограма закріпленої вкладки Safari непридатна; від Safari 12 замість неї править SVG rel=icon: {got}"
+
+msgid "a Windows tile image or browserconfig.xml is broken: {got}"
+msgstr "зображення плитки Windows або browserconfig.xml пошкоджено: {got}"
+
+msgid "icons are not the size or type they declare: {got}"
+msgstr "піктограми не мають розміру чи типу, які заявлено: {got}"
+
+msgid "Lighthouse performance score is {got}, under 0.9"
+msgstr "оцінка продуктивності Lighthouse дорівнює {got}, менше за 0,9"
+
+msgid "Lighthouse accessibility score is {got}, under 0.9"
+msgstr "оцінка доступності Lighthouse дорівнює {got}, менше за 0,9"
+
+msgid "Lighthouse best-practices score is {got}, under 0.9"
+msgstr "оцінка найкращих практик Lighthouse дорівнює {got}, менше за 0,9"
+
+msgid "Lighthouse SEO score is {got}, under 0.9"
+msgstr "SEO-оцінка Lighthouse дорівнює {got}, менше за 0,9"
+
+msgid "LCP is {got} ms in the lab, over 2500 ms"
+msgstr "LCP у лабораторії становить {got} мс, понад 2500 мс"
+
+msgid "CLS is {got} in the lab, over 0.1"
+msgstr "CLS у лабораторії становить {got}, понад 0,1"
+
+msgid "TBT is {got} ms in the lab, over 200 ms"
+msgstr "TBT у лабораторії становить {got} мс, понад 200 мс"
+
+msgid "FCP is {got} ms in the lab, over 1800 ms"
+msgstr "FCP у лабораторії становить {got} мс, понад 1800 мс"
+
+msgid "the SPF record breaks the RFC 7208 grammar, so receivers treat it as a permanent error and ignore it (got {got})"
+msgstr "запис SPF порушує граматику RFC 7208, тому одержувачі вважають це постійною помилкою й ігнорують його ({got})"
+
+msgid "SPF needs {got} DNS lookups counting its includes, over the 10 RFC 7208 allows, so receivers fail it"
+msgstr "SPF потребує {got} DNS-запитів разом з include, більше за 10, дозволених RFC 7208, тому одержувачі його провалюють"
+
+msgid "SPF makes {got} lookups that find nothing, over the 2 RFC 7208 allows, so receivers fail it"
+msgstr "SPF робить {got} запитів без результату, більше за 2, дозволені RFC 7208, тому одержувачі його провалюють"
+
+msgid "SPF uses the ptr mechanism, which RFC 7208 says not to use, since it is slow and unreliable"
+msgstr "SPF використовує механізм ptr, який RFC 7208 радить не вживати, бо він повільний і ненадійний"
+
+msgid "SPF lists mechanisms after all, which receivers never reach (got {got})"
+msgstr "SPF перелічує механізми після all, до яких одержувачі ніколи не доходять ({got})"
+
+msgid "SPF repeats a mechanism, or carries a redirect that all makes unreachable (got {got})"
+msgstr "SPF повторює механізм або містить redirect, який all робить недосяжним ({got})"
+
+msgid "SPF includes or redirects to a name with no single SPF record, a permanent error to receivers (got {got})"
+msgstr "SPF включає або переспрямовує на ім’я без єдиного запису SPF, що для одержувачів є постійною помилкою ({got})"
+
+msgid "the name publishes {got} DMARC records, so receivers discard all of them"
+msgstr "ім’я публікує {got} записів DMARC, тому одержувачі відкидають усі"
+
+msgid "the DMARC record breaks the RFC 9989 grammar (got {got})"
+msgstr "запис DMARC порушує граматику RFC 9989 ({got})"
+
+msgid "the DMARC record sets no sp= policy although the domain serves subdomains, which then inherit p= silently"
+msgstr "запис DMARC не задає політики sp=, хоча домен обслуговує піддомени, які тоді мовчки успадковують p="
+
+msgid "the DMARC policy is in test mode, t=y or pct below 100, so receivers do not apply it to all mail"
+msgstr "політика DMARC у тестовому режимі, t=y або pct менше за 100, тому одержувачі не застосовують її до всієї пошти"
+
+msgid "a DMARC report address is not a mailto: URI, so no report reaches it (got {got})"
+msgstr "адреса звітів DMARC не є URI mailto:, тому жоден звіт до неї не доходить ({got})"
+
+msgid "DMARC sends reports to a domain that does not accept them, so receivers drop them (got {got})"
+msgstr "DMARC надсилає звіти на домен, який їх не приймає, тому одержувачі їх відкидають ({got})"
+
+msgid "no DKIM key found under any common selector; the probe list cannot be complete, so check your provider’s selector"
+msgstr "ключ DKIM не знайдено за жодним поширеним селектором; перелік проб не може бути повним, тож перевірте селектор вашого провайдера"
+
+msgid "a DKIM key record breaks the RFC 6376 grammar, so signatures under it fail (got {got})"
+msgstr "запис ключа DKIM порушує граматику RFC 6376, тому підписи під ним не проходять ({got})"
+
+msgid "a DKIM RSA key is shorter than the 1024 bits RFC 8301 requires, so receivers treat its signatures as absent (got {got})"
+msgstr "ключ DKIM RSA коротший за 1024 біти, яких вимагає RFC 8301, тому одержувачі вважають його підписи відсутніми ({got})"
+
+msgid "a DKIM RSA key is shorter than 2048 bits, which RFC 8301 recommends (got {got})"
+msgstr "ключ DKIM RSA коротший за 2048 бітів, які радить RFC 8301 ({got})"
+
+msgid "a DKIM key still carries the t=y testing flag, so receivers may ignore failed signatures (got {got})"
+msgstr "ключ DKIM досі має тестовий прапорець t=y, тому одержувачі можуть ігнорувати невдалі підписи ({got})"
+
+msgid "a DKIM selector publishes an empty key, which revokes it; fine for a retired selector, not for one in use (got {got})"
+msgstr "селектор DKIM публікує порожній ключ, що його відкликає; нормально для виведеного селектора, але не для чинного ({got})"
+
+msgid "an MX exchange has no A or AAAA record, so mail to it bounces (got {got})"
+msgstr "обмінник MX не має запису A чи AAAA, тому пошта до нього повертається ({got})"
+
+msgid "an MX exchange is a CNAME, which RFC 2181 forbids and some senders refuse (got {got})"
+msgstr "обмінник MX є CNAME, що забороняє RFC 2181 і що деякі відправники відхиляють ({got})"
+
+msgid "an MX exchange is an IP address, not a name, so senders cannot use it (got {got})"
+msgstr "обмінник MX є IP-адресою, а не іменем, тому відправники не можуть його використати ({got})"
+
+msgid "the MX set names an exchange more than once (got {got})"
+msgstr "набір MX називає обмінник більше одного разу ({got})"
+
+msgid "no MTA-STS record, so senders deliver over STARTTLS that an attacker on the path can strip"
+msgstr "немає запису MTA-STS, тому відправники доставляють через STARTTLS, який зловмисник на шляху може вирізати"
+
+msgid "the _mta-sts record breaks the RFC 8461 grammar, so senders ignore the policy (got {got})"
+msgstr "запис _mta-sts порушує граматику RFC 8461, тому відправники ігнорують політику ({got})"
+
+msgid "the MTA-STS policy file does not answer 200 as text/plain or does not parse, so senders ignore it (got {got})"
+msgstr "файл політики MTA-STS не відповідає 200 як text/plain або не розбирається, тому відправники його ігнорують ({got})"
+
+msgid "the MTA-STS policy is in {got} mode, so senders still deliver when TLS fails"
+msgstr "політика MTA-STS у режимі {got}, тому відправники доставляють, навіть коли TLS не вдається"
+
+msgid "the MTA-STS policy covers no mx: pattern for an exchange, so enforcing senders refuse to deliver to it (got {got})"
+msgstr "політика MTA-STS не охоплює жодного шаблону mx: для обмінника, тому відправники, що її застосовують, відмовляються доставляти до нього ({got})"
+
+msgid "the MTA-STS max_age is {got} seconds, under a day, so senders forget the policy between messages"
+msgstr "max_age у MTA-STS становить {got} с, менше за добу, тому відправники забувають політику між листами"
+
+msgid "no TLS-RPT record, so senders cannot report failed TLS deliveries"
+msgstr "немає запису TLS-RPT, тому відправники не можуть повідомляти про невдалі доставки через TLS"
+
+msgid "the TLS-RPT record breaks the RFC 8460 grammar (got {got})"
+msgstr "запис TLS-RPT порушує граматику RFC 8460 ({got})"
+
+msgid "the BIMI record breaks its grammar (got {got})"
+msgstr "запис BIMI порушує свою граматику ({got})"
+
+msgid "BIMI is published but DMARC does not quarantine or reject all mail, so no receiver shows the logo"
+msgstr "BIMI опубліковано, але DMARC не ставить у карантин і не відхиляє всю пошту, тому жоден одержувач не показує логотип"
+
+msgid "the BIMI logo does not load or breaks the SVG Tiny PS profile, so receivers show none (got {got})"
+msgstr "логотип BIMI не завантажується або порушує профіль SVG Tiny PS, тому одержувачі не показують жодного ({got})"
+
+msgid "the BIMI certificate the a= tag names does not load or is not a PEM certificate"
+msgstr "сертифікат BIMI, названий тегом a=, не завантажується або не є сертифікатом PEM"
+
+msgid "an exchange has no DNSSEC-signed TLSA record at _25._tcp, so senders cannot authenticate its certificate (got {got})"
+msgstr "обмінник не має підписаного DNSSEC запису TLSA на _25._tcp, тому відправники не можуть автентифікувати його сертифікат ({got})"
+
+msgid "an exchange does not offer STARTTLS on port 25, so mail to it travels in the clear (got {got})"
+msgstr "обмінник не пропонує STARTTLS на порту 25, тому пошта до нього йде відкрито ({got})"
+
+msgid "an exchange’s STARTTLS certificate does not validate for its name, so MTA-STS and DANE senders refuse it (got {got})"
+msgstr "сертифікат STARTTLS обмінника не підтверджується для його імені, тому відправники з MTA-STS і DANE його відхиляють ({got})"
+
+msgid "an exchange’s 220 banner names a host its address’s PTR does not, which some receivers score as spam (got {got})"
+msgstr "банер 220 обмінника називає хост, якого не називає PTR його адреси, що деякі одержувачі оцінюють як спам ({got})"
+
+msgid "an address sits in a route RPKI marks invalid, so networks that drop invalid routes cannot reach the site"
+msgstr "адреса лежить у маршруті, який RPKI позначає недійсним, тому мережі, що відкидають недійсні маршрути, не можуть дістатися сайту"
+
+msgid "an address sits in a prefix no ROA covers, so a hijack of its route cannot be told apart"
+msgstr "адреса лежить у префіксі, якого не охоплює жоден ROA, тому перехоплення її маршруту не відрізнити"
+
+msgid "a mail exchanger address has no PTR, or its PTR does not resolve back to it, so large mailbox providers refuse its mail"
+msgstr "адреса поштового обмінника не має PTR, або її PTR не розв’язується назад до неї, тому великі поштові провайдери відхиляють її пошту"
+
+msgid "the host and every name server sit in one autonomous system, so one network outage takes the site and its DNS down together (got {got})"
+msgstr "хост і всі сервери імен розташовані в одній автономній системі, тому один збій мережі знімає сайт і його DNS разом ({got})"
+
+msgid "a missing page answers {got}, not 404 or 410"
+msgstr "відсутня сторінка відповідає {got}, а не 404 чи 410"
+
+msgid "the not-found page is not plain HTML free of stack traces and server versions (got {got})"
+msgstr "сторінка «не знайдено» не є чистим HTML без трас стека й версій сервера ({got})"
+
+msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical"
+msgstr "звичайний http не переспрямовує на https одним постійним переходом ({got}); застаріло, див. origin/host-canonical"
+
+msgid "entry variants take more than one hop, or two not starting http to https on the same host: {got}"
+msgstr "варіанти входу потребують більше одного переходу або двох, що не починаються з http на https на тому самому хості: {got}"
+
+msgid "entry variants redirect with a temporary status or a meta refresh: {got}"
+msgstr "варіанти входу переспрямовують із тимчасовим статусом або meta refresh: {got}"
+
+msgid "entry variants lose the requested path or query on the way: {got}"
+msgstr "варіанти входу гублять запитаний шлях чи запит дорогою: {got}"
+
+msgid "entry variants are sent from https back to plain http: {got}"
+msgstr "варіанти входу переспрямовуються з https назад на звичайний http: {got}"
+
+msgid "no DNS answer for the entry host {got}; make sure that is deliberate"
+msgstr "немає DNS-відповіді для хоста входу {got}; переконайтеся, що це навмисно"
+
+msgid "/ lands on {got} different URLs depending on Accept-Language"
+msgstr "/ веде на {got} різних URL залежно від Accept-Language"
+
+msgid "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it"
+msgstr "/ віддається стисненим як {got}; пропонуйте br, zstd і gzip кожному клієнтові, який про це просить"
+
+msgid "/favicon.ico is not an image (got {got})"
+msgstr "/favicon.ico не є зображенням ({got})"
+
+msgid "a conditional request for the seed page answers {got}, not 304 Not Modified"
+msgstr "умовний запит початкової сторінки відповідає {got}, а не 304 Not Modified"
+
+msgid "a cross-domain policy file lets any origin read the site as its visitor: {got}"
+msgstr "файл міждоменної політики дозволяє будь-якому origin читати сайт від імені відвідувача: {got}"
+
+msgid "podcast artwork is missing or unfit: {got}"
+msgstr "обкладинка подкасту відсутня або непридатна: {got}"
+
+msgid "a third-party or tracking cookie is set on first load, before any interaction ({got})"
+msgstr "сторонню або відстежувальну cookie встановлено під час першого завантаження, до будь-якої взаємодії ({got})"
+
+msgid "scripts write localStorage or sessionStorage on first load, before any interaction ({got})"
+msgstr "скрипти пишуть у localStorage чи sessionStorage під час першого завантаження, до будь-якої взаємодії ({got})"
+
+msgid "an SSHFP record names a host key the SSH server does not present, so the record is stale after a key rotation or the connection was intercepted (got {got})"
+msgstr "запис SSHFP називає ключ хоста, якого SSH-сервер не подає, тож запис застарів після ротації ключа або з’єднання перехопили ({got})"
+
+msgid "the SSHFP records were not authenticated by DNSSEC, so an SSH client must not trust them: the zone is unsigned or the resolver does not validate"
+msgstr "записи SSHFP не автентифіковано DNSSEC, тому SSH-клієнт не повинен їм довіряти: зону не підписано або резолвер не перевіряє"
+
+msgid "the host answers SSH but publishes no SSHFP record, so a first connection is trust on first use"
+msgstr "хост відповідає на SSH, але не публікує запису SSHFP, тож перше з’єднання спирається на довіру при першому використанні"
+
+msgid "an SSHFP record names a DSA key or carries a SHA-1 digest with no SHA-256 one beside it (got {got})"
+msgstr "запис SSHFP називає ключ DSA або має дайджест SHA-1 без SHA-256 поруч ({got})"
+
+msgid "the server still accepts {got}, which RFC 6176, RFC 7568 and RFC 8996 retire"
+msgstr "сервер досі приймає {got}, що виводять з обігу RFC 6176, RFC 7568 і RFC 8996"
+
+msgid "the server accepts suites broken outright: {got}"
+msgstr "сервер приймає набори, що зламані остаточно: {got}"
+
+msgid "what the server negotiates leaves it open to {got}"
+msgstr "те, що узгоджує сервер, залишає його відкритим до {got}"
+
+msgid "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}"
+msgstr "сервер приймає набори без прямої секретності, з CBC або з 64-бітним блоком: {got}"
+
+msgid "{got} of the accepted suites give forward secrecy, where all should"
+msgstr "{got} із прийнятих наборів дають пряму секретність, а мали б усі"
+
+msgid "the server’s DHE prime has {got} bits, short of 2048"
+msgstr "просте число DHE сервера має {got} біт, менше за 2048"
+
+msgid "the server compresses TLS records, through which CRIME reads secrets"
+msgstr "сервер стискає записи TLS, через що CRIME читає секрети"
+
+msgid "the server does not answer renegotiation_info, so a renegotiation can be spliced into a session"
+msgstr "сервер не відповідає на renegotiation_info, тому перепогодження можна вшити в сеанс"
+
+msgid "the server lets the client pick a weak suite over a strong one"
+msgstr "сервер дозволяє клієнтові обрати слабкий набір замість сильного"
+
+msgid "the server accepts a needless fallback to an older version instead of refusing it"
+msgstr "сервер приймає непотрібний відкат до старішої версії замість відмови"
+
+msgid "the server offers {got} and no TLS 1.3"
+msgstr "сервер пропонує {got} і не пропонує TLS 1.3"
+
+msgid "the server does not send the intermediate certificates its chain needs, so clients that have not cached them fail"
+msgstr "сервер не надсилає проміжних сертифікатів, потрібних його ланцюжкові, тому клієнти, що не кешували їх, зазнають збою"
+
+msgid "the certificate names an OCSP responder but the server staples no response, so each client asks the CA"
+msgstr "сертифікат називає OCSP-респондер, але сервер не прикріплює відповіді, тож кожен клієнт питає ЦС"
+
+msgid "the server accepts TLS 1.3 early data, which an attacker can replay; non-idempotent requests must answer 425"
+msgstr "сервер приймає ранні дані TLS 1.3, які зловмисник може відтворити; неідемпотентні запити мають відповідати 425"
+
+msgid "no /.well-known/security.txt tells researchers how to report a vulnerability"
+msgstr "жоден /.well-known/security.txt не підказує дослідникам, як повідомити про вразливість"
+
+msgid "/.well-known/security.txt breaks RFC 9116: {got}"
+msgstr "/.well-known/security.txt порушує RFC 9116: {got}"
+
+msgid "/.well-known/security.txt expires in {got} days, not within the next year"
+msgstr "/.well-known/security.txt спливає через {got} днів, а не протягом наступного року"
+
+msgid "a crawled page asks for a password, but /.well-known/change-password leads nowhere"
+msgstr "просканована сторінка запитує пароль, але /.well-known/change-password нікуди не веде"
+
+msgid "/.well-known/gpc.json is malformed: {got}"
+msgstr "/.well-known/gpc.json неправильно сформовано: {got}"
+
+msgid "/.well-known/api-catalog is malformed: {got}"
+msgstr "/.well-known/api-catalog неправильно сформовано: {got}"
+
+msgid "/.well-known/openid-configuration is malformed: {got}"
+msgstr "/.well-known/openid-configuration неправильно сформовано: {got}"
+
+msgid "/.well-known/oauth-authorization-server is malformed: {got}"
+msgstr "/.well-known/oauth-authorization-server неправильно сформовано: {got}"
+
+msgid "/.well-known/oauth-protected-resource is malformed: {got}"
+msgstr "/.well-known/oauth-protected-resource неправильно сформовано: {got}"
+
+msgid "/.well-known/webauthn is malformed: {got}"
+msgstr "/.well-known/webauthn неправильно сформовано: {got}"
+
+msgid "/.well-known/apple-app-site-association is malformed: {got}"
+msgstr "/.well-known/apple-app-site-association неправильно сформовано: {got}"
+
+msgid "/.well-known/assetlinks.json is malformed: {got}"
+msgstr "/.well-known/assetlinks.json неправильно сформовано: {got}"
+
+msgid "/.well-known/nodeinfo is malformed: {got}"
+msgstr "/.well-known/nodeinfo неправильно сформовано: {got}"
+
+msgid "/.well-known/traffic-advice is malformed: {got}"
+msgstr "/.well-known/traffic-advice неправильно сформовано: {got}"
+
+msgid "/.well-known/tdmrep.json is malformed: {got}"
+msgstr "/.well-known/tdmrep.json неправильно сформовано: {got}"
+
+msgid "the crawl links /.well-known/ suffixes IANA has not registered: {got}"
+msgstr "сканування посилається на суфікси /.well-known/, яких IANA не зареєструвала: {got}"
+
+msgid "declared WebSub hub does not answer: {got}"
+msgstr "оголошений хаб WebSub не відповідає: {got}"

@@ -836,3 +836,510 @@ msgstr "X-Content-Type-Options debe ser nosniff, se encontró {got}"
 
 msgid "X-XSS-Protection should be absent or 0, found {got}"
 msgstr "X-XSS-Protection debe estar ausente o ser 0, se encontró {got}"
+
+msgid "no /llms.txt summarises the site for language models"
+msgstr "ningún /llms.txt resume el sitio para los modelos de lenguaje"
+
+msgid "/llms.txt is malformed: {got}"
+msgstr "/llms.txt está mal formado: {got}"
+
+msgid "/llms.txt has no /llms-full.txt twin carrying the whole content"
+msgstr "/llms.txt no tiene un gemelo /llms-full.txt con todo el contenido"
+
+msgid "/llms-full.txt is malformed: {got}"
+msgstr "/llms-full.txt está mal formado: {got}"
+
+msgid "/.well-known/agent-card.json is malformed: {got}"
+msgstr "/.well-known/agent-card.json está mal formado: {got}"
+
+msgid "/.well-known/ai-catalog.json is malformed: {got}"
+msgstr "/.well-known/ai-catalog.json está mal formado: {got}"
+
+msgid "/.well-known/mcp/server-card.json is malformed: {got}"
+msgstr "/.well-known/mcp/server-card.json está mal formado: {got}"
+
+msgid "/.well-known/agent-skills/index.json is malformed: {got}"
+msgstr "/.well-known/agent-skills/index.json está mal formado: {got}"
+
+msgid "/okf/index.md is malformed: {got}"
+msgstr "/okf/index.md está mal formado: {got}"
+
+msgid "/schemamap.xml is malformed: {got}"
+msgstr "/schemamap.xml está mal formado: {got}"
+
+msgid "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one"
+msgstr "sin fuente Markdown: ni un gemelo .md ni Accept: text/markdown responden con una"
+
+msgid "a cookie is set without the Secure flag"
+msgstr "una cookie se fija sin la marca Secure"
+
+msgid "a cookie is set without a SameSite attribute"
+msgstr "una cookie se fija sin atributo SameSite"
+
+msgid "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it"
+msgstr "una cookie __Host- no tiene Secure ni Path=/, o fija Domain, así que los navegadores la rechazan"
+
+msgid "a __Secure- cookie lacks Secure, so browsers reject it"
+msgstr "una cookie __Secure- no tiene Secure, así que los navegadores la rechazan"
+
+msgid "a SameSite=None cookie lacks Secure, so browsers reject it"
+msgstr "una cookie SameSite=None no tiene Secure, así que los navegadores la rechazan"
+
+msgid "a cookie outlives 400 days, which browsers cap"
+msgstr "una cookie dura más de 400 días, que es el tope de los navegadores"
+
+msgid "no carbon.txt discloses the site’s sustainability documents and providers"
+msgstr "ningún carbon.txt revela los documentos de sostenibilidad ni los proveedores del sitio"
+
+msgid "carbon.txt is malformed: {got}"
+msgstr "carbon.txt está mal formado: {got}"
+
+msgid "carbon.txt names disclosures past their valid_until: {got}"
+msgstr "carbon.txt nombra declaraciones pasadas de su valid_until: {got}"
+
+msgid "carbon.txt was last updated {got} days ago, more than a year"
+msgstr "carbon.txt se actualizó por última vez hace {got} días, más de un año"
+
+msgid "a cookie is set without the HttpOnly flag"
+msgstr "una cookie se fija sin la marca HttpOnly"
+
+msgid "no HTTPS record, so a first visit learns h3 and ECH only from Alt-Svc, one connection late"
+msgstr "no hay registro HTTPS, así que una primera visita se entera de h3 y ECH solo por Alt-Svc, una conexión tarde"
+
+msgid "the HTTPS record and Alt-Svc disagree about h3 (got {got})"
+msgstr "el registro HTTPS y Alt-Svc no coinciden sobre h3 ({got})"
+
+msgid "ipv4hint or ipv6hint does not match the A and AAAA records"
+msgstr "ipv4hint o ipv6hint no coincide con los registros A y AAAA"
+
+msgid "no CAA issue or issuewild record on the host or any parent, so any CA may issue for it"
+msgstr "no hay registro CAA issue ni issuewild en el host ni en ningún padre, así que cualquier CA puede emitir para él"
+
+msgid "CAA does not allow the CA that issued the served certificate (got {got})"
+msgstr "CAA no permite a la CA que emitió el certificado servido ({got})"
+
+msgid "CAA names no iodef address for refused issuance reports"
+msgstr "CAA no nombra una dirección iodef para los informes de emisión rechazada"
+
+msgid "CAA marks a tag outside RFC 8659 critical, so a CA that does not know it refuses to issue at all (got {got})"
+msgstr "CAA marca como crítica una etiqueta ajena a la RFC 8659, así que una CA que no la conoce se niega a emitir ({got})"
+
+msgid "no AAAA record, so the host is unreachable over IPv6"
+msgstr "no hay registro AAAA, así que el host es inalcanzable por IPv6"
+
+msgid "the name resolves through {got} of CNAME hops"
+msgstr "el nombre se resuelve a través de {got} saltos CNAME"
+
+msgid "the name is a CNAME to a name that does not exist, open to takeover (got {got})"
+msgstr "el nombre es un CNAME a un nombre que no existe, expuesto a secuestro ({got})"
+
+msgid "the zone is not signed with DNSSEC"
+msgstr "la zona no está firmada con DNSSEC"
+
+msgid "the zone is signed but fails validation, so every validating resolver answers SERVFAIL"
+msgstr "la zona está firmada pero falla la validación, así que todo resolvedor que valida responde SERVFAIL"
+
+msgid "the zone signs or digests with an algorithm RFC 8624 forbids"
+msgstr "la zona firma o resume con un algoritmo que la RFC 8624 prohíbe"
+
+msgid "less than a quarter of the host’s signature validity is left, so re-signing has stalled (got {got})"
+msgstr "queda menos de un cuarto de la validez de la firma del host, así que la refirma se ha detenido ({got})"
+
+msgid "NSEC3 uses extra iterations or a salt (got {got})"
+msgstr "NSEC3 usa iteraciones extra o una sal ({got})"
+
+msgid "the zone has {got} name servers, fewer than 2"
+msgstr "la zona tiene {got} servidores de nombres, menos de 2"
+
+msgid "a name server is lame or the servers disagree on the SOA serial (got {got})"
+msgstr "un servidor de nombres es lame o los servidores no coinciden en el serial SOA ({got})"
+
+msgid "the name servers give {got} different answers for the host, so what a visitor reaches depends on which one their resolver asks"
+msgstr "los servidores de nombres dan {got} respuestas distintas para el host, así que lo que alcanza un visitante depende de cuál consulte su resolvedor"
+
+msgid "the configured resolver answers the host differently from its name servers, a cached old answer or a split view"
+msgstr "el resolvedor configurado responde distinto a sus servidores de nombres: una respuesta antigua en caché o una vista dividida"
+
+msgid "the compared resolvers disagree on whether the host resolves (got {got}); a SERVFAIL on a validating resolver alone points at DNSSEC"
+msgstr "los resolvedores comparados no coinciden en si el host se resuelve ({got}); un SERVFAIL solo en un resolvedor que valida apunta a DNSSEC"
+
+msgid "the compared resolvers give {got} different answers for the host; geo-DNS does this on purpose, a stale or split view does not"
+msgstr "los resolvedores comparados dan {got} respuestas distintas para el host; el DNS geográfico lo hace a propósito, una vista obsoleta o dividida no"
+
+msgid "some compared resolvers validate the signed zone and some do not (got {got})"
+msgstr "algunos resolvedores comparados validan la zona firmada y otros no ({got})"
+
+msgid "the parent zone delegates to other name servers than the zone’s own NS records, so resolvers reach a server the zone disowns (got {got})"
+msgstr "la zona padre delega en otros servidores de nombres que los registros NS de la propia zona, así que los resolvedores llegan a un servidor que la zona desconoce ({got})"
+
+msgid "the zone apex is a CNAME to {got}, which cannot sit beside the apex’s SOA and NS records"
+msgstr "el ápice de la zona es un CNAME a {got}, que no puede convivir con los registros SOA y NS del ápice"
+
+msgid "the SOA {field} is {got}, outside what RFC 1912 §2.2 recommends: refresh 1200–43200 s, retry below refresh, expire 1209600–2419200 s, minimum 300–86400 s, a listed name server as primary"
+msgstr "el {field} del SOA es {got}, fuera de lo que recomienda la RFC 1912 §2.2: refresh 1200–43200 s, retry por debajo de refresh, expire 1209600–2419200 s, minimum 300–86400 s, un servidor de nombres listado como primario"
+
+msgid "a record TTL sits outside 300 seconds to one day, two for NS; fine just before a migration, costly otherwise (got {got})"
+msgstr "un TTL de registro está fuera del rango de 300 segundos a un día, dos para NS; está bien justo antes de una migración, pero cuesta en otro caso ({got})"
+
+msgid "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning"
+msgstr "un servidor de nombres autoritativo responde consultas recursivas de cualquier nombre, lo que lo expone a ataques de amplificación y envenenamiento de caché"
+
+msgid "the domain registration expires in {got} days"
+msgstr "el registro del dominio vence en {got} días"
+
+msgid "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses"
+msgstr "el registro del dominio vence en {got} días, y el sitio y su correo dejan de resolverse cuando caduque"
+
+msgid "the registration carries no transfer lock, so whoever takes over the registrar account can move the domain away (status {got})"
+msgstr "el registro no lleva bloqueo de transferencia, así que quien tome la cuenta del registrador puede llevarse el dominio (estado {got})"
+
+msgid "the name servers the registry lists differ from the zone’s own NS records"
+msgstr "los servidores de nombres que lista el registro difieren de los registros NS de la propia zona"
+
+msgid "every name server address sits in one /24 or /48"
+msgstr "todas las direcciones de los servidores de nombres están en un solo /24 o /48"
+
+msgid "no null MX, so senders fall back to the name’s A or AAAA address and retry mail it never takes for days (got {got})"
+msgstr "no hay MX nulo, así que los remitentes recurren a la dirección A o AAAA del nombre y reintentan durante días un correo que nunca recibe ({got})"
+
+msgid "SPF is not a lone v=spf1 -all, so receivers cannot refuse mail forged from this name (got {got})"
+msgstr "SPF no es un v=spf1 -all solitario, así que los receptores no pueden rechazar correo falsificado desde este nombre ({got})"
+
+msgid "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})"
+msgstr "ninguna política DMARC de rechazo se aplica al nombre, así que los receptores aceptan correo falsificado desde él ({got})"
+
+msgid "a null MX on a name that takes or sends mail, so senders may drop mail to it and receivers may refuse mail from it (got {got})"
+msgstr "un MX nulo en un nombre que recibe o envía correo, así que los remitentes pueden descartar el correo hacia él y los receptores rechazar el que sale de él ({got})"
+
+msgid "a name that takes or sends mail needs exactly one v=spf1 record, since none lets anyone send as it and two fail every check (got {got})"
+msgstr "un nombre que recibe o envía correo necesita exactamente un registro v=spf1, pues ninguno deja a nadie enviar como él y dos hacen fallar toda comprobación ({got})"
+
+msgid "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})"
+msgstr "SPF no termina en -all ni ~all, así que los receptores dejan que cualquier servidor envíe como este nombre ({got})"
+
+msgid "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})"
+msgstr "ninguna política DMARC de cuarentena o rechazo se aplica a un nombre que recibe o envía correo, así que los receptores entregan correo falsificado desde él ({got})"
+
+msgid "the favicon is missing or broken: {got}"
+msgstr "falta el favicon o está roto: {got}"
+
+msgid "no usable SVG favicon: {got}"
+msgstr "no hay un favicon SVG utilizable: {got}"
+
+msgid "the Apple touch icon is missing or unfit: {got}"
+msgstr "falta el icono táctil de Apple o no es apto: {got}"
+
+msgid "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead: {got}"
+msgstr "el icono de pestaña fijada de Safari es inutilizable; desde Safari 12 sirve en su lugar un rel=icon SVG: {got}"
+
+msgid "a Windows tile image or browserconfig.xml is broken: {got}"
+msgstr "una imagen de mosaico de Windows o browserconfig.xml está rota: {got}"
+
+msgid "icons are not the size or type they declare: {got}"
+msgstr "los iconos no tienen el tamaño ni el tipo que declaran: {got}"
+
+msgid "Lighthouse performance score is {got}, under 0.9"
+msgstr "la puntuación de rendimiento de Lighthouse es {got}, inferior a 0,9"
+
+msgid "Lighthouse accessibility score is {got}, under 0.9"
+msgstr "la puntuación de accesibilidad de Lighthouse es {got}, inferior a 0,9"
+
+msgid "Lighthouse best-practices score is {got}, under 0.9"
+msgstr "la puntuación de buenas prácticas de Lighthouse es {got}, inferior a 0,9"
+
+msgid "Lighthouse SEO score is {got}, under 0.9"
+msgstr "la puntuación SEO de Lighthouse es {got}, inferior a 0,9"
+
+msgid "LCP is {got} ms in the lab, over 2500 ms"
+msgstr "el LCP es {got} ms en laboratorio, más de 2500 ms"
+
+msgid "CLS is {got} in the lab, over 0.1"
+msgstr "el CLS es {got} en laboratorio, más de 0,1"
+
+msgid "TBT is {got} ms in the lab, over 200 ms"
+msgstr "el TBT es {got} ms en laboratorio, más de 200 ms"
+
+msgid "FCP is {got} ms in the lab, over 1800 ms"
+msgstr "el FCP es {got} ms en laboratorio, más de 1800 ms"
+
+msgid "the SPF record breaks the RFC 7208 grammar, so receivers treat it as a permanent error and ignore it (got {got})"
+msgstr "el registro SPF incumple la gramática de la RFC 7208, así que los receptores lo tratan como un error permanente y lo ignoran ({got})"
+
+msgid "SPF needs {got} DNS lookups counting its includes, over the 10 RFC 7208 allows, so receivers fail it"
+msgstr "SPF necesita {got} consultas DNS contando sus include, más de las 10 que permite la RFC 7208, así que los receptores lo hacen fallar"
+
+msgid "SPF makes {got} lookups that find nothing, over the 2 RFC 7208 allows, so receivers fail it"
+msgstr "SPF hace {got} consultas que no encuentran nada, más de las 2 que permite la RFC 7208, así que los receptores lo hacen fallar"
+
+msgid "SPF uses the ptr mechanism, which RFC 7208 says not to use, since it is slow and unreliable"
+msgstr "SPF usa el mecanismo ptr, que la RFC 7208 desaconseja por ser lento y poco fiable"
+
+msgid "SPF lists mechanisms after all, which receivers never reach (got {got})"
+msgstr "SPF lista mecanismos después de all, que los receptores nunca alcanzan ({got})"
+
+msgid "SPF repeats a mechanism, or carries a redirect that all makes unreachable (got {got})"
+msgstr "SPF repite un mecanismo, o lleva un redirect que all vuelve inalcanzable ({got})"
+
+msgid "SPF includes or redirects to a name with no single SPF record, a permanent error to receivers (got {got})"
+msgstr "SPF incluye o redirige a un nombre sin un único registro SPF, un error permanente para los receptores ({got})"
+
+msgid "the name publishes {got} DMARC records, so receivers discard all of them"
+msgstr "el nombre publica {got} registros DMARC, así que los receptores descartan todos"
+
+msgid "the DMARC record breaks the RFC 9989 grammar (got {got})"
+msgstr "el registro DMARC incumple la gramática de la RFC 9989 ({got})"
+
+msgid "the DMARC record sets no sp= policy although the domain serves subdomains, which then inherit p= silently"
+msgstr "el registro DMARC no fija política sp= aunque el dominio sirve subdominios, que entonces heredan p= en silencio"
+
+msgid "the DMARC policy is in test mode, t=y or pct below 100, so receivers do not apply it to all mail"
+msgstr "la política DMARC está en modo de prueba, t=y o pct por debajo de 100, así que los receptores no la aplican a todo el correo"
+
+msgid "a DMARC report address is not a mailto: URI, so no report reaches it (got {got})"
+msgstr "una dirección de informes DMARC no es un URI mailto:, así que ningún informe le llega ({got})"
+
+msgid "DMARC sends reports to a domain that does not accept them, so receivers drop them (got {got})"
+msgstr "DMARC envía informes a un dominio que no los acepta, así que los receptores los descartan ({got})"
+
+msgid "no DKIM key found under any common selector; the probe list cannot be complete, so check your provider’s selector"
+msgstr "no se encontró clave DKIM bajo ningún selector común; la lista de sondeo no puede ser completa, así que revisa el selector de tu proveedor"
+
+msgid "a DKIM key record breaks the RFC 6376 grammar, so signatures under it fail (got {got})"
+msgstr "un registro de clave DKIM incumple la gramática de la RFC 6376, así que las firmas bajo él fallan ({got})"
+
+msgid "a DKIM RSA key is shorter than the 1024 bits RFC 8301 requires, so receivers treat its signatures as absent (got {got})"
+msgstr "una clave RSA de DKIM es más corta que los 1024 bits que exige la RFC 8301, así que los receptores tratan sus firmas como ausentes ({got})"
+
+msgid "a DKIM RSA key is shorter than 2048 bits, which RFC 8301 recommends (got {got})"
+msgstr "una clave RSA de DKIM es más corta que los 2048 bits que recomienda la RFC 8301 ({got})"
+
+msgid "a DKIM key still carries the t=y testing flag, so receivers may ignore failed signatures (got {got})"
+msgstr "una clave DKIM aún lleva la marca de prueba t=y, así que los receptores pueden ignorar las firmas fallidas ({got})"
+
+msgid "a DKIM selector publishes an empty key, which revokes it; fine for a retired selector, not for one in use (got {got})"
+msgstr "un selector DKIM publica una clave vacía, lo que la revoca; bien para un selector retirado, no para uno en uso ({got})"
+
+msgid "an MX exchange has no A or AAAA record, so mail to it bounces (got {got})"
+msgstr "un intercambiador MX no tiene registro A ni AAAA, así que el correo hacia él rebota ({got})"
+
+msgid "an MX exchange is a CNAME, which RFC 2181 forbids and some senders refuse (got {got})"
+msgstr "un intercambiador MX es un CNAME, que la RFC 2181 prohíbe y algunos remitentes rechazan ({got})"
+
+msgid "an MX exchange is an IP address, not a name, so senders cannot use it (got {got})"
+msgstr "un intercambiador MX es una dirección IP, no un nombre, así que los remitentes no pueden usarlo ({got})"
+
+msgid "the MX set names an exchange more than once (got {got})"
+msgstr "el conjunto MX nombra un intercambiador más de una vez ({got})"
+
+msgid "no MTA-STS record, so senders deliver over STARTTLS that an attacker on the path can strip"
+msgstr "no hay registro MTA-STS, así que los remitentes entregan sobre STARTTLS, que un atacante en la ruta puede eliminar"
+
+msgid "the _mta-sts record breaks the RFC 8461 grammar, so senders ignore the policy (got {got})"
+msgstr "el registro _mta-sts incumple la gramática de la RFC 8461, así que los remitentes ignoran la política ({got})"
+
+msgid "the MTA-STS policy file does not answer 200 as text/plain or does not parse, so senders ignore it (got {got})"
+msgstr "el archivo de política MTA-STS no responde 200 como text/plain o no se interpreta, así que los remitentes lo ignoran ({got})"
+
+msgid "the MTA-STS policy is in {got} mode, so senders still deliver when TLS fails"
+msgstr "la política MTA-STS está en modo {got}, así que los remitentes entregan aunque falle TLS"
+
+msgid "the MTA-STS policy covers no mx: pattern for an exchange, so enforcing senders refuse to deliver to it (got {got})"
+msgstr "la política MTA-STS no cubre ningún patrón mx: para un intercambiador, así que los remitentes que la aplican se niegan a entregarle ({got})"
+
+msgid "the MTA-STS max_age is {got} seconds, under a day, so senders forget the policy between messages"
+msgstr "el max_age de MTA-STS es {got} segundos, menos de un día, así que los remitentes olvidan la política entre mensajes"
+
+msgid "no TLS-RPT record, so senders cannot report failed TLS deliveries"
+msgstr "no hay registro TLS-RPT, así que los remitentes no pueden informar de entregas TLS fallidas"
+
+msgid "the TLS-RPT record breaks the RFC 8460 grammar (got {got})"
+msgstr "el registro TLS-RPT incumple la gramática de la RFC 8460 ({got})"
+
+msgid "the BIMI record breaks its grammar (got {got})"
+msgstr "el registro BIMI incumple su gramática ({got})"
+
+msgid "BIMI is published but DMARC does not quarantine or reject all mail, so no receiver shows the logo"
+msgstr "BIMI está publicado pero DMARC no pone en cuarentena ni rechaza todo el correo, así que ningún receptor muestra el logotipo"
+
+msgid "the BIMI logo does not load or breaks the SVG Tiny PS profile, so receivers show none (got {got})"
+msgstr "el logotipo BIMI no carga o incumple el perfil SVG Tiny PS, así que los receptores no muestran ninguno ({got})"
+
+msgid "the BIMI certificate the a= tag names does not load or is not a PEM certificate"
+msgstr "el certificado BIMI que nombra la etiqueta a= no carga o no es un certificado PEM"
+
+msgid "an exchange has no DNSSEC-signed TLSA record at _25._tcp, so senders cannot authenticate its certificate (got {got})"
+msgstr "un intercambiador no tiene registro TLSA firmado con DNSSEC en _25._tcp, así que los remitentes no pueden autenticar su certificado ({got})"
+
+msgid "an exchange does not offer STARTTLS on port 25, so mail to it travels in the clear (got {got})"
+msgstr "un intercambiador no ofrece STARTTLS en el puerto 25, así que el correo hacia él viaja en claro ({got})"
+
+msgid "an exchange’s STARTTLS certificate does not validate for its name, so MTA-STS and DANE senders refuse it (got {got})"
+msgstr "el certificado STARTTLS de un intercambiador no valida para su nombre, así que los remitentes con MTA-STS y DANE lo rechazan ({got})"
+
+msgid "an exchange’s 220 banner names a host its address’s PTR does not, which some receivers score as spam (got {got})"
+msgstr "el banner 220 de un intercambiador nombra un host que el PTR de su dirección no nombra, algo que algunos receptores puntúan como spam ({got})"
+
+msgid "an address sits in a route RPKI marks invalid, so networks that drop invalid routes cannot reach the site"
+msgstr "una dirección está en una ruta que RPKI marca como inválida, así que las redes que descartan rutas inválidas no pueden alcanzar el sitio"
+
+msgid "an address sits in a prefix no ROA covers, so a hijack of its route cannot be told apart"
+msgstr "una dirección está en un prefijo que ningún ROA cubre, así que un secuestro de su ruta no se puede distinguir"
+
+msgid "a mail exchanger address has no PTR, or its PTR does not resolve back to it, so large mailbox providers refuse its mail"
+msgstr "la dirección de un intercambiador de correo no tiene PTR, o su PTR no resuelve de vuelta a ella, así que los grandes proveedores de buzones rechazan su correo"
+
+msgid "the host and every name server sit in one autonomous system, so one network outage takes the site and its DNS down together (got {got})"
+msgstr "el host y todos los servidores de nombres están en un solo sistema autónomo, así que una caída de esa red tumba el sitio y su DNS a la vez ({got})"
+
+msgid "a missing page answers {got}, not 404 or 410"
+msgstr "una página inexistente responde {got}, no 404 ni 410"
+
+msgid "the not-found page is not plain HTML free of stack traces and server versions (got {got})"
+msgstr "la página de no encontrado no es HTML limpio, sin trazas de pila ni versiones del servidor ({got})"
+
+msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical"
+msgstr "http simple no redirige a https en un salto permanente ({got}); obsoleto, véase origin/host-canonical"
+
+msgid "entry variants take more than one hop, or two not starting http to https on the same host: {got}"
+msgstr "las variantes de entrada tardan más de un salto, o dos que no empiezan de http a https en el mismo host: {got}"
+
+msgid "entry variants redirect with a temporary status or a meta refresh: {got}"
+msgstr "las variantes de entrada redirigen con un estado temporal o un meta refresh: {got}"
+
+msgid "entry variants lose the requested path or query on the way: {got}"
+msgstr "las variantes de entrada pierden la ruta o la consulta pedida por el camino: {got}"
+
+msgid "entry variants are sent from https back to plain http: {got}"
+msgstr "las variantes de entrada se envían de https de vuelta a http simple: {got}"
+
+msgid "no DNS answer for the entry host {got}; make sure that is deliberate"
+msgstr "no hay respuesta DNS para el host de entrada {got}; asegúrate de que es deliberado"
+
+msgid "/ lands on {got} different URLs depending on Accept-Language"
+msgstr "/ acaba en {got} URLs distintas según Accept-Language"
+
+msgid "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it"
+msgstr "/ se sirve comprimido como {got}; ofrece br, zstd y gzip, cada uno a los clientes que lo piden"
+
+msgid "/favicon.ico is not an image (got {got})"
+msgstr "/favicon.ico no es una imagen ({got})"
+
+msgid "a conditional request for the seed page answers {got}, not 304 Not Modified"
+msgstr "una petición condicional de la página inicial responde {got}, no 304 Not Modified"
+
+msgid "a cross-domain policy file lets any origin read the site as its visitor: {got}"
+msgstr "un archivo de política entre dominios deja que cualquier origen lea el sitio como su visitante: {got}"
+
+msgid "podcast artwork is missing or unfit: {got}"
+msgstr "falta la carátula del pódcast o no es apta: {got}"
+
+msgid "a third-party or tracking cookie is set on first load, before any interaction ({got})"
+msgstr "se fija una cookie de terceros o de seguimiento en la primera carga, antes de cualquier interacción ({got})"
+
+msgid "scripts write localStorage or sessionStorage on first load, before any interaction ({got})"
+msgstr "los scripts escriben en localStorage o sessionStorage en la primera carga, antes de cualquier interacción ({got})"
+
+msgid "an SSHFP record names a host key the SSH server does not present, so the record is stale after a key rotation or the connection was intercepted (got {got})"
+msgstr "un registro SSHFP nombra una clave de host que el servidor SSH no presenta, así que el registro quedó obsoleto tras rotar claves o la conexión fue interceptada ({got})"
+
+msgid "the SSHFP records were not authenticated by DNSSEC, so an SSH client must not trust them: the zone is unsigned or the resolver does not validate"
+msgstr "los registros SSHFP no fueron autenticados por DNSSEC, así que un cliente SSH no debe confiar en ellos: la zona no está firmada o el resolvedor no valida"
+
+msgid "the host answers SSH but publishes no SSHFP record, so a first connection is trust on first use"
+msgstr "el host responde SSH pero no publica registro SSHFP, así que una primera conexión es de confianza en el primer uso"
+
+msgid "an SSHFP record names a DSA key or carries a SHA-1 digest with no SHA-256 one beside it (got {got})"
+msgstr "un registro SSHFP nombra una clave DSA o lleva un resumen SHA-1 sin uno SHA-256 al lado ({got})"
+
+msgid "the server still accepts {got}, which RFC 6176, RFC 7568 and RFC 8996 retire"
+msgstr "el servidor aún acepta {got}, que retiran la RFC 6176, la RFC 7568 y la RFC 8996"
+
+msgid "the server accepts suites broken outright: {got}"
+msgstr "el servidor acepta suites rotas de plano: {got}"
+
+msgid "what the server negotiates leaves it open to {got}"
+msgstr "lo que el servidor negocia lo deja expuesto a {got}"
+
+msgid "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}"
+msgstr "el servidor acepta suites sin secreto perfecto hacia adelante, con CBC o con bloque de 64 bits: {got}"
+
+msgid "{got} of the accepted suites give forward secrecy, where all should"
+msgstr "{got} de las suites aceptadas dan secreto perfecto hacia adelante, cuando todas deberían"
+
+msgid "the server’s DHE prime has {got} bits, short of 2048"
+msgstr "el primo DHE del servidor tiene {got} bits, menos de 2048"
+
+msgid "the server compresses TLS records, through which CRIME reads secrets"
+msgstr "el servidor comprime los registros TLS, por donde CRIME lee secretos"
+
+msgid "the server does not answer renegotiation_info, so a renegotiation can be spliced into a session"
+msgstr "el servidor no responde renegotiation_info, así que una renegociación puede empalmarse en una sesión"
+
+msgid "the server lets the client pick a weak suite over a strong one"
+msgstr "el servidor deja que el cliente elija una suite débil sobre una fuerte"
+
+msgid "the server accepts a needless fallback to an older version instead of refusing it"
+msgstr "el servidor acepta un retroceso innecesario a una versión anterior en lugar de rechazarlo"
+
+msgid "the server offers {got} and no TLS 1.3"
+msgstr "el servidor ofrece {got} y no TLS 1.3"
+
+msgid "the server does not send the intermediate certificates its chain needs, so clients that have not cached them fail"
+msgstr "el servidor no envía los certificados intermedios que necesita su cadena, así que los clientes que no los tienen en caché fallan"
+
+msgid "the certificate names an OCSP responder but the server staples no response, so each client asks the CA"
+msgstr "el certificado nombra un respondedor OCSP pero el servidor no grapa respuesta, así que cada cliente consulta a la CA"
+
+msgid "the server accepts TLS 1.3 early data, which an attacker can replay; non-idempotent requests must answer 425"
+msgstr "el servidor acepta datos tempranos de TLS 1.3, que un atacante puede repetir; las peticiones no idempotentes deben responder 425"
+
+msgid "no /.well-known/security.txt tells researchers how to report a vulnerability"
+msgstr "ningún /.well-known/security.txt dice a los investigadores cómo informar de una vulnerabilidad"
+
+msgid "/.well-known/security.txt breaks RFC 9116: {got}"
+msgstr "/.well-known/security.txt incumple la RFC 9116: {got}"
+
+msgid "/.well-known/security.txt expires in {got} days, not within the next year"
+msgstr "/.well-known/security.txt vence en {got} días, no dentro del próximo año"
+
+msgid "a crawled page asks for a password, but /.well-known/change-password leads nowhere"
+msgstr "una página rastreada pide una contraseña, pero /.well-known/change-password no lleva a ninguna parte"
+
+msgid "/.well-known/gpc.json is malformed: {got}"
+msgstr "/.well-known/gpc.json está mal formado: {got}"
+
+msgid "/.well-known/api-catalog is malformed: {got}"
+msgstr "/.well-known/api-catalog está mal formado: {got}"
+
+msgid "/.well-known/openid-configuration is malformed: {got}"
+msgstr "/.well-known/openid-configuration está mal formado: {got}"
+
+msgid "/.well-known/oauth-authorization-server is malformed: {got}"
+msgstr "/.well-known/oauth-authorization-server está mal formado: {got}"
+
+msgid "/.well-known/oauth-protected-resource is malformed: {got}"
+msgstr "/.well-known/oauth-protected-resource está mal formado: {got}"
+
+msgid "/.well-known/webauthn is malformed: {got}"
+msgstr "/.well-known/webauthn está mal formado: {got}"
+
+msgid "/.well-known/apple-app-site-association is malformed: {got}"
+msgstr "/.well-known/apple-app-site-association está mal formado: {got}"
+
+msgid "/.well-known/assetlinks.json is malformed: {got}"
+msgstr "/.well-known/assetlinks.json está mal formado: {got}"
+
+msgid "/.well-known/nodeinfo is malformed: {got}"
+msgstr "/.well-known/nodeinfo está mal formado: {got}"
+
+msgid "/.well-known/traffic-advice is malformed: {got}"
+msgstr "/.well-known/traffic-advice está mal formado: {got}"
+
+msgid "/.well-known/tdmrep.json is malformed: {got}"
+msgstr "/.well-known/tdmrep.json está mal formado: {got}"
+
+msgid "the crawl links /.well-known/ suffixes IANA has not registered: {got}"
+msgstr "el rastreo enlaza sufijos de /.well-known/ que IANA no ha registrado: {got}"
+
+msgid "declared WebSub hub does not answer: {got}"
+msgstr "el hub WebSub declarado no responde: {got}"
