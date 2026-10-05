@@ -39,20 +39,17 @@ const CHECKS: Check[] = [
     { name: "same-site", item: { required: ["same-site"] }, severity: "info", score: 2.4, message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
     {
         name: "host-prefix",
-        // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
-        item: { if: { properties: { name: { pattern: "^(?i:__Host-)" } } }, then: { properties: { secure: { const: true }, path: { const: "/" } }, required: ["path"], not: { required: ["domain"] } } },
+        item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Host-)" } } } }, { properties: { secure: { const: true }, path: { const: "/" } }, required: ["path"], not: { required: ["domain"] } }] },
         severity: "warning",
         score: 6,
         message: "a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes",
         fix: "Add Secure and Path=/, and omit Domain, from every __Host- cookie.",
     },
-    // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
-    { name: "secure-prefix", item: { if: { properties: { name: { pattern: "^(?i:__Secure-)" } } }, then: { properties: { secure: { const: true } } } }, severity: "warning", score: 5.8, message: "a __Secure- cookie lacks Secure, so browsers reject it", fix: "Add Secure to every __Secure- cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes" },
+    { name: "secure-prefix", item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Secure-)" } } } }, { properties: { secure: { const: true } } }] }, severity: "warning", score: 5.8, message: "a __Secure- cookie lacks Secure, so browsers reject it", fix: "Add Secure to every __Secure- cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes" },
     {
         name: "same-site-none",
-        // eslint-disable-next-line unicorn/no-thenable -- JSON Schema’s if/then keyword
-        item: { if: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] }, then: { properties: { secure: { const: true } } } },
+        item: { anyOf: [{ not: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] } }, { properties: { secure: { const: true } } }] },
         severity: "warning",
         score: 6.3,
         message: "a SameSite=None cookie lacks Secure, so browsers reject it",
