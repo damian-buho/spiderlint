@@ -15,6 +15,8 @@
     "start": "node --experimental-strip-types src/cli.ts",
     "lint": "eslint ./",
     "fix": "eslint ./ --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" bin/spiderlint.js eslint.config.js",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" bin/spiderlint.js eslint.config.js",
     "test": "SPIDERLINT_LOG_LEVEL=warn node --test --test-timeout=120000 --experimental-strip-types tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prepack": "tsc --project tsconfig.build.json",
