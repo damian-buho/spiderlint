@@ -89,6 +89,7 @@ spiderlint show-report example.org --format sarif > spiderlint.sarif
 $ spiderlint explain-rule cookies/host-prefix
 cookies/host-prefix
 severity warning (preset warning)
+score    5.0
 scope    page
 kind     declarative
 rulesets cookies
