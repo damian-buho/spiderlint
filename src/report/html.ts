@@ -161,7 +161,7 @@ function bundleImpact(same: Finding[], total: number): number {
     return same.reduce((sum, finding) => sum + impact(finding, total), 0);
 }
 
-// One card per bundle: severity, rule, message and subject on its head; expanded, the pages, locations, fix and docs; impact and scope on its foot.
+// One card per bundle: severity, message and subject on its head; expanded, the pages, locations, fix and docs; rule, impact and scope on its foot.
 function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number): string {
     const [first] = same as [Finding];
     const { subject, isWhole, pages } = reach(t, same, origin, total);
@@ -175,8 +175,8 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
     const pageCount = same.reduce((sum, finding) => sum + pagesOf(finding, total), 0);
     const scope = isWhole || (total > 0 && pageCount >= total) ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
-    const foot = `<span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
-    return `<article class="rule-card ${first.severity}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span><code>${escape(first.rule)}</code><span class="rule-message">${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot">${foot}</footer></article>`;
+    const foot = `<code>${escape(first.rule)}</code><span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
+    return `<article class="rule-card ${first.severity}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span><span class="rule-message">${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot">${foot}</footer></article>`;
 }
 
 // One flat card per bundle, the highest impact first, a rule’s bundles in its own order on a tie.

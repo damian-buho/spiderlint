@@ -179,6 +179,7 @@ describe("formatHtml", () => {
         assert.ok(wholeSite?.includes("Impact: 500<"), "impact is score times pages");
         assert.ok(html.indexOf("title is missing") < html.indexOf("h1 is missing"), "highest impact first");
         assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
+        assert.ok(wholeSite?.includes('<footer class="rule-foot"><code>seo/title</code>') && !wholeSite.split("</summary>", 1)[0]?.includes("seo/title"), "rule named in the footer, not the head");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
     });
