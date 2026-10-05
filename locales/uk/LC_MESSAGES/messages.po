@@ -1343,3 +1343,144 @@ msgstr "сканування посилається на суфікси /.well-k
 
 msgid "declared WebSub hub does not answer: {got}"
 msgstr "оголошений хаб WebSub не відповідає: {got}"
+
+msgid "head links announce this URL as a feed, it is {type}; linked from these pages"
+msgstr "посилання в head оголошують цей URL стрічкою, але він має тип {type}; на нього посилаються ці сторінки"
+
+msgid "head links announce this URL as {announced}, it is {format}; linked from these pages"
+msgstr "посилання в head оголошують цей URL як {announced}, але він є {format}; на нього посилаються ці сторінки"
+
+msgid "{count} of {total} pages advertise no feed while the rest do"
+msgstr "{count} із {total} сторінок не оголошують стрічки, тоді як решта оголошує"
+
+msgid "{format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll"
+msgstr "стрічка {format} відповідає на умовний запит 200 і незміненим тілом замість 304, тому кожен читач завантажує її повністю під час кожного опитування"
+
+msgid "{format} feed caching works against its readers"
+msgstr "кешування стрічки {format} працює проти її читачів"
+
+msgid "{format} feed carries a date readers cannot parse"
+msgstr "стрічка {format} містить дату, яку читачі не можуть розібрати"
+
+msgid "{format} feed carries a relative URL"
+msgstr "стрічка {format} містить відносний URL"
+
+msgid "{format} feed carries elements RSS 2.0 does not define"
+msgstr "стрічка {format} містить елементи, яких RSS 2.0 не визначає"
+
+msgid "{format} feed carries markup or placeholders in an item title"
+msgstr "стрічка {format} містить розмітку чи заповнювачі в заголовку запису"
+
+msgid "{format} feed carries markup readers strip"
+msgstr "стрічка {format} містить розмітку, яку читачі вилучають"
+
+msgid "{format} feed carries summaries while the linked pages say far more"
+msgstr "стрічка {format} містить анотації, тоді як сторінки, на які вона посилається, кажуть набагато більше"
+
+msgid "{format} feed costs every poll more bytes than it should"
+msgstr "стрічка {format} коштує під час кожного опитування більше байтів, ніж слід"
+
+msgid "{format} feed dates items unlike the pages they link"
+msgstr "стрічка {format} датує записи інакше, ніж сторінки, на які посилається"
+
+msgid "{format} feed declares a language other than the pages advertising it"
+msgstr "стрічка {format} оголошує іншу мову, ніж сторінки, що її рекламують"
+
+msgid "{format} feed declares a language that is not a BCP 47 tag"
+msgstr "стрічка {format} оголошує мову, яка не є тегом BCP 47"
+
+msgid "{format} feed declares or decodes its encoding inconsistently"
+msgstr "стрічка {format} оголошує чи розкодовує своє кодування непослідовно"
+
+msgid "{format} feed delivers template placeholders or missing values to readers"
+msgstr "стрічка {format} доставляє читачам заповнювачі шаблону чи відсутні значення"
+
+msgid "{format} feed delivers unrendered Markdown or MDX to readers"
+msgstr "стрічка {format} доставляє читачам нерендерені Markdown чи MDX"
+
+msgid "{format} feed does not parse"
+msgstr "стрічка {format} не розбирається"
+
+msgid "{format} feed enclosures disagree with their host"
+msgstr "вкладення стрічки {format} не збігаються з тим, що віддає їхній хост"
+
+msgid "{format} feed escapes item content twice, so readers show tags and entities as text"
+msgstr "стрічка {format} екранує вміст записів двічі, тому читачі показують теги й сутності як текст"
+
+msgid "{format} feed has no stable Podcasting 2.0 GUID"
+msgstr "стрічка {format} не має стабільного GUID Podcasting 2.0"
+
+msgid "{format} feed holds HTML in a plain-text field"
+msgstr "стрічка {format} зберігає HTML у полі простого тексту"
+
+msgid "{format} feed is served with a type readers do not treat as a feed"
+msgstr "стрічка {format} віддається з типом, який читачі не вважають стрічкою"
+
+msgid "{format} feed is styled by an XSLT stylesheet; Chrome 158 ({date}) stops applying XSLT, so visitors there see raw XML"
+msgstr "стрічка {format} оформлена таблицею стилів XSLT; Chrome 158 ({date}) перестає застосовувати XSLT, тому відвідувачі побачать там сирий XML"
+
+msgid "{format} feed items are dated after the response, so readers sort them above everything else"
+msgstr "записи стрічки {format} датовано пізніше за відповідь, тому читачі ставлять їх над усім іншим"
+
+msgid "{format} feed items carry no stable identifier, so readers show them again as new"
+msgstr "записи стрічки {format} не мають стабільного ідентифікатора, тому читачі показують їх знову як нові"
+
+msgid "{format} feed lacks what its format requires"
+msgstr "стрічці {format} бракує того, чого вимагає її формат"
+
+msgid "{format} feed lacks what podcast directories require"
+msgstr "стрічці {format} бракує того, чого вимагають каталоги подкастів"
+
+msgid "{format} feed links images or pages by a relative URL, which breaks in every reader"
+msgstr "стрічка {format} посилається на зображення чи сторінки відносним URL, що ламається в кожному читачі"
+
+msgid "{format} feed links items away from their canonical URL"
+msgstr "стрічка {format} відсилає записи геть від їхнього канонічного URL"
+
+msgid "{format} feed links items to pages that fail or redirect"
+msgstr "стрічка {format} посилає записи на сторінки, що дають збій або переспрямовують"
+
+msgid "{format} feed looks stale"
+msgstr "стрічка {format} виглядає застарілою"
+
+msgid "{format} feed names a WebSub hub but no self URL to subscribe to"
+msgstr "стрічка {format} називає хаб WebSub, але не має власного URL для підписки"
+
+msgid "{format} feed names a guid that is not a URL while claiming it is a permalink"
+msgstr "стрічка {format} називає guid, який не є URL, стверджуючи, що це постійне посилання"
+
+msgid "{format} feed names a stylesheet browsers will not apply"
+msgstr "стрічка {format} називає таблицю стилів, яку браузери не застосують"
+
+msgid "{format} feed names an email field that is not `address (Name)`"
+msgstr "стрічка {format} називає поле пошти, що не має вигляду `address (Name)`"
+
+msgid "{format} feed names another URL as its self URL, not this one"
+msgstr "стрічка {format} називає власним URL інший, а не цей"
+
+msgid "{format} feed names archive pages readers cannot follow"
+msgstr "стрічка {format} називає сторінки архіву, за якими читачі не можуть піти"
+
+msgid "{format} feed names no self URL"
+msgstr "стрічка {format} не називає власного URL"
+
+msgid "{format} feed puts a tracking parameter into an item identifier"
+msgstr "стрічка {format} вкладає параметр відстеження в ідентифікатор запису"
+
+msgid "{format} feed repeats an item identifier"
+msgstr "стрічка {format} повторює ідентифікатор запису"
+
+msgid "{format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll"
+msgstr "стрічка {format} не надсилає ні ETag, ні Last-Modified, тому кожен читач завантажує її повністю під час кожного опитування"
+
+msgid "{format} feed titles items unlike the pages they link"
+msgstr "стрічка {format} називає записи інакше, ніж сторінки, на які посилається"
+
+msgid "{format} feed uses an outdated JSON Feed form"
+msgstr "стрічка {format} використовує застарілу форму JSON Feed"
+
+msgid "{format} podcast feed locks with a value that is neither yes nor no"
+msgstr "стрічка подкасту {format} блокується значенням, яке не є ні yes, ні no"
+
+msgid "{format} podcast feed sets no podcast:locked, so any platform may import it"
+msgstr "стрічка подкасту {format} не задає podcast:locked, тому будь-яка платформа може її імпортувати"

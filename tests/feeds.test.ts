@@ -132,7 +132,7 @@ describe("feeds", () => {
     it("names a feed of teasers and spares a feed of full posts", () => {
         const summary = report.findings.filter((finding) => finding.rule === "feeds/summary-only").map((finding) => finding.url.replace(site.origin, ""));
         assert.deepEqual(summary, ["/summary.xml"]);
-        assert.match(report.findings.find((finding) => finding.rule === "feeds/summary-only")?.message ?? "", /7 words against 301/);
+        assert.match(report.findings.find((finding) => finding.rule === "feeds/summary-only")?.locations?.[0] ?? "", /7 words against 301/);
     });
 
     it("judges a revalidation answered 200 with an unchanged body", async () => {

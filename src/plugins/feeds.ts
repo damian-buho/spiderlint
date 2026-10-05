@@ -9,6 +9,7 @@ import { RobotsDisallowed } from "../crawl/probe.ts";
 import type { Facts, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { header, linkTargets, pageRule, resolve } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { judgeContent, judgeTitle, wordsOf } from "./feed-content.ts";
 import { NS, readJson, readXml, type Dated, type Format, type Model } from "./feed-model.ts";
@@ -302,12 +303,15 @@ const DOCS = {
     discovery: "https://www.rssboard.org/rss-autodiscovery",
 };
 
+// The subject every problem sentence opens with.
+const FEED = "{format} feed";
+
 const wellFormed = pageRule(
     "feeds/well-formed",
     [`${ID}.error`],
     (page) => {
         const feed = feedOf(page);
-        return feed && (feed.error ? [{ message: `${feed.format} feed does not parse: ${feed.error}`, value: feed.error }] : []);
+        return feed && (feed.error ? [{ ...said("{format} feed does not parse", { format: feed.format }), data: { [page.url.href]: { error: feed.error } }, value: feed.error }] : []);
     },
     { docs: "https://www.w3.org/TR/xml/#sec-well-formed", fix: "Serve the feed from an XML or JSON serialiser instead of a text template, so every value is escaped." },
 );
@@ -318,9 +322,9 @@ const self = pageRule(
     (page) => {
         const feed = parsed(page);
         if (!feed) return;
-        if (!feed.self) return [{ message: `${feed.format} feed names no self URL` }];
+        if (!feed.self) return [said("{format} feed names no self URL", { format: feed.format })];
         const here = [page.url.href, page.url.twin].flatMap((href) => (href ? [resolve(href, href)] : []));
-        return here.includes(feed.self) ? [] : [{ message: `${feed.format} feed names ${feed.self} as its self URL, not this one`, value: feed.self }];
+        return here.includes(feed.self) ? [] : [{ ...said("{format} feed names another URL as its self URL, not this one", { format: feed.format }), data: { [page.url.href]: { self: feed.self } }, value: feed.self }];
     },
     { docs: DOCS.rss, fix: 'Add `<atom:link rel="self">` (RSS), `<link rel="self">` (Atom) or `feed_url` (JSON Feed) naming the feed’s own URL.' },
 );
@@ -332,7 +336,9 @@ const itemId = pageRule(
         const feed = parsed(page);
         if (!feed) return;
         const count = feed.unidentified.length;
-        return count === 0 ? [] : [{ message: `${count} of ${feed.items} ${feed.format} feed items carry no stable identifier, so readers show them again as new`, value: feed.unidentified, locations: feed.unidentified.map((position) => `item ${position}`) }];
+        return count === 0
+            ? []
+            : [{ ...said("{format} feed items carry no stable identifier, so readers show them again as new", { format: feed.format }), data: { [page.url.href]: { unidentified: count, items: feed.items } }, value: feed.unidentified, locations: feed.unidentified.map((position) => `item ${position}`) }];
     },
     { docs: DOCS.rss, fix: "Give every item a `guid` (RSS), `id` (Atom or JSON Feed) that never changes once published." },
 );
@@ -343,7 +349,7 @@ const websub = pageRule(
     (page) => {
         const feed = parsed(page);
         if (!feed) return;
-        return feed.hubs.length === 0 || feed.self ? [] : [{ message: `${feed.format} feed names WebSub hub ${feed.hubs.join(", ")} but no self URL to subscribe to`, value: feed.hubs }];
+        return feed.hubs.length === 0 || feed.self ? [] : [{ ...said("{format} feed names a WebSub hub but no self URL to subscribe to", { format: feed.format }), data: { [page.url.href]: { hubs: feed.hubs.join(", ") } }, value: feed.hubs }];
     },
     { docs: DOCS.websub, fix: 'Declare `rel="self"` beside `rel="hub"`, in the feed or its `Link` header.' },
 );
@@ -379,7 +385,7 @@ const enclosure = pageRule(
             return faults.map((fault) => `item ${position} ${url} ${fault}`);
         });
         log.debug({ rule: "feeds/enclosure", url: page.url.href, enclosures: feed.enclosures.length, locations: locations.length }, "enclosures judged");
-        return locations.length === 0 ? [] : [{ message: `${feed.format} feed enclosures disagree with their host: ${locations[0]}${locations.length > 1 ? ` and ${locations.length - 1} more` : ""}`, value: locations.length, locations }];
+        return locations.length === 0 ? [] : [{ ...said("{format} feed enclosures disagree with their host", { format: feed.format }), data: { [page.url.href]: { enclosures: locations.length } }, value: locations.length, locations }];
     },
     { docs: DOCS.itunes, fix: "Serve every enclosure with its declared Content-Type and Content-Length over a host answering HEAD and byte ranges." },
 );
@@ -391,8 +397,8 @@ const podcastLocked = pageRule(
     (page) => {
         const feed = parsed(page);
         if (!feed?.podcast) return;
-        if (feed.locked === undefined) return [{ message: `${feed.format} podcast feed sets no podcast:locked, so any platform may import it` }];
-        return feed.locked === "yes" || feed.locked === "no" ? [] : [{ message: `${feed.format} podcast feed locks with “${feed.locked}”, which is neither yes nor no`, value: feed.locked }];
+        if (feed.locked === undefined) return [said("{format} podcast feed sets no podcast:locked, so any platform may import it", { format: feed.format })];
+        return feed.locked === "yes" || feed.locked === "no" ? [] : [{ ...said("{format} podcast feed locks with a value that is neither yes nor no", { format: feed.format }), data: { [page.url.href]: { locked: feed.locked } }, value: feed.locked }];
     },
     { docs: DOCS.locked, fix: "Add `<podcast:locked>yes</podcast:locked>` to keep the feed where it is, or `no` to let platforms import it." },
 );
@@ -409,7 +415,7 @@ function problemRule(name: string, label: string, reference: string, fix: string
                 const feed = parsed(page);
                 if (!feed?.problems || (isPodcast && !feed.podcast)) return;
                 const list = feed.problems[name] ?? [];
-                return list.length === 0 ? [] : [{ message: `${feed.format} feed ${label}: ${list[0]}${list.length > 1 ? ` and ${list.length - 1} more` : ""}`, value: list, locations: list }];
+                return list.length === 0 ? [] : [{ ...said(`${FEED} ${label}`, { format: feed.format }), data: { [page.url.href]: { problems: list.length } }, value: list, locations: list }];
             },
             { docs: reference, fix },
         ),
@@ -450,7 +456,9 @@ const dateFuture = pageRule(
         const now = Date.parse(header(page, "date")) || Date.now();
         const future = feed.entries.filter((entry) => entry.published && Date.parse(entry.published) > now + DAY_MS / 24);
         log.debug({ rule: "feeds/date-future", url: page.url.href, now: new Date(now).toISOString(), future: future.length }, "feed dates compared");
-        return future.length === 0 ? [] : [{ message: `${future.length} of ${feed.items} ${feed.format} feed items are dated after the response, so readers sort them above everything else`, locations: future.map((entry) => `item ${entry.position}: ${entry.published}`) }];
+        return future.length === 0
+            ? []
+            : [{ ...said("{format} feed items are dated after the response, so readers sort them above everything else", { format: feed.format }), data: { [page.url.href]: { future: future.length, items: feed.items } }, locations: future.map((entry) => `item ${entry.position}: ${entry.published}`) }];
     },
     { docs: DOCS.rss, fix: "Date each item when it was published; hold a scheduled post out of the feed until then." },
 );
@@ -468,7 +476,7 @@ const stale: Make = (severity, settings) =>
             const newest = Math.max(...feed.entries.map((entry) => (entry.published ? Date.parse(entry.published) : 0)));
             const locations = [...(newest > 0 && now - newest > days * DAY_MS ? [`newest item ${new Date(newest).toISOString()} is over ${days} days old`] : []), ...(feed.updated && newest > 0 && Date.parse(feed.updated) + DAY_MS < newest ? [`build date ${feed.updated} is before the newest item`] : [])];
             log.debug({ rule: "feeds/stale", url: page.url.href, newest, days, locations: locations.length }, "feed age judged");
-            return locations.length === 0 ? [] : [{ message: `${feed.format} feed looks stale: ${locations[0]}`, locations }];
+            return locations.length === 0 ? [] : [{ ...said("{format} feed looks stale", { format: feed.format }), locations }];
         },
         { docs: DOCS.rss, fix: "Publish the feed with every new post, and set `lastBuildDate` or `updated` when it is rebuilt." },
     )(severity);
@@ -480,9 +488,9 @@ const conditionalGet = pageRule(
     (page) => {
         const feed = parsed(page);
         if (!feed) return;
-        if (page.http.unmodified) return [{ message: `${feed.format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll` }];
+        if (page.http.unmodified) return [said("{format} feed answers a conditional request with 200 and an unchanged body instead of 304, so every reader downloads it in full on every poll", { format: feed.format })];
         const isValidated = header(page, "etag") !== "" || header(page, "last-modified") !== "";
-        return isValidated ? [] : [{ message: `${feed.format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll` }];
+        return isValidated ? [] : [said("{format} feed sends neither ETag nor Last-Modified, so every reader downloads it in full on every poll", { format: feed.format })];
     },
     { docs: "https://www.rfc-editor.org/rfc/rfc9110#section-13.1", fix: "Send `ETag` or `Last-Modified` with the feed and answer conditional requests with 304." },
 );
@@ -497,7 +505,7 @@ const cache = pageRule(
         const control = header(page, "cache-control").toLowerCase();
         const maxAge = /(?:^|,)\s*max-age\s*=\s*(\d+)/.exec(control)?.[1];
         const locations = [...(/(?:^|,)\s*no-store\b/.test(control) ? ["Cache-Control: no-store"] : []), ...(maxAge && feed.ttl && (Number(maxAge) > feed.ttl * 600 || Number(maxAge) * 10 < feed.ttl * 60) ? [`ttl ${feed.ttl} min against max-age ${maxAge} s`] : [])];
-        return locations.length === 0 ? [] : [{ message: `${feed.format} feed caching works against its readers: ${locations[0]}`, locations }];
+        return locations.length === 0 ? [] : [{ ...said("{format} feed caching works against its readers", { format: feed.format }), locations }];
     },
     { docs: "https://www.rfc-editor.org/rfc/rfc9111#section-5.2", fix: "Let readers cache the feed for as long as `ttl` says, `Cache-Control: max-age=3600` for a one-hour `ttl`, and never `no-store`." },
 );
@@ -513,7 +521,7 @@ const size: Make = (severity, settings) =>
             const limit = (settings as FeedsSettings | undefined)?.["max-bytes"] ?? 1_048_576;
             const decoded = page.http.size.decoded;
             const locations = [...(decoded > limit ? [`${decoded} bytes, over ${limit}`] : []), ...(decoded > 10_240 && !header(page, "content-encoding") ? [`${decoded} bytes served uncompressed`] : [])];
-            return locations.length === 0 ? [] : [{ message: `${feed.format} feed costs every poll ${decoded} bytes: ${locations[0]}`, value: decoded, locations }];
+            return locations.length === 0 ? [] : [{ ...said("{format} feed costs every poll more bytes than it should", { format: feed.format }), data: { [page.url.href]: { size: { fact: "http.size.decoded", value: decoded } } }, value: decoded, locations }];
         },
         { docs: DOCS.rss, fix: "Keep the newest items only, and serve the feed compressed with `br` or `gzip`." },
     )(severity);
@@ -525,7 +533,7 @@ const xslt = pageRule(
     (page) => {
         const feed = parsed(page);
         if (!feed) return;
-        return feed.stylesheet ? [{ message: `${feed.format} feed is styled by ${feed.stylesheet}; Chrome 158 (2026-11-17) stops applying XSLT, so visitors there see raw XML`, value: feed.stylesheet }] : [];
+        return feed.stylesheet ? [{ ...said("{format} feed is styled by an XSLT stylesheet; Chrome 158 ({date}) stops applying XSLT, so visitors there see raw XML", { format: feed.format, date: { at: "2026-11-17" } }), data: { [page.url.href]: { stylesheet: feed.stylesheet } }, value: feed.stylesheet }] : [];
     },
     { docs: DOCS.xslt, fix: "Link a human-readable page from the feed instead of relying on an XSL stylesheet." },
 );
@@ -554,7 +562,7 @@ function siteRule(id: string, facts: string[], label: string, judge: Judge, guid
                 if (!feed?.entries) continue;
                 const locations = judge(feed, page, index, site);
                 log.debug({ rule: id, url: page.url.href, locations: locations.length }, "feed joined to the crawl");
-                if (locations.length > 0) findings.push({ rule: id, severity, scope: "site", url: page.url.href, message: `${feed.format} feed ${label}: ${locations[0]}${locations.length > 1 ? ` and ${locations.length - 1} more` : ""}`, value: locations.length, locations });
+                if (locations.length > 0) findings.push({ rule: id, severity, scope: "site", url: page.url.href, ...said(`${FEED} ${label}`, { format: feed.format }), data: { [page.url.href]: { problems: locations.length } }, value: locations.length, locations });
             }
             return findings;
         },
@@ -837,8 +845,10 @@ const discoveryType: Make = (severity) => ({
             log.debug({ rule: "feeds/discovery-type", url: href, format: feed?.format, links: links.length, wrong: wrong.length }, "feed discovery judged");
             if (wrong.length === 0) continue;
             const urls = [...new Set(wrong.map(({ page }) => page.url.href))];
-            const message = feed ? `head links announce ${href} as ${wrong[0]?.type}, it is ${feed.format}` : `head links announce ${href} as a feed, it is ${linked.http["content-type"] || "no type"}`;
-            findings.push({ rule: "feeds/discovery-type", severity, scope: "site", url: href, message: `${message}; linked from ${urls.length} page${urls.length === 1 ? "" : "s"}`, urls });
+            const sentence = feed
+                ? said("head links announce this URL as {announced}, it is {format}; linked from these pages", { announced: wrong[0]?.type ?? "", format: feed.format })
+                : said("head links announce this URL as a feed, it is {type}; linked from these pages", { type: linked.http["content-type"] || "no type" });
+            findings.push({ rule: "feeds/discovery-type", severity, scope: "site", url: href, ...sentence, urls });
         }
         return findings;
     },
@@ -852,7 +862,7 @@ const discovery: Make = (severity) => ({
         const without = html.filter((page) => (page.html?.head.links ?? []).every((link) => !(/\balternate\b/i.test(link.rel ?? "") && FEED_TYPES.has(link.type?.toLowerCase() ?? "")))).map((page) => page.url.href);
         log.debug({ rule: "feeds/discovery", group, pages: html.length, without: without.length }, "feed links judged");
         if (without.length === html.length) return;
-        return without.length === 0 ? [] : [{ rule: "feeds/discovery", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), message: `${without.length} of ${html.length} pages advertise no feed while the rest do`, urls: without }];
+        return without.length === 0 ? [] : [{ rule: "feeds/discovery", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), ...said("{count} of {total} pages advertise no feed while the rest do", { count: without.length, total: html.length }), urls: without }];
     },
 });
 
