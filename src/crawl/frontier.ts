@@ -108,7 +108,7 @@ export class Frontier {
     #robots: RobotsFileFacts[] = [];
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     #handled = 0;
-    // Candidates pooled while `diversify` holds a `max-pages` budget, and the requests already given to a crawler.
+    // Candidates pooled while `diversify` holds, and the requests already given to a crawler.
     readonly #spread: Spread | undefined;
     #released = 0;
     readonly #router: Router;
@@ -143,7 +143,7 @@ export class Frontier {
         this.#seeds = new Set(config.seeds);
         this.#sitemap = sitemaps.index;
         this.#globs = globMatchers(config);
-        this.#spread = config.diversify && config.maxPages > 0 ? new Spread(config.maxPages) : undefined;
+        this.#spread = config.diversify ? new Spread(config.maxPages || Infinity) : undefined;
         this.files = sitemaps.files;
     }
 
@@ -179,13 +179,22 @@ export class Frontier {
             await this.#add(urls.map((url) => ({ url, crawlDepth })));
             return 0;
         }
-        const pooled = urls.filter((url) => !this.#visited.has(url) && (this.#spread as Spread).add({ url, crawlDepth })).length;
+        const spread = this.#spread;
+        const isDeep = this.#config.maxDepth > 0 && crawlDepth > this.#config.maxDepth;
+        let pooled = 0;
+        for (const url of urls) {
+            if (this.#visited.has(url)) continue;
+            const isNew = spread.add({ url, crawlDepth });
+            const isRelinked = !isNew && !isDeep && spread.relink(url, crawlDepth);
+            if (isNew) pooled += 1;
+            if (isRelinked) log.debug({ url, crawlDepth }, "listed candidate reached by a link");
+        }
         log.debug({ offered: urls.length, pooled, size: this.#spread.size, crawlDepth }, "candidates pooled");
         await this.#refill();
         return pooled;
     }
 
-    // Counts the seeds and the pages a resumed crawl stored as scheduled, then pools their links and the sitemap, which a spread budget draws from at once.
+    // Counts the seeds and the pages a resumed crawl stored as scheduled, then pools their links and the sitemap, which a spread crawl draws from at once.
     #prime(resumed: Facts[]): void {
         const spread = this.#spread as Spread;
         for (const page of resumed) {
@@ -207,7 +216,8 @@ export class Frontier {
     async #refill(isDrained = false): Promise<number> {
         if (!this.#spread) return 0;
         const pending = isDrained ? 0 : Math.max(0, this.#released - this.#handled);
-        const room = Math.min(2 * width(this.#config.concurrency) - pending, this.#config.maxPages - this.#released);
+        const left = this.#config.maxPages > 0 ? this.#config.maxPages - this.#released : Infinity;
+        const room = Math.min(2 * width(this.#config.concurrency) - pending, left);
         log.debug({ pending, room, released: this.#released, pooled: this.#spread.size, maxPages: this.#config.maxPages, isDrained }, "refill decided");
         if (room <= 0) return 0;
         const batch = this.#spread.take(room);

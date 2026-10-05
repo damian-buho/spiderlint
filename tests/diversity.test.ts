@@ -82,8 +82,8 @@ describe("page budget spread over a crawl", () => {
         server.close();
     });
 
-    const crawl = async (isDiverse: boolean) => {
-        const report = await audit({ seeds: [`${origin}/`], maxPages: 6, concurrency: 1, diversify: isDiverse, sitemap: false, robots: false, fetchResources: false, cacheMode: "off", rules: [] });
+    const crawl = async (isDiverse: boolean, maxPages = 6) => {
+        const report = await audit({ seeds: [`${origin}/`], maxPages, concurrency: 1, diversify: isDiverse, sitemap: false, robots: false, fetchResources: false, cacheMode: "off", rules: [] });
         return report.pages.map((facts) => facts.url.pathname);
     };
 
@@ -93,6 +93,13 @@ describe("page budget spread over a crawl", () => {
         for (const section of ["/project/", "/about"]) assert.ok(paths.includes(section), paths.join(" "));
         assert.ok(paths.some((path) => path.startsWith("/post/")), paths.join(" "));
         assert.ok(paths.some((path) => path.startsWith("/tag/")), paths.join(" "));
+    });
+
+    it("visits the unseen sections first without a page limit, and still every page", async () => {
+        const paths = await crawl(true, 0);
+        assert.equal(paths.length, 27);
+        assert.ok(paths.indexOf("/project/") < 6, paths.join(" "));
+        assert.ok(paths.indexOf("/about") < 6, paths.join(" "));
     });
 
     it("follows discovery order once diversify is off", async () => {

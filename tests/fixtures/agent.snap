@@ -12,6 +12,7 @@ Where: /missing, used by or shared with:
 - /
 - /about
 - /app/
+- /orphan
 - /posts/1
 - /posts/2
 - /posts/3
@@ -20,7 +21,6 @@ Where: /missing, used by or shared with:
 - /tags/a
 - /tags/b
 - /tags/c
-- /orphan
 Reads: `http.status`, `crawl.referrers`
 Fix: Fix the page at the link target so it answers 2xx, or point the links to a working URL.
 Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors

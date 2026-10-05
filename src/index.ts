@@ -112,7 +112,7 @@ export function groupsOf(config: Config): Record<string, Required<Pick<GroupConf
     return Object.fromEntries(Object.entries(groups).map(([name, group]) => [name, { ...group, rules: config.rules ?? group.rules ?? ["recommended"] }]));
 }
 
-// A page's referrers are the stored pages linking to it, directly or through a redirect; recomputed from scratch on every lint.
+// A page's referrers are the stored pages linking to it, directly or through a redirect, by URL whatever the crawl order; recomputed from scratch on every lint.
 function referrers(pages: Facts[], redirects: Record<string, string> = {}): void {
     const byHref = new Map(pages.map((page) => [page.url.href, page]));
     for (const [from, to] of Object.entries(redirects)) {
@@ -120,7 +120,8 @@ function referrers(pages: Facts[], redirects: Record<string, string> = {}): void
         if (target) byHref.set(from, target);
     }
     for (const page of pages) page.crawl.referrers = [];
-    for (const page of pages) {
+    const sorted = pages.toSorted((a, b) => a.url.href.localeCompare(b.url.href));
+    for (const page of sorted) {
         const internal = page.html?.links.internal ?? [];
         for (const href of internal) byHref.get(href)?.crawl.referrers.push(page.url.href);
     }

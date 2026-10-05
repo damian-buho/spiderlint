@@ -87,7 +87,7 @@ describe("audit", () => {
         const home = report.pages.find((page) => page.url.pathname === "/");
         assert.deepEqual(home?.html?.links.external, [`${cdn()}/`]);
         assert.ok(home?.html?.links.internal.includes(`${site.origin}/posts/1`));
-        assert.deepEqual(home?.crawl, { depth: 0, "discovered-via": "seed", referrers: report.pages.filter((page) => page.http.status === 200 && page.html).map((page) => page.url.href) });
+        assert.deepEqual(home?.crawl, { depth: 0, "discovered-via": "seed", referrers: report.pages.filter((page) => page.http.status === 200 && page.html).map((page) => page.url.href).toSorted((a, b) => a.localeCompare(b)) });
         const post = report.pages.find((page) => page.url.pathname === "/posts/1");
         assert.equal(post?.crawl.depth, 1);
         assert.equal(post?.crawl["discovered-via"], "link");

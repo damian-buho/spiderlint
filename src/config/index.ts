@@ -58,7 +58,7 @@ export interface Config {
     excludeUrls: string[];
     // Whether the shipped `vendors/paths.yaml` keeps vendor-owned paths out of the crawl and its findings apart.
     vendorPaths: boolean;
-    // Whether a `max-pages` budget goes to the least-covered sections of the site first, not to links in discovery order.
+    // Whether the crawl visits the least-covered sections of the site first, not links in discovery order.
     diversify: boolean;
     robots: boolean;
     sitemap: boolean;

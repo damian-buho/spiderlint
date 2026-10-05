@@ -62,6 +62,7 @@ function keyOf(href: string): string {
 export class Spread {
     readonly #root = new Directory();
     readonly #known = new Set<string>();
+    readonly #pooled = new Map<string, Candidate>();
     readonly #limit: number;
 
     // `limit` caps one directory’s pooled pages: a budget never takes more than that from it.
@@ -102,6 +103,7 @@ export class Spread {
             node = next;
         }
         const candidate = node.leaves.shift();
+        this.#pooled.delete(keyOf(candidate.url));
         node.leafTaken += 1;
         for (const directory of path) {
             directory.taken += 1;
@@ -140,9 +142,18 @@ export class Spread {
         }
         this.#known.add(key);
         holder.leaves.push(candidate);
+        this.#pooled.set(key, candidate);
         holder.leafCount += 1;
         for (const directory of path) directory.pooled += 1;
         this.#root.pooled += 1;
+        return true;
+    }
+
+    // Gives a pooled candidate that no link has reached the depth of the page linking to it; true when it did.
+    relink(url: string, crawlDepth: number): boolean {
+        const pooled = this.#pooled.get(keyOf(url));
+        if (!pooled || pooled.crawlDepth > 0) return false;
+        pooled.crawlDepth = crawlDepth;
         return true;
     }
 
