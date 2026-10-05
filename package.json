@@ -34,7 +34,7 @@
     "@tgwf/co2": "0.19.0",
     "ajv": "8.20.0",
     "any-ascii": "0.3.3",
-    "axe-core": "4.13.0",
+    "axe-core": "4.14.0",
     "browserslist": "4.29.3",
     "bullmq": "6.3.11",
     "caniuse-lite": "1.0.30001814",
