@@ -440,3 +440,399 @@ msgstr "no se pudo acceder al enlace: {error}; enlazado desde estas páginas"
 
 msgid "the link answers {status}; linked from these pages"
 msgstr "el enlace responde {status}; enlazado desde estas páginas"
+
+msgid "<html lang> should be a BCP 47 language tag, found {got}"
+msgstr "<html lang> debe ser una etiqueta de idioma BCP 47, se encontró {got}"
+
+msgid "<meta charset> should declare UTF-8 within the first 1024 bytes, found {got}"
+msgstr "<meta charset> debe declarar UTF-8 dentro de los primeros 1024 bytes, se encontró {got}"
+
+msgid "<meta name=tdm-reservation> should be 0 or 1, found {got}"
+msgstr "<meta name=tdm-reservation> debe ser 0 o 1, se encontró {got}"
+
+msgid "<title> repeats itself around a separator: {got}"
+msgstr "<title> se repite alrededor de un separador: {got}"
+
+msgid "<title> should be 30–60 characters, found {got}"
+msgstr "<title> debe tener entre 30 y 60 caracteres, se encontró {got}"
+
+msgid "a 503 should say when to retry with Retry-After"
+msgstr "una respuesta 503 debe indicar cuándo reintentar con Retry-After"
+
+msgid "Accept-CH breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Accept-CH rompe su gramática de campo estructurado, así que los navegadores lo ignoran: {got}"
+
+msgid "a compressed response should carry Vary: Accept-Encoding, found {got}"
+msgstr "una respuesta comprimida debe llevar Vary: Accept-Encoding, se encontró {got}"
+
+msgid "a JSON-LD block does not parse: {got}"
+msgstr "un bloque JSON-LD no se puede interpretar: {got}"
+
+msgid "Alt-Svc breaks RFC 7838 §3, so clients never try the alternative: {got}"
+msgstr "Alt-Svc incumple la RFC 7838 §3, así que los clientes nunca prueban la alternativa: {got}"
+
+msgid "Alt-Svc should advertise h3, found {got}"
+msgstr "Alt-Svc debe anunciar h3, se encontró {got}"
+
+msgid "an <img> has no alt attribute: {got}"
+msgstr "un <img> no tiene atributo alt: {got}"
+
+msgid "an <img> without width and height shifts the layout as it loads: {got}"
+msgstr "un <img> sin width y height desplaza el diseño al cargar: {got}"
+
+msgid "an article gives no publication date for its link preview"
+msgstr "un artículo no da fecha de publicación para su vista previa de enlace"
+
+msgid "an article names no author for its link preview"
+msgstr "un artículo no nombra autor para su vista previa de enlace"
+
+msgid "an article names no fediverse:creator account for Mastodon previews, found {got}"
+msgstr "un artículo no nombra una cuenta fediverse:creator para las vistas previas de Mastodon, se encontró {got}"
+
+msgid "a page is {got} links away from the start page, more than 3"
+msgstr "una página está a {got} enlaces de la página de inicio, más de 3"
+
+msgid "a page links to no other page of the site"
+msgstr "una página no enlaza a ninguna otra página del sitio"
+
+msgid "a page of a staging or development site is indexable"
+msgstr "una página de un sitio de pruebas o desarrollo es indexable"
+
+msgid "a page served off the canonical origin is indexable; mark the staging twin noindex"
+msgstr "una página servida fuera del origen canónico es indexable; marca su gemela de pruebas como noindex"
+
+msgid "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
+msgstr "una página que lista el sitemap dice noindex, en <meta name=robots> o X-Robots-Tag"
+
+msgid "a preloaded resource went unused ({got})"
+msgstr "un recurso precargado no se usó ({got})"
+
+msgid "a redirect does not say which component sent it with Redirect-By ({got})"
+msgstr "una redirección no dice qué componente la envió con Redirect-By ({got})"
+
+msgid "a right-to-left language should set <html dir=rtl>, found {got}"
+msgstr "un idioma de derecha a izquierda debe fijar <html dir=rtl>, se encontró {got}"
+
+msgid "a script in <head> without async, defer or type=module blocks rendering: {got}"
+msgstr "un script en <head> sin async, defer ni type=module bloquea el renderizado: {got}"
+
+msgid "a text response over 1 KB should be sent br, zstd or gzip, found {got}"
+msgstr "una respuesta de texto de más de 1 KB debe enviarse con br, zstd o gzip, se encontró {got}"
+
+msgid "a URL with a query has no No-Vary-Search to say which parameters change the page"
+msgstr "una URL con consulta no tiene No-Vary-Search que indique qué parámetros cambian la página"
+
+msgid "Cache-Control breaks RFC 9111 §5.2, and caches ignore what they cannot read: {got}"
+msgstr "Cache-Control incumple la RFC 9111 §5.2, y las cachés ignoran lo que no pueden leer: {got}"
+
+msgid "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
+msgstr "Cache-Control no-store deja la página fuera de la caché de ir atrás/adelante, se encontró {got}"
+
+msgid "Cache-Status breaks its structured-field grammar: {got}"
+msgstr "Cache-Status rompe su gramática de campo estructurado: {got}"
+
+msgid "canonical link should be an absolute URL, found {got}"
+msgstr "el enlace canónico debe ser una URL absoluta, se encontró {got}"
+
+msgid "certificate expires within 14 days ({got} left)"
+msgstr "el certificado vence en menos de 14 días (quedan {got})"
+
+msgid "certificate expires within 2 days ({got} left)"
+msgstr "el certificado vence en menos de 2 días (quedan {got})"
+
+msgid "certificate has expired ({got} days left)"
+msgstr "el certificado ha vencido (quedan {got} días)"
+
+msgid "certificate is not trusted"
+msgstr "el certificado no es de confianza"
+
+msgid "certificate key is weaker than RSA 2048 or EC P-256: {got}"
+msgstr "la clave del certificado es más débil que RSA 2048 o EC P-256: {got}"
+
+msgid "Cloudflare’s Email Address Obfuscation rewrites every address into a link only JavaScript decodes, so a visitor without JavaScript sees no address"
+msgstr "la ofuscación de direcciones de correo de Cloudflare convierte cada dirección en un enlace que solo JavaScript descifra, así que un visitante sin JavaScript no ve ninguna dirección"
+
+msgid "color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media"
+msgstr "color-scheme nombra claro y oscuro, pero ningún par de theme-color lleva un media prefers-color-scheme"
+
+msgid "Content-Security-Policy allows eval() with 'unsafe-eval': {got}"
+msgstr "Content-Security-Policy permite eval() con 'unsafe-eval': {got}"
+
+msgid "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash: {got}"
+msgstr "Content-Security-Policy permite scripts en línea con 'unsafe-inline' y sin nonce ni hash: {got}"
+
+msgid "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read: {got}"
+msgstr "Content-Security-Policy incumple CSP 3, y los navegadores descartan lo que no pueden leer: {got}"
+
+msgid "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
+msgstr "Content-Security-Policy no tiene base-uri, así que un <base> inyectado puede redirigir scripts relativos"
+
+msgid "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
+msgstr "Content-Security-Policy no tiene frame-ancestors, que solo puede llevar una cabecera"
+
+msgid "Content-Security-Policy lacks require-trusted-types-for 'script'"
+msgstr "Content-Security-Policy no tiene require-trusted-types-for 'script'"
+
+msgid "Content-Security-Policy lacks upgrade-insecure-requests"
+msgstr "Content-Security-Policy no tiene upgrade-insecure-requests"
+
+msgid "Content-Security-Policy loads scripts from any host through a * or scheme-only source: {got}"
+msgstr "Content-Security-Policy carga scripts de cualquier host mediante una fuente * o solo de esquema: {got}"
+
+msgid "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
+msgstr "Content-Security-Policy no fija script-src ni default-src, así que se carga cualquier script"
+
+msgid "Content-Security-Policy should set object-src 'none', found {got}"
+msgstr "Content-Security-Policy debe fijar object-src 'none', se encontró {got}"
+
+msgid "Content-Type breaks RFC 9110 §8.3.1: {got}"
+msgstr "Content-Type incumple la RFC 9110 §8.3.1: {got}"
+
+msgid "Cross-Origin-Embedder-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Cross-Origin-Embedder-Policy rompe su gramática de campo estructurado, así que los navegadores la ignoran: {got}"
+
+msgid "Cross-Origin-Embedder-Policy should be require-corp or credentialless, found {got}"
+msgstr "Cross-Origin-Embedder-Policy debe ser require-corp o credentialless, se encontró {got}"
+
+msgid "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Cross-Origin-Opener-Policy rompe su gramática de campo estructurado, así que los navegadores la ignoran: {got}"
+
+msgid "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
+msgstr "Cross-Origin-Opener-Policy debe ser same-origin o same-origin-allow-popups, se encontró {got}"
+
+msgid "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin, found {got}"
+msgstr "Cross-Origin-Resource-Policy debe ser same-origin, same-site o cross-origin, se encontró {got}"
+
+msgid "Date should be an IMF-fixdate, found {got}"
+msgstr "Date debe ser una IMF-fixdate, se encontró {got}"
+
+msgid "Deprecation should be @ and Unix seconds, found {got}"
+msgstr "Deprecation debe ser @ y segundos Unix, se encontró {got}"
+
+msgid "hreflang alternates should include x-default, found {got}"
+msgstr "las alternativas hreflang deben incluir x-default, se encontró {got}"
+
+msgid "internal links exist only after JavaScript runs: {got}"
+msgstr "los enlaces internos solo existen tras ejecutar JavaScript: {got}"
+
+msgid "Link breaks RFC 8288 §3, so clients drop the links they cannot read: {got}"
+msgstr "Link incumple la RFC 8288 §3, así que los clientes descartan los enlaces que no pueden leer: {got}"
+
+msgid "listed in the sitemap, yet no crawled page links here"
+msgstr "figura en el sitemap, pero ninguna página rastreada enlaza aquí"
+
+msgid "loads an accessibility overlay, which does not fix the page and gets in the way of assistive tools ({got})"
+msgstr "carga una superposición de accesibilidad, que no arregla la página y estorba a las tecnologías de apoyo ({got})"
+
+msgid "meta color-scheme should be normal, or scheme names such as light dark, found {got}"
+msgstr "meta color-scheme debe ser normal, o nombres de esquema como light dark, se encontró {got}"
+
+msgid "meta description repeats itself around a separator: {got}"
+msgstr "la meta descripción se repite alrededor de un separador: {got}"
+
+msgid "meta description should be 50–160 characters, found {got}"
+msgstr "la meta descripción debe tener entre 50 y 160 caracteres, se encontró {got}"
+
+msgid "meta viewport should set width=device-width and allow zoom, found {got}"
+msgstr "meta viewport debe fijar width=device-width y permitir zoom, se encontró {got}"
+
+msgid "missing from the sitemap"
+msgstr "falta en el sitemap"
+
+msgid "more than one stylesheet in <head> blocks rendering: {got}"
+msgstr "más de una hoja de estilos en <head> bloquea el renderizado: {got}"
+
+msgid "no <link rel=icon> in the head"
+msgstr "no hay <link rel=icon> en la cabecera"
+
+msgid "no <title>"
+msgstr "no hay <title>"
+
+msgid "no Cache-Control directive on an HTML page, found {got}"
+msgstr "ninguna directiva Cache-Control en una página HTML, se encontró {got}"
+
+msgid "no Content-Digest or Repr-Digest lets a client check the body"
+msgstr "sin Content-Digest ni Repr-Digest un cliente no puede comprobar el cuerpo"
+
+msgid "no enforced Content-Security-Policy, in a header or a <meta>"
+msgstr "no hay Content-Security-Policy aplicada, ni en cabecera ni en <meta>"
+
+msgid "no ETag or Last-Modified to revalidate against"
+msgstr "no hay ETag ni Last-Modified con que revalidar"
+
+msgid "no link with rel=privacy-policy"
+msgstr "no hay ningún enlace con rel=privacy-policy"
+
+msgid "no meta description"
+msgstr "no hay meta descripción"
+
+msgid "no meta theme-color"
+msgstr "no hay meta theme-color"
+
+msgid "no Permissions-Policy header naming a feature, found {got}"
+msgstr "ninguna cabecera Permissions-Policy nombra una función, se encontró {got}"
+
+msgid "no Reporting-Endpoints header naming an endpoint, found {got}"
+msgstr "ninguna cabecera Reporting-Endpoints nombra un endpoint, se encontró {got}"
+
+msgid "no Server-Timing header shows where the server spent its time"
+msgstr "ninguna cabecera Server-Timing muestra dónde gastó el servidor su tiempo"
+
+msgid "no Speculation Rules script or header prefetches likely next pages"
+msgstr "ningún script ni cabecera de Speculation Rules precarga las páginas siguientes probables"
+
+msgid "og:description should be 50–200 characters, found {got}"
+msgstr "og:description debe tener entre 50 y 200 caracteres, se encontró {got}"
+
+msgid "og:image should be an absolute http(s) URL, found {got}"
+msgstr "og:image debe ser una URL http(s) absoluta, se encontró {got}"
+
+msgid "og:title should be 10–90 characters, found {got}"
+msgstr "og:title debe tener entre 10 y 90 caracteres, se encontró {got}"
+
+msgid "og:type should be an Open Graph type or namespace:type, found {got}"
+msgstr "og:type debe ser un tipo de Open Graph o namespace:type, se encontró {got}"
+
+msgid "og:url should be an absolute http(s) URL, found {got}"
+msgstr "og:url debe ser una URL http(s) absoluta, se encontró {got}"
+
+msgid "one view emits {got} g CO2e by the Sustainable Web Design model, above the 0.209 g budget (rating C)"
+msgstr "una vista emite {got} g de CO2e según el modelo Sustainable Web Design, por encima del presupuesto de 0,209 g (calificación C)"
+
+msgid "only {got} page of the site links here"
+msgstr "solo {got} página del sitio enlaza aquí"
+
+msgid "pages share one <title>: {got}"
+msgstr "varias páginas comparten un <title>: {got}"
+
+msgid "pages share one meta description: {got}"
+msgstr "varias páginas comparten una meta descripción: {got}"
+
+msgid "pages share one og:description: {got}"
+msgstr "varias páginas comparten un og:description: {got}"
+
+msgid "pages share one og:title: {got}"
+msgstr "varias páginas comparten un og:title: {got}"
+
+msgid "Permissions-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Permissions-Policy rompe su gramática de campo estructurado, así que los navegadores la ignoran: {got}"
+
+msgid "Priority breaks its structured-field grammar, so clients ignore it: {got}"
+msgstr "Priority rompe su gramática de campo estructurado, así que los clientes la ignoran: {got}"
+
+msgid "reached through a temporary redirect ({got})"
+msgstr "se llega mediante una redirección temporal ({got})"
+
+msgid "Referrer-Policy breaks the Referrer Policy tokens: {got}"
+msgstr "Referrer-Policy incumple los tokens de Referrer Policy: {got}"
+
+msgid "Referrer-Policy should not leak full URLs, found {got}"
+msgstr "Referrer-Policy no debe filtrar URLs completas, se encontró {got}"
+
+msgid "Reporting-Endpoints breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Reporting-Endpoints rompe su gramática de campo estructurado, así que los navegadores la ignoran: {got}"
+
+msgid "Retry-After asks clients back in {got} seconds, which brings the load straight back to a server that is shedding it"
+msgstr "Retry-After pide a los clientes volver en {got} segundos, lo que devuelve la carga de inmediato a un servidor que intenta descargarla"
+
+msgid "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry: {got}"
+msgstr "Retry-After incumple la RFC 9110 §10.2.3, así que los clientes no saben cuándo reintentar: {got}"
+
+msgid "should have exactly one <h1>, found {got}"
+msgstr "debe tener exactamente un <h1>, se encontró {got}"
+
+msgid "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it: {got}"
+msgstr "Strict-Transport-Security incumple la RFC 6797 §6.1, así que los navegadores la ignoran: {got}"
+
+msgid "Strict-Transport-Security should carry includeSubDomains, found {got}"
+msgstr "Strict-Transport-Security debe llevar includeSubDomains, se encontró {got}"
+
+msgid "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
+msgstr "Strict-Transport-Security debe llevar max-age de 1000000 o más, se encontró {got}"
+
+msgid "Sunset should be an HTTP-date, found {got}"
+msgstr "Sunset debe ser una HTTP-date, se encontró {got}"
+
+msgid "takes more than 2 redirects to land ({got})"
+msgstr "requiere más de 2 redirecciones para llegar ({got})"
+
+msgid "tdm-reservation should be 0 or 1, found {got}"
+msgstr "tdm-reservation debe ser 0 o 1, se encontró {got}"
+
+msgid "the browser console logged errors ({got})"
+msgstr "la consola del navegador registró errores ({got})"
+
+msgid "the canonical link exists only after JavaScript runs: {got}"
+msgstr "el enlace canónico solo existe tras ejecutar JavaScript: {got}"
+
+msgid "the certificate carries an RSA key, where an EC key makes a smaller handshake"
+msgstr "el certificado lleva una clave RSA, cuando una clave EC hace un handshake más pequeño"
+
+msgid "the certificate chain is signed with SHA-1 or MD5: {got}"
+msgstr "la cadena de certificados está firmada con SHA-1 o MD5: {got}"
+
+msgid "the first <img> is usually above the fold, and loading=lazy delays it: {got}"
+msgstr "el primer <img> suele estar en la primera pantalla, y loading=lazy lo retrasa: {got}"
+
+msgid "the h1 exists only after JavaScript runs: {got}"
+msgstr "el h1 solo existe tras ejecutar JavaScript: {got}"
+
+msgid "the home page links no machine-readable alternate (feed, JSON, Markdown)"
+msgstr "la página de inicio no enlaza ninguna alternativa legible por máquinas (feed, JSON, Markdown)"
+
+msgid "the home page links no NLWeb endpoint with rel=nlweb"
+msgstr "la página de inicio no enlaza ningún endpoint NLWeb con rel=nlweb"
+
+msgid "the home page links no RSS, Atom or JSON feed"
+msgstr "la página de inicio no enlaza ningún feed RSS, Atom o JSON"
+
+msgid "the meta description exists only after JavaScript runs: {got}"
+msgstr "la meta descripción solo existe tras ejecutar JavaScript: {got}"
+
+msgid "the path exposes the server technology in its extension: {got}"
+msgstr "la ruta expone la tecnología del servidor en su extensión: {got}"
+
+msgid "the path has an empty segment: {got}"
+msgstr "la ruta tiene un segmento vacío: {got}"
+
+msgid "the path has uppercase letters, which a server may treat as another URL: {got}"
+msgstr "la ruta tiene mayúsculas, que un servidor puede tratar como otra URL: {got}"
+
+msgid "the raw HTML carries a {got} share of the text the rendered page shows"
+msgstr "el HTML sin procesar lleva una proporción {got} del texto que muestra la página renderizada"
+
+msgid "the server should speak HTTP/2 or HTTP/3, found {got}"
+msgstr "el servidor debe hablar HTTP/2 o HTTP/3, se encontró {got}"
+
+msgid "the title exists only after JavaScript runs: {got}"
+msgstr "el título solo existe tras ejecutar JavaScript: {got}"
+
+msgid "the URL carries a session ID: {got}"
+msgstr "la URL lleva un ID de sesión: {got}"
+
+msgid "the URL is longer than 100 characters: {got}"
+msgstr "la URL tiene más de 100 caracteres: {got}"
+
+msgid "TLS should be 1.2 or 1.3, found {got}"
+msgstr "TLS debe ser 1.2 o 1.3, se encontró {got}"
+
+msgid "URL path should be lowercase, with hyphens and no empty segment, found {got}"
+msgstr "la ruta de la URL debe estar en minúsculas, con guiones y sin segmentos vacíos, se encontró {got}"
+
+msgid "Use-As-Dictionary breaks its structured-field grammar, so clients ignore it: {got}"
+msgstr "Use-As-Dictionary rompe su gramática de campo estructurado, así que los clientes la ignoran: {got}"
+
+msgid "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
+msgstr "Use-As-Dictionary necesita un miembro match=\"<patrón de URL>\", se encontró {got}"
+
+msgid "Vary breaks RFC 9110 §12.5.5: {got}"
+msgstr "Vary incumple la RFC 9110 §12.5.5: {got}"
+
+msgid "Vary: * makes the response uncacheable, found {got}"
+msgstr "Vary: * hace la respuesta no almacenable en caché, se encontró {got}"
+
+msgid "X-Content-Type-Options should be nosniff, found {got}"
+msgstr "X-Content-Type-Options debe ser nosniff, se encontró {got}"
+
+msgid "X-XSS-Protection should be absent or 0, found {got}"
+msgstr "X-XSS-Protection debe estar ausente o ser 0, se encontró {got}"

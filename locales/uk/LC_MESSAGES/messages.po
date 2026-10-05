@@ -440,3 +440,399 @@ msgstr "посилання недоступне: {error}; на нього пос
 
 msgid "the link answers {status}; linked from these pages"
 msgstr "посилання відповідає {status}; на нього посилаються ці сторінки"
+
+msgid "<html lang> should be a BCP 47 language tag, found {got}"
+msgstr "<html lang> має бути мовним тегом BCP 47, знайдено {got}"
+
+msgid "<meta charset> should declare UTF-8 within the first 1024 bytes, found {got}"
+msgstr "<meta charset> має оголошувати UTF-8 у перших 1024 байтах, знайдено {got}"
+
+msgid "<meta name=tdm-reservation> should be 0 or 1, found {got}"
+msgstr "<meta name=tdm-reservation> має бути 0 або 1, знайдено {got}"
+
+msgid "<title> repeats itself around a separator: {got}"
+msgstr "<title> повторюється навколо роздільника: {got}"
+
+msgid "<title> should be 30–60 characters, found {got}"
+msgstr "<title> має містити 30–60 символів, знайдено {got}"
+
+msgid "a 503 should say when to retry with Retry-After"
+msgstr "відповідь 503 має вказувати, коли повторити запит, через Retry-After"
+
+msgid "Accept-CH breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Accept-CH порушує граматику структурованого поля, тому браузери його ігнорують: {got}"
+
+msgid "a compressed response should carry Vary: Accept-Encoding, found {got}"
+msgstr "стиснена відповідь має містити Vary: Accept-Encoding, знайдено {got}"
+
+msgid "a JSON-LD block does not parse: {got}"
+msgstr "блок JSON-LD не розбирається: {got}"
+
+msgid "Alt-Svc breaks RFC 7838 §3, so clients never try the alternative: {got}"
+msgstr "Alt-Svc порушує RFC 7838 §3, тому клієнти ніколи не пробують альтернативу: {got}"
+
+msgid "Alt-Svc should advertise h3, found {got}"
+msgstr "Alt-Svc має оголошувати h3, знайдено {got}"
+
+msgid "an <img> has no alt attribute: {got}"
+msgstr "<img> не має атрибута alt: {got}"
+
+msgid "an <img> without width and height shifts the layout as it loads: {got}"
+msgstr "<img> без width і height зсуває макет під час завантаження: {got}"
+
+msgid "an article gives no publication date for its link preview"
+msgstr "стаття не вказує дату публікації для попереднього перегляду посилання"
+
+msgid "an article names no author for its link preview"
+msgstr "стаття не називає автора для попереднього перегляду посилання"
+
+msgid "an article names no fediverse:creator account for Mastodon previews, found {got}"
+msgstr "стаття не називає облікового запису fediverse:creator для попереднього перегляду в Mastodon, знайдено {got}"
+
+msgid "a page is {got} links away from the start page, more than 3"
+msgstr "сторінка віддалена від початкової на {got} посилань, більше ніж 3"
+
+msgid "a page links to no other page of the site"
+msgstr "сторінка не посилається на жодну іншу сторінку сайту"
+
+msgid "a page of a staging or development site is indexable"
+msgstr "сторінка тестового або розробницького сайту індексується"
+
+msgid "a page served off the canonical origin is indexable; mark the staging twin noindex"
+msgstr "сторінка поза канонічним origin індексується; позначте її тестового двійника як noindex"
+
+msgid "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
+msgstr "сторінка зі sitemap каже noindex у <meta name=robots> або X-Robots-Tag"
+
+msgid "a preloaded resource went unused ({got})"
+msgstr "попередньо завантажений ресурс не використано ({got})"
+
+msgid "a redirect does not say which component sent it with Redirect-By ({got})"
+msgstr "переспрямування не вказує через Redirect-By, який компонент його надіслав ({got})"
+
+msgid "a right-to-left language should set <html dir=rtl>, found {got}"
+msgstr "мова справа наліво має задавати <html dir=rtl>, знайдено {got}"
+
+msgid "a script in <head> without async, defer or type=module blocks rendering: {got}"
+msgstr "скрипт у <head> без async, defer чи type=module блокує відображення: {got}"
+
+msgid "a text response over 1 KB should be sent br, zstd or gzip, found {got}"
+msgstr "текстова відповідь понад 1 КБ має надсилатися через br, zstd або gzip, знайдено {got}"
+
+msgid "a URL with a query has no No-Vary-Search to say which parameters change the page"
+msgstr "URL із запитом не має No-Vary-Search, що вказував би, які параметри змінюють сторінку"
+
+msgid "Cache-Control breaks RFC 9111 §5.2, and caches ignore what they cannot read: {got}"
+msgstr "Cache-Control порушує RFC 9111 §5.2, а кеші ігнорують те, чого не можуть прочитати: {got}"
+
+msgid "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
+msgstr "Cache-Control no-store виключає сторінку з кешу переходів назад/вперед, знайдено {got}"
+
+msgid "Cache-Status breaks its structured-field grammar: {got}"
+msgstr "Cache-Status порушує граматику структурованого поля: {got}"
+
+msgid "canonical link should be an absolute URL, found {got}"
+msgstr "канонічне посилання має бути абсолютним URL, знайдено {got}"
+
+msgid "certificate expires within 14 days ({got} left)"
+msgstr "сертифікат спливає менш ніж за 14 днів (залишилося {got})"
+
+msgid "certificate expires within 2 days ({got} left)"
+msgstr "сертифікат спливає менш ніж за 2 дні (залишилося {got})"
+
+msgid "certificate has expired ({got} days left)"
+msgstr "сертифікат прострочено (залишилося днів: {got})"
+
+msgid "certificate is not trusted"
+msgstr "сертифікат не є довіреним"
+
+msgid "certificate key is weaker than RSA 2048 or EC P-256: {got}"
+msgstr "ключ сертифіката слабший за RSA 2048 або EC P-256: {got}"
+
+msgid "Cloudflare’s Email Address Obfuscation rewrites every address into a link only JavaScript decodes, so a visitor without JavaScript sees no address"
+msgstr "приховування адрес електронної пошти в Cloudflare перетворює кожну адресу на посилання, яке розшифровує лише JavaScript, тому відвідувач без JavaScript не бачить жодної адреси"
+
+msgid "color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media"
+msgstr "color-scheme називає світлу й темну схеми, але жодна пара theme-color не має media prefers-color-scheme"
+
+msgid "Content-Security-Policy allows eval() with 'unsafe-eval': {got}"
+msgstr "Content-Security-Policy дозволяє eval() через 'unsafe-eval': {got}"
+
+msgid "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash: {got}"
+msgstr "Content-Security-Policy дозволяє вбудовані скрипти через 'unsafe-inline' без nonce чи хеша: {got}"
+
+msgid "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read: {got}"
+msgstr "Content-Security-Policy порушує CSP 3, а браузери відкидають те, чого не можуть прочитати: {got}"
+
+msgid "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
+msgstr "Content-Security-Policy не має base-uri, тому ін’єктований <base> може переспрямувати відносні скрипти"
+
+msgid "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
+msgstr "Content-Security-Policy не має frame-ancestors, який може передати лише заголовок"
+
+msgid "Content-Security-Policy lacks require-trusted-types-for 'script'"
+msgstr "Content-Security-Policy не має require-trusted-types-for 'script'"
+
+msgid "Content-Security-Policy lacks upgrade-insecure-requests"
+msgstr "Content-Security-Policy не має upgrade-insecure-requests"
+
+msgid "Content-Security-Policy loads scripts from any host through a * or scheme-only source: {got}"
+msgstr "Content-Security-Policy завантажує скрипти з будь-якого хоста через джерело * або лише зі схемою: {got}"
+
+msgid "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
+msgstr "Content-Security-Policy не задає ні script-src, ні default-src, тож завантажується будь-який скрипт"
+
+msgid "Content-Security-Policy should set object-src 'none', found {got}"
+msgstr "Content-Security-Policy має задавати object-src 'none', знайдено {got}"
+
+msgid "Content-Type breaks RFC 9110 §8.3.1: {got}"
+msgstr "Content-Type порушує RFC 9110 §8.3.1: {got}"
+
+msgid "Cross-Origin-Embedder-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Cross-Origin-Embedder-Policy порушує граматику структурованого поля, тому браузери його ігнорують: {got}"
+
+msgid "Cross-Origin-Embedder-Policy should be require-corp or credentialless, found {got}"
+msgstr "Cross-Origin-Embedder-Policy має бути require-corp або credentialless, знайдено {got}"
+
+msgid "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Cross-Origin-Opener-Policy порушує граматику структурованого поля, тому браузери його ігнорують: {got}"
+
+msgid "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
+msgstr "Cross-Origin-Opener-Policy має бути same-origin або same-origin-allow-popups, знайдено {got}"
+
+msgid "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin, found {got}"
+msgstr "Cross-Origin-Resource-Policy має бути same-origin, same-site або cross-origin, знайдено {got}"
+
+msgid "Date should be an IMF-fixdate, found {got}"
+msgstr "Date має бути IMF-fixdate, знайдено {got}"
+
+msgid "Deprecation should be @ and Unix seconds, found {got}"
+msgstr "Deprecation має бути @ і секундами Unix, знайдено {got}"
+
+msgid "hreflang alternates should include x-default, found {got}"
+msgstr "альтернативи hreflang мають містити x-default, знайдено {got}"
+
+msgid "internal links exist only after JavaScript runs: {got}"
+msgstr "внутрішні посилання з’являються лише після виконання JavaScript: {got}"
+
+msgid "Link breaks RFC 8288 §3, so clients drop the links they cannot read: {got}"
+msgstr "Link порушує RFC 8288 §3, тому клієнти відкидають посилання, яких не можуть прочитати: {got}"
+
+msgid "listed in the sitemap, yet no crawled page links here"
+msgstr "є у sitemap, але жодна просканована сторінка не посилається сюди"
+
+msgid "loads an accessibility overlay, which does not fix the page and gets in the way of assistive tools ({got})"
+msgstr "завантажує накладку доступності, яка не виправляє сторінку й заважає допоміжним технологіям ({got})"
+
+msgid "meta color-scheme should be normal, or scheme names such as light dark, found {got}"
+msgstr "meta color-scheme має бути normal або назвами схем, як-от light dark, знайдено {got}"
+
+msgid "meta description repeats itself around a separator: {got}"
+msgstr "мета-опис повторюється навколо роздільника: {got}"
+
+msgid "meta description should be 50–160 characters, found {got}"
+msgstr "мета-опис має містити 50–160 символів, знайдено {got}"
+
+msgid "meta viewport should set width=device-width and allow zoom, found {got}"
+msgstr "meta viewport має задавати width=device-width і дозволяти масштабування, знайдено {got}"
+
+msgid "missing from the sitemap"
+msgstr "відсутня у sitemap"
+
+msgid "more than one stylesheet in <head> blocks rendering: {got}"
+msgstr "більше одного аркуша стилів у <head> блокує відображення: {got}"
+
+msgid "no <link rel=icon> in the head"
+msgstr "у head немає <link rel=icon>"
+
+msgid "no <title>"
+msgstr "немає <title>"
+
+msgid "no Cache-Control directive on an HTML page, found {got}"
+msgstr "жодної директиви Cache-Control на HTML-сторінці, знайдено {got}"
+
+msgid "no Content-Digest or Repr-Digest lets a client check the body"
+msgstr "без Content-Digest чи Repr-Digest клієнт не може перевірити тіло"
+
+msgid "no enforced Content-Security-Policy, in a header or a <meta>"
+msgstr "немає чинної Content-Security-Policy ні в заголовку, ні в <meta>"
+
+msgid "no ETag or Last-Modified to revalidate against"
+msgstr "немає ETag чи Last-Modified для повторної перевірки"
+
+msgid "no link with rel=privacy-policy"
+msgstr "немає посилання з rel=privacy-policy"
+
+msgid "no meta description"
+msgstr "немає мета-опису"
+
+msgid "no meta theme-color"
+msgstr "немає meta theme-color"
+
+msgid "no Permissions-Policy header naming a feature, found {got}"
+msgstr "жоден заголовок Permissions-Policy не називає функції, знайдено {got}"
+
+msgid "no Reporting-Endpoints header naming an endpoint, found {got}"
+msgstr "жоден заголовок Reporting-Endpoints не називає кінцевої точки, знайдено {got}"
+
+msgid "no Server-Timing header shows where the server spent its time"
+msgstr "жоден заголовок Server-Timing не показує, на що сервер витратив час"
+
+msgid "no Speculation Rules script or header prefetches likely next pages"
+msgstr "жоден скрипт чи заголовок Speculation Rules не попередньо завантажує ймовірні наступні сторінки"
+
+msgid "og:description should be 50–200 characters, found {got}"
+msgstr "og:description має містити 50–200 символів, знайдено {got}"
+
+msgid "og:image should be an absolute http(s) URL, found {got}"
+msgstr "og:image має бути абсолютним URL http(s), знайдено {got}"
+
+msgid "og:title should be 10–90 characters, found {got}"
+msgstr "og:title має містити 10–90 символів, знайдено {got}"
+
+msgid "og:type should be an Open Graph type or namespace:type, found {got}"
+msgstr "og:type має бути типом Open Graph або namespace:type, знайдено {got}"
+
+msgid "og:url should be an absolute http(s) URL, found {got}"
+msgstr "og:url має бути абсолютним URL http(s), знайдено {got}"
+
+msgid "one view emits {got} g CO2e by the Sustainable Web Design model, above the 0.209 g budget (rating C)"
+msgstr "один перегляд випромінює {got} г CO2e за моделлю Sustainable Web Design, понад бюджет 0,209 г (оцінка C)"
+
+msgid "only {got} page of the site links here"
+msgstr "сюди посилається лише {got} сторінка сайту"
+
+msgid "pages share one <title>: {got}"
+msgstr "кілька сторінок мають спільний <title>: {got}"
+
+msgid "pages share one meta description: {got}"
+msgstr "кілька сторінок мають спільний мета-опис: {got}"
+
+msgid "pages share one og:description: {got}"
+msgstr "кілька сторінок мають спільний og:description: {got}"
+
+msgid "pages share one og:title: {got}"
+msgstr "кілька сторінок мають спільний og:title: {got}"
+
+msgid "Permissions-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Permissions-Policy порушує граматику структурованого поля, тому браузери його ігнорують: {got}"
+
+msgid "Priority breaks its structured-field grammar, so clients ignore it: {got}"
+msgstr "Priority порушує граматику структурованого поля, тому клієнти його ігнорують: {got}"
+
+msgid "reached through a temporary redirect ({got})"
+msgstr "досягається через тимчасове переспрямування ({got})"
+
+msgid "Referrer-Policy breaks the Referrer Policy tokens: {got}"
+msgstr "Referrer-Policy порушує токени Referrer Policy: {got}"
+
+msgid "Referrer-Policy should not leak full URLs, found {got}"
+msgstr "Referrer-Policy не має розкривати повні URL, знайдено {got}"
+
+msgid "Reporting-Endpoints breaks its structured-field grammar, so browsers ignore it: {got}"
+msgstr "Reporting-Endpoints порушує граматику структурованого поля, тому браузери його ігнорують: {got}"
+
+msgid "Retry-After asks clients back in {got} seconds, which brings the load straight back to a server that is shedding it"
+msgstr "Retry-After просить клієнтів повернутися за {got} с, що одразу повертає навантаження серверу, який намагається його скинути"
+
+msgid "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry: {got}"
+msgstr "Retry-After порушує RFC 9110 §10.2.3, тому клієнти не знають, коли повторити запит: {got}"
+
+msgid "should have exactly one <h1>, found {got}"
+msgstr "має містити рівно один <h1>, знайдено {got}"
+
+msgid "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it: {got}"
+msgstr "Strict-Transport-Security порушує RFC 6797 §6.1, тому браузери його ігнорують: {got}"
+
+msgid "Strict-Transport-Security should carry includeSubDomains, found {got}"
+msgstr "Strict-Transport-Security має містити includeSubDomains, знайдено {got}"
+
+msgid "Strict-Transport-Security should carry max-age of 1000000 or more, found {got}"
+msgstr "Strict-Transport-Security має містити max-age від 1000000, знайдено {got}"
+
+msgid "Sunset should be an HTTP-date, found {got}"
+msgstr "Sunset має бути HTTP-date, знайдено {got}"
+
+msgid "takes more than 2 redirects to land ({got})"
+msgstr "потребує понад 2 переспрямувань, щоб дійти до місця ({got})"
+
+msgid "tdm-reservation should be 0 or 1, found {got}"
+msgstr "tdm-reservation має бути 0 або 1, знайдено {got}"
+
+msgid "the browser console logged errors ({got})"
+msgstr "консоль браузера зафіксувала помилки ({got})"
+
+msgid "the canonical link exists only after JavaScript runs: {got}"
+msgstr "канонічне посилання з’являється лише після виконання JavaScript: {got}"
+
+msgid "the certificate carries an RSA key, where an EC key makes a smaller handshake"
+msgstr "сертифікат містить ключ RSA, тоді як ключ EC робить рукостискання меншим"
+
+msgid "the certificate chain is signed with SHA-1 or MD5: {got}"
+msgstr "ланцюжок сертифікатів підписано за допомогою SHA-1 або MD5: {got}"
+
+msgid "the first <img> is usually above the fold, and loading=lazy delays it: {got}"
+msgstr "перше <img> зазвичай видно одразу, а loading=lazy його затримує: {got}"
+
+msgid "the h1 exists only after JavaScript runs: {got}"
+msgstr "h1 з’являється лише після виконання JavaScript: {got}"
+
+msgid "the home page links no machine-readable alternate (feed, JSON, Markdown)"
+msgstr "головна сторінка не посилається на машинозчитувану альтернативу (стрічку, JSON, Markdown)"
+
+msgid "the home page links no NLWeb endpoint with rel=nlweb"
+msgstr "головна сторінка не посилається на кінцеву точку NLWeb через rel=nlweb"
+
+msgid "the home page links no RSS, Atom or JSON feed"
+msgstr "головна сторінка не посилається на стрічку RSS, Atom чи JSON"
+
+msgid "the meta description exists only after JavaScript runs: {got}"
+msgstr "мета-опис з’являється лише після виконання JavaScript: {got}"
+
+msgid "the path exposes the server technology in its extension: {got}"
+msgstr "шлях розкриває технологію сервера у своєму розширенні: {got}"
+
+msgid "the path has an empty segment: {got}"
+msgstr "шлях містить порожній сегмент: {got}"
+
+msgid "the path has uppercase letters, which a server may treat as another URL: {got}"
+msgstr "шлях містить великі літери, які сервер може вважати іншим URL: {got}"
+
+msgid "the raw HTML carries a {got} share of the text the rendered page shows"
+msgstr "сирий HTML містить частку {got} тексту, який показує відображена сторінка"
+
+msgid "the server should speak HTTP/2 or HTTP/3, found {got}"
+msgstr "сервер має підтримувати HTTP/2 або HTTP/3, знайдено {got}"
+
+msgid "the title exists only after JavaScript runs: {got}"
+msgstr "заголовок з’являється лише після виконання JavaScript: {got}"
+
+msgid "the URL carries a session ID: {got}"
+msgstr "URL містить ідентифікатор сеансу: {got}"
+
+msgid "the URL is longer than 100 characters: {got}"
+msgstr "URL довший за 100 символів: {got}"
+
+msgid "TLS should be 1.2 or 1.3, found {got}"
+msgstr "TLS має бути 1.2 або 1.3, знайдено {got}"
+
+msgid "URL path should be lowercase, with hyphens and no empty segment, found {got}"
+msgstr "шлях URL має бути малими літерами, з дефісами й без порожніх сегментів, знайдено {got}"
+
+msgid "Use-As-Dictionary breaks its structured-field grammar, so clients ignore it: {got}"
+msgstr "Use-As-Dictionary порушує граматику структурованого поля, тому клієнти його ігнорують: {got}"
+
+msgid "Use-As-Dictionary needs a match=\"<URL pattern>\" member, found {got}"
+msgstr "Use-As-Dictionary потребує члена match=\"<шаблон URL>\", знайдено {got}"
+
+msgid "Vary breaks RFC 9110 §12.5.5: {got}"
+msgstr "Vary порушує RFC 9110 §12.5.5: {got}"
+
+msgid "Vary: * makes the response uncacheable, found {got}"
+msgstr "Vary: * робить відповідь некешованою, знайдено {got}"
+
+msgid "X-Content-Type-Options should be nosniff, found {got}"
+msgstr "X-Content-Type-Options має бути nosniff, знайдено {got}"
+
+msgid "X-XSS-Protection should be absent or 0, found {got}"
+msgstr "X-XSS-Protection має бути відсутнім або 0, знайдено {got}"

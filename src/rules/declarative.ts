@@ -9,6 +9,7 @@ import { subjectPath } from "../facts/sites.ts";
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { ruleMaker } from "../plugins/index.ts";
+import { said } from "./message.ts";
 import { baseScore, interpolate, levelOf, pin, scoreOf, type Level } from "./score.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule, type RuleSpec, type Severity } from "./types.ts";
 
@@ -44,13 +45,13 @@ export function describe(value: unknown): string {
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
 }
 
-// The rule’s own sentence with `{got}` and `{field}` filled in, else AJV’s wording against the fact path.
-function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): string {
+// The rule’s own sentence as a template over `{got}` and `{field}`, else AJV’s wording against the fact path.
+function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): Pick<Finding, "message" | "text" | "variables"> {
     const got = value === undefined ? "none" : describe(at(value, error.instancePath));
     const field = error.instancePath.slice(1).replaceAll("/", ".") || (fact.split(".").at(-1) as string);
-    if (text) return text.replaceAll("{got}", () => got).replaceAll("{field}", () => field);
+    if (text) return said(text, { got, field });
     const name = label(fact) ?? fact;
-    return value === undefined ? `${name} is absent` : `${name}${error.instancePath} ${error.message} (got ${got})`;
+    return { message: value === undefined ? `${name} is absent` : `${name}${error.instancePath} ${error.message} (got ${got})` };
 }
 
 function severityOf(id: string, spec: RuleSpec, fallback: Severity): Exclude<Severity, "off"> {
@@ -105,7 +106,7 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
             const value = get(page, fact);
             if (validate(value)) return [];
             const error = validate.errors?.[0] as ErrorObject;
-            return [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, message: message(fact, value, error, spec.message), value }];
+            return [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, ...message(fact, value, error, spec.message), value }];
         },
     };
 }
@@ -129,7 +130,7 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
             for (const [value, urls] of byValue) {
                 if (urls.length < 2) continue;
                 log.debug({ rule: id, group, value, pages: urls.length }, "duplicate value");
-                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, message: spec.message?.replaceAll("{got}", () => describe(value)) ?? `${label(fact) ?? fact} is shared by ${urls.length} pages (${describe(value)})`, value, urls });
+                findings.push({ rule: id, severity, scope, url: urls[0] as string, group, ...(spec.message ? said(spec.message, { got: describe(value) }) : { message: `${label(fact) ?? fact} is shared by ${urls.length} pages (${describe(value)})` }), value, urls });
             }
             return findings;
         },
@@ -165,7 +166,7 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
                       const value = get(facts, subject.path);
                       if (validate(value)) return [];
                       const error = validate.errors?.[0] as ErrorObject;
-                      return [{ rule: id, severity, scope: "site" as const, url: name, message: message(fact, value, error, spec.message), value }];
+                      return [{ rule: id, severity, scope: "site" as const, url: name, ...message(fact, value, error, spec.message), value }];
                   });
         },
     };

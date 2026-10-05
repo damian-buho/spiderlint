@@ -473,6 +473,13 @@ describe("presets", () => {
         assert.equal(resolveRuleset("spiderlint:recommended", {})["insight/numeric-outlier"]?.severity, "info");
     });
 
+    it("keeps a preset message as a template over the offending value", () => {
+        const [finding] = check("http/referrer-policy", { headers: { "referrer-policy": "unsafe-url" } });
+        assert.equal(finding?.text, "Referrer-Policy should not leak full URLs, found {got}");
+        assert.deepEqual(finding?.variables, { got: "10 characters: “unsafe-url”", field: "value" });
+        assert.match(finding?.message ?? "", /found 10 characters: “unsafe-url”$/);
+    });
+
     for (const id of Object.keys(FAILS)) {
         it(`${id} passes a clean page and flags a broken one`, () => {
             const passes = [{}, ...(PASSES[id] ?? [])];
