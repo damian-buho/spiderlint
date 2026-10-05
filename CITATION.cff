@@ -23,7 +23,7 @@ contact:
     email: damian.buho@proton.me
     orcid: https://orcid.org/0009-0004-8579-7633
     website: https://dbuho.me
-version: 0.139.0
+version: 0.140.0
 keywords:
   - spiderlint
   - linter
@@ -34,4 +34,4 @@ keywords:
 license: MIT
 repository-code: https://kiota.ch/damian-buho/spiderlint
 url: https://dbuho.me/project/spiderlint/
-date-released: "2026-10-04"
+date-released: "2026-10-05"
