@@ -289,6 +289,14 @@ Capture each declared --help from the built image into docs/usage.d
 
 > Image: host runner
 
+### `usage-matches-source`
+
+Verify the committed --help captures match src/cli.ts, with no image build
+
+`.scripts/usage-check.sh`
+
+> Image: host runner
+
 ## Dependencies
 
 ### `apt-pin`
@@ -1089,6 +1097,14 @@ Report outdated and unused npm dependencies
 
 > Image: D9T_JS_TOOLS_IMAGE
 
+### `npm-format-check`
+
+Check the source is formatted by prettier
+
+`npm run format:check`
+
+> Image: NODE_TOOL_IMAGE
+
 ### `npm-install`
 
 Install node_modules from the lockfile for lint/analyze tools
@@ -1096,6 +1112,14 @@ Install node_modules from the lockfile for lint/analyze tools
 `npm ci`
 
 > Image: NODE_TOOL_IMAGE
+
+### `npm-link`
+
+Link this checkout into ~/.local/bin, so bin entries run the working copy without sudo
+
+`sh -c 'NPM_CONFIG_PREFIX="$$HOME/.local" npm link'`
+
+> Image: host runner
 
 ### `npm-lock-sync`
 
