@@ -25,6 +25,12 @@ SPDX-License-Identifier: MIT
 - Los errores de consola, los tiempos de carga y cada recurso que una página carga en tiempo de ejecución se convierten en hechos que las reglas pueden comprobar.
 - Se informa de lo que pierde una página sin JavaScript —su título, descripción, enlace canónico, encabezado, enlaces internos o texto—, comparando su HTML original con la página renderizada.
 
+### Todos los tipos de página desde el principio, sea cual sea el límite
+
+- Las páginas se visitan de modo que cada sección del sitio se muestrea antes de agotar ninguna: la primera página de proyecto se descarga antes que la quincuagésima entrada.
+- Un límite de páginas, o un rastreo interrumpido, sigue mostrando todos los tipos de página que tiene el sitio.
+- Se desactiva con un solo ajuste cuando prefieres el orden de descubrimiento.
+
 ### CSS revisado como lo leen los navegadores
 
 - Las hojas de estilo y el CSS en línea se analizan en busca de lo que los navegadores descartan sin avisar: errores de sintaxis que pierden una regla entera, propiedades mal escritas y valores fuera de la gramática de la propiedad.

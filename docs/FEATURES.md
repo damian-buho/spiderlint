@@ -23,6 +23,12 @@ SPDX-License-Identifier: MIT
 - Console errors, load timings and every resource a page loads at runtime become facts that rules can check.
 - What a page loses without JavaScript — its title, description, canonical link, heading, internal links or text — is reported, from its raw HTML against its rendered page.
 
+### Every kind of page early, whatever the limit
+
+- Pages are visited so each section of a site is sampled before any one is exhausted: the first project page is fetched before the fiftieth post.
+- A page limit, or a crawl cut short, still shows every kind of page the site has.
+- Turn it off with one setting when discovery order is what you want.
+
 ### CSS checked as browsers read it
 
 - Style sheets and inline CSS are parsed for what browsers silently drop: syntax errors that lose a whole rule, misspelled properties and values outside a property’s grammar.
