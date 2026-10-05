@@ -9,6 +9,10 @@
 if [ "${ENTRYPOINT_COMMAND_EXECUTED:-N}" = "N" ]; then
     case "${SPIDERLINT_MODE:-cli}" in
         api | worker | all)
+            if [ "${APP_ENV:-}" = "development" ]; then
+                b19-log info "SPIDERLINT" "$(_p "Starting the server, restarted on a source change (mode=%s)" "${SPIDERLINT_MODE}")"
+                exec node --watch-path="${B19_HOME}/src" --watch-path="${B19_HOME}/locales" --watch-path="${B19_HOME}/presets" --watch-path=/etc/spiderlint --watch-preserve-output --experimental-strip-types "${B19_HOME}/src/server/main.ts"
+            fi
             b19-log info "SPIDERLINT" "$(_p "Starting the server (mode=%s)" "${SPIDERLINT_MODE}")"
             exec node --experimental-strip-types "${B19_HOME}/src/server/main.ts"
             ;;
