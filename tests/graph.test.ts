@@ -61,7 +61,7 @@ describe("link graph", () => {
         const report = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off" });
         assert.deepEqual(report.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`), ["links/weakly-linked /duplicate"]);
         const capped = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off", maxPages: 3 });
-        assert.equal(capped.site.graph?.capped, true);
-        assert.ok(capped.findings.every((finding) => finding.message.includes("stopped at a limit")));
+        assert.equal(capped.site.crawl?.complete, false);
+        assert.ok(capped.findings.every((finding) => finding.message.includes("ended early")));
     });
 });

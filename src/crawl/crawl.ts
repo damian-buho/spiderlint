@@ -25,6 +25,7 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
     const halt = () => {
+        frontier.cut("interrupted");
         for (const crawler of [http?.crawler, browser?.crawler]) crawler?.stop(`interrupted by ${String(interrupted.reason)}`);
     };
     interrupted.addEventListener("abort", halt, { once: true });

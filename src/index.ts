@@ -40,7 +40,7 @@ import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, resolveRuleset, ruleIds } from "./rules/rulesets.ts";
 import { cell, runRules, type RuleRun } from "./rules/run.ts";
 import type { Finding, Rule, RuleGuide } from "./rules/types.ts";
-import { stopIfInterrupted } from "./interrupt.ts";
+import { interrupted, stopIfInterrupted } from "./interrupt.ts";
 import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { passing, rate, type Checks, type Rating, type RuleChecks } from "./report/rating.ts";
@@ -323,19 +323,12 @@ function sampledCells(pages: Facts[], rulesByGroup: Map<string, Rule[]>, groups:
 
 type Lint = (crawled: Crawled, started: Date) => Report;
 
-// Whether a page or depth limit may have left pages uncrawled.
-function isCapped(config: Config, pages: Facts[]): boolean {
-    const isCut = (config.maxPages > 0 && pages.length >= config.maxPages) || (config.maxDepth > 0 && pages.some((page) => page.crawl.depth >= config.maxDepth));
-    log.debug({ maxPages: config.maxPages, maxDepth: config.maxDepth, pages: pages.length, isCut }, "crawl limits checked");
-    return isCut;
-}
-
 // Findings of rules reading the link graph say it is partial.
-function capped(run: RuleRun, rulesByGroup: Map<string, Rule[]>): void {
+function partial(run: RuleRun, rulesByGroup: Map<string, Rule[]>, reason: string): void {
     const readers = new Set(rulesByGroup.values().toArray().flat().filter((rule) => rule.meta.facts.some((fact) => fact.startsWith("graph."))).map((rule) => rule.meta.id));
-    const partial = run.findings.filter((finding) => readers.has(finding.rule));
-    for (const finding of partial) finding.message += "; the crawl stopped at a limit, so the page may sit closer and have more links in";
-    log.debug({ rules: [...readers], findings: partial.length }, "graph findings marked partial");
+    const marked = run.findings.filter((finding) => readers.has(finding.rule));
+    for (const finding of marked) finding.message += `; the crawl ended early (${reason}), so the page may sit closer and have more links in`;
+    log.debug({ rules: [...readers], findings: marked.length, reason }, "graph findings marked partial");
 }
 
 // Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, byline, CO2, the detected language when asked, referrers, twins, role, vendor paths and the link graph.
@@ -358,7 +351,7 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
     twins(pages, config.canonicalOrigin);
     site.role = config.role;
     vendorFacts(pages, site, config.vendorPaths);
-    site.graph = linkGraph(pages, site.redirects, isCapped(config, pages));
+    site.graph = linkGraph(pages, site.redirects);
 }
 
 // Compiles groups and rules up front, so a config error fails before the first request.
@@ -378,7 +371,7 @@ function linter(config: Config): Lint {
         if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, `${parity.join(", ")} skipped on ${unrendered} pages crawled over http; --fetch browser renders them`);
         derive(pages, site, config, matchers, isDetected);
         const run = runRules(pages, rulesByGroup, site);
-        if (site.graph?.capped) capped(run, rulesByGroup);
+        if (site.crawl?.complete !== true) partial(run, rulesByGroup, site.crawl?.reason ?? "unfinished");
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         attributeVendors(findings, config.vendorPaths);
@@ -485,6 +478,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
         active.some((extractor) => extractor.debugging),
         active.some((extractor) => extractor.mode === "browser" && extractor.cost === "expensive"),
     );
+    if (interrupted.aborted) await store?.saveSite(site);
     stopIfInterrupted("resources");
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");

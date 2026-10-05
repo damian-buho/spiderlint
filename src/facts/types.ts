@@ -95,9 +95,14 @@ export interface SiteFacts {
     hosts?: Record<string, Record<string, unknown>>;
     // Hosts in `hosts` the crawl only links or loads, judged by `linked` rules alone.
     linked?: string[];
-    // The internal link graph: pages, distinct edges, and whether a crawl limit cut it short.
-    graph?: { pages: number; edges: number; capped?: true };
+    // The internal link graph: pages and distinct edges.
+    graph?: { pages: number; edges: number };
+    // How the crawl ended; absent in a store no run finished writing.
+    crawl?: { complete: boolean; reason?: CrawlEnd };
 }
+
+// Why a crawl left pages unfetched.
+export type CrawlEnd = "max-pages" | "max-depth" | "interrupted";
 
 // A page’s place in the internal link graph, derived on every lint.
 export interface GraphFacts {

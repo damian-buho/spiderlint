@@ -6,7 +6,7 @@ import { ProxyConfiguration, type Configuration, type EnqueueLinksOptions, type 
 import picomatch from "picomatch";
 import type { Page } from "playwright";
 import type { Config } from "../config/index.ts";
-import type { Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
+import type { CrawlEnd, Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { vendorPath, type VendorPath } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
 import { Spread } from "./diversity.ts";
@@ -53,6 +53,9 @@ export interface Logged {
     digest?: string;
     ms?: number;
 }
+
+// Reasons a crawl ended early, the one that names it first.
+const CRAWL_ENDS: CrawlEnd[] = ["interrupted", "max-pages", "max-depth"];
 
 // Cached lookups a crawl reads through.
 export interface CrawlCache {
@@ -114,6 +117,8 @@ export class Frontier {
     readonly #router: Router;
     readonly #crawlers = new Map<CrawlerMode, Runnable>();
     #hasStraggled = false;
+    // Why pages were left unfetched, most telling first.
+    readonly #cuts = new Set<CrawlEnd>();
     readonly files: SitemapFileFacts[];
 
     // A vendor-owned path is no page of the site; include and exclude globs then run on `pathname + search`, as group matchers do.
@@ -247,6 +252,7 @@ export class Frontier {
         const stragglers = this.#stragglers();
         const isOverBudget = this.#config.maxPages > 0 && this.#handled >= this.#config.maxPages;
         log.debug({ listed: this.#sitemap.size, stragglers: stragglers.length, handled: this.#handled, isOverBudget }, "queue drained");
+        if (isOverBudget && stragglers.length > 0) this.cut("max-pages");
         if (isOverBudget || stragglers.length === 0) return true;
         await this.#add(stragglers.map((url) => ({ url, crawlDepth: 0 })));
         return false;
@@ -275,6 +281,14 @@ export class Frontier {
         else log.warn({ url: seed, reason }, `seed not crawled, skipped by its ${reason} check:`);
     }
 
+    // How the crawl ended: complete when nothing was left unfetched, else the first reason of `CRAWL_ENDS` that applies.
+    #crawl(): NonNullable<SiteFacts["crawl"]> {
+        if (this.#spread && this.#spread.size > 0) this.#cuts.add("max-pages");
+        const reason = CRAWL_ENDS.find((end) => this.#cuts.has(end));
+        log.debug({ cuts: [...this.#cuts], pooled: this.#spread?.size, reason }, "crawl end decided");
+        return reason ? { complete: false, reason } : { complete: true };
+    }
+
     // Crawler options every adapter passes through unchanged; crawlers running side by side split the rate.
     options(mode: CrawlerMode, storage?: CrawlStorage, proxy?: string): { requestQueue?: RequestQueue; autoscaledPoolOptions: { isFinishedFunction: () => Promise<boolean> }; sessionPoolOptions: { blockedStatusCodes: number[] }; requestHandlerTimeoutSecs: number; navigationTimeoutSecs: number; maxRequestsPerCrawl?: number; maxRequestsPerMinute?: number; maxCrawlDepth?: number; proxyConfiguration?: ProxyConfiguration; respectRobotsTxtFile: false | { userAgent: string }; onSkippedRequest: (skip: { url: string; reason: string }) => void } {
         return {
@@ -292,6 +306,8 @@ export class Frontier {
             onSkippedRequest: ({ url, reason }) => {
                 log.debug({ url, reason }, "link skipped");
                 this.#skipped.set(url, reason);
+                if (reason === "limit") this.cut("max-pages");
+                else if (reason === "depth") this.cut("max-depth");
                 if (this.#spread) this.#released = Math.max(0, this.#released - 1);
             },
         };
@@ -302,11 +318,18 @@ export class Frontier {
         this.#handled += 1;
         if (this.#config.maxPages && this.#handled > this.#config.maxPages) {
             log.debug({ url: request.url, handled: this.#handled, maxPages: this.#config.maxPages }, "page dropped past max-pages");
+            this.cut("max-pages");
             return false;
         }
         this.#visited.add(request.url);
         this.#visited.add(loaded.href);
         return true;
+    }
+
+    // Records that the crawl left pages unfetched for `reason`.
+    cut(reason: CrawlEnd): void {
+        log.debug({ reason, cuts: [...this.#cuts] }, "crawl cut");
+        this.#cuts.add(reason);
     }
 
     // The facts a page owes to its URL and how the crawl reached it, whatever fetched it; the sitemap entry is the loaded URL’s, else the requested one’s.
@@ -367,9 +390,9 @@ export class Frontier {
         return this.#config.maxPages > 0 ? Math.min(total, this.#config.maxPages) : total;
     }
 
-    // What the crawl learnt about the site: sitemap files, and each seed origin’s robots.txt when one was read.
+    // What the crawl learnt about the site: how it ended, sitemap files, and each seed origin’s robots.txt when one was read.
     site(): SiteFacts {
-        return { sitemaps: this.files, ...(this.#robots.length > 0 && { robots: this.#robots }) };
+        return { sitemaps: this.files, crawl: this.#crawl(), ...(this.#robots.length > 0 && { robots: this.#robots }) };
     }
 
     // Seeds first, each on its group’s crawler, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket, a crawl-delay stretched over the crawlers sharing it.

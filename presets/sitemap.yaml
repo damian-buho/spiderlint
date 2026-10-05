@@ -9,7 +9,7 @@ rules:
   sitemap/orphan:
     fact: crawl.referrers
     expect: {type: array, minItems: 1}
-    when: {crawl.discovered-via: sitemap, site.graph.capped: {not: {const: true}}}
+    when: {crawl.discovered-via: sitemap, site.crawl.complete: {const: true}}
     severity: warning
     score: 5.4
     message: "listed in the sitemap, yet no crawled page links here"

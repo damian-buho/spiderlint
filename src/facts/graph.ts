@@ -52,8 +52,8 @@ function ranks(out: Map<Facts, Facts[]>): Map<Facts, number> {
     return rank;
 }
 
-// Sets each page’s `graph` facts and returns the site’s; recomputed on every lint, `isCapped` when the crawl stopped at a limit.
-export function linkGraph(pages: Facts[], redirects: Record<string, string> = {}, isCapped = false): NonNullable<SiteFacts["graph"]> {
+// Sets each page’s `graph` facts and returns the site’s; recomputed on every lint.
+export function linkGraph(pages: Facts[], redirects: Record<string, string> = {}): NonNullable<SiteFacts["graph"]> {
     const out = edges(pages, redirects);
     const depth = depths(out);
     const rank = ranks(out);
@@ -65,7 +65,7 @@ export function linkGraph(pages: Facts[], redirects: Record<string, string> = {}
         if (depth.has(page)) graph.depth = depth.get(page);
         page.graph = graph;
     }
-    const site = { pages: pages.length, edges: out.values().reduce((sum, targets) => sum + targets.length, 0), ...(isCapped && { capped: true as const }) };
+    const site = { pages: pages.length, edges: out.values().reduce((sum, targets) => sum + targets.length, 0) };
     log.debug({ ...site, unreached: pages.length - depth.size }, "link graph built");
     return site;
 }
