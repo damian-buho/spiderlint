@@ -395,3 +395,9 @@ msgstr "{passed} з {total}"
 
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} з {total}"
+
+msgid "Impact"
+msgstr "Вплив"
+
+msgid "Scope"
+msgstr "Охоплення"

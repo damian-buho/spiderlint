@@ -7,7 +7,7 @@ import { fixFor } from "../rules/fix.ts";
 import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
 import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
-import { importance, scoreOf } from "../rules/score.ts";
+import { impact, pagesOf, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { ordered } from "./agent.ts";
@@ -54,21 +54,16 @@ main { padding-block: 2.5rem; }
 .notice p { margin: 0; }
 .button, button { display: inline-block; font: inherit; padding: .75rem 1.5rem; border: 0; color: var(--bg); background: var(--accent); text-decoration: none; cursor: pointer; }
 .button:hover, button:hover { filter: brightness(1.1); }
-.finding { margin-block: .5rem; background: var(--surface); border: 1px solid var(--line); }
-.finding > summary { padding: 1rem 1.25rem; }
-.finding > div { padding: 0 1.25rem 1rem 2.75rem; }
-.finding p { margin-block: .5rem 0; }
-.score { display: inline-block; min-inline-size: 6.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .rule-card { margin-block: 1rem; background: var(--surface); border: 1px solid var(--line); border-inline-start: .25rem solid var(--muted); }
 .rule-card.error { border-inline-start-color: var(--error); } .rule-card.warning { border-inline-start-color: var(--warning); } .rule-card.info { border-inline-start-color: var(--info); }
 .rule-card.passed { border-inline-start-color: var(--good); } .rule-card.untested { opacity: .85; }
 .rule-head { display: flex; align-items: baseline; gap: .75rem; padding: 1rem 1.25rem; list-style: none; }
-.rule-card > summary::marker { content: ""; } .rule-card > summary::-webkit-details-marker { display: none; }
-.rule-head .badge { flex: none; font-weight: 700; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.rule-card summary::marker { content: ""; } .rule-card summary::-webkit-details-marker { display: none; }
+.rule-head .badge { flex: none; font-weight: 700; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .rule-head code { flex: none; }
 .rule-head .rule-message { overflow-wrap: anywhere; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
-.rule-findings { padding: 0 1.25rem .5rem; }
+.rule-findings { padding: 0 1.25rem .5rem; } .rule-findings p { margin-block: .5rem 0; }
 .rule-foot { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; justify-content: space-between; padding: .75rem 1.25rem; border-block-start: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
 table { inline-size: 100%; border-collapse: collapse; background: var(--surface); }
 th, td { text-align: start; vertical-align: top; padding: .75rem 1rem; border-block-end: 1px solid var(--line); }
@@ -161,7 +156,12 @@ function remedy(t: Translator, guide: RuleGuide | undefined, finding: Finding): 
     return fix + documentation;
 }
 
-// One collapsed line per bundle: score, message, subject; expanded, the pages, locations, fix and docs.
+// Score times pages, summed over a bundle.
+function bundleImpact(same: Finding[], total: number): number {
+    return same.reduce((sum, finding) => sum + impact(finding, total), 0);
+}
+
+// One card per bundle: severity, rule, message and subject on its head; expanded, the pages, locations, fix and docs; impact and scope on its foot.
 function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number): string {
     const [first] = same as [Finding];
     const { subject, isWhole, pages } = reach(t, same, origin, total);
@@ -173,35 +173,17 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
             : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}</p>`;
     const own = same.length === 1 && first.occurrences === undefined ? locations(t, first.locations) : "";
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
-    return `<details class="finding"><summary><span class="score ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span> ${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</summary><div>${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details>`;
+    const pageCount = same.reduce((sum, finding) => sum + pagesOf(finding, total), 0);
+    const scope = isWhole || (total > 0 && pageCount >= total) ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
+    const foot = `<span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
+    return `<article class="rule-card ${first.severity}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span><code>${escape(first.rule)}</code><span class="rule-message">${escape(message)}${subject ? ` — ${link(subject, origin)}` : ""}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot">${foot}</footer></article>`;
 }
 
-// Pages one rule’s findings touch: a fold’s occurrences, an aggregate’s URLs, else one page per finding.
-function touched(same: Finding[]): number {
-    return same.reduce((sum, finding) => sum + (finding.occurrences ?? finding.urls?.length ?? 1), 0);
-}
-
-// One card per rule: severity and message in the header, the findings collapsed in the body, severity, impact and scope spread across the footer.
-function ruleCard(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number): string {
-    const [first] = same as [Finding];
-    const worst = same.toSorted((a, b) => ORDER[a.severity] - ORDER[b.severity] || scoreOf(b) - scoreOf(a))[0] as Finding;
-    const impact = Math.max(...same.map((finding) => importance(finding, total)));
-    const whole = touched(same) >= total || same.every((finding) => reach(t, [finding], origin, total).isWhole);
-    const scope = whole && total > 0 ? t._("Whole site") : t._("Pages: {count}", { count: t.number(touched(same)) });
-    const message = origin ? first.message.replaceAll(`${origin}/`, "/") : first.message;
-    const extra = same.length > 1 ? ` <small class="muted">· ${escape(t._("{count} findings", { count: t.number(same.length) }))}</small>` : "";
-    const foot = `<span>${escape(t._("Severity"))}: <span class="${worst.severity}">${escape(severityName(t, worst.severity))} ${scoreOf(worst).toFixed(1)}</span></span><span>${escape(t._("Impact"))}: ${escape(impact.toFixed(1))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span>`;
-    return `<details class="rule-card ${worst.severity}" open><summary class="rule-head"><span class="badge ${worst.severity}">${escape(severityName(t, worst.severity))}</span><code>${escape(first.rule)}</code><span class="rule-message">${escape(message)}${extra}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${bundle(
-        same,
-    )
-        .map((bundled) => entry(t, bundled, origin, guides, total))
-        .join("")}</div><footer class="rule-foot">${foot}</footer></details>`;
-}
-
-// Findings by rule, one card per rule, the most important rule first.
+// One flat card per bundle, the highest impact first, a rule’s bundles in its own order on a tie.
 function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number): string {
-    return ordered(findings, total)
-        .map((same) => ruleCard(t, same, origin, guides, total))
+    return bundle(ordered(findings, total).flat())
+        .toSorted((a, b) => bundleImpact(b, total) - bundleImpact(a, total))
+        .map((same) => entry(t, same, origin, guides, total))
         .join("");
 }
 
@@ -226,7 +208,7 @@ function passed(t: Translator, report: Pick<Report, "summary" | "rules">): strin
     const rows = clean.map(([id, rule]) => {
         const fix = report.rules?.[id]?.fix;
         const body = fix ? `<div class="rule-findings"><p class="muted">${escape(fixFor(fix))}</p></div>` : "";
-        const foot = `<span>${escape(t._("Severity"))}: –</span><span>${escape(t._("Impact"))}: ${(0).toFixed(1)}</span><span>${escape(t._("Scope"))}: ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</span>`;
+        const foot = `<span>${escape(t._("Impact"))}: ${escape(t.number(0))}</span><span>${escape(t._("Scope"))}: ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</span>`;
         return `<details class="rule-card passed"><summary class="rule-head"><span class="tick" aria-hidden="true">✓</span><code>${escape(id)}</code><span class="rule-arrow" aria-hidden="true">▾</span></summary>${body}<footer class="rule-foot">${foot}</footer></details>`;
     });
     const counts = { rules: t.number(clean.length), pages: t.number(report.summary.pages), checks: t.number(clean.reduce((sum, [, rule]) => sum + rule.checks, 0)) };
@@ -238,7 +220,7 @@ function passed(t: Translator, report: Pick<Report, "summary" | "rules">): strin
 function untested(t: Translator, ids: string[] = []): string {
     if (ids.length === 0) return "";
     const rows = ids.map((id) => {
-        const foot = `<span>${escape(t._("Severity"))}: –</span><span>${escape(t._("Impact"))}: –</span><span>${escape(t._("Scope"))}: –</span>`;
+        const foot = `<span>${escape(t._("Impact"))}: –</span><span>${escape(t._("Scope"))}: –</span>`;
         return `<details class="rule-card untested"><summary class="rule-head"><code>${escape(id)}</code><span class="rule-arrow" aria-hidden="true">▾</span></summary><footer class="rule-foot">${foot}</footer></details>`;
     });
     const heading = escape(t._("Not tested: {count} rules", { count: t.number(ids.length) }));

@@ -157,20 +157,27 @@ describe("formatHtml", () => {
         }
     });
 
-    it("lists one collapsed line per finding under its rule, whole-site scope without a page list, and no group heading for default alone", () => {
+    it("lists one flat card per finding, the highest impact first, whole-site scope without a page list, and no group heading for default alone", () => {
         const pages = Array.from({ length: 100 }, (_unused, index) => `${site.origin}/p${index}`);
         const fold: Finding = { rule: "seo/title", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "title is missing", occurrences: 100, coverage: 1, samples: pages.slice(0, 3) };
         const some: Finding = { rule: "seo/h1", severity: "error", scope: "group", group: "default", url: `${site.origin}/p0`, message: "h1 is missing", occurrences: 40, coverage: 0.4, samples: pages.slice(0, 2) };
         const input = { ...report, pages: report.pages, findings: [fold, some], summary: { ...report.summary, pages: 100, groups: { default: 100 } } };
         const html = formatHtml(input, undefined, false, "en");
-        assert.equal(html.match(/<details class="finding">/g)?.length, 2);
-        assert.equal(html.match(/<details class="rule-card (error|warning|info|hint)"/g)?.length, 2);
+        assert.equal(html.match(/<article class="rule-card (error|warning|info|hint)">/g)?.length, 2);
+        assert.ok(
+            html
+                .split("<article")
+                .slice(1)
+                .every((part) => part.includes("</article>")),
+            "no card nests another",
+        );
+        assert.equal(html.match(/title is missing/g)?.length, 1, "message written once");
         assert.ok(!html.includes("<table><thead><tr><th>Severity"), "no findings table");
         assert.ok(!html.includes("Group:"), "default alone has no heading");
-        const wholeSite = html.split('<details class="rule-card ').find((part) => part.includes("title is missing"));
-        const inner = wholeSite?.split('<details class="finding">', 2)[1] ?? "";
-        assert.ok(wholeSite?.includes("Whole site") && !inner.includes("<ul>"), "whole-site finding lists no pages");
-        assert.ok(wholeSite?.includes("rule-foot") && wholeSite.includes("Severity") && wholeSite.includes("Impact") && wholeSite.includes("Scope"), "footer names severity, impact and scope");
+        const wholeSite = html.split('<article class="rule-card ').find((part) => part.includes("title is missing"));
+        assert.ok(wholeSite?.includes("Whole site") && !wholeSite.includes("<ul>"), "whole-site finding lists no pages");
+        assert.ok(wholeSite?.includes("Impact: 500<"), "impact is score times pages");
+        assert.ok(html.indexOf("title is missing") < html.indexOf("h1 is missing"), "highest impact first");
         assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
