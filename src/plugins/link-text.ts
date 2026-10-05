@@ -6,6 +6,7 @@ import { load } from "cheerio";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { pageRule } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import { definePlugin } from "./types.ts";
 
 const ID = "linktext";
@@ -71,7 +72,7 @@ const generic = pageRule(
         const facts = page[ID] as LinkTextFacts | undefined;
         if (!facts) return;
         const count = facts.generic.length;
-        return count === 0 ? [] : [{ message: `${count} link${count === 1 ? " says" : "s say"} nothing about ${count === 1 ? "its target" : "their targets"} out of context`, value: facts.generic, locations: facts.generic.map(({ text, href }) => `“${text}” → ${href}`) }];
+        return count === 0 ? [] : [{ ...said("links say nothing about their targets out of context"), data: { [page.url.href]: { links: count } }, value: facts.generic, locations: facts.generic.map(({ text, href }) => `“${text}” → ${href}`) }];
     },
     { docs: "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html", fix: "Name the target in the link text itself, or give the link an `aria-label` that does." },
 );

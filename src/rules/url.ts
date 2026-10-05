@@ -52,15 +52,16 @@ const readableSlug: Make = (severity) => ({
 });
 
 // A site finding naming the majority form and every page in the minority, when both forms appear.
-function minority(id: string, severity: Finding["severity"], label: string, forms: Map<string, Facts[]>): Finding | undefined {
+function minority(id: string, severity: Finding["severity"], text: string, variables: Record<string, string>, forms: Map<string, Facts[]>): Finding | undefined {
     const ranked = forms
         .entries()
         .toArray()
         .toSorted(([, a], [, b]) => b.length - a.length);
     const [[major, most] = ["", []], ...rest] = ranked;
     const urls = rest.flatMap(([, pages]) => pages.map((page) => page.url.href));
-    log.debug({ rule: id, label, major, most: most.length, minor: urls.length }, "url forms counted");
-    return urls.length === 0 ? undefined : { rule: id, severity, scope: "site", url: urls[0] as string, message: `${label}: ${most.length} pages ${major}, ${urls.length} ${rest.map(([form]) => form).join(", ")}`, value: Object.fromEntries(ranked.map(([form, pages]) => [form, pages.length])), urls };
+    log.debug({ rule: id, text, major, most: most.length, minor: urls.length }, "url forms counted");
+    const data = Object.fromEntries(rest.flatMap(([form, pages]) => pages.map((page) => [page.url.href, { form }])));
+    return urls.length === 0 ? undefined : { rule: id, severity, scope: "site", url: urls[0] as string, ...said(text, { ...variables, count: most.length, total: most.length + urls.length, major }), data, value: Object.fromEntries(ranked.map(([form, pages]) => [form, pages.length])), urls };
 }
 
 // Pages whose words join with the separator fewer pages of the site use.
@@ -70,10 +71,10 @@ const separators: Make = (severity) => ({
         const forms = new Map<string, Facts[]>();
         for (const page of pages) {
             const path = page.url.pathname.replace(FILE, "");
-            const form = /\w_\w/.test(path) ? (/\w-\w/.test(path) ? "mixed" : "use _") : /\w-\w/.test(path) ? "use -" : undefined;
+            const form = /\w_\w/.test(path) ? (/\w-\w/.test(path) ? "mix both" : "use _") : /\w-\w/.test(path) ? "use -" : undefined;
             if (form) forms.set(form, [...(forms.get(form) ?? []), page]);
         }
-        const finding = minority("url/separators", severity, "word separators differ", forms);
+        const finding = minority("url/separators", severity, "word separators differ: {count} of {total} pages {major}; the others differ", {}, forms);
         return finding ? [finding] : [];
     },
 });
@@ -89,8 +90,9 @@ const trailingSlash: Make = (severity) => ({
                 minority(
                     "url/trailing-slash",
                     severity,
-                    `trailing slashes differ in group ${group}`,
-                    Map.groupBy(members, (page) => (page.url.pathname.endsWith("/") ? "with /" : "without /")),
+                    "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ",
+                    { group },
+                    Map.groupBy(members, (page) => (page.url.pathname.endsWith("/") ? "end with /" : "end without /")),
                 ),
             )
             .filter((finding) => finding !== undefined)

@@ -4,6 +4,7 @@
 
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { TRACKERS } from "./trackers-registry.ts";
 import { definePlugin } from "./types.ts";
@@ -40,7 +41,8 @@ const inventory: Make = (severity) => ({
                 severity,
                 scope: "site",
                 url: `https://${hosts.values().next().value}/`,
-                message: `${vendor} loads from ${hosts.values().toArray().join(", ")} on ${urls.size} page${urls.size === 1 ? "" : "s"}`,
+                ...said("{vendor} loads from these hosts on these pages", { vendor }),
+                data: { [`https://${hosts.values().next().value}/`]: { hosts: hosts.values().toArray().join(", ") } },
                 value: hosts.values().toArray(),
                 urls: urls.values().toArray(),
             }))

@@ -104,7 +104,7 @@ const rendered = pageRule(
         if (page[ID] === undefined) return;
         return examined(page)
             .filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299)
-            .map((profile) => ({ ...said("rel=me profile does not link back to {site}", { site: page.url.origin }), data: { [page.url.href]: { profile: profile.url } }, evidence: [evidence("profiles", profile.url, profile, "browser")], value: profile.url }));
+            .map((profile) => ({ ...said("rel=me profile does not link back to the site"), data: { [page.url.href]: { profile: profile.url, site: page.url.origin } }, evidence: [evidence("profiles", profile.url, profile, "browser")], value: profile.url }));
     },
     { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." },
 );

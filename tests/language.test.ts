@@ -40,8 +40,8 @@ describe("localised metadata", () => {
 
     it("fails an es page with an English title and passes matching en, es and uk pages", () => {
         assert.deepEqual(
-            report.findings.map((finding) => [finding.rule, finding.url.slice(origin.length), finding.message]),
-            [["i18n/metadata-language", "/es-mixed", "lang is “es”, but the title reads as en (0.81)"]],
+            report.findings.map((finding) => [finding.rule, finding.url.slice(origin.length), finding.message, finding.data?.[finding.url]?.lang, finding.locations]),
+            [["i18n/metadata-language", "/es-mixed", "the title or description reads as another language than lang declares", "es", ["title reads as en (0.81)"]]],
         );
     });
 

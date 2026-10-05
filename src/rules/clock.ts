@@ -4,6 +4,7 @@
 
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // Seconds a host’s clock may drift before it is a warning, and before it is an error.
@@ -43,7 +44,7 @@ const clockSkew: Make = (severity) => ({
         for (const { host, skew, urls } of hosts) {
             if (Math.abs(skew) <= TOLERATED) continue;
             const level = Math.abs(skew) > BROKEN ? "error" : severity;
-            findings.push({ rule: "http/clock-skew", severity: level, scope: "site", url: urls[0] as string, message: `the clock of ${host} runs ${Math.abs(skew)} s ${skew > 0 ? "ahead of" : "behind"} ours`, value: skew, urls });
+            findings.push({ rule: "http/clock-skew", severity: level, scope: "site", url: host, ...said(skew > 0 ? "the host’s clock runs ahead of ours" : "the host’s clock runs behind ours"), data: { [host]: { skew: { fact: "http.date-skew", value: Math.abs(skew) } } }, value: skew, urls });
         }
         return findings;
     },

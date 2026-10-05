@@ -48,7 +48,8 @@ describe("robots.txt", () => {
 
     it("lists the AI crawlers a file names, with purpose and verdict", () => {
         const [finding] = judge("robots/ai-crawlers", "User-agent: GPTBot\nUser-agent: claude-web\nDisallow: /\nUser-agent: OAI-SearchBot\nAllow: /\n");
-        assert.equal(finding?.message, "names AI crawlers: gptbot (training, disallowed), claude-web (retired, disallowed), oai-searchbot (search)");
+        assert.equal(finding?.message, "the file names AI crawlers");
+        assert.deepEqual(finding?.locations, ["gptbot (training, disallowed)", "claude-web (retired, disallowed)", "oai-searchbot (search)"]);
         assert.equal(judge("robots/ai-crawlers", "User-agent: *\nDisallow: /private/\n").length, 0);
     });
 

@@ -7,6 +7,7 @@ import { ConfigError } from "../config/index.ts";
 import { REGIONS } from "../facts/html.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // Internal links carrying `nofollow`, which withholds the site’s own ranking from its pages.
@@ -24,7 +25,7 @@ const internalNofollow: Make = (severity) => ({
         const internal = new Set(page.html.links.internal);
         const found = page.html.links.nofollow.filter((href) => internal.has(href));
         log.debug({ rule: "links/internal-nofollow", url: page.url.href, found: found.length }, "internal nofollow checked");
-        return found.length === 0 ? [] : [{ rule: "links/internal-nofollow", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `${found.length} internal links carry rel=nofollow: ${found.slice(0, 5).join(", ")}`, value: found }];
+        return found.length === 0 ? [] : [{ rule: "links/internal-nofollow", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("internal links carry rel=nofollow"), data: { [page.url.href]: { links: found.length } }, locations: found, value: found }];
     },
 });
 
@@ -72,7 +73,8 @@ const externalRelation: Make = (severity, expect) => {
                         scope: "page",
                         url: page.url.href,
                         group: page.group,
-                        message: `the link to ${href}${region ? ` in ${region}` : ""} lacks rel=${missing.join(" ")} (carries ${carried.join(" ") || "none"})`,
+                        ...said("a link lacks the rel tokens declared for its host"),
+                        data: { [page.url.href]: { href, missing: missing.join(" "), ...(carried.length > 0 && { carried: carried.join(" ") }), ...(region !== undefined && { region }) } },
                         value: { href, missing, ...(region !== undefined && { region }) },
                     });
                 }

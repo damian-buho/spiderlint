@@ -149,8 +149,8 @@ describe("trackers/inventory", () => {
     it("lists each vendor once with its hosts and pages, and ignores other hosts", () => {
         const findings = rule.check([page("https://a.test/", ["https://www.googletagmanager.com/gtag.js", "https://cdn.a.test/app.js"]), page("https://a.test/b", ["https://www.google-analytics.com/g.js", "https://notclarity.ms/x.js"])]) ?? [];
         assert.deepEqual(
-            findings.map(({ message, urls }) => ({ message, urls })),
-            [{ message: "Google Analytics loads from www.googletagmanager.com, www.google-analytics.com on 2 pages", urls: ["https://a.test/", "https://a.test/b"] }],
+            findings.map(({ message, data, urls }) => ({ message, hosts: Object.values(data ?? {}).map((entry) => entry.hosts), urls })),
+            [{ message: "Google Analytics loads from these hosts on these pages", hosts: ["www.googletagmanager.com, www.google-analytics.com"], urls: ["https://a.test/", "https://a.test/b"] }],
         );
     });
 });

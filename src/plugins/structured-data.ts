@@ -6,6 +6,7 @@ import { load, type CheerioAPI } from "cheerio";
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { pageRule, resolve } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { SUPERSEDED } from "./schema-registry.ts";
 import { definePlugin } from "./types.ts";
@@ -158,7 +159,7 @@ const parse = pageRule(
     (page) => {
         if (!page.html) return;
         const errors = page.html.jsonld.filter((block): block is { "@error": string } => isNode(block) && typeof block["@error"] === "string").map((block) => block["@error"]);
-        return errors.length === 0 ? [] : [{ message: `${errors.length} JSON-LD block${errors.length === 1 ? " does" : "s do"} not parse: ${errors.join("; ")}`, value: errors }];
+        return errors.length === 0 ? [] : [{ ...said("JSON-LD blocks do not parse"), data: { [page.url.href]: { blocks: errors.length } }, locations: errors, value: errors }];
     },
     { docs: "https://json-ld.org/spec/latest/json-ld/", fix: "Serialise the JSON-LD with a JSON encoder instead of a text template, so quotes and newlines in values are escaped." },
 );
@@ -174,7 +175,7 @@ const required = pageRule(
                 return missing.length === 0 ? [] : [`${type} without ${missing.join(", ")}`];
             }),
         );
-        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data node${locations.length === 1 ? " lacks" : "s lack"} properties their rich result requires`, value: locations, locations }];
+        return locations.length === 0 ? [] : [{ ...said("structured data nodes lack properties their rich result requires"), data: { [page.url.href]: { nodes: locations.length } }, value: locations, locations }];
     },
     { docs: GALLERY, fix: "Add the missing properties to each named node, or drop a type the page does not really describe." },
 );
@@ -213,7 +214,7 @@ const consistent = pageRule(
                 ...(name !== undefined && titles.length > 0 && titles.every((title) => !title.includes(folded(name)) && !folded(name).includes(title)) ? [`${type} “${name}” appears in neither the title nor og:title`] : []),
             ];
         });
-        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data claim${locations.length === 1 ? " disagrees" : "s disagree"} with the page’s own tags`, value: locations, locations }];
+        return locations.length === 0 ? [] : [{ ...said("structured data claims disagree with the page’s own tags"), data: { [page.url.href]: { claims: locations.length } }, value: locations, locations }];
     },
     { docs: "https://developers.google.com/search/docs/appearance/structured-data/sd-policies", fix: "Point `url` and `mainEntityOfPage` at the canonical URL, and use the page title as the entity’s `name` or `headline`." },
 );
@@ -251,7 +252,15 @@ const references: Make = (severity) => ({
         }
         return naming
             .entries()
-            .map(([id, urls]): Finding => ({ rule: "structured-data/references", severity, scope: "site", url: id, message: `reference names a node ${id.startsWith("_:") ? "the page" : documentOf(id)} never defines; named by ${urls.length} page${urls.length === 1 ? "" : "s"}`, value: id, urls }))
+            .map(([id, urls]): Finding => ({
+                rule: "structured-data/references",
+                severity,
+                scope: "site",
+                url: id,
+                ...(id.startsWith("_:") ? said("a reference names a node its own page never defines; named by these pages") : { ...said("a reference names a node its document never defines; named by these pages"), data: { [id]: { document: documentOf(id) } } }),
+                value: id,
+                urls,
+            }))
             .toArray();
     },
 });
@@ -275,8 +284,8 @@ const breadcrumbs: Make = (severity) => ({
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), redirects[url]];
             log.debug({ rule: "structured-data/breadcrumbs", url, status: answer, landing, pages: urls.length }, "breadcrumb judged");
-            const verdict = landing ? `redirects to ${landing}` : answer !== undefined && (answer < 200 || answer > 299) ? `answers ${answer}` : undefined;
-            if (verdict) findings.push({ rule: "structured-data/breadcrumbs", severity, scope: "site", url, message: `breadcrumb item ${verdict}; named by ${urls.length} page${urls.length === 1 ? "" : "s"}`, value: landing ?? answer, urls });
+            const verdict = landing ? { ...said("the breadcrumb item redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the breadcrumb item answers {status}; named by these pages", { status: String(answer) }) : undefined;
+            if (verdict) findings.push({ rule: "structured-data/breadcrumbs", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;
     },
@@ -293,12 +302,12 @@ function sight(sightings: Sightings, key: string, value: string, page: string) {
 }
 
 // One site finding for a key seen with more than one value, each value located with its page count.
-function conflict(url: string, values: Map<string, Set<string>>, message: string, severity: Finding["severity"]): Finding {
+function conflict(url: string, values: Map<string, Set<string>>, sentence: ReturnType<typeof said>, severity: Finding["severity"]): Finding {
     const locations = values
         .entries()
         .map(([value, urls]) => `${value} on ${urls.size} page${urls.size === 1 ? "" : "s"}`)
         .toArray();
-    return { rule: "structured-data/entities", severity, scope: "site", url, message, value: values.keys().toArray(), locations, urls: [...new Set(values.values().flatMap((urls) => urls.values()))] };
+    return { rule: "structured-data/entities", severity, scope: "site", url, ...sentence, value: values.keys().toArray(), locations, urls: [...new Set(values.values().flatMap((urls) => urls.values()))] };
 }
 
 // One `@id` typed differently on different pages, and one named site-wide entity carried under several `@id`s.
@@ -319,7 +328,7 @@ const entities: Make = (severity) => ({
         const findings: Finding[] = [];
         for (const [id, values] of typings) {
             log.debug({ rule: "structured-data/entities", id, typings: values.size }, "identity typing judged");
-            if (values.size > 1) findings.push(conflict(id, values, `one @id is typed ${values.size} ways across the site`, severity));
+            if (values.size > 1) findings.push(conflict(id, values, said("one @id is typed {count} ways across the site", { count: values.size }), severity));
         }
         for (const [entity, values] of identities) {
             log.debug({ rule: "structured-data/entities", entity, ids: values.size }, "entity identity judged");
@@ -331,7 +340,7 @@ const entities: Make = (severity) => ({
                             .toArray()
                             .toSorted((a, b) => a.localeCompare(b))[0] ?? entity,
                         values,
-                        `${entity} is carried under ${values.size} different @ids`,
+                        said("{entity} is carried under {count} different @ids", { entity, count: values.size }),
                         severity,
                     ),
                 );
@@ -360,7 +369,7 @@ const deprecated = pageRule(
             }
         }
         log.debug({ url: page.url.href, superseded: locations.size }, "vocabulary judged");
-        return locations.size === 0 ? [] : [{ message: `${locations.size} schema.org term${locations.size === 1 ? " is" : "s are"} superseded`, value: [...locations], locations: [...locations] }];
+        return locations.size === 0 ? [] : [{ ...said("schema.org terms are superseded"), data: { [page.url.href]: { terms: locations.size } }, value: [...locations], locations: [...locations] }];
     },
     { docs: "https://schema.org/docs/attic.home.html", fix: "Rename each term to the one schema.org supersedes it with." },
 );
@@ -391,7 +400,7 @@ const dates = pageRule(
             ];
         });
         log.debug({ url: page.url.href, invalid: locations.length }, "dates judged");
-        return locations.length === 0 ? [] : [{ message: `${locations.length} structured data date${locations.length === 1 ? " is" : "s are"} malformed or contradictory`, value: locations, locations }];
+        return locations.length === 0 ? [] : [{ ...said("structured data dates are malformed or contradictory"), data: { [page.url.href]: { dates: locations.length } }, value: locations, locations }];
     },
     { docs: "https://developers.google.com/search/docs/appearance/structured-data/article", fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`." },
 );

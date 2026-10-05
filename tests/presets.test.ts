@@ -513,7 +513,7 @@ describe("url shape across pages", () => {
         const [finding, ...rest] = rule.check(pages) ?? [];
         assert.equal(rest.length, 0);
         assert.deepEqual(paths([finding as Finding]), ["/c"]);
-        assert.match(finding?.message ?? "", /2 pages with \/, 1 without \//);
+        assert.match(finding?.message ?? "", /2 of 3 pages end with \/; the others differ/);
     });
 });
 

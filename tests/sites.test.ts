@@ -116,7 +116,8 @@ describe("rel=me", () => {
         );
         const { fetched, ...facts } = report.site.origins?.[origin]?.["rel-me"] as { fetched: Record<string, { status: number; at: string; cached?: true }> };
         assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), { [`${profile}/@other`]: [200, false, undefined], [`${profile}/@me`]: [200, false, undefined], [`${profile}/@gone`]: [404, false, undefined] });
-        assert.equal(report.findings[0]?.message, `rel=me profile does not link back to ${origin}`);
+        assert.equal(report.findings[0]?.message, "rel=me profile does not link back to the site");
+        assert.equal(Object.values(report.findings[0]?.data ?? {})[0]?.site, origin);
         assert.deepEqual(
             report.findings[0]?.evidence?.map((read) => [read.bucket, read.key, read.via, read.mode, Number.isNaN(Date.parse(read.at ?? ""))]),
             [["profiles", `${profile}/@other`, "network", "http", false]],

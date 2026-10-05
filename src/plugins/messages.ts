@@ -4,6 +4,7 @@
 
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 
 // One message a markup linter reported on a page, with where it sits and the tag there.
@@ -33,7 +34,7 @@ export function messageRule(extractor: string, prefix: string, id: string, docum
             const lines = (hits: MarkupMessage[]) => hits.map(({ line, column, selector, source }) => [`${line}:${column}`, selector, source].filter(Boolean).join(" "));
             return byMessage
                 .entries()
-                .map(([message, hits]): Finding => ({ rule: ruleId, severity, scope: "page", url: page.url.href, group: page.group, message, value: locate(hits), locations: lines(hits) }))
+                .map(([message, hits]): Finding => ({ rule: ruleId, severity, scope: "page", url: page.url.href, group: page.group, ...said("{message}", { message }), value: locate(hits), locations: lines(hits) }))
                 .toArray();
         },
     });

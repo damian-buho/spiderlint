@@ -5,6 +5,7 @@
 import { getDomain } from "tldts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // How a disclosing field is judged: `version` warns on a version number, `always` warns, `presence` only hints.
@@ -99,7 +100,7 @@ const serverDisclosure: Make = (severity) => ({
             const level = judge(field, value, severity);
             if (!level) continue;
             const listed = [...urls].toSorted((a, b) => a.localeCompare(b));
-            findings.push({ rule: "http/server-disclosure", severity: level, scope: "site", url: listed[0] as string, message: `${host} names its software in ${field}: ${value} (${listed.length} responses)`, value: { [field]: value }, urls: listed, score: level === "hint" ? 3.5 : 5.4 });
+            findings.push({ rule: "http/server-disclosure", severity: level, scope: "site", url: host, ...said("the host names its software in {field}", { field }), data: { [host]: { value } }, value: { [field]: value }, urls: listed, score: level === "hint" ? 3.5 : 5.4 });
         }
         return findings;
     },

@@ -366,10 +366,10 @@ Done when: `spiderlint audit ORIGIN/ --rules html/jsonld-parses` reports no html
 
 ## url/trailing-slash (warning 4.3)
 
-trailing slashes differ in group default: 7 pages without /, 1 with /
+trailing slashes differ in group default: 7 of 8 pages end without /; the others differ
 
-Where: /app/, used by or shared with:
-- /app/
+Where: /app/: end with /, used by or shared with:
+- /app/: end with /
 Reads: `url.pathname`
 Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
 Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash

@@ -199,7 +199,9 @@ const hostCanonical: Make = (severity) => ({
             const canonical = canonicalOf(subject, pages);
             const astray = (facts.variants as { probes: Variant[] }).probes.filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
             log.debug({ rule: "origin/host-canonical", subject, canonical, astray: astray.length }, "entry variants judged");
-            return astray.length === 0 ? [] : [{ rule: "origin/host-canonical", severity, scope: "site", url: subject, message: `entry variants do not land on ${canonical}: ${astray.map((variant) => `${variant.url} → ${variant.error ?? variant.final}`).join("; ")}`, value: astray }];
+            return astray.length === 0
+                ? []
+                : [{ rule: "origin/host-canonical", severity, scope: "site", url: subject, ...said("entry variants do not land on the canonical origin"), data: { [subject]: { canonical } }, locations: astray.map((variant) => `${variant.url} → ${variant.error ?? variant.final}`), value: astray }];
         });
     },
 });
@@ -368,7 +370,7 @@ const meBackLink: Make = (severity) => ({
                 .map((profile) => {
                     const pages = declared?.[profile] ?? [subject];
                     const seen = fetched?.[profile];
-                    return { rule: "links/rel-me", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to {site}", { site: subject }), ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
+                    return { rule: "links/rel-me", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to the site"), data: { [profile]: { site: subject } }, ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
                 });
         });
     },

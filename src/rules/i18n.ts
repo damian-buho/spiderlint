@@ -5,6 +5,7 @@
 import type { Facts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resolve } from "./builtin.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // The fragment-free hreflang targets of a page other than itself, `x-default` included.
@@ -52,7 +53,7 @@ const hreflangReciprocal: Make = (severity) => ({
         }
         return unanswered
             .entries()
-            .map(([url, urls]): Finding => ({ rule: "i18n/hreflang-reciprocal", severity, scope: "site", url, message: `does not name back ${urls.length} page${urls.length === 1 ? "" : "s"} listing it as an hreflang alternate`, value: urls, urls }))
+            .map(([url, urls]): Finding => ({ rule: "i18n/hreflang-reciprocal", severity, scope: "site", url, ...said("the page does not name back the pages listing it as an hreflang alternate"), value: urls, urls }))
             .toArray();
     },
 });
@@ -68,8 +69,8 @@ const hreflangStatus: Make = (severity) => ({
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), site?.redirects?.[url]];
             log.debug({ rule: "i18n/hreflang-status", url, status: answer, landing, pages: urls.length }, "hreflang target judged");
-            const verdict = landing ? `redirects to ${landing}` : answer !== undefined && (answer < 200 || answer > 299) ? `answers ${answer}` : undefined;
-            if (verdict) findings.push({ rule: "i18n/hreflang-status", severity, scope: "site", url, message: `hreflang target ${verdict}; named by ${urls.length} page${urls.length === 1 ? "" : "s"}`, value: landing ?? answer, urls });
+            const verdict = landing ? { ...said("the hreflang target redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the hreflang target answers {status}; named by these pages", { status: String(answer) }) : undefined;
+            if (verdict) findings.push({ rule: "i18n/hreflang-status", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;
     },
@@ -84,7 +85,7 @@ const contentLanguage: Make = (severity) => ({
         const languages = header.split(",").map((tag) => primary(tag));
         const isListed = languages.includes(primary(lang));
         log.debug({ rule: "i18n/content-language", url: page.url.href, lang, languages, isListed }, "content language compared");
-        return isListed ? [] : [{ rule: "i18n/content-language", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `lang is “${lang}”, Content-Language is “${header}”`, value: header }];
+        return isListed ? [] : [{ rule: "i18n/content-language", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("lang and Content-Language name different languages"), data: { [page.url.href]: { lang, "content-language": header } }, value: header }];
     },
 });
 
@@ -103,8 +104,8 @@ const sitemapHreflang: Make = (severity) => ({
         const differ = [...inSitemap.symmetricDifference(onPage)];
         log.debug({ rule: "sitemap/hreflang", url: page.url.href, sitemap: inSitemap.size, page: onPage.size, differ: differ.length }, "sitemap alternates compared");
         if (differ.length === 0) return [];
-        const only = (side: Set<string>) => differ.filter((pair) => side.has(pair)).join(", ") || "none";
-        return [{ rule: "sitemap/hreflang", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `sitemap alternates differ from the page’s hreflang; sitemap only: ${only(inSitemap)}; page only: ${only(onPage)}`, value: differ }];
+        const only = (side: Set<string>) => differ.filter((pair) => side.has(pair)).join(", ");
+        return [{ rule: "sitemap/hreflang", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("sitemap alternates differ from the page’s hreflang"), data: { [page.url.href]: { "sitemap only": only(inSitemap), "page only": only(onPage) } }, value: differ }];
     },
 });
 
@@ -120,7 +121,7 @@ const metadataLanguage: Make = (severity) => ({
             return guess?.reliable && guess.language !== declared ? [`${field} reads as ${guess.language} (${guess.confidence})`] : [];
         });
         log.debug({ rule: "i18n/metadata-language", url: page.url.href, lang, declared, title: detected.title?.language, description: detected.description?.language, off: off.length }, "metadata language compared");
-        return off.length === 0 ? [] : [{ rule: "i18n/metadata-language", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `lang is “${lang}”, but the ${off.join(" and the ")}`, value: detected }];
+        return off.length === 0 ? [] : [{ rule: "i18n/metadata-language", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("the title or description reads as another language than lang declares"), data: { [page.url.href]: { lang } }, locations: off, value: detected }];
     },
 });
 

@@ -429,8 +429,8 @@ msgstr "{label} está muy por encima de la mediana {median} de {count} páginas;
 msgid "{label} is {common} on {count} of {total} pages, but not on these"
 msgstr "{label} es {common} en {count} de {total} páginas, pero no en estas"
 
-msgid "rel=me profile does not link back to {site}"
-msgstr "el perfil rel=me no enlaza de vuelta a {site}"
+msgid "rel=me profile does not link back to the site"
+msgstr "el perfil rel=me no enlaza de vuelta al sitio"
 
 msgid "{label} varies across {host}"
 msgstr "{label} varía en {host}"
@@ -1673,3 +1673,153 @@ msgstr "{kind}: la respuesta envía Content-Length junto a Transfer-Encoding; us
 
 msgid "{kind}: a 204 response carries Content-Length; used by these pages"
 msgstr "{kind}: una respuesta 204 lleva Content-Length; usado por estas páginas"
+
+msgid "Content-Signal should be search, ai-input or ai-train set to yes or no"
+msgstr "Content-Signal debe ser search, ai-input o ai-train con valor yes o no"
+
+msgid "JSON-LD blocks do not parse"
+msgstr "los bloques JSON-LD no se pueden interpretar"
+
+msgid "User-agent: * is disallowed from every path, so no crawler indexes the site"
+msgstr "User-agent: * no tiene permitida ninguna ruta, así que ningún rastreador indexa el sitio"
+
+msgid "a <div> or <span> takes clicks with no role, so neither keyboards nor screen readers find it"
+msgstr "un <div> o <span> recibe clics sin rol, así que ni los teclados ni los lectores de pantalla lo encuentran"
+
+msgid "a <video> without captions or subtitles"
+msgstr "un <video> sin subtítulos ni descripciones"
+
+msgid "a control shows nothing under forced colours: no visible text, and its icon is a gradient or a mask the system colours paint over"
+msgstr "un control no muestra nada con colores forzados: sin texto visible, y su icono es un degradado o una máscara que los colores del sistema tapan"
+
+msgid "a focused element is hidden under fixed or sticky content"
+msgstr "un elemento enfocado queda oculto bajo contenido fijo o pegajoso"
+
+msgid "a form field is set under {limit} px, so iOS Safari zooms in on focus"
+msgstr "un campo de formulario está por debajo de {limit} px, así que iOS Safari hace zoom al enfocarlo"
+
+msgid "a link lacks the rel tokens declared for its host"
+msgstr "a un enlace le faltan los tokens rel declarados para su host"
+
+msgid "a reference names a node its document never defines; named by these pages"
+msgstr "una referencia nombra un nodo que su documento nunca define; nombrada por estas páginas"
+
+msgid "a reference names a node its own page never defines; named by these pages"
+msgstr "una referencia nombra un nodo que su propia página nunca define; nombrada por estas páginas"
+
+msgid "an <input> whose type does not match the autocomplete field, so phones show the wrong keyboard"
+msgstr "un <input> cuyo tipo no coincide con el campo de autocompletado, así que los móviles muestran el teclado equivocado"
+
+msgid "an element is too faint to read in the dark scheme the page claims to support"
+msgstr "un elemento es demasiado tenue para leerse en el esquema oscuro que la página dice admitir"
+
+msgid "an element keeps its own text colours under forced colours"
+msgstr "un elemento conserva sus propios colores de texto con colores forzados"
+
+msgid "an element loses its focus indicator under forced colours"
+msgstr "un elemento pierde su indicador de foco con colores forzados"
+
+msgid "an element shows no visible change when focused"
+msgstr "un elemento no muestra ningún cambio visible al enfocarse"
+
+msgid "an element stays below 7:1 when the visitor asks for the more contrast the page answers"
+msgstr "un elemento queda por debajo de 7:1 cuando el visitante pide el mayor contraste que la página atiende"
+
+msgid "an interactive element is never reached by Tab"
+msgstr "un elemento interactivo nunca se alcanza con Tab"
+
+msgid "animations and videos keep moving although the visitor asks for reduced motion"
+msgstr "las animaciones y los vídeos siguen moviéndose aunque el visitante pide menos movimiento"
+
+msgid "entry variants do not land on the canonical origin"
+msgstr "las variantes de entrada no terminan en el origen canónico"
+
+msgid "internal links carry rel=nofollow"
+msgstr "los enlaces internos llevan rel=nofollow"
+
+msgid "keyboard focus is trapped: Tab stops moving or cycles back"
+msgstr "el foco del teclado queda atrapado: Tab deja de avanzar o vuelve atrás"
+
+msgid "lang and Content-Language name different languages"
+msgstr "lang y Content-Language nombran idiomas distintos"
+
+msgid "language switcher links do not declare the language they lead to"
+msgstr "los enlaces del selector de idioma no declaran el idioma al que llevan"
+
+msgid "links say nothing about their targets out of context"
+msgstr "los enlaces no dicen nada de su destino fuera de contexto"
+
+msgid "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours"
+msgstr "ningún estilo responde a `prefers-contrast: more`, así que un visitante que pide más contraste ve los colores predeterminados"
+
+msgid "one @id is typed {count} ways across the site"
+msgstr "un @id se tipa de {count} maneras en el sitio"
+
+msgid "schema.org terms are superseded"
+msgstr "hay términos de schema.org reemplazados"
+
+msgid "sitemap alternates differ from the page’s hreflang"
+msgstr "las alternativas del sitemap difieren del hreflang de la página"
+
+msgid "structured data claims disagree with the page’s own tags"
+msgstr "las afirmaciones de los datos estructurados no coinciden con las etiquetas de la propia página"
+
+msgid "structured data dates are malformed or contradictory"
+msgstr "las fechas de los datos estructurados están mal formadas o se contradicen"
+
+msgid "structured data nodes lack properties their rich result requires"
+msgstr "a los nodos de datos estructurados les faltan propiedades que exige su resultado enriquecido"
+
+msgid "the breadcrumb item answers {status}; named by these pages"
+msgstr "el elemento de migas de pan responde {status}; nombrado por estas páginas"
+
+msgid "the breadcrumb item redirects; named by these pages"
+msgstr "el elemento de migas de pan redirige; nombrado por estas páginas"
+
+msgid "the file names AI crawlers"
+msgstr "el archivo nombra rastreadores de IA"
+
+msgid "the first Tab stop is not a link to the main content"
+msgstr "la primera parada de Tab no es un enlace al contenido principal"
+
+msgid "the host names its software in {field}"
+msgstr "el host nombra su software en {field}"
+
+msgid "the hreflang target answers {status}; named by these pages"
+msgstr "el destino de hreflang responde {status}; nombrado por estas páginas"
+
+msgid "the hreflang target redirects; named by these pages"
+msgstr "el destino de hreflang redirige; nombrado por estas páginas"
+
+msgid "the page does not name back the pages listing it as an hreflang alternate"
+msgstr "la página no nombra de vuelta a las páginas que la listan como alternativa hreflang"
+
+msgid "the page sends deprecated headers"
+msgstr "la página envía cabeceras obsoletas"
+
+msgid "the title or description reads as another language than lang declares"
+msgstr "el título o la descripción parecen estar en otro idioma que el que declara lang"
+
+msgid "{entity} is carried under {count} different @ids"
+msgstr "{entity} aparece bajo {count} @id distintos"
+
+msgid "{message}"
+msgstr "{message}"
+
+msgid "{rule} fails on {count} of {total} pages; the group likely spans two templates"
+msgstr "{rule} falla en {count} de {total} páginas; el grupo probablemente abarca dos plantillas"
+
+msgid "{vendor} loads from these hosts on these pages"
+msgstr "{vendor} se carga desde estos hosts en estas páginas"
+
+msgid "the host’s clock runs ahead of ours"
+msgstr "el reloj del host va adelantado respecto al nuestro"
+
+msgid "the host’s clock runs behind ours"
+msgstr "el reloj del host va atrasado respecto al nuestro"
+
+msgid "word separators differ: {count} of {total} pages {major}; the others differ"
+msgstr "los separadores de palabras difieren: {count} de {total} páginas {major}; las demás difieren"
+
+msgid "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ"
+msgstr "las barras finales difieren en el grupo {group}: {count} de {total} páginas {major}; las demás difieren"

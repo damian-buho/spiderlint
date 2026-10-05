@@ -4,6 +4,7 @@
 
 import type { Facts, RobotsFileFacts, RobotsGroupFacts, SiteFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Finding, Make } from "./types.ts";
 
 // AI crawler product tokens by purpose; `retired` ones no vendor still sends.
@@ -37,8 +38,8 @@ function isBlanket(group: RobotsGroupFacts): boolean {
     return group.disallow.includes("/") && group.allow.length === 0;
 }
 
-// One site rule per robots.txt file: `judge` returns the finding’s message and value, or nothing.
-function robotsRule(id: string, documentation: string, judge: (file: RobotsFileFacts) => { message: string; value: unknown } | undefined, fix?: string): Make {
+// One site rule per robots.txt file: `judge` returns the finding’s sentence and value, or nothing.
+function robotsRule(id: string, documentation: string, judge: (file: RobotsFileFacts) => Pick<Finding, "message" | "text" | "variables" | "data" | "locations" | "value"> | undefined, fix?: string): Make {
     return (severity) => ({
         meta: { id, severity, scope: "site", facts: ["site.robots"], docs: documentation, ...(fix && { fix }) },
         check(_pages: Facts[], _group?: string, site?: SiteFacts) {
@@ -60,7 +61,7 @@ const disallowAll = robotsRule(
     "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.2",
     (file) => {
         const blanket = file.groups.filter((group) => group.agents.includes("*") && isBlanket(group));
-        return blanket.length > 0 ? { message: "User-agent: * is disallowed from every path, so no crawler indexes the site", value: "/" } : undefined;
+        return blanket.length > 0 ? { ...said("User-agent: * is disallowed from every path, so no crawler indexes the site"), value: "/" } : undefined;
     },
     "Remove the Disallow: / rule from the User-agent: * group, or add Allow rules for the paths you want crawled.",
 );
@@ -72,8 +73,7 @@ const aiCrawlers = robotsRule(
     (file) => {
         const named = file.groups.flatMap((group) => group.agents.flatMap((agent) => (Object.hasOwn(AI_CRAWLERS, agent) ? [{ agent, purpose: AI_CRAWLERS[agent], blocked: isBlanket(group) }] : [])));
         if (named.length === 0) return;
-        const listed = named.map(({ agent, purpose, blocked }) => `${agent} (${purpose}${blocked ? ", disallowed" : ""})`).join(", ");
-        return { message: `names AI crawlers: ${listed}`, value: named };
+        return { ...said("the file names AI crawlers"), locations: named.map(({ agent, purpose, blocked }) => `${agent} (${purpose}${blocked ? ", disallowed" : ""})`), value: named };
     },
     "Confirm each named AI crawler is allowed or disallowed as intended.",
 );
@@ -87,7 +87,7 @@ const contentSignal = robotsRule(
             const entries = Object.entries(signals);
             return entries.length === 0 || entries.some(([key, value]) => !SIGNALS.has(key) || !VERDICTS.has(value));
         });
-        return malformed.length > 0 ? { message: `Content-Signal should be search, ai-input or ai-train set to yes or no, found ${malformed.map((line) => `“${line.value}”`).join(", ")}`, value: malformed.map((line) => line.value) } : undefined;
+        return malformed.length > 0 ? { ...said("Content-Signal should be search, ai-input or ai-train set to yes or no"), data: { [file.url]: { found: malformed.map((line) => line.value).join(", ") } }, value: malformed.map((line) => line.value) } : undefined;
     },
     "Write each Content-Signal line as comma-separated signal=yes|no pairs, e.g. Content-Signal: search=yes, ai-input=no, ai-train=no.",
 );

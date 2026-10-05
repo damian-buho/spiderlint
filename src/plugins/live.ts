@@ -8,6 +8,7 @@ import { reason } from "../crawl/fetch.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { pageRule } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import type { Element } from "./keyboard.ts";
 import { definePlugin } from "./types.ts";
 import { DESCRIBE, visit, withPage } from "./visit.ts";
@@ -166,7 +167,6 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<LiveFac
 
 const liveOf = (page: Facts) => page[ID] as LiveFacts | undefined;
 const located = (element: Element) => `${element.target} ${element.html}`;
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 const reducedMotion = pageRule(
     "live/reduced-motion",
@@ -175,7 +175,7 @@ const reducedMotion = pageRule(
         const facts = liveOf(page);
         if (!facts) return;
         const moving = [...facts.motion.map((entry) => `${located(entry)} ${entry.name} ${entry.seconds === undefined ? "endless" : `${entry.seconds} s`}`), ...facts.videos.map((video) => `${located(video)} autoplays`)];
-        return moving.length === 0 ? [] : [{ message: `${plural(facts.motion.length, "animation", "animations")} and ${plural(facts.videos.length, "video", "videos")} keep moving although the visitor asks for reduced motion`, value: moving, locations: moving }];
+        return moving.length === 0 ? [] : [{ ...said("animations and videos keep moving although the visitor asks for reduced motion"), data: { [page.url.href]: { animations: facts.motion.length, videos: facts.videos.length } }, value: moving, locations: moving }];
     },
     { docs: "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html", fix: "Stop endless and long animations and autoplay inside `@media (prefers-reduced-motion: reduce)`." },
 );
@@ -186,9 +186,7 @@ const clickListener = pageRule(
     (page) => {
         const found = liveOf(page)?.clickables;
         if (!found) return;
-        return found.length === 0
-            ? []
-            : [{ message: `${plural(found.length, "<div> or <span> takes", "<div> or <span> elements take")} clicks with no role, so neither keyboards nor screen readers find ${found.length === 1 ? "it" : "them"}`, value: found.map((element) => element.target), locations: found.map((element) => located(element)) }];
+        return found.length === 0 ? [] : [{ ...said("a <div> or <span> takes clicks with no role, so neither keyboards nor screen readers find it"), data: { [page.url.href]: { elements: found.length } }, value: found.map((element) => element.target), locations: found.map((element) => located(element)) }];
     },
     { docs: "https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/", fix: 'Use `<button>` or `<a href>`; a custom control needs a role, `tabindex="0"` and a key handler too.' },
 );
@@ -199,7 +197,9 @@ const inputFontSize = pageRule(
     (page) => {
         const small = liveOf(page)?.inputs;
         if (!small) return;
-        return small.length === 0 ? [] : [{ message: `${plural(small.length, "form field is", "form fields are")} set under ${MIN_FONT} px, so iOS Safari zooms in on focus`, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
+        return small.length === 0
+            ? []
+            : [{ ...said("a form field is set under {limit} px, so iOS Safari zooms in on focus", { limit: MIN_FONT }), data: { [page.url.href]: { fields: small.length } }, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag", fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen." },
 );
@@ -212,7 +212,14 @@ const darkContrast = pageRule(
         if (!faintText) return;
         return faintText.length === 0
             ? []
-            : [{ message: `${plural(faintText.length, "element is", "elements are")} too faint to read in the dark scheme the page claims to support`, value: faintText.map((element) => element.target), locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`) }];
+            : [
+                  {
+                      ...said("an element is too faint to read in the dark scheme the page claims to support"),
+                      data: { [page.url.href]: { elements: faintText.length } },
+                      value: faintText.map((element) => element.target),
+                      locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`),
+                  },
+              ];
     },
     { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." },
 );
@@ -227,7 +234,8 @@ const forcedIcons = pageRule(
             ? []
             : [
                   {
-                      message: `${plural(blank.length, "control shows", "controls show")} nothing under forced colours: no visible text, and ${blank.length === 1 ? "its icon is" : "their icons are"} a gradient or a mask the system colours paint over`,
+                      ...said("a control shows nothing under forced colours: no visible text, and its icon is a gradient or a mask the system colours paint over"),
+                      data: { [page.url.href]: { controls: blank.length } },
                       value: blank.map((element) => element.target),
                       locations: blank.map((element) => located(element)),
                   },
@@ -242,7 +250,7 @@ const forcedOptOut = pageRule(
     (page) => {
         const kept = liveOf(page)?.forced?.["opt-out"];
         if (!kept) return;
-        return kept.length === 0 ? [] : [{ message: `${plural(kept.length, "element keeps", "elements keep")} ${kept.length === 1 ? "its" : "their"} own text colours under forced colours`, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
+        return kept.length === 0 ? [] : [{ ...said("an element keeps its own text colours under forced colours"), data: { [page.url.href]: { elements: kept.length } }, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
     },
     { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." },
 );
@@ -253,7 +261,7 @@ const contrastMore = pageRule(
     (page) => {
         const contrast = liveOf(page)?.contrast;
         if (!contrast) return;
-        return contrast.claimed ? [] : [{ message: "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours", value: false }];
+        return contrast.claimed ? [] : [{ ...said("no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours"), value: false }];
     },
     { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast", fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1." },
 );
@@ -268,7 +276,8 @@ const contrastEnhanced = pageRule(
             ? []
             : [
                   {
-                      message: `${plural(faintText.length, "element stays", "elements stay")} below 7:1 when the visitor asks for the more contrast the page answers`,
+                      ...said("an element stays below 7:1 when the visitor asks for the more contrast the page answers"),
+                      data: { [page.url.href]: { elements: faintText.length } },
                       value: faintText.map((element) => element.target),
                       locations: faintText.map((element) => `${located(element)}${element.contrast ? ` ${element.contrast}` : ""}`),
                   },

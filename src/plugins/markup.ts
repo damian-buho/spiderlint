@@ -6,6 +6,7 @@ import { load } from "cheerio";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { pageRule, resolve } from "../rules/builtin.ts";
+import { said } from "../rules/message.ts";
 import { definePlugin } from "./types.ts";
 
 const ID = "markup";
@@ -71,7 +72,7 @@ const langSwitcher = pageRule(
             if (declared && expected.some((tag) => isAgreeing(declared, tag))) return [];
             return [`${href} ${declared ? `declares ${declared}, not` : "declares no lang for"} ${expected.join(", ")}`];
         });
-        return locations.length === 0 ? [] : [{ message: `${locations.length} language switcher link${locations.length === 1 ? " does" : "s do"} not declare the language ${locations.length === 1 ? "it leads" : "they lead"} to`, value: locations, locations }];
+        return locations.length === 0 ? [] : [{ ...said("language switcher links do not declare the language they lead to"), data: { [page.url.href]: { links: locations.length } }, value: locations, locations }];
     },
     { docs: "https://www.w3.org/International/questions/qa-link-lang", fix: "Give each switcher link `lang` and `hreflang` equal to its target’s language, and write its text in that language." },
 );
@@ -83,7 +84,7 @@ const captions = pageRule(
         const facts = markupOf(page);
         if (!facts) return;
         const bare = facts.videos.filter((video) => !(video.muted && !video.controls) && video.tracks.every((kind) => kind !== "captions" && kind !== "subtitles"));
-        return bare.length === 0 ? [] : [{ message: `${bare.length} <video> without captions or subtitles`, value: bare, locations: bare.map((video) => video.src ?? "<video>") }];
+        return bare.length === 0 ? [] : [{ ...said("a <video> without captions or subtitles"), data: { [page.url.href]: { videos: bare.length } }, value: bare, locations: bare.map((video) => video.src ?? "<video>") }];
     },
     { docs: "https://www.w3.org/WAI/media/av/captions/", fix: 'Add `<track kind="captions" src="….vtt" srclang="…">` to each video with speech; a muted decorative loop without controls is exempt.' },
 );
@@ -104,7 +105,7 @@ const inputType = pageRule(
             const expected = field && EXPECTED[field];
             return !expected || type === expected || inputmode === expected ? [] : [`autocomplete=${field} on type=${type}${inputmode ? ` inputmode=${inputmode}` : ""}`];
         });
-        return locations.length === 0 ? [] : [{ message: `${locations.length} <input> whose type does not match the autocomplete field, so phones show the wrong keyboard`, value: locations, locations }];
+        return locations.length === 0 ? [] : [{ ...said("an <input> whose type does not match the autocomplete field, so phones show the wrong keyboard"), data: { [page.url.href]: { inputs: locations.length } }, value: locations, locations }];
     },
     { docs: "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-field", fix: "Set `type` (or `inputmode`) to what the autocomplete field holds: `email`, `tel` or `url`." },
 );

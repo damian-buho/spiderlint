@@ -4,6 +4,7 @@
 
 import type { FoldConfig } from "../config/index.ts";
 import { log } from "../logger.ts";
+import { said } from "../rules/message.ts";
 import { cell, type RuleRun } from "../rules/run.ts";
 import { levelOf, round, scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
@@ -33,7 +34,7 @@ export function fold(run: RuleRun, options: FoldConfig | false): Finding[] {
         if (!isFolded) {
             out.push(...findings);
             if (options !== false && applicable >= options.min && ratio > HETEROGENEOUS) {
-                out.push({ rule: "groups/heterogeneous", severity: "info", score: 2, scope: "group", url: findings[0]?.url as string, group, message: `${rule} fails on ${failed} of ${applicable} pages; the group likely spans two templates` });
+                out.push({ rule: "groups/heterogeneous", severity: "info", score: 2, scope: "group", url: findings[0]?.url as string, group, ...said("{rule} fails on {count} of {total} pages; the group likely spans two templates", { rule, count: failed, total: applicable }) });
             }
             continue;
         }

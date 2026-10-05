@@ -7,6 +7,7 @@ import axeCore from "axe-core";
 import type { Page } from "playwright";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "../rules/message.ts";
 import type { Finding, Make, RulesetConfig, Severity } from "../rules/types.ts";
 import { definePlugin } from "./types.ts";
 
@@ -121,7 +122,7 @@ function rule(id: string, helpUrl: string, fix?: string): Make {
                 scope: "page",
                 url: page.url.href,
                 group: page.group,
-                message: help,
+                ...said("{message}", { message: help }),
                 value: { ...(impact && { impact }), nodes: nodes.map(({ target, html, summary }) => ({ target, html, ...(summary && { summary }) })) },
                 locations: nodes.map((node) => locate(node)),
                 score: impactScore(severity, impact),

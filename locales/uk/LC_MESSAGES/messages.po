@@ -429,8 +429,8 @@ msgstr "{label} значно перевищує медіану {median} для {
 msgid "{label} is {common} on {count} of {total} pages, but not on these"
 msgstr "{label}: {common} на {count} з {total} сторінок, але не на цих"
 
-msgid "rel=me profile does not link back to {site}"
-msgstr "профіль rel=me не посилається назад на {site}"
+msgid "rel=me profile does not link back to the site"
+msgstr "профіль rel=me не посилається назад на сайт"
 
 msgid "{label} varies across {host}"
 msgstr "{label} відрізняється в межах {host}"
@@ -1673,3 +1673,153 @@ msgstr "{kind}: відповідь надсилає Content-Length разом з
 
 msgid "{kind}: a 204 response carries Content-Length; used by these pages"
 msgstr "{kind}: відповідь 204 містить Content-Length; використовують ці сторінки"
+
+msgid "Content-Signal should be search, ai-input or ai-train set to yes or no"
+msgstr "Content-Signal має бути search, ai-input або ai-train зі значенням yes чи no"
+
+msgid "JSON-LD blocks do not parse"
+msgstr "блоки JSON-LD не розбираються"
+
+msgid "User-agent: * is disallowed from every path, so no crawler indexes the site"
+msgstr "User-agent: * заборонено в усіх шляхах, тому жоден краулер не індексує сайт"
+
+msgid "a <div> or <span> takes clicks with no role, so neither keyboards nor screen readers find it"
+msgstr "<div> або <span> приймає кліки без ролі, тому ні клавіатури, ні зчитувачі екрана його не знаходять"
+
+msgid "a <video> without captions or subtitles"
+msgstr "<video> без субтитрів"
+
+msgid "a control shows nothing under forced colours: no visible text, and its icon is a gradient or a mask the system colours paint over"
+msgstr "елемент керування нічого не показує за примусових кольорів: немає видимого тексту, а його піктограма — градієнт чи маска, яку системні кольори замальовують"
+
+msgid "a focused element is hidden under fixed or sticky content"
+msgstr "елемент у фокусі прихований під фіксованим чи липким вмістом"
+
+msgid "a form field is set under {limit} px, so iOS Safari zooms in on focus"
+msgstr "поле форми менше за {limit} px, тому iOS Safari збільшує масштаб у фокусі"
+
+msgid "a link lacks the rel tokens declared for its host"
+msgstr "посиланню бракує токенів rel, оголошених для його хоста"
+
+msgid "a reference names a node its document never defines; named by these pages"
+msgstr "посилання називає вузол, якого його документ ніколи не визначає; його називають ці сторінки"
+
+msgid "a reference names a node its own page never defines; named by these pages"
+msgstr "посилання називає вузол, якого його власна сторінка ніколи не визначає; його називають ці сторінки"
+
+msgid "an <input> whose type does not match the autocomplete field, so phones show the wrong keyboard"
+msgstr "<input>, тип якого не збігається з полем автозаповнення, тому телефони показують не ту клавіатуру"
+
+msgid "an element is too faint to read in the dark scheme the page claims to support"
+msgstr "елемент надто блідий, щоб його прочитати в темній схемі, яку сторінка заявляє підтримувати"
+
+msgid "an element keeps its own text colours under forced colours"
+msgstr "елемент зберігає власні кольори тексту за примусових кольорів"
+
+msgid "an element loses its focus indicator under forced colours"
+msgstr "елемент втрачає індикатор фокуса за примусових кольорів"
+
+msgid "an element shows no visible change when focused"
+msgstr "елемент не показує жодної видимої зміни у фокусі"
+
+msgid "an element stays below 7:1 when the visitor asks for the more contrast the page answers"
+msgstr "елемент лишається нижче за 7:1, коли відвідувач просить більшого контрасту, на який відповідає сторінка"
+
+msgid "an interactive element is never reached by Tab"
+msgstr "інтерактивний елемент ніколи не досягається клавішею Tab"
+
+msgid "animations and videos keep moving although the visitor asks for reduced motion"
+msgstr "анімації та відео не зупиняються, хоча відвідувач просить зменшити рух"
+
+msgid "entry variants do not land on the canonical origin"
+msgstr "варіанти входу не потрапляють на канонічний origin"
+
+msgid "internal links carry rel=nofollow"
+msgstr "внутрішні посилання мають rel=nofollow"
+
+msgid "keyboard focus is trapped: Tab stops moving or cycles back"
+msgstr "фокус клавіатури потрапив у пастку: Tab перестає рухатися або повертається назад"
+
+msgid "lang and Content-Language name different languages"
+msgstr "lang і Content-Language називають різні мови"
+
+msgid "language switcher links do not declare the language they lead to"
+msgstr "посилання перемикача мови не оголошують мови, на яку ведуть"
+
+msgid "links say nothing about their targets out of context"
+msgstr "посилання поза контекстом нічого не кажуть про свою мету"
+
+msgid "no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours"
+msgstr "жоден стиль не відповідає на `prefers-contrast: more`, тому відвідувач, що просить більшого контрасту, бачить типові кольори"
+
+msgid "one @id is typed {count} ways across the site"
+msgstr "один @id має {count} різних типів на сайті"
+
+msgid "schema.org terms are superseded"
+msgstr "терміни schema.org замінено новими"
+
+msgid "sitemap alternates differ from the page’s hreflang"
+msgstr "альтернативи у sitemap відрізняються від hreflang сторінки"
+
+msgid "structured data claims disagree with the page’s own tags"
+msgstr "твердження структурованих даних розходяться з власними тегами сторінки"
+
+msgid "structured data dates are malformed or contradictory"
+msgstr "дати в структурованих даних неправильні або суперечливі"
+
+msgid "structured data nodes lack properties their rich result requires"
+msgstr "вузлам структурованих даних бракує властивостей, яких вимагає їхній розширений результат"
+
+msgid "the breadcrumb item answers {status}; named by these pages"
+msgstr "елемент хлібних крихт відповідає {status}; його називають ці сторінки"
+
+msgid "the breadcrumb item redirects; named by these pages"
+msgstr "елемент хлібних крихт переспрямовує; його називають ці сторінки"
+
+msgid "the file names AI crawlers"
+msgstr "файл називає краулери ШІ"
+
+msgid "the first Tab stop is not a link to the main content"
+msgstr "перша зупинка Tab не є посиланням на основний вміст"
+
+msgid "the host names its software in {field}"
+msgstr "хост називає своє програмне забезпечення в {field}"
+
+msgid "the hreflang target answers {status}; named by these pages"
+msgstr "ціль hreflang відповідає {status}; її називають ці сторінки"
+
+msgid "the hreflang target redirects; named by these pages"
+msgstr "ціль hreflang переспрямовує; її називають ці сторінки"
+
+msgid "the page does not name back the pages listing it as an hreflang alternate"
+msgstr "сторінка не називає у відповідь сторінок, що перелічують її як альтернативу hreflang"
+
+msgid "the page sends deprecated headers"
+msgstr "сторінка надсилає застарілі заголовки"
+
+msgid "the title or description reads as another language than lang declares"
+msgstr "заголовок або опис читаються іншою мовою, ніж оголошує lang"
+
+msgid "{entity} is carried under {count} different @ids"
+msgstr "{entity} має {count} різних @id"
+
+msgid "{message}"
+msgstr "{message}"
+
+msgid "{rule} fails on {count} of {total} pages; the group likely spans two templates"
+msgstr "{rule} не проходить на {count} із {total} сторінок; група, імовірно, охоплює два шаблони"
+
+msgid "{vendor} loads from these hosts on these pages"
+msgstr "{vendor} завантажується із цих хостів на цих сторінках"
+
+msgid "the host’s clock runs ahead of ours"
+msgstr "годинник хоста поспішає порівняно з нашим"
+
+msgid "the host’s clock runs behind ours"
+msgstr "годинник хоста відстає порівняно з нашим"
+
+msgid "word separators differ: {count} of {total} pages {major}; the others differ"
+msgstr "роздільники слів різняться: {count} із {total} сторінок {major}; решта відрізняється"
+
+msgid "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ"
+msgstr "кінцеві слеші різняться в групі {group}: {count} із {total} сторінок {major}; решта відрізняється"

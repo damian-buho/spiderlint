@@ -4,6 +4,7 @@
 
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { said } from "./message.ts";
 import type { Make } from "./types.ts";
 
 interface Deprecation {
@@ -38,7 +39,19 @@ const deprecatedHeader: Make = (severity) => ({
         log.debug({ rule: "http/deprecated-header", url: page.url.href, sent }, "deprecated headers checked");
         if (sent.length === 0) return [];
         const listed = sent.map((name) => DEPRECATED[name] as Deprecation);
-        return [{ rule: "http/deprecated-header", severity, scope: "page" as const, url: page.url.href, group: page.group, message: `deprecated headers: ${listed.map((entry) => `${entry.name} (${entry.instead})`).join("; ")}`, value: Object.fromEntries(listed.map((entry) => [entry.name, entry.docs])) }];
+        return [
+            {
+                rule: "http/deprecated-header",
+                severity,
+                scope: "page" as const,
+                url: page.url.href,
+                group: page.group,
+                ...said("the page sends deprecated headers"),
+                data: { [page.url.href]: { headers: listed.map((entry) => entry.name).join(", ") } },
+                locations: listed.map((entry) => `${entry.name} → ${entry.instead}`),
+                value: Object.fromEntries(listed.map((entry) => [entry.name, entry.docs])),
+            },
+        ];
     },
 });
 
