@@ -20,6 +20,7 @@ Spiderlint crawls every page a site serves, collects facts about each request (H
 
 - Accessibility checked from every side
 - Client-rendered pages audited as visitors see them
+- Every kind of page early, whatever the limit
 - CSS checked as browsers read it
 - The DNS behind every crawled host
 - Feeds checked the way readers see them

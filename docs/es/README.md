@@ -22,6 +22,7 @@ Spiderlint rastrea cada página que sirve un sitio, recoge datos de cada petici�
 
 - Accesibilidad revisada desde todos los lados
 - Páginas renderizadas en el cliente, auditadas tal como las ven los visitantes
+- Todos los tipos de página desde el principio, sea cual sea el límite
 - CSS revisado como lo leen los navegadores
 - El DNS detrás de cada host rastreado
 - Feeds revisados tal como los ven los lectores
