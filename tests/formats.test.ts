@@ -213,9 +213,21 @@ describe("formatHtml", () => {
         const untested = report.summary.untested ?? [];
         assert.ok(untested.length > 0 && untested.every((id) => !Object.hasOwn(report.summary.checked ?? {}, id)));
         const tail = html.split('<section class="untested">', 2)[1] ?? "";
-        assert.ok(tail.includes(`Not tested: ${untested.length.toLocaleString("en")} rules`));
-        for (const id of untested.slice(0, 5)) assert.ok(tail.includes(`<code>${id}</code>`), id);
-        assert.ok(!formatHtml({ ...report, summary: { ...report.summary, untested: [] } }, undefined, false, "en").includes("Not tested"));
+        assert.ok(tail.includes(`Skipped: ${untested.length.toLocaleString("en")} rules`));
+        for (const id of untested.slice(0, 5)) assert.ok(tail.includes(`<code>${id}</code></a>`), id);
+        assert.ok(!formatHtml({ ...report, summary: { ...report.summary, untested: [] } }, undefined, false, "en").includes("Skipped:"));
+        const skipped = untested[0] as string;
+        assert.match(tail.split(`<code>${skipped}</code></a>`, 2)[1] ?? "", /^<span class="rule-message muted">[^<]+ <small class="muted">· Presets: [a-z]/, skipped);
+        assert.ok(!tail.includes("Impact: –"), "no empty impact on a skipped rule");
+    });
+
+    it("heads the report Findings (Whole site, Pages), Passed open, Statistics and Skipped closed", () => {
+        const html = formatHtml(report, undefined, false, "en");
+        const order = ["<h2>Findings</h2>", "<h3>Whole site</h3>", "<h3>Pages</h3>", "<details open><summary><h2>Passed: ", "<details><summary><h2>Statistics</h2>", "<details><summary><h2>Skipped: "].map((marker) => html.indexOf(marker));
+        assert.ok(
+            order.every((at, index) => at >= 0 && (index === 0 || at > (order[index - 1] as number))),
+            String(order),
+        );
     });
 
     it("names each labelled statistic by its translated label with the path on hover, leaves an unlabelled one out and shows a duration without a total", () => {

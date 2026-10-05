@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
+import { shippedRules } from "../rules/catalog.ts";
 import { fixFor } from "../rules/fix.ts";
 import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
 import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
@@ -56,11 +57,11 @@ main { padding-block: 2.5rem; }
 .button:hover, button:hover { filter: brightness(1.1); }
 .rule-card { margin-block: 1rem; background: var(--surface); border: 1px solid var(--line); border-inline-start: .25rem solid var(--muted); }
 .rule-card.error { border-inline-start-color: var(--error); } .rule-card.warning { border-inline-start-color: var(--warning); } .rule-card.info { border-inline-start-color: var(--info); }
-.rule-card.passed { border-inline-start-color: var(--good); } .rule-card.untested { opacity: .85; }
+.rule-card.passed { border-inline-start-color: var(--good); } .rule-card.untested { border-inline-start-color: var(--line); }
 .rule-head { display: flex; align-items: baseline; gap: .75rem; padding: 1rem 1.25rem; list-style: none; }
 .rule-card summary::marker { content: ""; } .rule-card summary::-webkit-details-marker { display: none; }
 .rule-head .badge { flex: none; font-weight: 700; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
-.rule-head code { flex: none; }
+.rule-head code, .rule-head > a { flex: none; }
 .rule-head .rule-message { overflow-wrap: anywhere; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
 .rule-findings { padding: 0 1.25rem .5rem; } .rule-findings p { margin-block: .5rem 0; }
@@ -70,21 +71,10 @@ table { inline-size: 100%; border-collapse: collapse; background: var(--surface)
 th, td { text-align: start; vertical-align: top; padding: .75rem 1rem; border-block-end: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 500; font-size: .85rem; }
 .error { color: var(--error); } .warning { color: var(--warning); } .info { color: var(--info); } .hint { color: var(--muted); }
-summary { cursor: pointer; } summary h2 { display: inline; margin: 0; }
+summary { cursor: pointer; } summary h2, summary h3 { display: inline; margin: 0; } section > details:has(> summary > h2) { margin-block: 3rem 1rem; }
 ul { margin: .5rem 0 0; padding-inline-start: 1.25rem; }
-.passed > details, .untested > details { background: var(--surface); border: 1px solid var(--line); }
-.passed > details { background: var(--good-bg); border-color: var(--good-line); border-inline-start: .25rem solid var(--good); }
-.passed summary, .untested summary { padding: 1.25rem 1.5rem; }
-.passed h2 { color: var(--good); }
-.passed ul, .untested .areas { margin: 0; padding: 0 1.5rem 1.5rem; list-style: none; }
-.passed li { padding-block: .5rem; border-block-start: 1px solid var(--good-line); }
-.passed li:first-child { border-block-start: 0; }
 .tick { color: var(--good); font-weight: 700; }
-.untested > details > p { margin: 0; padding-inline: 1.5rem; }
-.areas { display: grid; gap: 1rem; margin-block-start: 1rem; }
-.areas h3 { margin-block: 0 .5rem; color: var(--muted); font-weight: 500; }
-.areas ul { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; }
-.areas li { padding: .125rem .625rem; border: 1px solid var(--line); color: var(--muted); }
+h4 { font-size: .9rem; font-weight: 500; color: var(--muted); margin-block: 1.5rem .5rem; }
 form { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 2rem; }
 form label.muted { flex: 1 1 100%; }
 fieldset { flex: 1 1 100%; border: 0; padding: 0; margin: 1rem 0 0; display: grid; gap: .5rem; } fieldset label { display: block; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line); }
@@ -217,18 +207,21 @@ function passed(t: Translator, report: Pick<Report, "summary" | "rules">): strin
     return rows.length === 0 ? "" : `<section class="passed"><details open><summary><h2>${heading}</h2></summary>${rows.join("")}</details></section>`;
 }
 
-// The shipped rules that judged nothing, one muted card per rule; nothing when every rule ran.
+// The shipped rules that judged nothing, one muted row per rule linked to its docs, with its preset’s description and presets; nothing when every rule ran.
 function untested(t: Translator, ids: string[] = []): string {
     if (ids.length === 0) return "";
+    const shipped = shippedRules();
     const rows = ids.map((id) => {
-        const foot = `<span>${escape(t._("Impact"))}: –</span><span>${escape(t._("Scope"))}: –</span>`;
-        return `<details class="rule-card untested"><summary class="rule-head"><code>${escape(id)}</code><span class="rule-arrow" aria-hidden="true">▾</span></summary><footer class="rule-foot">${foot}</footer></details>`;
+        const { docs, presets = [] } = shipped.get(id) ?? {};
+        const name = docs && /^https?:\/\//i.test(docs) ? `<a href="${escape(docs)}" rel="noopener noreferrer"><code>${escape(id)}</code></a>` : `<code>${escape(id)}</code>`;
+        const named = presets.length > 0 ? ` <small class="muted">· ${escape(t._("Presets: {names}", { names: presets.map((preset) => preset.name).join(", ") }))}</small>` : "";
+        return `<article class="rule-card untested"><div class="rule-head">${name}<span class="rule-message muted">${escape(presets[0]?.description ?? "")}${named}</span></div></article>`;
     });
-    const heading = escape(t._("Not tested: {count} rules", { count: t.number(ids.length) }));
+    const heading = escape(t._("Skipped: {count} rules", { count: t.number(ids.length) }));
     return `<section class="untested"><details><summary><h2>${heading}</h2></summary><p class="muted">${escape(t._("Rules this scan did not judge: its checks leave them out, or the site has nothing they apply to."))}</p>${rows.join("")}</details></section>`;
 }
 
-// The rating, the totals and every finding grouped by group, site-wide ones next, each vendor’s last; findings keep their English message.
+// The rating, the totals, then Findings (whole site, pages by group, vendors, hints), Passed, Statistics and Skipped; findings keep their English message.
 export function reportBody(report: Pick<Report, "summary" | "findings" | "rules">, t: Translator, title: string, origin: string): string {
     const { summary } = report;
     const { rating } = summary;
@@ -254,13 +247,19 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
         const [sections, key] = finding.vendor ? [vendors, finding.vendor] : [groups, finding.scope === "site" ? "" : (finding.group as string)];
         sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
-    const section = (heading: string, findings: Finding[]) => `<section>${heading && `<h2>${heading}</h2>`}${rules(t, findings, origin, report.rules, summary.pages)}</section>`;
-    const isOnlyDefault = groups.keys().every((group) => group === "" || group === "default") && Object.keys(summary.groups).length <= 1;
-    const groupHeading = (group: string) => (group === "" ? escape(t._("Whole site")) : isOnlyDefault ? "" : escape(t._("Group: {name} · Pages: {count}", { name: group, count: t.number(summary.groups[group] ?? 0) })));
-    const sections = [...[...groups].toSorted(([a], [b]) => Number(a === "") - Number(b === "")).map(([group, findings]) => section(groupHeading(group), findings)), ...[...vendors].map(([vendor, findings]) => section(escape(t._("Vendor: {name}", { name: vendor })), findings))];
-    const heading = escape(t._("Hints: {count}", { count: t.number(hints.length) }));
-    if (hints.length > 0) sections.push(`<section><details><summary><h2>${heading}</h2></summary>${rules(t, hints, origin, report.rules, summary.pages)}</details></section>`);
-    return `${head}${totals}${sections.length > 0 ? sections.join("") : `<p>${escape(t._("No findings."))}</p>`}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
+    const cards = (findings: Finding[]) => rules(t, findings, origin, report.rules, summary.pages);
+    const site = groups.get("") ?? [];
+    groups.delete("");
+    const isOnlyDefault = groups.keys().every((group) => group === "default") && Object.keys(summary.groups).length <= 1;
+    const byGroup = [...groups].map(([group, findings]) => `${isOnlyDefault ? "" : `<h4>${escape(t._("Group: {name} · Pages: {count}", { name: group, count: t.number(summary.groups[group] ?? 0) }))}</h4>`}${cards(findings)}`);
+    const parts = [
+        site.length > 0 ? `<h3>${escape(t._("Whole site"))}</h3>${cards(site)}` : "",
+        byGroup.length > 0 ? `<h3>${escape(t._("Pages"))}</h3>${byGroup.join("")}` : "",
+        ...[...vendors].map(([vendor, findings]) => `<h3>${escape(t._("Vendor: {name}", { name: vendor }))}</h3>${cards(findings)}`),
+        hints.length > 0 ? `<details><summary><h3>${escape(t._("Hints: {count}", { count: t.number(hints.length) }))}</h3></summary>${cards(hints)}</details>` : "",
+    ].filter(Boolean);
+    const found = `<section><h2>${escape(t._("Findings"))}</h2>${parts.length > 0 ? parts.join("") : `<p>${escape(t._("No findings."))}</p>`}</section>`;
+    return `${head}${totals}${found}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.

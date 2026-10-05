@@ -176,9 +176,6 @@ msgstr "Sin hallazgos."
 msgid "not scanned"
 msgstr "sin analizar"
 
-msgid "Not tested: {count} rules"
-msgstr "Sin probar: {count} reglas"
-
 msgid "Page load"
 msgstr "Carga de la página"
 
@@ -401,3 +398,12 @@ msgstr "Impacto"
 
 msgid "Scope"
 msgstr "Alcance"
+
+msgid "Skipped: {count} rules"
+msgstr "Omitidas: {count} reglas"
+
+msgid "Findings"
+msgstr "Hallazgos"
+
+msgid "Presets: {names}"
+msgstr "Preajustes: {names}"

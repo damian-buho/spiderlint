@@ -108,6 +108,25 @@ export function explainRule(config: Config, id: string): RuleExplanation {
     throw new ConfigError(`rule ${id}: not defined (see spiderlint list-rules)`);
 }
 
+// Each shipped rule’s docs and the presets that list it, presets extending none first.
+export function shippedRules(): Map<string, { docs?: string; presets: Pick<PresetInfo, "name" | "description">[] }> {
+    const rules = new Map<string, { docs?: string; presets: Pick<PresetInfo, "name" | "description">[] }>();
+    const presets = presetNames()
+        .map((name) => ({ name, config: lookup(`${PREFIX}${name}`, {}) }))
+        .toSorted((a, b) => Number(Boolean(a.config?.extends?.length)) - Number(Boolean(b.config?.extends?.length)));
+    for (const { name, config } of presets) {
+        const own = Object.keys(config?.rules ?? {});
+        for (const id of own) rules.set(id, { presets: [...(rules.get(id)?.presets ?? []), { name, description: config?.description ?? "" }] });
+    }
+    const all = Object.entries(resolveRuleset(`${PREFIX}all`, {}));
+    for (const [id, spec] of all) {
+        const { meta } = compileRule(id, { ...spec, severity: !spec.severity || spec.severity === "off" ? "warning" : spec.severity });
+        rules.set(id, { presets: rules.get(id)?.presets ?? [], ...(meta.docs && { docs: meta.docs }) });
+    }
+    log.debug({ presets: presets.length, rules: rules.size }, "shipped rules mapped");
+    return rules;
+}
+
 // Every shipped preset, with whether a configured group runs it.
 export function listPresets(config: Config): PresetInfo[] {
     const used = new Set(Object.values(groupsOf(config)).flatMap(({ rules }) => rules.flatMap((name) => closure(name, config.rulesets))));

@@ -176,9 +176,6 @@ msgstr "Знахідок немає."
 msgid "not scanned"
 msgstr "не перевірено"
 
-msgid "Not tested: {count} rules"
-msgstr "Не перевірено: правил — {count}"
-
 msgid "Page load"
 msgstr "Завантаження сторінки"
 
@@ -401,3 +398,12 @@ msgstr "Вплив"
 
 msgid "Scope"
 msgstr "Охоплення"
+
+msgid "Skipped: {count} rules"
+msgstr "Пропущено: правил — {count}"
+
+msgid "Findings"
+msgstr "Знахідки"
+
+msgid "Presets: {names}"
+msgstr "Пресети: {names}"
