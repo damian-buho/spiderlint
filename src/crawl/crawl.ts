@@ -29,7 +29,7 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     };
     interrupted.addEventListener("abort", halt, { once: true });
     try {
-        await frontier.run(crawlers, cache.robots);
+        await frontier.run(crawlers, cache.robots, storage?.resumed);
     } finally {
         interrupted.removeEventListener("abort", halt);
         stop();

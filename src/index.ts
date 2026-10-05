@@ -305,9 +305,9 @@ function groupModes(config: Config): Record<string, GroupMode> {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, diversify, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
     const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
-    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, ...(!vendorPaths && { vendorPaths }), robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
+    const shape = { canonicalOrigin, fetch, ...(Object.keys(groupFetch).length > 0 && { groupFetch }), browser, scope, maxPages, maxDepth, maxBodySize, include, exclude, ...(!vendorPaths && { vendorPaths }), ...(!diversify && { diversify }), robots, sitemap, keepalive, resources, maxResourcesPerPage, ...(!follow && { follow }) };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
 
@@ -478,7 +478,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
         }),
         cache,
         router,
-        store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href) },
+        store && { config: store.config, queues: store.frontiers, earlier: (href) => earlierPage(store, href), resumed: earlier },
         proxy,
         isKeptType,
         active.some((extractor) => extractor.debugging),

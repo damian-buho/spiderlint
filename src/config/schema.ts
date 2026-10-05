@@ -56,6 +56,7 @@ const site = {
         "include-urls": { type: "array", items: { type: "string" } },
         "exclude-urls": { type: "array", items: { type: "string" } },
         "vendor-paths": { type: "boolean" },
+        diversify: { type: "boolean" },
         resources: {
             type: "object",
             additionalProperties: false,

@@ -9,6 +9,8 @@ import type { Config } from "../config/index.ts";
 import type { Facts, RobotsFileFacts, SiteFacts, SitemapFacts, SitemapFileFacts } from "../facts/types.ts";
 import { vendorPath, type VendorPath } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
+import { Spread } from "./diversity.ts";
+import { width } from "./resources.ts";
 import { crawlDelayOf, robotsFactsOf, type RobotsFor } from "./robots.ts";
 import type { CrawlerMode, GroupMode, Router } from "./route.ts";
 import { isInScope, STRATEGY } from "./scope.ts";
@@ -69,6 +71,8 @@ export interface CrawlStorage {
     config: Configuration;
     queues: Record<CrawlerMode, RequestQueue>;
     earlier?: (href: string) => Promise<Earlier | undefined>;
+    // Pages an interrupted crawl stored; their links refill the pool of a resumed budget.
+    resumed?: Facts[];
 }
 
 interface Globs {
@@ -104,6 +108,9 @@ export class Frontier {
     #robots: RobotsFileFacts[] = [];
     // Crawlee resets maxRequestsPerCrawl on every run(), so --max-pages needs its own cross-phase tally.
     #handled = 0;
+    // Candidates pooled while `diversify` holds a `max-pages` budget, and the requests already given to a crawler.
+    readonly #spread: Spread | undefined;
+    #released = 0;
     readonly #router: Router;
     readonly #crawlers = new Map<CrawlerMode, Runnable>();
     #hasStraggled = false;
@@ -136,6 +143,7 @@ export class Frontier {
         this.#seeds = new Set(config.seeds);
         this.#sitemap = sitemaps.index;
         this.#globs = globMatchers(config);
+        this.#spread = config.diversify && config.maxPages > 0 ? new Spread(config.maxPages) : undefined;
         this.files = sitemaps.files;
     }
 
@@ -144,22 +152,68 @@ export class Frontier {
         return this.#config.vendorPaths ? vendorPath(href, "page") : undefined;
     }
 
+    // Whether a URL a sitemap or a stored page names may join the crawl: unvisited, no vendor page, in scope and inside the globs.
+    #isCrawlable(href: string, reference: URL): boolean {
+        if (this.#visited.has(href) || this.#vendorOf(href)) return false;
+        const url = new URL(href);
+        if (!isInScope(url, reference, this.#config.scope)) return false;
+        const { include, exclude } = this.#globs;
+        const path = url.pathname + url.search;
+        return (include.length === 0 || include.some((match) => match(path))) && exclude.every((match) => !match(path));
+    }
+
     // A sitemap URL still unvisited once the link crawl settles joins the frontier as its own root.
     #stragglers(): string[] {
         if (this.#sitemap.size === 0 || this.#config.seeds.length === 0 || !this.#config.follow) return [];
         const reference = new URL(this.#config.seeds[0] as string);
-        const { include, exclude } = this.#globs;
         const extra = this.#sitemap
             .keys()
-            .filter((href) => {
-                if (this.#visited.has(href) || this.#vendorOf(href)) return false;
-                const url = new URL(href);
-                if (!isInScope(url, reference, this.#config.scope)) return false;
-                const path = url.pathname + url.search;
-                return (include.length === 0 || include.some((match) => match(path))) && exclude.every((match) => !match(path));
-            })
+            .filter((href) => this.#isCrawlable(href, reference))
             .toArray();
         return extra;
+    }
+
+    // Gives the requests to their crawlers, or pools them while a budget spreads; returns how many the pool took.
+    async #offer(urls: string[], crawlDepth: number): Promise<number> {
+        if (!this.#spread) {
+            await this.#add(urls.map((url) => ({ url, crawlDepth })));
+            return 0;
+        }
+        const pooled = urls.filter((url) => !this.#visited.has(url) && (this.#spread as Spread).add({ url, crawlDepth })).length;
+        log.debug({ offered: urls.length, pooled, size: this.#spread.size, crawlDepth }, "candidates pooled");
+        await this.#refill();
+        return pooled;
+    }
+
+    // Counts the seeds and the pages a resumed crawl stored as scheduled, then pools their links and the sitemap, which a spread budget draws from at once.
+    #prime(resumed: Facts[]): void {
+        const spread = this.#spread as Spread;
+        for (const page of resumed) {
+            this.#visited.add(page.url.href);
+            if (page.crawl.requested) this.#visited.add(page.crawl.requested);
+            if (spread.note(page.url.href)) this.#released += 1;
+        }
+        this.#handled += resumed.length;
+        for (const seed of this.#seeds) if (spread.note(seed)) this.#released += 1;
+        const reference = this.#config.seeds[0] ? new URL(this.#config.seeds[0]) : undefined;
+        const links = resumed.flatMap((page) => (page.html?.links.internal ?? []).filter((href) => reference && this.#config.follow && URL.canParse(href) && this.#isCrawlable(href, reference)).map((href) => ({ url: href, crawlDepth: page.crawl.depth + 1 })));
+        const listed = this.#stragglers().map((url) => ({ url, crawlDepth: 0 }));
+        const pooled = [...links, ...listed].filter((candidate) => spread.add(candidate)).length;
+        this.#hasStraggled = true;
+        log.debug({ resumed: resumed.length, seeds: this.#seeds.size, links: links.length, listed: listed.length, pooled, released: this.#released }, "budget primed");
+    }
+
+    // Gives the crawlers the pool’s most diverse candidates while their queues run short and the budget lasts; a drained queue has nothing pending.
+    async #refill(isDrained = false): Promise<number> {
+        if (!this.#spread) return 0;
+        const pending = isDrained ? 0 : Math.max(0, this.#released - this.#handled);
+        const room = Math.min(2 * width(this.#config.concurrency) - pending, this.#config.maxPages - this.#released);
+        log.debug({ pending, room, released: this.#released, pooled: this.#spread.size, maxPages: this.#config.maxPages, isDrained }, "refill decided");
+        if (room <= 0) return 0;
+        const batch = this.#spread.take(room);
+        this.#released += batch.length;
+        await this.#add(batch);
+        return batch.length;
     }
 
     // Queues each request on the crawler its group needs.
@@ -177,6 +231,7 @@ export class Frontier {
             const queue = await crawler.getRequestQueue();
             if (!(await queue.isFinished())) return false;
         }
+        if ((await this.#refill(true)) > 0) return false;
         if (this.#hasStraggled) return true;
         this.#hasStraggled = true;
         const stragglers = this.#stragglers();
@@ -227,6 +282,7 @@ export class Frontier {
             onSkippedRequest: ({ url, reason }) => {
                 log.debug({ url, reason }, "link skipped");
                 this.#skipped.set(url, reason);
+                if (this.#spread) this.#released = Math.max(0, this.#released - 1);
             },
         };
     }
@@ -275,7 +331,7 @@ export class Frontier {
         const routed: string[] = [];
         const transformRequestFunction: RequestTransform = (request) => {
             const kept = this.transformRequestFunction(request);
-            const isRouted = kept && isInScope(new URL(request.url), new URL(facts.url.href), this.#config.scope) && this.#router.queue(request.url) !== mode;
+            const isRouted = kept && isInScope(new URL(request.url), new URL(facts.url.href), this.#config.scope) && (this.#spread !== undefined || this.#router.queue(request.url) !== mode);
             if (!isRouted) return kept;
             routed.push(request.url);
             return false;
@@ -287,13 +343,13 @@ export class Frontier {
         const batches = facts.html ? [await enqueueLinks(options), ...(feeds.length > 0 ? [await enqueueLinks({ ...options, urls: feeds })] : [])] : [];
         const targets = feedTargets(facts).filter((url) => URL.canParse(url) && isInScope(new URL(url), new URL(facts.url.href), this.#config.scope) && this.transformRequestFunction({ url } as Parameters<RequestTransform>[0]) !== false);
         log.debug({ url: facts.url.href, targets: targets.length }, "feed targets queued");
-        await this.#add([...routed, ...targets].map((url) => ({ url, crawlDepth: facts.crawl.depth + 1 })));
-        return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length + routed.length;
+        const pooled = await this.#offer([...routed, ...targets], facts.crawl.depth + 1);
+        return batches.flatMap((batch) => batch.processedRequests).filter((entry) => !entry.wasAlreadyPresent).length + (this.#spread ? pooled : routed.length);
     }
 
     // Pages known: every queue’s requests, plus sitemap URLs no link has reached yet, within the page budget.
     async known(): Promise<number> {
-        let total = this.#hasStraggled ? 0 : this.#stragglers().length;
+        let total = (this.#spread?.size ?? 0) + (this.#hasStraggled ? 0 : this.#stragglers().length);
         for (const crawler of this.#crawlers.values()) {
             const queue = await crawler.getRequestQueue();
             total += queue.getTotalCount();
@@ -307,7 +363,8 @@ export class Frontier {
     }
 
     // Seeds first, each on its group’s crawler, sitemap stragglers while the budget lasts; robots.txt answered through the robots bucket, a crawl-delay stretched over the crawlers sharing it.
-    async run(crawlers: Partial<Record<CrawlerMode, Runnable>>, robots: RobotsFor): Promise<void> {
+    async run(crawlers: Partial<Record<CrawlerMode, Runnable>>, robots: RobotsFor, resumed: Facts[] = []): Promise<void> {
+        if (this.#spread) this.#prime(resumed);
         const answer = (url: string) => (this.#config.robots ? robots(url) : Promise.resolve(undefined));
         const delay = this.#config.robots ? await this.#crawlDelay(robots) : 0;
         const running = Object.entries(crawlers) as [CrawlerMode, Runnable][];

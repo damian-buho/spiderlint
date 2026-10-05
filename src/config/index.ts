@@ -58,6 +58,8 @@ export interface Config {
     excludeUrls: string[];
     // Whether the shipped `vendors/paths.yaml` keeps vendor-owned paths out of the crawl and its findings apart.
     vendorPaths: boolean;
+    // Whether a `max-pages` budget goes to the least-covered sections of the site first, not to links in discovery order.
+    diversify: boolean;
     robots: boolean;
     sitemap: boolean;
     fold: FoldConfig | false;
@@ -112,6 +114,7 @@ export function defaults(): Config {
         includeUrls: [],
         excludeUrls: [],
         vendorPaths: true,
+        diversify: true,
         robots: true,
         sitemap: true,
         fold: { threshold: 0.8, min: 3 },
