@@ -21,7 +21,6 @@ identity:
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
-  - .makefile/b19/vulnerabilities/npm-bundled.yaml
   - .makefile/container/traits/readme-tool-image.yaml
   - .makefile/core/traits/github-action.yaml
   - .makefile/library/images/valkey.yaml
@@ -120,9 +119,9 @@ repositories:
     role: origin
     type: git
     url: ssh://git@kiota.ch/damian-buho/spiderlint.git
-technologies:
-  - node
-  - typescript
 requirements:
   runtime:
     node: '>=26'
+technologies:
+  - node
+  - typescript
