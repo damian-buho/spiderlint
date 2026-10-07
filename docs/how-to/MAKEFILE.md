@@ -837,6 +837,14 @@ Audit GitHub Actions workflows for security issues
 
 > Image: D9T_RUST_TOOLS_IMAGE
 
+### `auto-zizmor-forgejo`
+
+Audit Forgejo Actions workflows for security issues
+
+`auto-zizmor --forge forgejo`
+
+> Image: D9T_RUST_TOOLS_IMAGE
+
 ### `buf-lint`
 
 Lint protobuf sources with buf
