@@ -14,7 +14,8 @@ import htmlValidate, { type HtmlValidateFacts } from "../src/plugins/html-valida
 import htmlhint, { type HtmlHintFacts } from "../src/plugins/htmlhint.ts";
 import { formatHuman } from "../src/report/human.ts";
 import { listPresets, listRules } from "../src/rules/catalog.ts";
-import { resolveRuleset } from "../src/rules/rulesets.ts";
+import { compileRulesets, resolveRuleset } from "../src/rules/rulesets.ts";
+import { runRules } from "../src/rules/run.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const EXCLUDE = ["/tmp/**"];
@@ -59,6 +60,19 @@ async function idRules(id: string): Promise<string[]> {
     });
 
         assert.equal(await extractor?.extract(stubPage(false, true), BODY), undefined);
+    });
+});
+
+// The rules the `live/webmcp` ruleset reports over a browser page carrying `live`.
+function judged(live: object): string[] {
+    return runRules([{ ...stubPage(true), live } as unknown as Facts], new Map([["default", compileRulesets(["live/webmcp"], {})]]), {} as never).findings.map((finding) => finding.rule);
+}
+
+describe("live/webmcp", () => {
+    it("flags a WebMCP-capable browser that gets no tools, and skips one without WebMCP or with tools", () => {
+        assert.deepEqual(judged({ webmcp: { tools: [] } }), ["live/webmcp"]);
+        assert.deepEqual(judged({ webmcp: { tools: ["search"] } }), []);
+        assert.deepEqual(judged({}), []);
     });
 });
 

@@ -286,10 +286,31 @@ const contrastEnhanced = pageRule(
     { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html", fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text." },
 );
 
+const webmcp = pageRule(
+    "live/webmcp",
+    [`${ID}.webmcp`],
+    (page) => {
+        const tools = liveOf(page)?.webmcp?.tools;
+        if (!tools) return;
+        return tools.length === 0 ? [{ ...said("the browser supports WebMCP but the page registers no tools, so an agent in it can only click and read"), data: { [page.url.href]: { tools: 0 } }, value: tools }] : [];
+    },
+    { docs: "https://webmcp.org/", fix: "Register the page’s actions as WebMCP tools with `navigator.modelContext`, so an in-browser agent calls them instead of driving the interface." },
+);
+
 export default definePlugin({
     name: "live",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
-    rules: { "live/reduced-motion": reducedMotion, "live/click-listener": clickListener, "live/input-font-size": inputFontSize, "live/dark-contrast": darkContrast, "live/forced-icons": forcedIcons, "live/forced-opt-out": forcedOptOut, "live/contrast-more": contrastMore, "live/contrast-enhanced": contrastEnhanced },
+    rules: {
+        "live/reduced-motion": reducedMotion,
+        "live/click-listener": clickListener,
+        "live/input-font-size": inputFontSize,
+        "live/dark-contrast": darkContrast,
+        "live/forced-icons": forcedIcons,
+        "live/forced-opt-out": forcedOptOut,
+        "live/contrast-more": contrastMore,
+        "live/contrast-enhanced": contrastEnhanced,
+        "live/webmcp": webmcp,
+    },
     presets: {
         live: {
             description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme and under increased contrast, icons and opt-outs under forced colours, click handlers on plain elements, form fields small enough to zoom",
@@ -302,6 +323,7 @@ export default definePlugin({
                 "live/input-font-size": { severity: "info", score: 2.6 },
                 "live/contrast-more": { severity: "info", score: 1.6 },
                 "live/forced-opt-out": { severity: "info", score: 2.4 },
+                "live/webmcp": { severity: "info", score: 0.8 },
             },
         },
     },
