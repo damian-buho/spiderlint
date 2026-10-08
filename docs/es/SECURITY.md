@@ -91,5 +91,8 @@ aplica a este proyecto):
 | CVE-2026-102276 | bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102278 | bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix |
 | GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
+| GHSA-6j4f-fj2g-mc7p | brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream |
+| GHSA-qhr7-859c-m2p7 | brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream |
+| GHSA-rfgv-xxqx-mfg5 | undici bundled in the base image’s npm 12.2.0; fixable only upstream |
 
 <!-- textlint-enable -->
