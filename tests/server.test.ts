@@ -9,6 +9,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { brotliDecompressSync, gunzipSync, zstdDecompressSync } from "node:zlib";
 import { BlockList } from "node:net";
 import type { Queue } from "bullmq";
 import type { Redis } from "ioredis";
@@ -216,6 +217,25 @@ describe("server pages without Redis", () => {
         const response = await app.request("/", { headers: { "accept-encoding": "gzip" } });
         assert.equal(response.headers.get("content-encoding"), "gzip");
         assert.match(response.headers.get("vary") ?? "", /Accept-Encoding/);
+    });
+
+    it("answers zstd, br and gzip by q-value, and nothing when the client names none", async () => {
+        const identity = await app.request("/", { headers: { "accept-encoding": "identity" } });
+        const plain = await identity.text();
+        for (const [encoding, header, decode] of [
+            ["zstd", "gzip, deflate, br, zstd", zstdDecompressSync],
+            ["br", "gzip, br", brotliDecompressSync],
+            ["gzip", "gzip", gunzipSync],
+            ["zstd", "zstd, br;q=0.5, gzip;q=0.1", zstdDecompressSync],
+        ] as const) {
+            const response = await app.request("/", { headers: { "accept-encoding": header } });
+            assert.equal(response.headers.get("content-encoding"), encoding, header);
+            const raw = Buffer.from(await response.arrayBuffer());
+            assert.ok(raw.length < plain.length, `${encoding} shrinks the page`);
+            assert.equal(decode(raw).toString("utf8"), plain, `${encoding} round-trips`);
+        }
+        const none = await app.request("/");
+        assert.ok(!none.headers.has("content-encoding"));
     });
 
     it("sends no X-XSS-Protection, and upgrades insecure requests in the policy", async () => {
