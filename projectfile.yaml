@@ -114,6 +114,7 @@ org:
       git:
         include:
           - storage/
+          - '*.tmp.*'
     operating-system:
       - linux
     status: experimental
