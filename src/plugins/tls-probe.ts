@@ -123,6 +123,16 @@ async function isEarlyDataAccepted(host: string, port: string, address: string, 
     }
 }
 
+// Early data acceptance, or undefined when `openssl` gave no verdict, so the scan already read survives a slow s_client.
+async function earlyData(host: string, port: string, address: string, signal: AbortSignal): Promise<boolean | undefined> {
+    try {
+        return await isEarlyDataAccepted(host, port, address, signal);
+    } catch (error) {
+        if (signal.aborted) throw error;
+        log.debug({ host, port, error: reason(error) }, "early data unanswered");
+    }
+}
+
 // Protocols, suites, groups and negotiation-level weaknesses of one https origin from hand-built hellos, with its chain, OCSP stapling and, through `openssl s_client`, TLS 1.3 early data.
 const probe: SiteExtractor = {
     id: "tls-probe",
@@ -141,7 +151,7 @@ const probe: SiteExtractor = {
         const sent = certificates.map((der) => new X509Certificate(der));
         const chain = chainOf(sent);
         const responder = sent[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
-        const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await isEarlyDataAccepted(host, port, address, context.signal) : undefined;
+        const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await earlyData(host, port, address, context.signal) : undefined;
         log.debug({ origin, address, isFull, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
         return { address, ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
     },
