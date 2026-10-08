@@ -323,7 +323,7 @@ export default definePlugin({
                 "live/input-font-size": { severity: "info", score: 2.6 },
                 "live/contrast-more": { severity: "info", score: 1.6 },
                 "live/forced-opt-out": { severity: "info", score: 2.4 },
-                "live/webmcp": { severity: "info", score: 0.8 },
+                "live/webmcp": { severity: "hint", score: 0.8 },
             },
         },
     },

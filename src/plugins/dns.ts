@@ -786,7 +786,7 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.hosts.*.dns.agents",
         expect: { type: "array", minItems: 1 },
         message: "no DNS-AID entry point at _index._agents, so an agent cannot find the zone’s agent services through DNS",
-        severity: "info",
+        severity: "hint",
         score: 0.8,
         docs: "https://specification.website/spec/agent-readiness/dns-aid/",
         fix: "Publish an HTTPS record — Name `_index._agents.{domain}`, Priority `1`, Target the host that serves the site, alpn `h3,h2`, port `443` — and add `_mcp._agents` or `_a2a._agents` records for each agent service.",
