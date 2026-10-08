@@ -35,6 +35,19 @@ audit_args=()
 if [ -n "${RULES}" ]; then
     audit_args+=(--rules "${RULES}")
 fi
+# One flag per line, split at its first space into the flag and its value.
+while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    if [ -z "${line}" ]; then
+        continue
+    fi
+    echo "Extra argument: ${line}"
+    if [[ "${line}" == *" "* ]]; then
+        audit_args+=("${line%% *}" "${line#* }")
+    else
+        audit_args+=("${line}")
+    fi
+done <<< "${EXTRA_ARGS}"
 echo "Targets: ${#args[@]} argument(s), extra: ${#audit_args[@]}, site=${SITE:-all}, fail_on=${FAIL_ON}, image=${IMAGE}"
 
 if ! docker pull --quiet "${IMAGE}"; then

@@ -462,6 +462,7 @@ pays only for what changed.
 - `--no-cache` bypasses every bucket for the run, `--refresh` rewrites them, `--offline` serves only from them and fails on a miss with exit `3`; an `--offline` audit lints the stored pages and fetches nothing. Per-bucket TTLs are `cache.<bucket>.ttl` in the config.
 - `spiderlint show-cache` lists every bucket with entries, bytes, oldest and newest; `spiderlint purge-cache [bucket] [domain…] [--older-than 7d]` deletes; `spiderlint warm-cache <domain>` fills `robots` and `sitemaps` without crawling.
 - The action persists its store through the forge’s cache keyed by job and `site` (`cache: false` turns it off), running the image as the runner’s uid so the cache step can read it; a CI run on an unchanged site is a run of `304`s.
+- The action reads the mounted `projectfile.yaml` like the CLI does; its `args` input takes any other `audit` flag, one per line, and only `audit` gets them, since `show-report` renders the stored report and refuses crawl and rule flags.
 
 ## Configuration
 

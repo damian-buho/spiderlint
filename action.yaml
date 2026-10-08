@@ -24,6 +24,10 @@ inputs:
     description: 'Comma-separated rulesets replacing every group’s rules (e.g. recommended,axe).'
     required: false
     default: ''
+  args:
+    description: 'More audit flags, one per line with its value after a space (e.g. --max-pages 200).'
+    required: false
+    default: ''
   fail_on:
     description: 'Severity that fails the job: error | warning | info | never'
     required: false
@@ -75,6 +79,7 @@ runs:
         CONFIG_FILE: ${{ inputs.config_file }}
         SITE: ${{ inputs.site }}
         RULES: ${{ inputs.rules }}
+        EXTRA_ARGS: ${{ inputs.args }}
         FAIL_ON: ${{ inputs.fail_on }}
       run: ${{ github.action_path }}/.scripts/action/audit.sh
     - name: Save the store
