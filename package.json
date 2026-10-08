@@ -126,5 +126,8 @@
   "cpu": [
     "x64"
   ],
-  "homepage": "https://dbuho.me/project/spiderlint/"
+  "homepage": "https://dbuho.me/project/spiderlint/",
+  "bugs": {
+    "url": "https://github.com/damian-buho/spiderlint/issues"
+  }
 }

@@ -12,9 +12,11 @@ pf-cli-managed: yes
 
 Spiderlint обходить кожну сторінку сайту, збирає факти про кожен запит (HTML, заголовки, TLS, таймінги, розміри) і перевіряє їх за наборами правил для груп URL, тож шаблон без заголовка — це один результат, а не по одному на сторінку. Побудовано на Node і Crawlee.
 
-[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=MIT&color=1e5913&style=flat-square)](LICENSE) [![Cosign](https://badges.kiota.ch/static/v1?label=cosign&message=enabled&color=1e5913&style=flat-square)](https://docs.sigstore.dev/cosign/verifying/verify/) ![ClamAV scanned](https://badges.kiota.ch/static/v1?label=clamav&message=scanned&color=1877aa&style=flat-square)
+[![Stand with Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://damian-buho.github.io/support-ukraine/) [![Projectfile inside](https://badges.kiota.ch/static/v1?label=projectfile&message=inside&labelColor=0d0d0d&color=8c6723&style=flat-square)](https://projectfile.org) [![License](https://badges.kiota.ch/static/v1?label=license&message=MIT&color=1e5913&style=flat-square)](LICENSE) [![Cosign](https://badges.kiota.ch/static/v1?label=cosign&message=enabled&color=1e5913&style=flat-square)](https://docs.sigstore.dev/cosign/verifying/verify/) ![ClamAV scanned](https://badges.kiota.ch/static/v1?label=clamav&message=scanned&color=1877aa&style=flat-square) [![PRs welcome](https://badges.kiota.ch/static/v1?label=PRs&message=welcome&color=1e5913&style=flat-square)](CONTRIBUTING.md) [![REUSE compliance](https://api.reuse.software/badge/github.com/damian-buho/spiderlint)](https://api.reuse.software/info/github.com/damian-buho/spiderlint)
 
-![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
+![Project status](https://badges.kiota.ch/static/v1?label=status&message=experimental&color=1d63ed&style=flat-square) [![Last commit on GitHub](https://badges.kiota.ch/github/last-commit/damian-buho/spiderlint?label=last%20commit%20on%20GitHub&style=flat-square)](https://github.com/damian-buho/spiderlint) [![Last commit on kiota.ch](https://badges.kiota.ch/gitea/last-commit/damian-buho/spiderlint?gitea_url=https://kiota.ch&label=last%20commit%20on%20kiota.ch&style=flat-square)](https://kiota.ch/damian-buho/spiderlint)
+
+[![Publish pipeline on GitHub](https://github.com/damian-buho/spiderlint/actions/workflows/published.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/spiderlint/actions) [![Vulnerability audit on GitHub](https://github.com/damian-buho/spiderlint/actions/workflows/audited.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/spiderlint/actions) [![Dependency freshness on GitHub](https://github.com/damian-buho/spiderlint/actions/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/spiderlint/actions) [![Analysis sweep on GitHub](https://github.com/damian-buho/spiderlint/actions/workflows/analyzed.yaml/badge.svg?style=flat-square)](https://github.com/damian-buho/spiderlint/actions)
 
 [![Publish pipeline on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/published.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Vulnerability audit on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/audited.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Dependency freshness on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/check-outdated.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions) [![Analysis sweep on kiota.ch](https://kiota.ch/damian-buho/spiderlint/badges/workflows/analyzed.yaml/badge.svg?style=flat-square)](https://kiota.ch/damian-buho/spiderlint/actions)
 
@@ -55,23 +57,39 @@ Spiderlint обходить кожну сторінку сайту, збирає
 
 ## Що надає цей проєкт
 
-- **Образ контейнера** `kiota.ch/damian-buho/spiderlint:latest`
+- **CI-дія** `damian-buho/spiderlint@0.140.0`
+- **Образ контейнера** `ghcr.io/damian-buho/spiderlint:latest`
+- **Образ контейнера** `damianbuho/spiderlint:latest`
 - `spiderlint` — команда `spiderlint`
-
-## Підтримувані платформи
-
-- `linux/amd64`
 
 ## Встановлення
 
 Завантажте опублікований образ контейнера:
 
+### Завантажити з GHCR — linux/amd64
+
+```sh
+docker pull ghcr.io/damian-buho/spiderlint:latest
+alias spiderlint='docker run --rm --user "$(id -u):$(id -g)" --group-add 0 --volume "$PWD:/app/ws" --workdir /app/ws ghcr.io/damian-buho/spiderlint:latest spiderlint'
+```
+
+### Завантажити з DockerHub — linux/amd64
+
+```sh
+docker pull damianbuho/spiderlint:latest
+alias spiderlint='docker run --rm --user "$(id -u):$(id -g)" --group-add 0 --volume "$PWD:/app/ws" --workdir /app/ws damianbuho/spiderlint:latest spiderlint'
+```
+
+Стабільні випуски також публікують теґи `X.Y.Z`, `X.Y` і `X` — завантажте той рівень точності, який хочете зафіксувати.
+
+Якщо наведені вище реєстри недоступні, завантажте з джерела:
+
+### Завантажити з Kiota — linux/amd64
+
 ```sh
 docker pull kiota.ch/damian-buho/spiderlint:latest
 alias spiderlint='docker run --rm --user "$(id -u):$(id -g)" --group-add 0 --volume "$PWD:/app/ws" --workdir /app/ws kiota.ch/damian-buho/spiderlint:latest spiderlint'
 ```
-
-Стабільні випуски також публікують теґи `X.Y.Z`, `X.Y` і `X` — завантажте той рівень точності, який хочете зафіксувати.
 
 Потім запускайте його так, ніби його встановлено, — псевдонім виконує кожен приклад як написано в поточному каталозі:
 
@@ -80,6 +98,27 @@ spiderlint --help
 ```
 
 ## Використання
+
+Запускайте його як крок робочого процесу GitHub Actions:
+
+```yaml
+- uses: damian-buho/spiderlint@0.140.0
+```
+
+Дія приймає такі вхідні параметри:
+
+| Параметр | Типове значення | Опис |
+| --- | --- | --- |
+| `urls` | | Newline-separated seed URLs. Empty takes the targets from the config file. |
+| `config_file` | | Projectfile or plain YAML carrying the org.spiderlint subtree, relative to the workspace. |
+| `site` | | One org.spiderlint.sites name to audit; a config declaring several needs one step per site. |
+| `rules` | | Comma-separated rulesets replacing every group’s rules (e.g. recommended,axe). |
+| `args` | | More audit flags, one per line with its value after a space (e.g. --max-pages 200). |
+| `fail_on` | `error` | Severity that fails the job: error \| warning \| info \| never |
+| `upload_sarif` | `false` | Upload the SARIF report to code scanning; needs the security-events: write permission. |
+| `cache` | `true` | Keep the crawl store in the forge cache, so an unchanged site is re-audited with 304s. |
+| `version` | | Image tag to pull (e.g. latest, 1.2.3). Empty follows the action’s own version tag, else latest. |
+| `image` | | Full image reference. Takes precedence over `version`. |
 
 ### spiderlint
 
@@ -146,6 +185,12 @@ Exit codes:
 
 ## Збирання
 
+Клонуйте репозиторій разом із підмодулями:
+
+```sh
+git clone --recurse-submodules https://github.com/damian-buho/spiderlint spiderlint && cd spiderlint
+```
+
 Зберіть образ контейнера локально:
 
 ```sh
@@ -179,6 +224,7 @@ make container-build
 
 ## Посилання
 
+- [Задачі на GitHub](https://github.com/damian-buho/spiderlint/issues)
 - [Специфікація Projectfile](https://projectfile.org)
 
 ## Ліцензія

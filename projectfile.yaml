@@ -22,6 +22,7 @@ includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
   - .makefile/b19/traits/attested-images.yaml
+  - .makefile/b19/traits/release.yaml
   - .makefile/b19/traits/sbom-images.yaml
   - .makefile/b19/traits/signed-images.yaml
   - .makefile/container/traits/malware.yaml
@@ -31,7 +32,9 @@ includes:
   - .makefile/library/languages/node.yaml
   - .makefile/library/vulnerabilities/npm/stream-json.yaml
   - .projectfile/vulnerabilities.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/registry/dockerhub.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/traits/personal-image.yaml
 keywords:
   - spiderlint
@@ -60,6 +63,39 @@ links:
     priority: 10
     type: source-code
     url: https://kiota.ch/damian-buho/spiderlint
+  - label:
+      en: Spiderlint on GitHub
+      es: Spiderlint en GitHub
+      uk: Spiderlint на GitHub
+    priority: 80
+    tags:
+      - public
+      - badges
+      - badges-github
+    type: source-code
+    url: https://github.com/damian-buho/spiderlint
+  - label:
+      en: Issues on GitHub
+      es: Incidencias en GitHub
+      uk: Задачі на GitHub
+    priority: 80
+    tags:
+      - support
+      - readme
+    type: bugs
+    url: https://github.com/damian-buho/spiderlint/issues
+  - label:
+      en: Packages on GHCR
+      es: Paquetes en GHCR
+      uk: Пакунки на GHCR
+    type: package-registry
+    url: https://github.com/damian-buho/spiderlint/pkgs/container/spiderlint
+  - label:
+      en: Packages on Docker Hub
+      es: Paquetes en Docker Hub
+      uk: Пакунки на Docker Hub
+    type: package-registry
+    url: https://hub.docker.com/r/damianbuho/spiderlint
 org:
   projectfile:
     architecture:
@@ -124,6 +160,9 @@ repositories:
     role: origin
     type: git
     url: ssh://git@kiota.ch/damian-buho/spiderlint.git
+  - role: mirror
+    type: git
+    url: git@github.com:damian-buho/spiderlint.git
 requirements:
   runtime:
     node: '>=26'
