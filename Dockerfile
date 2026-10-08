@@ -22,7 +22,6 @@ ARG M6E_BUILD_DEBUG=""
 ARG M6E_NAMESPACE
 ARG M6E_NEAR_CACHE_HOST=""
 ARG M6E_PROJECT
-ARG M6E_VERSION
 ARG TARGETARCH
 
 ENV NODE_ENV=production                                  \
@@ -57,6 +56,7 @@ COPY --chown=${B19_UID}:${B19_GID} vendors/                                   ${
 COPY --chown=${B19_UID}:${B19_GID} locales/                                   ${B19_HOME}/locales/
 COPY --chown=${B19_UID}:${B19_GID} tests/fixtures/                            ${B19_HOME}/tests/fixtures/
 
+ARG M6E_VERSION
 RUN --mount=type=bind,from=fetch,source=.,target=/fetch                                               \
     --mount=type=cache,target=${B19_DOWNLOAD_PATH},sharing=shared,uid=${B19_UID},gid=${B19_GID}       \
     --mount=type=cache,target=${B19_NODE_NPM_CACHE},sharing=locked,uid=${B19_UID},gid=${B19_GID}      \
