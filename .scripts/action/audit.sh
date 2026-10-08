@@ -31,10 +31,11 @@ fi
 if [ -n "${SITE}" ]; then
     args+=(--site "${SITE}")
 fi
+audit_args=()
 if [ -n "${RULES}" ]; then
-    args+=(--rules "${RULES}")
+    audit_args+=(--rules "${RULES}")
 fi
-echo "Seeds: ${#args[@]} argument(s), site=${SITE:-all}, fail_on=${FAIL_ON}, image=${IMAGE}"
+echo "Targets: ${#args[@]} argument(s), extra: ${#audit_args[@]}, site=${SITE:-all}, fail_on=${FAIL_ON}, image=${IMAGE}"
 
 if ! docker pull --quiet "${IMAGE}"; then
     echo "::warning::pull failed, trying a local ${IMAGE}"
@@ -50,7 +51,7 @@ docker_run=(run --rm --network host --user "$(id --user):0"
 
 exit_code=0
 echo "::group::spiderlint audit"
-docker "${docker_run[@]}" audit "${args[@]}" --format json --fail-on "${FAIL_ON}" > "${report_json}" || exit_code=$?
+docker "${docker_run[@]}" audit "${args[@]}" "${audit_args[@]}" --format json --fail-on "${FAIL_ON}" > "${report_json}" || exit_code=$?
 echo "::endgroup::"
 echo "Audit exit code: ${exit_code}"
 if [ "${exit_code}" -gt 1 ]; then
@@ -58,10 +59,10 @@ if [ "${exit_code}" -gt 1 ]; then
     exit "${exit_code}"
 fi
 
-docker "${docker_run[@]}" report "${args[@]}" --format sarif --fail-on never > "${report_sarif}"
+docker "${docker_run[@]}" show-report "${args[@]}" --format sarif --fail-on never > "${report_sarif}"
 {
     echo '```text'
-    docker "${docker_run[@]}" report "${args[@]}" --format human --no-color --fail-on never
+    docker "${docker_run[@]}" show-report "${args[@]}" --format human --no-color --fail-on never
     echo '```'
 } >> "${GITHUB_STEP_SUMMARY}"
 
