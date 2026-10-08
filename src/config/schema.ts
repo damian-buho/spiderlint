@@ -77,6 +77,7 @@ const site = {
         plugins: { type: "array", items: { type: "string" } },
         sources: { type: "array", items: { type: "string" } },
         "exclude-rules": { type: "array", items: { type: "string" } },
+        "document-types": { type: "array", items: { type: "string", pattern: "^[!#$%&'*+.^_`|~0-9A-Za-z-]+/[!#$%&'*+.^_`|~0-9A-Za-z-]+$" } },
         override: {
             type: "object",
             additionalProperties: false,

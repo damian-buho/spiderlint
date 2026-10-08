@@ -69,6 +69,8 @@ export interface Config {
     // A built-in format or one a loaded plugin adds.
     format: string;
     excludeRules: string[];
+    // Media types judged as documents beside the shipped ones, so CSP and the other document headers apply.
+    documentTypes: string[];
     // Rule IDs or globs a server policy denies: excluded like `excludeRules`, but naming no rule is no error.
     denyRules: string[];
     overrides: Record<string, Exclude<Severity, "off">>;
@@ -124,6 +126,7 @@ export function defaults(): Config {
         failOn: "error",
         format: "human",
         excludeRules: [],
+        documentTypes: [],
         denyRules: [],
         overrides: {},
         groups: {},

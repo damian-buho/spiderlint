@@ -16,6 +16,7 @@ rules:
   http/csp:
     fact: http.csp.directives
     expect: {type: object}
+    when: {http.document: true}
     severity: warning
     score: 6.4
     message: "no enforced Content-Security-Policy, in a header or a <meta>"
@@ -39,6 +40,7 @@ rules:
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options:
+    when: {http.document: true}
     severity: info
     score: 3.0
   http/server-disclosure: warning
@@ -54,7 +56,7 @@ rules:
   http/permissions-policy:
     fact: http.parsed.permissions-policy.value
     expect: {type: object, minProperties: 1}
-    when: {http.parsed.permissions-policy.errors: {maxItems: 0}}
+    when: {http.document: true, http.parsed.permissions-policy.errors: {maxItems: 0}}
     severity: info
     score: 1.8
     message: "no Permissions-Policy header naming a feature, found {got}"
@@ -63,7 +65,7 @@ rules:
   http/coop:
     fact: http.parsed.cross-origin-opener-policy.value
     expect: {enum: [same-origin, same-origin-allow-popups]}
-    when: {http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}}
+    when: {http.document: true, http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}}
     severity: info
     score: 2.2
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups, found {got}"
@@ -80,7 +82,7 @@ rules:
   http/csp-upgrade-insecure:
     fact: http.csp.directives
     expect: {required: [upgrade-insecure-requests]}
-    when: {url.protocol: "https:", http.csp.directives: {type: object}}
+    when: {http.document: true, url.protocol: "https:", http.csp.directives: {type: object}}
     severity: warning
     score: 5.3
     message: "Content-Security-Policy lacks upgrade-insecure-requests"
@@ -89,7 +91,7 @@ rules:
   http/csp-trusted-types:
     fact: http.csp.directives
     expect: {required: [require-trusted-types-for], properties: {require-trusted-types-for: {contains: {pattern: "^(?i:'script')$"}}}}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: info
     score: 2.4
     message: "Content-Security-Policy lacks require-trusted-types-for 'script'"
@@ -98,7 +100,7 @@ rules:
   http/csp-script-src:
     fact: http.csp.directives
     expect: {anyOf: [{required: [script-src]}, {required: [default-src]}]}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: warning
     score: 6.3
     message: "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
@@ -110,7 +112,7 @@ rules:
       if: {required: [script-src]}
       then: {properties: {script-src: {not: {contains: {pattern: "^(?i:'unsafe-inline')$"}}}}}
       else: {properties: {default-src: {not: {contains: {pattern: "^(?i:'unsafe-inline')$"}}}}}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: warning
     score: 6.2
     message: "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash: {got}"
@@ -122,7 +124,7 @@ rules:
       if: {required: [script-src]}
       then: {properties: {script-src: {not: {contains: {pattern: "^(?i:'unsafe-eval')$"}}}}}
       else: {properties: {default-src: {not: {contains: {pattern: "^(?i:'unsafe-eval')$"}}}}}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: warning
     score: 6.0
     message: "Content-Security-Policy allows eval() with 'unsafe-eval': {got}"
@@ -134,7 +136,7 @@ rules:
       if: {required: [script-src]}
       then: {properties: {script-src: {not: {contains: {pattern: "^(?i:\\*|[a-z][a-z0-9+.-]*:)$"}}}}}
       else: {properties: {default-src: {not: {contains: {pattern: "^(?i:\\*|[a-z][a-z0-9+.-]*:)$"}}}}}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: warning
     score: 6.1
     message: "Content-Security-Policy loads scripts from any host through a * or scheme-only source: {got}"
@@ -146,7 +148,7 @@ rules:
       if: {required: [object-src]}
       then: {properties: {object-src: {maxItems: 1, items: {pattern: "^(?i:'none')$"}}}}
       else: {required: [default-src], properties: {default-src: {maxItems: 1, items: {pattern: "^(?i:'none')$"}}}}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: warning
     score: 5.5
     message: "Content-Security-Policy should set object-src 'none', found {got}"
@@ -155,7 +157,7 @@ rules:
   http/csp-base-uri:
     fact: http.csp.directives
     expect: {required: [base-uri]}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: info
     score: 2.6
     message: "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
@@ -164,7 +166,7 @@ rules:
   http/csp-frame-ancestors:
     fact: http.csp.directives
     expect: {required: [frame-ancestors]}
-    when: {http.csp.directives: {type: object}}
+    when: {http.document: true, http.csp.directives: {type: object}}
     severity: info
     score: 2.9
     message: "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
@@ -202,7 +204,7 @@ rules:
   http/csp-syntax:
     fact: http.parsed.content-security-policy.errors
     expect: {maxItems: 0}
-    when: {http.parsed.content-security-policy: {type: object}}
+    when: {http.document: true, http.parsed.content-security-policy: {type: object}}
     severity: warning
     score: 5.9
     message: "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read: {got}"
@@ -211,7 +213,7 @@ rules:
   http/permissions-policy-syntax:
     fact: http.parsed.permissions-policy.errors
     expect: {maxItems: 0}
-    when: {http.parsed.permissions-policy: {type: object}}
+    when: {http.document: true, http.parsed.permissions-policy: {type: object}}
     severity: warning
     score: 3.7
     message: "Permissions-Policy breaks its structured-field grammar, so browsers ignore it: {got}"
@@ -229,7 +231,7 @@ rules:
   http/coop-syntax:
     fact: http.parsed.cross-origin-opener-policy.errors
     expect: {maxItems: 0}
-    when: {http.parsed.cross-origin-opener-policy: {type: object}}
+    when: {http.document: true, http.parsed.cross-origin-opener-policy: {type: object}}
     severity: warning
     score: 3.9
     message: "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it: {got}"

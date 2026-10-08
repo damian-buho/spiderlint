@@ -4,7 +4,7 @@
 
 import { parseDictionary, parseItem, parseList, Token, DisplayString, type BareItem, type InnerList, type Item } from "structured-headers";
 import { log } from "../logger.ts";
-import type { ParsedHeader } from "./types.ts";
+import type { Facts, ParsedHeader } from "./types.ts";
 
 type Parser = (text: string, errors: string[], headers?: Record<string, string | string[] | undefined>) => unknown;
 
@@ -318,3 +318,19 @@ export const parseCacheControl = (text: string): ParsedHeader => parseAlone(cach
 
 // A Link value parsed alone, for 103 Early Hints and plugins.
 export const parseLink = (text: string): ParsedHeader => parseAlone(link, text);
+
+// Media types a browser renders as a document, so CSP and the other document headers govern them.
+export const DOCUMENT_TYPES = ["text/html", "application/xhtml+xml", "image/svg+xml", "application/pdf", "application/xml", "text/xml"];
+
+// Marks each page whose type is a document, logging once the types left unjudged.
+export function documentFacts(pages: Facts[], extra: string[]): void {
+    const types = new Set([...DOCUMENT_TYPES, ...extra.map((type) => type.toLowerCase())]);
+    const skipped: Record<string, number> = {};
+    for (const page of pages) {
+        const type = (page.http["content-type"].split(";", 1)[0] as string).trim().toLowerCase();
+        delete page.http.document;
+        if (types.has(type)) page.http.document = true;
+        else skipped[type || "none"] = (skipped[type || "none"] ?? 0) + 1;
+    }
+    log.debug({ skipped, extra }, "document header rules skip these content types");
+}

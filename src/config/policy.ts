@@ -48,6 +48,7 @@ export type Settings = Partial<
         | "failOn"
         | "format"
         | "excludeRules"
+        | "documentTypes"
         | "overrides"
         | "rules"
         | "groups"
@@ -90,6 +91,7 @@ const KEYS: [string, keyof Settings][] = [
     ["fail-on", "failOn"],
     ["format", "format"],
     ["exclude-rules", "excludeRules"],
+    ["document-types", "documentTypes"],
     ["rules", "rules"],
     ["groups", "groups"],
     ["rulesets", "rulesets"],

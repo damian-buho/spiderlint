@@ -149,6 +149,8 @@ export interface HttpFacts {
     size: { body: number; decoded: number; declared?: number; truncated?: true };
     "content-type": string;
     charset?: string;
+    // The type is one a browser renders as a document, derived on every lint.
+    document?: true;
     revalidated?: true;
     // A conditional request answered 200 with the stored body unchanged.
     unmodified?: true;

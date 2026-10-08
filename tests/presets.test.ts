@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { cspFacts } from "../src/facts/csp.ts";
-import { parsedHeaders } from "../src/facts/headers.ts";
+import { documentFacts, parsedHeaders } from "../src/facts/headers.ts";
 import { robotsFacts } from "../src/facts/robots.ts";
 import type { Facts, HtmlFacts, RedirectHop, Role, TlsFacts } from "../src/facts/types.ts";
 import { compileRule } from "../src/rules/declarative.ts";
@@ -98,6 +98,7 @@ function page(patch: Patch = {}): Facts {
     if (csp) facts.http.csp = csp;
     const parsed = parsedHeaders(href, headers);
     if (parsed) facts.http.parsed = parsed;
+    documentFacts([facts], []);
     return facts;
 }
 
@@ -545,6 +546,17 @@ describe("header grammar", () => {
 });
 
 describe("content security policy", () => {
+    it("judges document headers on documents only, and on a type the owner adds", () => {
+        const bare = { headers: { "content-security-policy": undefined as unknown as string } };
+        assert.equal(check("http/csp", { ...bare, contentType: "text/markdown" }).length, 0);
+        assert.equal(check("http/csp", { ...bare, contentType: "application/json" }).length, 0);
+        assert.equal(check("http/csp-base-uri", { headers: { "content-security-policy": "default-src 'self'" }, contentType: "application/json" }).length, 0);
+        assert.equal(check("http/csp", { ...bare, contentType: "application/pdf" }).length, 1);
+        assert.equal(check("http/csp", bare).length, 1);
+        const markdown = page({ ...bare, contentType: "text/markdown" });
+        documentFacts([markdown], ["Text/Markdown"]);
+        assert.equal((compileRule("http/csp", specs["http/csp"] ?? {}) as PageRule).check(markdown, { sitemaps: [], role: "production" })?.length, 1);
+    });
     it("combines two headers and a meta as the browser enforces them", () => {
         const facts = page({ html: { "http-equiv": [{ name: "content-security-policy", content: "script-src 'self'; frame-ancestors 'none'" }] } });
         facts.http.headers["content-security-policy"] = ["default-src 'self' 'unsafe-eval' https://cdn.test", "script-src 'self' https://cdn.test 'unsafe-eval'; object-src 'none'"];

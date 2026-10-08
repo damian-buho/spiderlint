@@ -19,7 +19,7 @@ import { openNetwork } from "./crawl/network.ts";
 import { probe } from "./crawl/probe.ts";
 import { bylineFacts } from "./facts/byline.ts";
 import { cspFacts } from "./facts/csp.ts";
-import { parsedHeaders } from "./facts/headers.ts";
+import { documentFacts, parsedHeaders } from "./facts/headers.ts";
 import { inSpan } from "./telemetry.ts";
 import { detectedFacts, loadDetector } from "./facts/language.ts";
 import { co2Facts, loadEstimator } from "./facts/co2.ts";
@@ -371,7 +371,7 @@ function partial(run: RuleRun, rulesByGroup: Map<string, Rule[]>, reason: string
     log.debug({ rules: [...readers], findings: marked.length, reason }, "graph findings marked partial");
 }
 
-// Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, byline, CO2, the detected language when asked, referrers, twins, role, vendor paths and the link graph.
+// Facts derived from the stored ones on every lint: group, robots, CSP, parsed headers, document types, byline, CO2, the detected language when asked, referrers, twins, role, vendor paths and the link graph.
 function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: ReturnType<typeof compileGroups>, isDetected: boolean): void {
     for (const page of pages) {
         page.group = assignGroup(page, matchers);
@@ -386,6 +386,7 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
         const co2 = page.html ? co2Facts(page) : undefined;
         if (co2) page.co2 = co2;
     }
+    documentFacts(pages, config.documentTypes);
     servedVersions(pages);
     referrers(pages, site.redirects);
     twins(pages, config.canonicalOrigin);
