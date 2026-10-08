@@ -365,6 +365,12 @@ const AGENTS: Spec[] = [
         }),
     },
     {
+        key: "auth-md",
+        paths: ["/auth.md"],
+        rule: { id: "auth-md", score: 0.3, docs: "https://workos.com/auth-md" },
+        check: (text) => ({ errors: text.trim() ? [] : ["the file is empty"], fields: { bytes: text.length } }),
+    },
+    {
         key: "okf",
         paths: ["/okf/index.md"],
         rule: { id: "okf", score: 0.3, docs: "https://specification.website/spec/agent-readiness/okf-bundle/" },
