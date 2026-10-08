@@ -1611,6 +1611,12 @@ msgstr "{kind} con huella se guarda en caché menos de un año; usado por estas 
 msgid "immutable {kind} is cached for less than a year; used by these pages"
 msgstr "{kind} inmutable se guarda en caché menos de un año; usado por estas páginas"
 
+msgid "{type} files are sent immutable at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
+msgstr "los archivos {type} se envían immutable en URL sin hash ni versión, así que las cachés sirven una copia obsoleta tras la siguiente publicación"
+
+msgid "{type} files are cached long at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
+msgstr "los archivos {type} se guardan en caché mucho tiempo en URL sin hash ni versión, así que las cachés sirven una copia obsoleta tras la siguiente publicación"
+
 msgid "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages"
 msgstr "la hoja de estilos tiene errores de sintaxis, así que los navegadores descartan la regla o el bloque donde está cada uno; usada por estas páginas"
 

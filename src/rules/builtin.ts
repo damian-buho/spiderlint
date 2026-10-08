@@ -13,6 +13,7 @@ import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
 import { disclosureRules } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
+import { cachingRules } from "./caching.ts";
 import { insightRules, partition } from "./insights.ts";
 import { lengthRules } from "./length.ts";
 import { said } from "./message.ts";
@@ -490,6 +491,7 @@ export const builtin: Record<string, Make> = {
     ...clockRules,
     ...urlRules,
     ...insightRules,
+    ...cachingRules,
     ...lengthRules,
     ...relationRules,
     "resources/status": resourceRule(

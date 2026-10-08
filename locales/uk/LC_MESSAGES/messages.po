@@ -1611,6 +1611,12 @@ msgstr "{kind} з відбитком кешується менш ніж на р�
 msgid "immutable {kind} is cached for less than a year; used by these pages"
 msgstr "незмінний {kind} кешується менш ніж на рік; використовують ці сторінки"
 
+msgid "{type} files are sent immutable at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
+msgstr "файли {type} надсилаються як immutable за URL без хешу чи версії, тож кеші віддають застарілу копію після наступної публікації"
+
+msgid "{type} files are cached long at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
+msgstr "файли {type} довго кешуються за URL без хешу чи версії, тож кеші віддають застарілу копію після наступної публікації"
+
 msgid "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages"
 msgstr "таблиця стилів має синтаксичні помилки, тому браузери відкидають правило чи блок, у якому кожна з них стоїть; використовують ці сторінки"
 

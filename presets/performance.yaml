@@ -61,6 +61,8 @@ rules:
     message: "Cache-Control no-store keeps the page out of the back/forward cache, found {got}"
     fix: "Remove no-store from Cache-Control, or replace it with no-cache."
     docs: https://web.dev/articles/bfcache#minimize-use-of-cache-control-no-store
+  caching/long-without-hash:
+    severity: warning
   http/version:
     fact: http.version
     expect: {type: string, pattern: "^[23]"}

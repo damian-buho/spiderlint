@@ -361,6 +361,8 @@ loaded is answered from Chromium’s network log, its body kept only for a type 
 resource extractor reads; only the rest is fetched, an image with the `Accept`
 Chromium sends for one, so an origin negotiating AVIF or WebP answers as it would a browser.
 
+`caching/long-without-hash` (`performance`, `warning`, raised to `error` for `immutable`) is the converse of `resources/cache-control`: every 2xx page and resource, by URL, whose `Cache-Control` says `immutable` or a `max-age` or `s-maxage` past `threshold` (30 days) without `no-cache` or `no-store`, at a URL carrying no version: no query, no hex token of 6+ characters, word token of 8+ with a digit or dotted version in the path, and outside a framework build directory (`/_astro/`, `/_next/static/`, `/_nuxt/`, `/_app/immutable/`). One finding per media type and promise lists the URLs, each with its header and the pages using it; `expect` sets `threshold`, `entropy` and `allow`, globs or `re:` over path and query. The header is judged as the client receives it, so a CDN rewrite counts as the origin’s.
+
 `recommended` also carries `http/consistent-origin` (`scope: site`, `info`): for
 each host it reports when `tls.cert.fingerprint256`, `tls.protocol`,
 `http.remote.address` or `http.headers.server` vary across pages, listing the
