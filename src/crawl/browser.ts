@@ -380,6 +380,11 @@ export async function ensureBrowser(name: BrowserName, launcher: BrowserType, ch
     }
 }
 
+// Makes sure `name` launches before any scan, downloading it into the cache when missing.
+export async function prepareBrowser(name: BrowserName): Promise<void> {
+    await ensureBrowser(name, launcherOf(name), { browserInstall: true, cacheMode: "use" }, () => installBrowser(name));
+}
+
 // The Playwright launcher for `name`; anything else is a config error.
 function launcherOf(name: BrowserName): BrowserType {
     const launcher = Object.hasOwn(LAUNCHERS, name) ? LAUNCHERS[name] : undefined;

@@ -44,7 +44,7 @@ policies:
     caps: { max-pages: 5 }
 EOF
 
-(cd "${WORK}" && SPIDERLINT_SERVER_CONFIG="${WORK}/server.yaml" SPIDERLINT_MODE=all SPIDERLINT_LOG_FORMAT=json \
+(cd "${WORK}" && SPIDERLINT_SERVER_CONFIG="${WORK}/server.yaml" SPIDERLINT_MODE=all SPIDERLINT_LOG_FORMAT=json SPIDERLINT_BROWSER_INSTALL=false \
     exec node --experimental-strip-types "${B19_HOME}/src/server/main.ts" >"${WORK}/server.log" 2>&1) &
 PIDS+=("$!")
 

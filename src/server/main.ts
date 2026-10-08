@@ -6,6 +6,8 @@
 import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { ConfigError } from "../config/index.ts";
+import { environmentSettings } from "../config/environment.ts";
+import { prepareBrowser } from "../crawl/browser.ts";
 import { log } from "../logger.ts";
 import { api } from "./api.ts";
 import { checkClock } from "./clock.ts";
@@ -15,6 +17,21 @@ import { startWorker } from "./worker.ts";
 import { observeQueue, startTelemetry } from "../telemetry.ts";
 
 const MODES = ["api", "worker", "all"];
+
+// Downloads Chromium into the cache once, before the worker takes a job; a failure leaves browser scans failing, never the worker.
+async function prepareWorkerBrowser(): Promise<void> {
+    const { browserInstall = true } = environmentSettings(process.env);
+    if (!browserInstall) {
+        log.info({ browserInstall }, "browser not prepared");
+        return;
+    }
+    try {
+        await prepareBrowser("chromium");
+        log.info({ browser: "chromium" }, "browser ready");
+    } catch (error) {
+        log.warn({ browser: "chromium", error: error instanceof Error ? error.message : String(error) }, "browser not ready, browser scans will fail");
+    }
+}
 
 // Starts the API, the worker or both, per SPIDERLINT_MODE, until SIGTERM or SIGINT.
 async function main(): Promise<void> {
@@ -40,6 +57,7 @@ async function main(): Promise<void> {
         );
     }
     if (mode !== "api") {
+        await prepareWorkerBrowser();
         const redis = connect(url, password);
         const worker = startWorker(redis, workers, retention);
         closers.push(

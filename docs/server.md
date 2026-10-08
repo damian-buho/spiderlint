@@ -113,7 +113,10 @@ refuses such a request. Settings a request may never set: `plugins`, `sources`,
 `proxy`, `resolver`, `resolve`, `robots`, `cache`, `profile`, `format`,
 `fail-on`, `role`, `rulesets`, `sites`, `targets`, `allow-private`, `browser-install` and plugin keys. The
 owner may still set them under `defaults`, except `browser-install`: scans never
-download a browser, so it stays off and a scan needing one fails naming the install.
+download a browser. A worker downloads Chromium into its cache once at startup
+instead (`SPIDERLINT_BROWSER_INSTALL=false` turns that off); mount a volume on
+`/app/.cache/ms-playwright` to keep it across restarts. Without it, a scan
+needing a browser fails naming the install.
 
 ## Clients
 
