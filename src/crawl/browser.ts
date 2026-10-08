@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import { load } from "cheerio";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { createServer, type AddressInfo } from "node:net";
+import path from "node:path";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
@@ -296,14 +299,92 @@ function resourcesDigest(requests: Request[], responses: Map<string, Logged>): s
         .digest("hex");
 }
 
-// The Playwright launcher for `name`; a browser other than the bundled Chromium must be installed where Playwright looks.
+// Minutes a browser download may take before the run gives up on it.
+const INSTALL_TIMEOUT_MS = 600_000;
+// Install output lines kept for the error when the download fails.
+const INSTALL_TAIL_LINES = 20;
+
+// Whether `error` is Playwright reporting the browser binary is not downloaded.
+export function isMissingExecutable(error: unknown): boolean {
+    return reason(error).includes("Executable doesn't exist");
+}
+
+// The `playwright install` arguments downloading `name`; headless runs never launch the full Chromium.
+export function installArguments(name: BrowserName): string[] {
+    return ["install", name, ...(name === "chromium" ? ["--only-shell"] : [])];
+}
+
+// The install command a ConfigError names when spiderlint may not download the browser itself.
+export function installCommand(name: BrowserName): string {
+    return `npx playwright ${installArguments(name).join(" ")}`;
+}
+
+// Downloads `name` with the pinned Playwright CLI beside this file, which no `npx` lookup can miss.
+export async function installBrowser(name: BrowserName): Promise<void> {
+    const command = installCommand(name);
+    let cli: string;
+    try {
+        cli = path.join(path.dirname(createRequire(import.meta.url).resolve("playwright/package.json")), "cli.js");
+        if (!existsSync(cli)) throw new Error("no cli.js");
+    } catch {
+        throw new ConfigError(`browser ${name} is not installed; install it with: ${command}`);
+    }
+    const started = Date.now();
+    log.info({ browser: name, command }, "browser is not installed, downloading it");
+    const child = spawn(process.execPath, [cli, ...installArguments(name)], { stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    child.stdout.on("data", (chunk) => {
+        output += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+        output += chunk;
+    });
+    let isTimedOut = false;
+    const code = await new Promise<number>((resolve) => {
+        const timer = setTimeout(() => {
+            isTimedOut = true;
+            child.kill("SIGKILL");
+            resolve(-1);
+        }, INSTALL_TIMEOUT_MS);
+        child.once("error", () => {
+            clearTimeout(timer);
+            resolve(-1);
+        });
+        child.once("close", (status) => {
+            clearTimeout(timer);
+            resolve(status ?? -1);
+        });
+    });
+    const seconds = Math.round((Date.now() - started) / 1000);
+    if (code !== 0) throw new ConfigError(`browser ${name} could not be downloaded (${isTimedOut ? `timed out after ${seconds} s` : `exited ${code}`}): ${output.trim().split("\n").slice(-INSTALL_TAIL_LINES).join("\n") || command}`);
+    log.info({ browser: name, seconds }, "browser downloaded");
+}
+
+// Launches `name` once to prove it is installed, downloading it first when it is missing and allowed to.
+export async function ensureBrowser(name: BrowserName, launcher: BrowserType, check: Pick<Config, "browserInstall" | "cacheMode">, install: () => Promise<void>): Promise<void> {
+    try {
+        const launched = await launcher.launch();
+        await launched.close();
+        return;
+    } catch (error) {
+        if (!isMissingExecutable(error)) throw error;
+    }
+    if (!check.browserInstall) throw new ConfigError(`browser ${name} is not installed; install it with: ${installCommand(name)}`);
+    if (check.cacheMode === "offline") throw new ConfigError(`browser ${name} is not installed, and --offline cannot download it; install it with: ${installCommand(name)}`);
+    await install();
+    try {
+        const launched = await launcher.launch();
+        await launched.close();
+    } catch (error) {
+        throw new ConfigError(`browser ${name} still does not launch after downloading it: ${reason(error)}`);
+    }
+}
+
+// The Playwright launcher for `name`; anything else is a config error.
 function launcherOf(name: BrowserName): BrowserType {
     const launcher = Object.hasOwn(LAUNCHERS, name) ? LAUNCHERS[name] : undefined;
     if (!launcher) throw new ConfigError(`browser ${name}: expected chromium, firefox or webkit`);
-    const executable = launcher.executablePath();
-    const isInstalled = name === "chromium" || existsSync(executable);
-    log.debug({ browser: name, executable, isInstalled }, "browser chosen");
-    if (!isInstalled) throw new ConfigError(`browser ${name} is not installed (expected ${executable}); install it with: npx playwright install ${name}`);
+    log.debug({ browser: name }, "browser chosen");
     return launcher;
 }
 
@@ -316,8 +397,9 @@ export interface BrowserStats {
 }
 
 // The browser crawler of a frontier: facts come from the rendered DOM and the browser’s own network log; an adaptive group’s rendered page is compared with its static HTML.
-export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false, isExpensive = false): { crawler: PlaywrightCrawler; stats(): BrowserStats } {
+export async function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false, isExpensive = false): Promise<{ crawler: PlaywrightCrawler; stats(): BrowserStats }> {
     const launcher = launcherOf(config.browser);
+    await ensureBrowser(config.browser, launcher, config, () => installBrowser(config.browser));
     const isPortOpen = isDebugged && config.browser === "chromium";
     if (isDebugged && !isPortOpen) log.warn({ browser: config.browser }, "only Chromium opens a DevTools port; its extractors add nothing");
     let pages = 0;

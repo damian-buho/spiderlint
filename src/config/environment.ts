@@ -59,6 +59,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_RESOLVE !== undefined && { resolve: list(environment.SPIDERLINT_RESOLVE).map((pin) => parsePin(pin)) }),
         ...(environment.SPIDERLINT_FETCH !== undefined && { fetch: pick("SPIDERLINT_FETCH", environment.SPIDERLINT_FETCH, FETCH_MODES) }),
         ...(environment.SPIDERLINT_BROWSER !== undefined && { browser: pick("SPIDERLINT_BROWSER", environment.SPIDERLINT_BROWSER, BROWSERS) }),
+        ...(environment.SPIDERLINT_BROWSER_INSTALL !== undefined && { browserInstall: isTruthy("SPIDERLINT_BROWSER_INSTALL", environment.SPIDERLINT_BROWSER_INSTALL) }),
         ...(environment.SPIDERLINT_SCOPE !== undefined && { scope: pick("SPIDERLINT_SCOPE", environment.SPIDERLINT_SCOPE, SCOPES) }),
         ...(environment.SPIDERLINT_CONCURRENCY !== undefined && { concurrency: parseInteger("SPIDERLINT_CONCURRENCY", environment.SPIDERLINT_CONCURRENCY) }),
         ...(environment.SPIDERLINT_RATE !== undefined && { rate: parseInteger("SPIDERLINT_RATE", environment.SPIDERLINT_RATE) }),

@@ -64,6 +64,9 @@ Crawl:
                             host, repeatable (env: SPIDERLINT_RESOLVE)
   --no-allow-private        refuse loopback, private and link-local addresses
                             (env: SPIDERLINT_ALLOW_PRIVATE=false)
+  --no-browser-install      never download a missing browser, fail naming the
+                            install command (env:
+                            SPIDERLINT_BROWSER_INSTALL=false)
 
 Rules:
   --rules <rulesets>        rulesets or rule IDs to run in every group (default:

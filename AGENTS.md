@@ -140,7 +140,7 @@ one way once it settles, and a rendered page costs no second request.
 Crawlee’s `AdaptivePlaywrightCrawler` is not used: its HTTP path reads no
 socket, timings or `304`, and it decides per page, which would split a group’s facts.
 
-`browser` picks the Playwright engine (`--browser`, `SPIDERLINT_BROWSER`). The image ships Chromium only; `firefox` and `webkit` run where Playwright has them installed, and one that is missing is a config error naming `npx playwright install <name>`.
+`browser` picks the Playwright engine (`--browser`, `SPIDERLINT_BROWSER`). The image ships Chromium only; a browser that is missing is downloaded before the crawl (`--only-shell` for Chromium), unless `browser-install` is off or the run is `--offline`, and the scan server never downloads one. `--no-browser-install` fails fast instead, naming `npx playwright install <name>`.
 
 The browser also yields facts HTTP cannot: console errors, Navigation Timing,
 and the COMPLETE resource census — including what JavaScript loads at
@@ -481,6 +481,7 @@ org:
     rules: [all]                       # optional; replaces every group's rules
     fetch: auto                        # auto | http | browser | adaptive
     browser: chromium                  # chromium | firefox | webkit
+    browser-install: true              # false never downloads a missing browser
     scope: origin                      # origin | host | domain
     concurrency: 0                     # 0 = NUMPROCS
     rate: 0                            # requests per minute, 0 = unlimited
@@ -557,7 +558,7 @@ Commands are verb-noun and flat, parsed by commander: each flag is declared once
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--role`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
 `--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
-`--no-sitemap`, `--no-keepalive`, `--no-resources`, `--no-allow-private`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
+`--no-sitemap`, `--no-keepalive`, `--no-resources`, `--no-allow-private`, `--no-browser-install`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
 `--error`, `--warning`, `--info`, `--hint`, `--show-hints`, `--explain`, `--stats`, `--output`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
 
@@ -567,7 +568,7 @@ Later: `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Result
 
 - Hono on `@hono/node-server`, BullMQ over Redis or Valkey. API and worker share nothing but Redis.
 - Runtime policy is a mounted YAML file (`/etc/spiderlint/server.yaml`, `SPIDERLINT_SERVER_CONFIG`), never the projectfile: it is the instance owner’s data, polled every 5 s, an invalid edit logged and ignored.
-- A request carries `org.spiderlint` keys, checked by the same schema as the projectfile after an allow-list of keys; the matched policy then clamps caps, checks named rules and fetch modes, and pins `robots` and `allow-private`.
+- A request carries `org.spiderlint` keys, checked by the same schema as the projectfile after an allow-list of keys; the matched policy then clamps caps, checks named rules and fetch modes, and pins `robots`, `allow-private` and `browser-install` off (the server never downloads a browser; its image carries one).
 - A policy’s `deny` reaches the run as `denyRules`, which excludes like `excludeRules` but raises no unknown-rule error, since a denied plugin rule is usually not loaded.
 - Rate windows are per policy and host, a Redis `INCR` with `PEXPIRE NX`, charged after every other check so a refused request costs nothing.
 - Each scan is `src/server/scan.ts` in a child process in a temporary directory: settings on stdin, the `json` report on stdout, JSON logs on stderr, progress lines on fd 3 from `onProgress`. The worker relays progress at most once a second and kills the child at `scan-timeout`.
@@ -725,7 +726,7 @@ projectfile.yaml
 - `B19_NODE_SERIES: 26` under `org.projectfile.build.args` picks the series; the Dockerfile `ARG` default is only the fallback name.
 - `projectfile.yaml` includes `.makefile/b19/ci.yaml`, `.makefile/b19/images/node.yaml`, `.makefile/library/languages/node.yaml`, and the `damian-buho/metadata` include plus the `forge/github.yaml`, `forge/codeberg.yaml`, `registry/ghcr.yaml` fragments — copy ignorelint’s block, swap the language.
 - `traits/personal-image.yaml` carries the account-is-org shape every personal image opts into (`image.org: damian-buho`, `flatpath: ${name}`, `sinks.ghcr.selfref`).
-- `build.d/user/post/700-install-chromium.sh` installs the headless shell of the pinned `playwright` (`--only-shell`: headless runs never launch the full browser) into `PLAYWRIGHT_BROWSERS_PATH`; nothing downloads at runtime. After a `playwright` bump the dev host’s browsers are stale, so audits fail at launch until `npx playwright install chromium --only-shell` runs there too. Its libraries are curated in `.container/root/deps/common.apt.deps` from Playwright’s own per-distribution list, not `--with-deps`.
+- `build.d/user/post/700-install-chromium.sh` installs the headless shell of the pinned `playwright` (`--only-shell`: headless runs never launch the full browser) into `PLAYWRIGHT_BROWSERS_PATH`; the image never downloads at runtime, while a CLI run downloads a browser missing from that path before the crawl. After a `playwright` bump the dev host’s browsers are stale, so the next audit downloads the new shell instead of failing at launch. Its libraries are curated in `.container/root/deps/common.apt.deps` from Playwright’s own per-distribution list, not `--with-deps`.
 - `pf-cli` is copied from `PF_CLI_IMAGE`, the fleet’s `org.projectfile.images` declaration named in `build.args`, so the image and the action read a mounted `projectfile.yaml`.
 - Self-test in `test.d/`: audit the bundled fixture site served from inside the container and expect the known findings, once over http and once in Chromium with its config read from a `projectfile.yaml` through `pf-cli`.
 - `make` runs the m6e gates; lint, format, audit, outdated checks and `npm-test` (under `source-is-tested`) come from the node fragment. `NODE_TOOL_IMAGE` follows `B19_NODE_SERIES`, the same series as the base image.

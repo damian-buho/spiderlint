@@ -352,10 +352,10 @@ describe("cli", () => {
         );
     });
 
-    it("refuses a browser Playwright has not installed, naming how to install it", async () => {
-        const run = await spiderlintWith({ PLAYWRIGHT_BROWSERS_PATH: path.join(directory, "no-browsers") }, directory, "audit", "http://127.0.0.1:9/", "--fetch", "browser", "--browser", "webkit", "--no-cache");
+    it("refuses a browser Playwright has not installed with --no-browser-install, naming how to install it", async () => {
+        const run = await spiderlintWith({ PLAYWRIGHT_BROWSERS_PATH: path.join(directory, "no-browsers-refused") }, directory, "audit", "http://127.0.0.1:9/", "--fetch", "browser", "--browser", "webkit", "--no-cache", "--no-browser-install");
         assert.equal(run.code, 2);
-        assert.match(run.stderr, /browser webkit is not installed .+npx playwright install webkit/);
+        assert.match(run.stderr, /browser webkit is not installed.+npx playwright install webkit/);
     });
 
     it("unfolds with --unfold, one finding per page", async () => {

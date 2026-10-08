@@ -35,6 +35,8 @@ export interface Config {
     role: Role;
     fetch: FetchMode;
     browser: BrowserName;
+    // Whether a missing browser is downloaded before the crawl instead of failing.
+    browserInstall: boolean;
     scope: Scope;
     // Pages or requests in flight; 0 is NUMPROCS, halved for a browser, one beside an expensive browser extractor.
     concurrency: number;
@@ -102,6 +104,7 @@ export function defaults(): Config {
         role: "production",
         fetch: "auto",
         browser: "chromium",
+        browserInstall: true,
         scope: "origin",
         concurrency: 0,
         rate: 0,

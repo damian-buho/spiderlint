@@ -140,7 +140,7 @@ export function admit(body: unknown, server: ServerSettings): Admitted {
     settings = checkFetch(settings, policy);
     const caps = Object.fromEntries(CAPPED.map((key) => [key, capped(settings[key], policy.caps[key])]).filter(([, value]) => value !== undefined));
     log.debug({ host, policy: policy.name, caps, denied: policy.rules.deny.length }, "request clamped");
-    return { url, host, policy, settings: { ...settings, ...caps, robots: true, "allow-private": server.allowPrivate } };
+    return { url, host, policy, settings: { ...settings, ...caps, robots: true, "allow-private": server.allowPrivate, "browser-install": false } };
 }
 
 // Refuses a scan naming a ruleset or rule no configured plugin defines, before any window is charged.

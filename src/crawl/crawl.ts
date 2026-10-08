@@ -21,7 +21,7 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     if (modes.includes("browser") && !config.allowPrivate) throw new ConfigError("fetch browser: the address guard cannot check what the browser connects to");
     const frontier = await Frontier.open(config, cache, router);
     const http = modes.includes("http") ? httpCrawler(config, onPage, frontier, storage, proxy) : undefined;
-    const browser = modes.includes("browser") ? browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
+    const browser = modes.includes("browser") ? await browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));

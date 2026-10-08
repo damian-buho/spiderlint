@@ -43,6 +43,7 @@ const site = {
         rules: { type: "array", items: { type: "string" } },
         fetch: fetchMode,
         browser: { enum: ["chromium", "firefox", "webkit"] },
+        "browser-install": { type: "boolean" },
         scope: { enum: ["origin", "host", "domain"] },
         concurrency: { type: "integer", minimum: 0 },
         rate: { type: "integer", minimum: 0 },

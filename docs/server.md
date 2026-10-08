@@ -111,8 +111,9 @@ report header name the rule set.
 A request that names no rules runs `recommended`, so an `allow` list without it
 refuses such a request. Settings a request may never set: `plugins`, `sources`,
 `proxy`, `resolver`, `resolve`, `robots`, `cache`, `profile`, `format`,
-`fail-on`, `role`, `rulesets`, `sites`, `targets`, `allow-private` and plugin keys. The
-owner may still set them under `defaults`.
+`fail-on`, `role`, `rulesets`, `sites`, `targets`, `allow-private`, `browser-install` and plugin keys. The
+owner may still set them under `defaults`, except `browser-install`: scans never
+download a browser, so it stays off and a scan needing one fails naming the install.
 
 ## Clients
 

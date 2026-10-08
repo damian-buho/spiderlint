@@ -25,6 +25,7 @@ export type Settings = Partial<
         | "role"
         | "fetch"
         | "browser"
+        | "browserInstall"
         | "scope"
         | "concurrency"
         | "rate"
@@ -72,6 +73,7 @@ const KEYS: [string, keyof Settings][] = [
     ["role", "role"],
     ["fetch", "fetch"],
     ["browser", "browser"],
+    ["browser-install", "browserInstall"],
     ["scope", "scope"],
     ["concurrency", "concurrency"],
     ["rate", "rate"],

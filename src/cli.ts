@@ -121,6 +121,7 @@ function crawlOptions(): Option[] {
         flag("--resolver <list>", "DNS servers to ask, address[:port],…", "system", "SPIDERLINT_RESOLVER"),
         repeatable("--resolve <pin>", "connect to host[:port]:address instead of resolving host, repeatable", undefined, "SPIDERLINT_RESOLVE"),
         flag("--no-allow-private", "refuse loopback, private and link-local addresses", undefined, "SPIDERLINT_ALLOW_PRIVATE=false"),
+        flag("--no-browser-install", "never download a missing browser, fail naming the install command", undefined, "SPIDERLINT_BROWSER_INSTALL=false"),
     ]);
 }
 
@@ -461,6 +462,7 @@ function flagSettings(values: Record<string, unknown>): Settings {
         ...(values.keepalive !== undefined && { keepalive: values.keepalive as boolean }),
         ...(values.resources !== undefined && { fetchResources: values.resources as boolean }),
         ...(values["allow-private"] !== undefined && { allowPrivate: values["allow-private"] as boolean }),
+        ...(values["browser-install"] !== undefined && { browserInstall: values["browser-install"] as boolean }),
         ...(values.unfold !== undefined && { fold: !(values.unfold as boolean) && { threshold: 0.8, min: 3 } }),
         ...(values["fail-on"] !== undefined && { failOn: parseFailOn("--fail-on", values["fail-on"] as string) }),
         ...(values.format !== undefined && { format: values.format as string }),
