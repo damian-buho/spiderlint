@@ -328,7 +328,7 @@ function targetsOf(settings: CssSettings): Targets | undefined {
             targetsByQuery.set(query, undefined);
             log.warn({ query, error: error instanceof Error ? error.message : String(error) }, `css/unsupported skipped, the browser targets "${query}" do not parse:`);
         }
-        if (query === "") log.warn({ cwd: process.cwd() }, "css/unsupported skipped: no browser targets, set org.spiderlint.css.targets or add a .browserslistrc");
+        if (query === "") log.info({ cwd: process.cwd() }, "css/unsupported skipped: no browser targets, set org.spiderlint.css.targets or add a .browserslistrc");
     }
     return targetsByQuery.get(query);
 }
