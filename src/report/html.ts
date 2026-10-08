@@ -85,6 +85,7 @@ input[type=radio] { flex: none; inline-size: auto; margin-inline-end: .5rem; }
 input { flex: 1 1 20rem; font: inherit; padding: .75rem 1rem; border: 1px solid var(--line); color: inherit; background: var(--surface); }
 progress { inline-size: 100%; block-size: .75rem; accent-color: var(--accent); }
 .alert { border-inline-start: .25rem solid var(--error); padding: 1rem 1.25rem; background: light-dark(#fdecea, #2c1614); }
+.skip { position: absolute; inset-inline-start: 1rem; inset-block-start: -4rem; padding: .5rem 1rem; background: var(--surface); z-index: 1; } .skip:focus { inset-block-start: 1rem; }
 @media (max-width: 40rem) { .hero { flex-direction: column; align-items: flex-start; padding: 1.5rem; } body { padding-inline: 1rem; } .rule-foot { grid-template-columns: minmax(0, 1fr); } .rule-foot > :nth-last-child(2), .rule-foot > :last-child { grid-column: auto; text-align: start; } }
 `;
 
@@ -95,7 +96,7 @@ export function escape(value: unknown): string {
 
 // A whole page in the translator’s language and direction.
 export function page(t: Translator, title: string, body: string, head = ""): string {
-    return `<!DOCTYPE html>\n<html lang="${t.lang}" dir="${t.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>${escape(title)}</title><style>${STYLE}</style>${head}</head><body>${body}</body></html>\n`;
+    return `<!DOCTYPE html>\n<html lang="${t.lang}" dir="${t.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f5ef"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#13110d"><title>${escape(title)}</title><style>${STYLE}</style>${head}</head><body>${body}</body></html>\n`;
 }
 
 // Translated severity names; the rule ID beside them is never translated.

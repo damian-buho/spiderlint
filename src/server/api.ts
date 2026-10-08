@@ -66,7 +66,7 @@ export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: 
         await next();
         c.header("cross-origin-resource-policy", "cross-origin");
     });
-    app.use(secureHeaders());
+    app.use(secureHeaders({ xXssProtection: false }));
     app.use(async (c, next) => {
         const started = performance.now();
         await next();
@@ -77,7 +77,12 @@ export function api(queue: Queue<ScanData, ScanResult>, redis: Redis, settings: 
         log.error({ client: clientAddress(c, jobs), path: c.req.path, error: error.message }, "request failed");
         return c.json({ error: { code: "internal", message: "internal error" } }, 500);
     });
-    app.notFound((c) => refused(c, new Refusal(404, "not-found", `${c.req.path}: no such route`)));
+    app.notFound((c) => {
+        if (c.req.path.startsWith("/v1/") || c.req.path === "/healthz") return refused(c, new Refusal(404, "not-found", `${c.req.path}: no such route`));
+        c.header("content-security-policy", PAGE_CSP);
+        c.header("cache-control", "no-cache");
+        return c.html('<!DOCTYPE html>\n<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Not found</title></head><body><main><h1>Not found</h1><p><a href="/">Start a new scan</a></p></main></body></html>\n', 404);
+    });
 
     app.post("/v1/jobs", bodyLimit({ maxSize: BODY_MAX, onError: (c) => refused(c, new Refusal(400, "invalid-body", `the body exceeds ${BODY_MAX} bytes`)) }), async (c) => {
         let body: unknown;

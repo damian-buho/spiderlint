@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { domainToUnicode } from "node:url";
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { compress } from "hono/compress";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { routePath } from "hono/route";
 import { LICENSE } from "../agent.ts";
@@ -44,7 +45,10 @@ const LINKS: [name: string, href: string][] = [
 ];
 // Resolves from src/ and dist/ alike, since the package ships both.
 const LOGO = readFileSync(new URL("../../src/server/logo.png", import.meta.url));
-const ICONS = '<link rel="icon" type="image/png" sizes="192x192" href="/logo.png"><link rel="apple-touch-icon" href="/logo.png">';
+const TOUCH = readFileSync(new URL("../../src/server/apple-touch-icon.png", import.meta.url));
+const LOGO_36 = readFileSync(new URL("../../src/server/logo-36.png", import.meta.url));
+const LOGO_72 = readFileSync(new URL("../../src/server/logo-72.png", import.meta.url));
+const ICONS = '<link rel="icon" type="image/png" sizes="192x192" href="/logo.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">';
 const GRADE_COLOR: Record<Grade | "none", string> = { S: "#1e7a34", A: "#1e7a34", B: "#8a6d00", C: "#b45d00", D: "#b45d00", E: "#b3261e", F: "#b3261e", none: "#6b6b75" };
 
 // Progress over server-sent events, for a browser that runs scripts; without them the page refreshes itself.
@@ -80,7 +84,7 @@ const hash = (source: string) => `'sha256-${createHash("sha256").update(source).
 // The policy of a page: its own stylesheet and script by hash, what the owner’s fragments ask for, same-origin images, events and forms, nothing else; `self` joins scripts and styles only while the owner serves assets.
 export function pageCsp(sources?: Sources, hasAssets = false): string {
     const list = (own: string, asked: string[]) => [...new Set([own, ...(hasAssets ? ["'self'"] : []), ...asked])].join(" ");
-    return `default-src 'none'; style-src ${list(hash(STYLE), sources?.style ?? [])}; script-src ${list(hash(SCRIPT), sources?.script ?? [])}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`;
+    return `default-src 'none'; style-src ${list(hash(STYLE), sources?.style ?? [])}; script-src ${list(hash(SCRIPT), sources?.script ?? [])}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests`;
 }
 
 // The policy of every page without fragments.
@@ -132,14 +136,19 @@ function respond(c: Context, t: Translator, title: string, body: string, status:
     const [fromHead, fromHeader, fromFooter] = slots as [Fragment, Fragment, Fragment];
     const sources = { script: slots.flatMap((slot) => slot.sources.script), style: slots.flatMap((slot) => slot.sources.style) };
     const privacy = matomo ? `<a href="${escape(matomo.privacy)}" rel="noopener noreferrer">${escape(t._("Privacy"))}</a>` : "";
-    const nav = `<header class="site"><a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36">spiderlint</a><nav><a href="/">${escape(t._("New scan"))}</a><a href="${LINKS[0]?.[1]}" rel="noopener noreferrer">${escape(t._("Self-host"))}</a></nav></header>`;
+    const origin = new URL(c.req.url).origin;
+    const self = new URL(c.req.path, origin).href;
+    const description = t._("Check every page of a site: SEO tags, security headers, TLS, links and more.");
+    const seo = `<meta name="description" content="${escape(description)}"><link rel="canonical" href="${escape(self)}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta property="og:image" content="${escape(`${origin}/logo.png`)}"><meta property="og:url" content="${escape(self)}"><meta property="og:type" content="website">`;
+    const skip = `<a class="skip" href="#main">${escape(t._("Skip to main content"))}</a>`;
+    const nav = `<header class="site"><a class="brand" href="/"><img src="/logo.png" srcset="/logo-36.png 36w, /logo-72.png 72w" sizes="36px" alt="" width="36" height="36">spiderlint</a><nav><a href="/">${escape(t._("New scan"))}</a><a href="${LINKS[0]?.[1]}" rel="noopener noreferrer">${escape(t._("Self-host"))}</a></nav></header>`;
     const links = LINKS.map(([name, href]) => `<a href="${escape(href)}" rel="noopener noreferrer">${escape(name)}</a>`).join("");
     const foot = `<footer class="foot"><p>${escape(t._("Self-host spiderlint: free software under the {license} licence.", { license: LICENSE }))}</p>${links}${privacy}</footer>`;
     c.header("content-security-policy", pageCsp(sources, owner.assets !== undefined));
     c.header("cache-control", "no-cache");
     c.header("vary", "accept-language");
     track(matomo, c, routePath(c), URL.canParse(title) ? new URL(title).hostname : undefined);
-    return c.html(page(t, title, `${fromHeader.html}${nav}${body}${foot}${fromFooter.html}`, ICONS + head + fromHead.html), status);
+    return c.html(page(t, title, `${skip}${fromHeader.html}${nav}${body}${foot}${fromFooter.html}`, ICONS + seo + head + fromHead.html), status);
 }
 
 // What each web preset is called and says, in the reader’s language.
@@ -156,7 +165,7 @@ function presetChoice(t: Translator, offered: string[], chosen?: string): string
     if (offered.length === 0) return "";
     const checked = chosen !== undefined && offered.includes(chosen) ? chosen : offered[0];
     const text = presetText(t);
-    const options = offered.map((name) => `<label><input type="radio" name="preset" value="${escape(name)}"${name === checked ? " checked" : ""}> ${escape(text[name]?.[0] ?? name)} <small class="muted">${escape(text[name]?.[1] ?? "")}</small></label>`);
+    const options = offered.map((name) => `<label for="preset-${escape(name)}"><input id="preset-${escape(name)}" type="radio" name="preset" value="${escape(name)}"${name === checked ? " checked" : ""}> ${escape(text[name]?.[0] ?? name)} <small class="muted">${escape(text[name]?.[1] ?? "")}</small></label>`);
     return `<fieldset><legend class="muted">${escape(t._("Checks"))}</legend>${options.join("")}</fieldset>`;
 }
 
@@ -164,8 +173,8 @@ function presetChoice(t: Translator, offered: string[], chosen?: string): string
 function formPage(c: Context, t: Translator, offered: string[], typed = "", refusal?: Refusal, chosen?: string): Response {
     if (refusal?.retryAfter !== undefined) c.header("retry-after", String(refusal.retryAfter));
     const alert = refusal ? `<p class="alert" role="alert">${escape(refusalText(t, refusal))}${refusal.code === "banned" ? `<br><small>${escape(refusal.message)}</small>` : ""}</p>` : "";
-    const body = `<main><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button>${presetChoice(t, offered, chosen)}</form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p></main>`;
-    return respond(c, t, t._("spiderlint — site linter"), body, refusal?.status ?? 200);
+    const body = `<main id="main"><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button>${presetChoice(t, offered, chosen)}</form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p></main>`;
+    return respond(c, t, t._("spiderlint — scan every page of a website"), body, refusal?.status ?? 200);
 }
 
 // The time left as the reader writes it: “about 2–4 min”, “less than 3 min” while the low end is zero.
@@ -253,6 +262,15 @@ function badge(value: string, color: string, href?: string): string {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${left + right}" height="20" role="img" aria-label="${escape(`${label}: ${value}`)}"><title>${escape(`${label}: ${value}`)}</title>${href ? `<a href="${escape(href)}" target="_top">${text}</a>` : text}</svg>`;
 }
 
+// `bytes` as an image answer with a shared cache lifetime.
+function image(bytes: Buffer, type = "image/png"): (c: Context) => Response {
+    return (c: Context) => {
+        c.header("content-type", type);
+        c.header("cache-control", `public, max-age=${ASSET_MAX_AGE_S}`);
+        return c.body(new Uint8Array(bytes));
+    };
+}
+
 // The form, the job pages and the badge, rendered on the server and complete without scripts.
 export function web(jobs: Jobs): Hono {
     const app = new Hono();
@@ -283,11 +301,35 @@ export function web(jobs: Jobs): Hono {
 
     const offered = () => presetsOffered(jobs.settings());
 
+    // Text answers leave compressed when the client asks for gzip.
+    app.use(compress());
+
     app.get("/logo.png", (c) => {
         log.debug({ bytes: LOGO.length }, "logo served");
-        c.header("content-type", "image/png");
-        c.header("cache-control", `public, max-age=${ASSET_MAX_AGE_S}`);
-        return c.body(new Uint8Array(LOGO));
+        return image(LOGO)(c);
+    });
+
+    app.get("/favicon.ico", (c) => {
+        log.debug({ bytes: LOGO.length }, "favicon served");
+        return image(LOGO)(c);
+    });
+
+    app.get("/apple-touch-icon.png", (c) => {
+        log.debug({ bytes: TOUCH.length }, "apple touch icon served");
+        return image(TOUCH)(c);
+    });
+
+    app.get("/logo-36.png", (c) => image(LOGO_36)(c));
+
+    app.get("/logo-72.png", (c) => image(LOGO_72)(c));
+
+    // RFC 9116 contact point with a rolling half-year expiry, so the date never goes stale.
+    app.get("/.well-known/security.txt", (c) => {
+        const expires = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
+        log.debug({ expires }, "security.txt served");
+        c.header("content-type", "text/plain; charset=utf-8");
+        c.header("cache-control", "public, max-age=86400");
+        return c.body(`Contact: mailto:damian.buho@proton.me\nExpires: ${expires}\nPreferred-Languages: en\n`);
     });
 
     app.get("/", (c) => formPage(c, translate(c), offered(), c.req.query("url") ?? ""));
@@ -316,16 +358,16 @@ export function web(jobs: Jobs): Hono {
             job = await jobOf(jobs.queue, c.req.param("id"));
         } catch (error) {
             if (!(error instanceof Refusal)) throw error;
-            return respond(c, t, t._("Scan not found"), `<main><h1>${escape(t._("Scan not found"))}</h1><p>${escape(refusalText(t, error))}</p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, 404);
+            return respond(c, t, t._("Scan not found"), `<main id="main"><h1>${escape(t._("Scan not found"))}</h1><p>${escape(refusalText(t, error))}</p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, 404);
         }
         const state = await job.getState();
         const title = shown(job.data.url);
         const isRepeat = c.req.query("repeat") !== undefined;
         const wait = job.data.repeatKey ? await jobs.redis.ttl(job.data.repeatKey) : 0;
         log.debug({ job: job.id, state, isRepeat, wait }, "job page rendered");
-        if (state === "completed") return respond(c, t, title, `<main>${doneBody(t, job, wait, isRepeat)}</main>`);
-        if (state === "failed") return respond(c, t, title, `<main><h1>${escape(title)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
-        const body = `<main><h1>${escape(title)}</h1>${isRepeat ? `<p class="notice">${escape(t._("This site was scanned recently, so this is the existing scan."))}</p>` : ""}${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
+        if (state === "completed") return respond(c, t, title, `<main id="main">${doneBody(t, job, wait, isRepeat)}</main>`);
+        if (state === "failed") return respond(c, t, title, `<main id="main"><h1>${escape(title)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`);
+        const body = `<main id="main"><h1>${escape(title)}</h1>${isRepeat ? `<p class="notice">${escape(t._("This site was scanned recently, so this is the existing scan."))}</p>` : ""}${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
         return respond(c, t, title, body, 200, `<noscript><meta http-equiv="refresh" content="${REFRESH_S}"></noscript>`);
     });
 

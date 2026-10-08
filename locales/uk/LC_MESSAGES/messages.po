@@ -287,8 +287,8 @@ msgstr "Speed Index"
 msgid "spiderlint report"
 msgstr "Звіт spiderlint"
 
-msgid "spiderlint — site linter"
-msgstr "spiderlint — перевірка сайтів"
+msgid "spiderlint — scan every page of a website"
+msgstr "spiderlint — перевірка кожної сторінки сайту"
 
 msgid "Standard"
 msgstr "Стандартні"
@@ -401,6 +401,12 @@ msgstr "Вплив"
 
 msgid "Scope"
 msgstr "Охоплення"
+
+msgid "Check every page of a site: SEO tags, security headers, TLS, links and more."
+msgstr "Перевіряє кожну сторінку сайту: SEO-теги, заголовки безпеки, TLS, посилання й інше."
+
+msgid "Skip to main content"
+msgstr "Перейти до основного вмісту"
 
 msgid "Skipped: {count} rules"
 msgstr "Пропущено: правил — {count}"

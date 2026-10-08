@@ -38,6 +38,9 @@ msgstr "Comprobaciones"
 msgid "Checks every page of a site: search engine tags, security headers, TLS, links and more."
 msgstr "Revisa cada página de un sitio: etiquetas para buscadores, cabeceras de seguridad, TLS, enlaces y más."
 
+msgid "Check every page of a site: SEO tags, security headers, TLS, links and more."
+msgstr "Revisa cada página de un sitio: SEO, cabeceras de seguridad, TLS, enlaces y más."
+
 msgid "Checks passed"
 msgstr "Comprobaciones superadas"
 
@@ -287,8 +290,8 @@ msgstr "Speed Index"
 msgid "spiderlint report"
 msgstr "Informe de spiderlint"
 
-msgid "spiderlint — site linter"
-msgstr "spiderlint — revisión de sitios web"
+msgid "spiderlint — scan every page of a website"
+msgstr "spiderlint — analiza cada página de un sitio"
 
 msgid "Standard"
 msgstr "Estándar"
@@ -401,6 +404,9 @@ msgstr "Impacto"
 
 msgid "Scope"
 msgstr "Alcance"
+
+msgid "Skip to main content"
+msgstr "Saltar al contenido principal"
 
 msgid "Skipped: {count} rules"
 msgstr "Omitidas: {count} reglas"

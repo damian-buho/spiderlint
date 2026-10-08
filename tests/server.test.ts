@@ -185,9 +185,70 @@ describe("server pages without Redis", () => {
     it("offers the web presets as radios, the default first and checked, in the reader’s language", async () => {
         const response = await app.request("/", { headers: { "accept-language": "es" } });
         const html = await response.text();
-        assert.match(html, /<input type="radio" name="preset" value="recommended" checked> Estándar/);
+        assert.match(html, /<input id="preset-recommended" type="radio" name="preset" value="recommended" checked> Estándar/);
         assert.ok(html.indexOf('value="web-quick"') > html.indexOf('value="recommended"') && html.indexOf('value="web-comprehensive"') > html.indexOf('value="web-quick"'));
         assert.equal(html.match(/ checked>/g)?.length, 1);
+    });
+
+    it("labels every preset radio with a for attribute its input answers", async () => {
+        const response = await app.request("/");
+        const html = await response.text();
+        for (const name of ["recommended", "web-quick", "web-comprehensive"]) assert.ok(html.includes(`<label for="preset-${name}"><input id="preset-${name}"`), name);
+    });
+
+    it("heads every page with a description, a self canonical, Open Graph and a theme-color pair", async () => {
+        const response = await app.request("/");
+        const html = await response.text();
+        const description = /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? "";
+        assert.ok(description.length >= 50 && description.length <= 160, `description is ${description.length} characters`);
+        assert.ok(html.includes('<link rel="canonical" href="http://localhost/">'), "self canonical");
+        assert.ok(html.includes('<meta property="og:url" content="http://localhost/">'), "self og:url");
+        assert.ok(html.includes('<meta property="og:image" content="http://localhost/logo.png">'), "absolute og:image");
+        assert.ok(html.includes('<meta property="og:type" content="website">'), "og:type");
+        assert.ok(html.includes('<meta name="theme-color" media="(prefers-color-scheme: light)"'), "light theme-color");
+        assert.ok(html.includes('<meta name="theme-color" media="(prefers-color-scheme: dark)"'), "dark theme-color");
+        assert.ok(html.includes('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">'), "180 px touch icon");
+        assert.ok(html.includes('<a class="skip" href="#main">'), "skip link");
+        assert.ok(html.includes("<main id="), "main has an id");
+    });
+
+    it("compresses the form for a client asking for gzip, with a Vary", async () => {
+        const response = await app.request("/", { headers: { "accept-encoding": "gzip" } });
+        assert.equal(response.headers.get("content-encoding"), "gzip");
+        assert.match(response.headers.get("vary") ?? "", /Accept-Encoding/);
+    });
+
+    it("sends no X-XSS-Protection, and upgrades insecure requests in the policy", async () => {
+        const response = await app.request("/");
+        assert.ok(!response.headers.has("x-xss-protection"));
+        assert.match(response.headers.get("content-security-policy") ?? "", /upgrade-insecure-requests/);
+    });
+
+    it("answers a missing page as HTML and a missing API route as JSON", async () => {
+        const page = await app.request("/spiderlint-missing");
+        assert.equal(page.status, 404);
+        assert.match(page.headers.get("content-type") ?? "", /^text\/html/);
+        const text = await page.text();
+        assert.ok(text.includes("<h1>Not found</h1>"));
+        const route = await app.request("/v1/missing");
+        assert.equal(route.status, 404);
+        assert.match(route.headers.get("content-type") ?? "", /application\/json/);
+    });
+
+    it("serves a valid security.txt and a real favicon.ico", async () => {
+        const security = await app.request("/.well-known/security.txt");
+        assert.equal(security.status, 200);
+        assert.match(security.headers.get("content-type") ?? "", /^text\/plain/);
+        const body = await security.text();
+        assert.match(body, /^Contact: mailto:/m);
+        const expires = /^Expires: (.+)$/m.exec(body)?.[1] ?? "";
+        const days = Math.floor((Date.parse(expires) - Date.now()) / 86_400_000);
+        assert.ok(days >= 0 && days <= 366, `expires in ${days} days`);
+        for (const icon of ["/favicon.ico", "/apple-touch-icon.png", "/logo-36.png", "/logo-72.png"]) {
+            const response = await app.request(icon);
+            assert.equal(response.status, 200, icon);
+            assert.match(response.headers.get("content-type") ?? "", /^image\//, icon);
+        }
     });
 
     it("refuses a preset the host’s policy does not allow, keeping the choice on the form", async () => {
