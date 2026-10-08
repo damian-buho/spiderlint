@@ -176,15 +176,30 @@ describe("dns plugin", () => {
     it("finds each fault of a bad zone", async () => {
         const facts = await extract("www.bad.fixture", [page("www.bad.fixture", "Let's Encrypt", ["https://old.bad.fixture/x", "https://elsewhere.example/"])], dnsClient(fixture.server, off(), true, fixture.port));
         assert.equal((facts.dns as { zone: string }).zone, "bad.fixture");
-        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-consistent", "dns/ns-count", "dns/ns-delegation", "dns/ns-diversity", "dns/nsec3-iterations", "dns/rrsig-expiry", "dns/soa-timers"]);
-        assert.deepEqual((facts.nameservers as { delegation: object }).delegation, { servers: ["ns.old-host.fixture", "ns1.bad.fixture"], matches: false });
+        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/agents", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-count", "dns/ns-delegation", "dns/ns-diversity", "dns/ns-lame", "dns/nsec3-iterations", "dns/rrsig-expiry", "dns/soa-timers"]);
+        assert.deepEqual((facts.nameservers as { delegation: object }).delegation, { servers: ["ns.old-host.fixture", "ns1.bad.fixture"], matches: false, differs: ["ns.old-host.fixture is delegated by the parent but not in the zone’s NS records"] });
         assert.equal((facts.nameservers as { soa: { expire: number } }).soa.expire, 3600);
+    });
+
+    it("names the lame, disagreeing and undelegated servers in the finding", () => {
+        const nameservers = {
+            serials: [6, 7],
+            lame: ["ns1.desec.io", "ns2.desec.org"],
+            differing: ["a.ns.cloudflare.com answers A 192.0.2.1", "ns1.desec.io answers nothing"],
+            delegation: { servers: ["a.ns.cloudflare.com"], matches: false, differs: ["ns1.desec.io is in the zone’s NS records but not delegated by the parent"] },
+        };
+        const run = runRules([], new Map([["default", compileRulesets(["dns/ns-consistent", "dns/ns-lame", "dns/ns-answers", "dns/ns-delegation"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers } } });
+        const said = Object.fromEntries(run.findings.map((finding) => [finding.rule, finding.message]));
+        assert.match(said["dns/ns-consistent"] ?? "", /\(got 2 items: 6, 7\)$/);
+        assert.match(said["dns/ns-lame"] ?? "", /: 2 items: “ns1\.desec\.io”, “ns2\.desec\.org”;/);
+        assert.match(said["dns/ns-answers"] ?? "", /a\.ns\.cloudflare\.com answers A 192\.0\.2\.1/);
+        assert.match(said["dns/ns-delegation"] ?? "", /ns1\.desec\.io is in the zone’s NS records but not delegated/);
     });
 
     it("reads the delegation, SOA and authoritative TTLs of a good zone", async () => {
         const facts = await extract("good.fixture", [], dnsClient(fixture.server, off(), true, fixture.port));
         const servers = facts.nameservers as { delegation: object; soa: object; ttl: object };
-        assert.deepEqual(servers.delegation, { servers: ["ns1.good.fixture", "ns2.good.fixture"], matches: true });
+        assert.deepEqual(servers.delegation, { servers: ["ns1.good.fixture", "ns2.good.fixture"], matches: true, differs: [] });
         assert.deepEqual(servers.soa, { mname: "ns1.good.fixture", refresh: 3600, retry: 600, expire: 1_209_600, minimum: 300, "retry-below-refresh": true, "mname-listed": true });
         assert.deepEqual(servers.ttl, { ns: 300, a: 300, aaaa: 300 });
         assert.deepEqual(
@@ -355,7 +370,7 @@ describe("dns plugin", () => {
         );
     });
 
-    it("records _for-sale and _agents as facts only", async () => {
+    it("records _for-sale and _index._agents", async () => {
         const facts = await extract("quiet.fixture", [], dnsClient(fixture.server, off(), false));
         assert.deepEqual((facts.dns as { "for-sale": string[] })["for-sale"], ["v=FORSALE1;fcod=XX-NGYyYjEyZWY"]);
         assert.deepEqual((facts.dns as { agents: object[] }).agents, [{ priority: 1, target: "agents.quiet.fixture", alpn: ["h2"] }]);
@@ -501,6 +516,8 @@ describe("rdap", () => {
             ["domain/lock", "unlocked.fixture"],
             ["domain/ns-registry", "moved.fixture"],
         ]);
+        const moved = (hosts["moved.fixture"] as { rdap: { "ns-differs": string[] } }).rdap["ns-differs"];
+        assert.ok(moved.length > 0 && moved.every((line) => /registry|zone/.test(line)), moved.join("; "));
         assert.deepEqual((hosts["www.expiring.fixture"] as { rdap: { nameservers: string[]; "ns-matches": boolean } }).rdap.nameservers, ["ns1.expiring.fixture"]);
         assert.equal(requests.filter((url) => url === "/bootstrap").length, 1, "the bootstrap is fetched once");
         const stored = JSON.parse(await readFile(path.join(directory, "spiderlint", "rdap", "dns.json"), "utf8")) as { services: unknown[] };

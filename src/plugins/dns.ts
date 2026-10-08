@@ -181,7 +181,7 @@ const addresses: SiteExtractor = {
         }
         const zone = await zoneOf(host, context.dns);
         if (!zone) return;
-        const [a, aaaa, https, sale, agents, apex] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_agents.${zone}`, "UNKNOWN_64"), context.dns.query(zone, "CNAME")]);
+        const [a, aaaa, https, sale, agents, apex] = await Promise.all([context.dns.query(host, "A"), context.dns.query(host, "AAAA"), context.dns.query(host, "UNKNOWN_65"), context.dns.query(`_for-sale.${zone}`, "TXT"), context.dns.query(`_index._agents.${zone}`, "UNKNOWN_65"), context.dns.query(zone, "CNAME")]);
         const v4 = records<string>(a, "A").map(({ data, ttl }) => ({ address: data, ttl }));
         const v6 = records<string>(aaaa, "AAAA").map(({ data, ttl }) => ({ address: data, ttl }));
         const hinted = services(host, https, "UNKNOWN_65").map((record): Svcb & { "hints-match"?: boolean } => {
@@ -202,7 +202,7 @@ const addresses: SiteExtractor = {
                 : record;
         });
         const forSale = texts(sale);
-        const agentServices = services(host, agents, "UNKNOWN_64");
+        const agentServices = services(host, agents, "UNKNOWN_65");
         const authorised = await caa(host, zone, context.dns);
         const allowed = authorised && issuer(host, authorised, context.pages);
         const broken = dangling(host, a);
@@ -372,12 +372,29 @@ const nameservers: SiteExtractor = {
         const agreement = resolved && { "answer-sets": sets.length, "resolver-agrees": sets.includes(JSON.stringify(resolved)), resolver: resolved };
         const own = names.map((name) => nsName(name)).toSorted((a, b) => a.localeCompare(b));
         const parent = context.dns.canQueryDirectly ? await delegation(zone, context.dns) : undefined;
+        const lame = context.dns.canQueryDirectly ? servers.filter((server) => server.authoritative === false).map((server) => nsName(server.name)) : undefined;
+        const gone = (parent ?? []).filter((name) => !own.includes(name)).map((name) => `${name} is delegated by the parent but not in the zone’s NS records`);
+        const extra = own.filter((name) => parent && !parent.includes(name)).map((name) => `${name} is in the zone’s NS records but not delegated by the parent`);
+        const differs = [...gone, ...extra];
+        const disagreeing = sets.length > 1 ? servers.filter((server) => server.answers).map((server) => `${nsName(server.name)} answers ${server.answers?.join(", ") || "nothing"}`) : [];
         const primary = servers.find((server) => server.authoritative)?.addresses[0];
         const [soa, ttl] = await Promise.all([soaOf(zone, names, context.dns), primary ? ttlsOf(zone, host, primary, context.dns) : undefined]);
         const managed = own.length > 0 ? dnsProvider(own) : undefined;
         const provider = managed && { name: managed.provider, ...(managed["soa-editable"] !== undefined && { "soa-editable": managed["soa-editable"] }), docs: managed.docs };
         log.debug({ host, zone, servers: names.length, serials, networks, sets: sets.length, resolverAgrees: agreement?.["resolver-agrees"], delegation: parent, primary, provider: provider?.name }, "name servers read");
-        return { zone, servers, networks, ...(context.dns.canQueryDirectly && { serials }), ...agreement, ...(parent && { delegation: { servers: parent, matches: isSameSet(parent, own) } }), ...(soa && { soa }), ...(ttl && { ttl }), ...(provider && { provider }) };
+        return {
+            zone,
+            servers,
+            networks,
+            ...(context.dns.canQueryDirectly && { serials }),
+            ...(lame && { lame }),
+            ...agreement,
+            ...(sets.length > 0 && { differing: disagreeing }),
+            ...(parent && { delegation: { servers: parent, matches: isSameSet(parent, own), differs } }),
+            ...(soa && { soa }),
+            ...(ttl && { ttl }),
+            ...(provider && { provider }),
+        };
     },
 };
 
@@ -441,7 +458,19 @@ const rdap: SiteExtractor = {
             .toSorted((a, b) => a.localeCompare(b));
         const daysLeft = found.expires === undefined ? undefined : Math.floor((Date.parse(found.expires) - Date.now()) / 86_400_000);
         log.debug({ host, domain, daysLeft, status: found.status, registry: found.nameservers, zone: zoned }, "registration read");
-        return { domain, ...found, ...(daysLeft !== undefined && { "days-left": daysLeft }), ...(found.nameservers.length > 0 && zoned.length > 0 && { "ns-matches": isSameSet(found.nameservers, zoned) }) };
+        return {
+            domain,
+            ...found,
+            ...(daysLeft !== undefined && { "days-left": daysLeft }),
+            ...(found.nameservers.length > 0 &&
+                zoned.length > 0 && {
+                    "ns-matches": isSameSet(found.nameservers, zoned),
+                    "ns-differs": [
+                        ...found.nameservers.filter((name) => !zoned.includes(name)).map((name) => `${name} is listed by the registry but not in the zone’s NS records`),
+                        ...zoned.filter((name) => !found.nameservers.includes(name)).map((name) => `${name} is in the zone’s NS records but not listed by the registry`),
+                    ],
+                }),
+        };
     },
 };
 
@@ -677,19 +706,29 @@ const RULES: Record<string, RuleSpec> = {
     },
     "dns/ns-consistent": {
         fact: "site.hosts.*.nameservers",
-        expect: { properties: { servers: { items: { properties: { authoritative: { const: true } } } }, serials: { maxItems: 1 } } },
+        expect: { properties: { serials: { maxItems: 1 } } },
         when: { "site.hosts.*.nameservers.serials": { type: "array" } },
-        message: "a name server is lame or the servers disagree on the SOA serial (got {got})",
+        message: "the name servers serve different SOA serials, so a zone change reaches some of them late (got {got})",
         severity: "warning",
         score: 5.3,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
         fix: "Sync the zone to every name server and bump the SOA serial.",
     },
+    "dns/ns-lame": {
+        fact: "site.hosts.*.nameservers.lame",
+        expect: { maxItems: 0 },
+        when: { "site.hosts.*.nameservers.lame": { type: "array" } },
+        message: "these name servers are listed for the zone but do not answer for it, a leftover of a decommissioned provider or a zone never loaded: {got}; a resolver that picks one waits out a timeout or gets a refusal",
+        severity: "warning",
+        score: 5.5,
+        docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.8",
+        fix: "Delete the NS records of `{domain}` that name these servers, at the DNS provider and at the registrar, or load the zone on them.",
+    },
     "dns/ns-answers": {
-        fact: "site.hosts.*.nameservers.answer-sets",
-        expect: { maximum: 1 },
-        when: { "site.hosts.*.nameservers.answer-sets": { type: "integer" } },
-        message: "the name servers give {got} different answers for the host, so what a visitor reaches depends on which one their resolver asks",
+        fact: "site.hosts.*.nameservers.differing",
+        expect: { maxItems: 0 },
+        when: { "site.hosts.*.nameservers.differing": { type: "array" } },
+        message: "the name servers answer the host differently, so what a visitor reaches depends on which one their resolver asks: {got}",
         severity: "warning",
         score: 5.8,
         fix: "Sync the zone on every name server and bump its SOA serial.",
@@ -734,14 +773,23 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-4.3",
     },
     "dns/ns-delegation": {
-        fact: "site.hosts.*.nameservers.delegation",
-        expect: { properties: { matches: { const: true } } },
-        when: { "site.hosts.*.nameservers.delegation": { type: "object" } },
-        message: "the parent zone delegates to other name servers than the zone’s own NS records, so resolvers reach a server the zone disowns (got {got})",
+        fact: "site.hosts.*.nameservers.delegation.differs",
+        expect: { maxItems: 0 },
+        when: { "site.hosts.*.nameservers.delegation.differs": { type: "array" } },
+        message: "the parent zone and the zone’s own NS records name different servers, so resolvers reach a server the zone disowns or skip one it lists: {got}",
         severity: "warning",
         score: 5.2,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
         fix: "Make the NS records at Name `{domain}` and the name servers set at the registrar name the same servers.",
+    },
+    "dns/agents": {
+        fact: "site.hosts.*.dns.agents",
+        expect: { type: "array", minItems: 1 },
+        message: "no DNS-AID entry point at _index._agents, so an agent cannot find the zone’s agent services through DNS",
+        severity: "info",
+        score: 0.8,
+        docs: "https://specification.website/spec/agent-readiness/dns-aid/",
+        fix: "Publish an HTTPS record — Name `_index._agents.{domain}`, Priority `1`, Target the host that serves the site, alpn `h3,h2`, port `443` — and add `_mcp._agents` or `_a2a._agents` records for each agent service.",
     },
     "dns/apex-cname": {
         fact: "site.hosts.*.dns.apex-cname",
@@ -817,10 +865,10 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Turn on the transfer lock (clientTransferProhibited) for `{domain}` at its registrar.",
     },
     "domain/ns-registry": {
-        fact: "site.hosts.*.rdap.ns-matches",
-        expect: { const: true },
-        when: { "site.hosts.*.rdap.ns-matches": { type: "boolean" } },
-        message: "the name servers the registry lists differ from the zone’s own NS records",
+        fact: "site.hosts.*.rdap.ns-differs",
+        expect: { maxItems: 0 },
+        when: { "site.hosts.*.rdap.ns-differs": { type: "array" } },
+        message: "the name servers the registry lists differ from the zone’s own NS records: {got}",
         severity: "warning",
         score: 5,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
