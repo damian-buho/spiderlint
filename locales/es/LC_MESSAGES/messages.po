@@ -191,6 +191,9 @@ msgstr "Páginas: {count}"
 msgid "Pages: {count} ({share})"
 msgstr "Páginas: {count} ({share})"
 
+msgid "Groups: {groups}"
+msgstr "Grupos: {groups}"
+
 msgid "Pages: {done} of {total}"
 msgstr "Páginas: {done} de {total}"
 

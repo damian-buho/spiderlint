@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { Parser } from "htmlparser2";
 import type { Node } from "postcss";
@@ -214,13 +215,31 @@ function inlineCss(body: string): { css: string; origin: Origin; isDeclarations:
     return found;
 }
 
+// Inline blocks already linted, by a hash of their text and where it starts; cleared past `BLOCKS_MAX`.
+const blocks = new Map<string, Promise<CssFacts>>();
+const BLOCKS_MAX = 4096;
+
+// Lints a block once per run, however many pages repeat it at the same spot.
+function lintBlock(block: ReturnType<typeof inlineCss>[number]): Promise<CssFacts> {
+    const hash = createHash("sha256")
+        .update(JSON.stringify([block.css, block.origin, block.isDeclarations, block.element]))
+        .digest("hex");
+    const known = blocks.get(hash);
+    log.debug({ element: block.element, line: block.origin.line, hash: hash.slice(0, 12), isReused: known !== undefined }, "inline css block");
+    if (known) return known;
+    if (blocks.size >= BLOCKS_MAX) blocks.clear();
+    const linted = lint(block.css, block.origin, block.isDeclarations, block.element);
+    blocks.set(hash, linted);
+    return linted;
+}
+
 // An HTML page’s inline CSS facts; none for a page without any, or cut at `max-body-size`.
 async function extractInline(page: Facts, body: string): Promise<CssFacts | undefined> {
     if (!page.html || page.http.size.truncated) return undefined;
-    const blocks = inlineCss(body);
-    log.debug({ url: page.url.href, blocks: blocks.length }, "inline css found");
-    if (blocks.length === 0) return undefined;
-    const linted = await Promise.all(blocks.map((block) => lint(block.css, block.origin, block.isDeclarations, block.element)));
+    const found = inlineCss(body);
+    log.debug({ url: page.url.href, blocks: found.length }, "inline css found");
+    if (found.length === 0) return undefined;
+    const linted = await Promise.all(found.map((block) => lintBlock(block)));
     return {
         messages: linted.flatMap((facts) => facts.messages).slice(0, MESSAGES_MAX),
         features: Map.groupBy(

@@ -30,23 +30,10 @@ Done when: `spiderlint audit ORIGIN/ --rules links/broken-internal` reports no l
 
 meta viewport should set width=device-width and allow zoom, found none
 
-Where: 8 pages of group default (100 %), for example:
+Where: 13 pages in groups posts, default (100 %), for example:
 - /
 - /about
 - /app/
-Reads: `html.meta.viewport`, expects `{"type":"string","pattern":"^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}`
-Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
-Done when: `spiderlint audit ORIGIN/ --rules html/viewport` reports no html/viewport finding.
-
-## html/viewport (warning 5.3)
-
-meta viewport should set width=device-width and allow zoom, found none
-
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1
-- /posts/2
-- /posts/3
 Reads: `html.meta.viewport`, expects `{"type":"string","pattern":"^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}`
 Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
@@ -90,6 +77,19 @@ Reads: `html.published`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
 Docs: https://ogp.me/#type_article
 Done when: `spiderlint audit ORIGIN/ --rules html/published-date` reports no html/published-date finding.
+
+## html/privacy-policy (info 1.6)
+
+no link with rel=privacy-policy
+
+Where: 12 pages in groups posts, default (92 %), for example:
+- /
+- /app/
+- /duplicate
+Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
+Fix: Add <link rel=privacy-policy href=/privacy> to the head.
+Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
+Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
 ## html/theme-color (warning 3.3)
 
@@ -157,32 +157,6 @@ Reads: `html.title`
 Fix: Give each page a distinct <title>.
 Docs: https://developers.google.com/search/docs/appearance/title-link
 Done when: `spiderlint audit ORIGIN/ --rules html/unique-title` reports no html/unique-title finding.
-
-## html/privacy-policy (info 1.6)
-
-no link with rel=privacy-policy
-
-Where: 7 pages of group default (88 %), for example:
-- /
-- /app/
-- /duplicate
-Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
-Fix: Add <link rel=privacy-policy href=/privacy> to the head.
-Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
-Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
-
-## html/privacy-policy (info 1.6)
-
-no link with rel=privacy-policy
-
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1
-- /posts/2
-- /posts/3
-Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
-Fix: Add <link rel=privacy-policy href=/privacy> to the head.
-Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
-Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
 ## html/unique-description (warning 5.6)
 

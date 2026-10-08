@@ -180,7 +180,7 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
     const share =
         first.occurrences === undefined
             ? ""
-            : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}</p>`;
+            : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}${first.groups ? ` ${escape(t._("Groups: {groups}", { groups: first.groups.join(", ") }))}` : ""}</p>`;
     const own = same.length === 1 && first.occurrences === undefined && !first.urls ? `${measured(t, first, first.url)}${locations(t, first.locations)}` : "";
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
     const pageCount = same.reduce((sum, finding) => sum + pagesOf(finding, total), 0);

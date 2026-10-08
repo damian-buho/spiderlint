@@ -109,7 +109,7 @@ function line(finding: Finding, origin: string, paint: Paint, limit: number): st
     const message = shortMessage(finding, origin);
     const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
-        const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
+        const pages = `${finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`}${finding.groups ? ` in ${finding.groups.join(", ")}` : ""}`;
         return [`${head} — ${pages} (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
     }
     if (!finding.urls) return [`${head} ${url}: ${message}`, ...measured(finding, Object.hasOwn(finding.data ?? {}, finding.url) ? [finding.url] : [], DETAIL, origin, paint, limit), ...located(finding.locations, DETAIL, paint, limit)];

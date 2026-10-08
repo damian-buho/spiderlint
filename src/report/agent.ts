@@ -48,7 +48,7 @@ function where(same: Finding[], origin: string): string[] {
     const at = (url: string, locations: string[] | undefined, owner = finding) => [`- ${named(url, owner)}`, ...(locations ?? []).map((location) => `  - at ${location}`)];
     if (finding.occurrences !== undefined) {
         const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
-        return [`Where: ${pages} of group ${finding.group} (${Math.round((finding.coverage ?? 0) * 100)} %), for example:`, ...(finding.samples ?? []).flatMap((url) => at(url, finding.sampleLocations?.[url]))];
+        return [`Where: ${pages} ${finding.groups ? `in groups ${finding.groups.join(", ")}` : `of group ${finding.group}`} (${Math.round((finding.coverage ?? 0) * 100)} %), for example:`, ...(finding.samples ?? []).flatMap((url) => at(url, finding.sampleLocations?.[url]))];
     }
     if (finding.urls) return [`Where: ${named(finding.url, finding)}, used by or shared with:`, ...finding.urls.flatMap((url) => at(url, undefined)), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
     return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations, page))] : [`Where: ${named(finding.url, finding)}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];

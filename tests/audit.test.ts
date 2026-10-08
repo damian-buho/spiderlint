@@ -288,7 +288,7 @@ describe("audit", () => {
 
     it("asks an article, never the home page, for an author and a publication date", () => {
         for (const rule of ["html/author", "html/published-date"]) {
-            const urls = of(rule).flatMap((finding) => [finding.url, ...(finding.urls ?? [])]);
+            const urls = of(rule).flatMap((finding) => [finding.url, ...(finding.urls ?? []), ...(finding.samples ?? [])]);
             assert.ok(urls.includes(`${site.origin}/about`), rule);
             assert.ok(!urls.includes(`${site.origin}/`) && urls.every((url) => !url?.includes("/posts/")), rule);
         }
@@ -406,7 +406,7 @@ describe("staging twin", () => {
 
     it("reports every self reference to the production origin without canonical-origin", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], sitemap: false });
-        assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical-self").length > 1);
+        assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical-self").reduce((pages, finding) => pages + (finding.occurrences ?? 1), 0) > 1);
     });
 
     it("accepts the page’s twin, still flags a wrong path, and reads the production sitemap from the twin", async () => {

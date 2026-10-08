@@ -42,6 +42,8 @@ export interface Finding {
     urls?: string[];
     occurrences?: number;
     coverage?: number;
+    // The groups a site finding merged, each failing the rule whole the same way.
+    groups?: string[];
     // Pages of the group an expensive extractor ran on, when it did not run on all of them.
     sampled?: number;
     samples?: string[];

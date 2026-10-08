@@ -191,6 +191,9 @@ msgstr "Сторінок: {count}"
 msgid "Pages: {count} ({share})"
 msgstr "Сторінок: {count} ({share})"
 
+msgid "Groups: {groups}"
+msgstr "Групи: {groups}"
+
 msgid "Pages: {done} of {total}"
 msgstr "Сторінок: {done} з {total}"
 
