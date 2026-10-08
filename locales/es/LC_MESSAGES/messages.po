@@ -1823,3 +1823,24 @@ msgstr "los separadores de palabras difieren: {count} de {total} páginas {major
 
 msgid "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ"
 msgstr "las barras finales difieren en el grupo {group}: {count} de {total} páginas {major}; las demás difieren"
+
+msgid "/auth.md is malformed: {got}"
+msgstr "/auth.md está mal formado: {got}"
+
+msgid "no DNS-AID entry point at _index._agents, so an agent cannot find the zone’s agent services through DNS"
+msgstr "no hay punto de entrada DNS-AID en _index._agents, así que un agente no puede encontrar los servicios de agente de la zona a través de DNS"
+
+msgid "the name servers answer the host differently, so what a visitor reaches depends on which one their resolver asks: {got}"
+msgstr "los servidores de nombres responden de forma distinta para el host, así que lo que alcanza un visitante depende de cuál consulte su resolvedor: {got}"
+
+msgid "the name servers serve different SOA serials, so a zone change reaches some of them late (got {got})"
+msgstr "los servidores de nombres sirven números de serie SOA distintos, así que un cambio de zona llega tarde a algunos de ellos (obtenido {got})"
+
+msgid "the name servers the registry lists differ from the zone’s own NS records: {got}"
+msgstr "los servidores de nombres que lista el registro difieren de los registros NS de la propia zona: {got}"
+
+msgid "the parent zone and the zone’s own NS records name different servers, so resolvers reach a server the zone disowns or skip one it lists: {got}"
+msgstr "la zona padre y los registros NS de la propia zona nombran servidores distintos, así que los resolvedores llegan a un servidor que la zona desconoce u omiten uno que lista: {got}"
+
+msgid "these name servers are listed for the zone but do not answer for it, a leftover of a decommissioned provider or a zone never loaded: {got}; a resolver that picks one waits out a timeout or gets a refusal"
+msgstr "estos servidores de nombres figuran para la zona pero no responden por ella, un resto de un proveedor dado de baja o de una zona nunca cargada: {got}; un resolvedor que elija uno espera a que venza el tiempo o recibe un rechazo"

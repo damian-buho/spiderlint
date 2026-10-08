@@ -1823,3 +1823,24 @@ msgstr "роздільники слів різняться: {count} із {total}
 
 msgid "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ"
 msgstr "кінцеві слеші різняться в групі {group}: {count} із {total} сторінок {major}; решта відрізняється"
+
+msgid "/auth.md is malformed: {got}"
+msgstr "/auth.md має хибний формат: {got}"
+
+msgid "no DNS-AID entry point at _index._agents, so an agent cannot find the zone’s agent services through DNS"
+msgstr "немає точки входу DNS-AID на _index._agents, тож агент не може знайти через DNS сервіси агентів зони"
+
+msgid "the name servers answer the host differently, so what a visitor reaches depends on which one their resolver asks: {got}"
+msgstr "сервери імен відповідають для хоста по-різному, тож те, що отримає відвідувач, залежить від того, який з них опитає його резолвер: {got}"
+
+msgid "the name servers serve different SOA serials, so a zone change reaches some of them late (got {got})"
+msgstr "сервери імен віддають різні серійні номери SOA, тож зміна зони доходить до деяких із них із запізненням (отримано {got})"
+
+msgid "the name servers the registry lists differ from the zone’s own NS records: {got}"
+msgstr "сервери імен, які перелічує реєстр, відрізняються від власних записів NS зони: {got}"
+
+msgid "the parent zone and the zone’s own NS records name different servers, so resolvers reach a server the zone disowns or skip one it lists: {got}"
+msgstr "батьківська зона і власні записи NS зони називають різні сервери, тож резолвери потрапляють на сервер, від якого зона відмовилась, або пропускають той, що вона перелічує: {got}"
+
+msgid "these name servers are listed for the zone but do not answer for it, a leftover of a decommissioned provider or a zone never loaded: {got}; a resolver that picks one waits out a timeout or gets a refusal"
+msgstr "ці сервери імен перелічені для зони, але не відповідають за неї, залишок виведеного з роботи провайдера або ніколи не завантаженої зони: {got}; резолвер, що обере такий, чекає на тайм-аут або отримує відмову"
