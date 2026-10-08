@@ -829,14 +829,6 @@ Lint YAML for syntax and style
 
 > Image: D9T_PYTHON_TOOLS_IMAGE
 
-### `auto-zizmor`
-
-Audit GitHub Actions workflows for security issues
-
-`auto-zizmor`
-
-> Image: D9T_RUST_TOOLS_IMAGE
-
 ### `auto-zizmor-forgejo`
 
 Audit Forgejo Actions workflows for security issues
@@ -1469,6 +1461,40 @@ Validate the projectfile document
 
 > Image: PF_CLI_IMAGE
 
+## Publish
+
+### `cosign-preflight`
+
+Prove the cosign signing key signs and verifies before anything is pushed
+
+`auto-cosign preflight`
+
+> Image: D9T_GO_TOOLS_IMAGE
+
+### `cosign-sbom-attest`
+
+Attest the SBOM to the published image with cosign
+
+`auto-cosign attest`
+
+> Image: D9T_GO_TOOLS_IMAGE
+
+### `cosign-sign`
+
+Sign the published image with cosign
+
+`auto-cosign sign`
+
+> Image: D9T_GO_TOOLS_IMAGE
+
+### `syft-sbom-image`
+
+Generate an SBOM of the live built image (syft)
+
+`auto-syft image $(M6E_IMAGE_FULLNAME)`
+
+> Image: D9T_GO_TOOLS_IMAGE
+
 ## Release
 
 ### `pre-release`
@@ -1477,7 +1503,7 @@ Release the next candidate of the version the commits imply, X.Y.Z-rc.N
 
 ### `release`
 
-Stamp the version the commits imply into every derived file, commit and tag it signed — `make --dry-run release` prints the plan
+Stamp the version the commits imply into every derived file, commit and tag it signed, titled NOTE with NOTE_FILE as body — `make --dry-run release` prints the plan
 
 ### `release-major`
 
@@ -1486,6 +1512,10 @@ Release the next major — the only way past 0.x
 ### `release-minor`
 
 Release the next minor, whatever the commits imply
+
+### `release-notes`
+
+Print the notes of everything committed since the last final release, changing nothing
 
 ### `release-patch`
 
