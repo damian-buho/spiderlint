@@ -8,7 +8,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { load } from "cheerio";
 import { chromium } from "playwright";
-import { extractHtml } from "../src/facts/html.ts";
+import { declaredHtml, extractHtml } from "../src/facts/html.ts";
 import { parityFacts } from "../src/facts/parity.ts";
 import { audit } from "../src/index.ts";
 
@@ -27,6 +27,25 @@ const facts = (html: string) => {
     const $ = load(html) as unknown as Cheerio;
     return { $, html: extractHtml($, html, new URL("https://site.test/client"), "origin") };
 };
+
+describe("served declarations", () => {
+    it("keeps what the served HTML declares, takes what only a script adds, and names what a script changed", () => {
+        const served = facts('<html><head><meta charset="utf8"><meta name="theme-color" content="#fff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000" media="(prefers-color-scheme: dark)"><link rel="canonical" href="/a"></head></html>').html;
+        const rendered = facts('<html><head><meta name="theme-color" content="#fff"><link rel="canonical" href="/a"><meta name="description" content="Added by a script"><meta property="og:title" content="Added"></head></html>').html;
+        const html = declaredHtml(served, rendered);
+        assert.deepEqual(
+            html.metas.map((meta) => [meta.name, meta.content, meta.media]),
+            [
+                ["theme-color", "#fff", "(prefers-color-scheme: light)"],
+                ["theme-color", "#000", "(prefers-color-scheme: dark)"],
+                ["description", "Added by a script", undefined],
+            ],
+        );
+        assert.deepEqual([html.meta["theme-color"], html.meta.description, html.property["og:title"], html.canonical, html.charset?.declared], ["#fff", "Added by a script", "Added", "/a", "utf8"]);
+        assert.deepEqual(html.rewritten, [{ tag: '<meta name="theme-color">', served: ["#fff (prefers-color-scheme: light)", "#000 (prefers-color-scheme: dark)"], rendered: ["#fff"] }]);
+        assert.equal(declaredHtml(served, served).rewritten, undefined);
+    });
+});
 
 describe("parity facts", () => {
     it("lists what only the render carries", () => {

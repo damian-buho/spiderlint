@@ -4,7 +4,7 @@
 
 import type { CheerioCrawlingContext } from "crawlee";
 import { isInScope, type Scope } from "../crawl/scope.ts";
-import type { HtmlFacts } from "./types.ts";
+import type { HtmlFacts, Rewritten } from "./types.ts";
 
 // The crawler's own cheerio instance type, so the CJS and ESM typings never split.
 type CheerioAPI = CheerioCrawlingContext["$"];
@@ -203,5 +203,87 @@ export function extractHtml($: CheerioAPI, body: string, page: URL, scope: Scope
             })
             .get(),
         text: mainWords($),
+    };
+}
+
+// Entries by name: the served ones where the served HTML declares the name, the rendered ones where only a script adds it; a served value the render lacks is rewritten.
+function byName<T>(served: T[], rendered: T[], nameOf: (entry: T) => string, tagOf: (name: string) => string, valueOf: (entry: T) => string, rewritten: Rewritten[]): T[] {
+    const names = new Set(served.map((entry) => nameOf(entry)));
+    for (const name of names) {
+        const before = served.filter((entry) => nameOf(entry) === name).map((entry) => valueOf(entry));
+        const after = rendered.filter((entry) => nameOf(entry) === name).map((entry) => valueOf(entry));
+        if (before.some((value) => !after.includes(value)) && rewritten.every((entry) => entry.tag !== tagOf(name))) rewritten.push({ tag: tagOf(name), served: before, rendered: after });
+    }
+    return [...served, ...rendered.filter((entry) => !names.has(nameOf(entry)))];
+}
+
+// A value with its media query, as one comparable string.
+const withMedia = (value: string, media: string | undefined): string => (media === undefined ? value : `${value} ${media}`);
+
+// Rendered facts whose parse-time declarations come from the served HTML: meta, http-equiv, head links, og properties, canonical, hreflang and charset.
+export function declaredHtml(served: HtmlFacts, rendered: HtmlFacts): HtmlFacts {
+    const rewritten: Rewritten[] = [];
+    const metas = byName(
+        served.metas,
+        rendered.metas,
+        (meta) => meta.name,
+        (name) => `<meta name="${name}">`,
+        (meta) => withMedia(meta.content, meta.media),
+        rewritten,
+    );
+    const equiv = byName(
+        served["http-equiv"] ?? [],
+        rendered["http-equiv"] ?? [],
+        (meta) => meta.name,
+        (name) => `<meta http-equiv="${name}">`,
+        (meta) => meta.content,
+        rewritten,
+    );
+    const canonical = byName(
+        served.canonical === undefined ? [] : [served.canonical],
+        rendered.canonical === undefined ? [] : [rendered.canonical],
+        () => "canonical",
+        () => '<link rel="canonical">',
+        (href) => href,
+        rewritten,
+    );
+    const links = byName(
+        served.head.links,
+        rendered.head.links,
+        (link) => (link.rel ?? "").toLowerCase(),
+        (relation) => `<link rel="${relation}">`,
+        (link) => withMedia(link.href ?? "", link.media),
+        rewritten,
+    );
+    const property = byName(
+        Object.entries(served.property),
+        Object.entries(rendered.property),
+        ([name]) => name,
+        (name) => `<meta property="${name}">`,
+        ([, content]) => content,
+        rewritten,
+    );
+    const hreflang = byName(
+        served.hreflang,
+        rendered.hreflang,
+        (entry) => entry.lang,
+        () => "",
+        (entry) => entry.href,
+        [],
+    );
+    const meta: Record<string, string> = {};
+    for (const entry of metas) meta[entry.name] ??= entry.content;
+    const { charset: _charset, canonical: _canonical, rewritten: _rewritten, ...kept } = rendered;
+    return {
+        ...kept,
+        ...(served.charset && { charset: served.charset }),
+        ...(canonical[0] !== undefined && { canonical: canonical[0] }),
+        meta,
+        metas,
+        "http-equiv": equiv,
+        property: Object.fromEntries(property),
+        head: { links },
+        hreflang,
+        ...(rewritten.length > 0 && { rewritten }),
     };
 }

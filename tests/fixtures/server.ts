@@ -83,6 +83,13 @@ input { font-size: 16px }
 <script>document.getElementById("x").addEventListener("keydown", (event) => { if (event.key === "Tab" && !event.shiftKey) { event.preventDefault(); document.getElementById("z").focus(); } });</script></body></html>`,
 };
 
+// A theme-color pair a head script collapses to one tag, and its twin served with one tag only.
+const THEMED: Record<string, string> = {
+    "/theme-script":
+        '<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><script>for (const tag of document.querySelectorAll("meta[name=theme-color]")) tag.remove(); document.head.insertAdjacentHTML("beforeend", \'<meta name="theme-color" content="#ffffff">\');</script>',
+    "/theme-single": '<meta name="theme-color" content="#ffffff">',
+};
+
 const PLAIN = '<!DOCTYPE html><html lang="en"><head><title>Plain</title></head><body><h1>Plain</h1></body></html>';
 
 // `/x` resolves to `x.html`, then `x/index.html`; anything else is an HTML 404.
@@ -242,6 +249,12 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
         if (icon) {
             response.writeHead(200, { "content-type": icon[0] });
             response.end(icon[1]);
+            return;
+        }
+        const themed = THEMED[pathname];
+        if (themed !== undefined) {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(`<!DOCTYPE html><html lang="en"><head><title>Theme</title><meta name="color-scheme" content="light dark">${themed}</head><body><h1>Theme</h1></body></html>`);
             return;
         }
         if (pathname === "/down-page") {

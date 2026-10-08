@@ -213,6 +213,15 @@ export interface HtmlFacts {
     // Author and publication date, resolved from JSON-LD then the head on every lint.
     author?: string;
     published?: string;
+    // Served declarations a script changed or dropped once the page rendered, browser mode only.
+    rewritten?: Rewritten[];
+}
+
+// One declaration, by tag, as served and as the rendered DOM holds it.
+export interface Rewritten {
+    tag: string;
+    served: string[];
+    rendered: string[];
 }
 
 // One string’s language: an ISO 639-1 code, eld’s top score, and whether eld calls the guess reliable.

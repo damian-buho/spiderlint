@@ -1853,3 +1853,6 @@ msgstr "la zona padre y los registros NS de la propia zona nombran servidores di
 
 msgid "these name servers are listed for the zone but do not answer for it, a leftover of a decommissioned provider or a zone never loaded: {got}; a resolver that picks one waits out a timeout or gets a refusal"
 msgstr "estos servidores de nombres figuran para la zona pero no responden por ella, un resto de un proveedor dado de baja o de una zona nunca cargada: {got}; un resolvedor que elija uno espera a que venza el tiempo o recibe un rechazo"
+
+msgid "a script changes declarations the served HTML makes; rules judge the served ones"
+msgstr "un script cambia declaraciones que hace el HTML servido; las reglas juzgan las servidas"

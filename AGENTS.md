@@ -158,6 +158,7 @@ when it meets the same certificate, and `http.version` follows from its ALPN (`3
 over QUIC, `1.1` on plain text). `http.version` is what the origin serves a page over, not what one connection happened to carry: a page a cold TCP connection carried reads `3.0` when its `Alt-Svc` offers h3 on its own authority and QUIC served another page of its origin. A proxied run sends no handshake. It never sends conditional requests; a stored page is
 re-rendered. A navigation Chromium turns into a download becomes a page judged
 by its headers, as http mode judges any unparsed type.
+A rendered page’s declarations come from its served HTML: per meta `name`, `http-equiv`, `og:` property and link `rel`, plus `canonical`, `hreflang` and the `charset` offset, the served entries win and a name only a script adds keeps the rendered ones, since a browser reads a declaration at parse time and a client-rendered app still declares through its script; everything else (`title`, `h1`, links, scripts, JSON-LD) is the rendered DOM. A served declaration the script changed or dropped is listed in `html.rewritten`, which `html/declaration-rewritten` (`parity`, `info`) reports with each tag’s served and rendered values.
 
 Crawlee’s session pool retires a session on `401`, `403` and `429` and retries
 the request until it fails, so such a page would vanish from the facts. Both
@@ -218,6 +219,7 @@ html:     { lang, dir, charset: { declared, offset }, title, h1: [], h2: [], can
             detected: { title: { language, confidence, reliable }, description: { … } },   # derived on a lint that reads it
             author, published,                                       # derived on every lint, as Mastodon previews: JSON-LD author/datePublished, then article:author, meta author, og:author / article:published_time
             text,                                                  # visible words in `<main>`, else `<body>`
+            rewritten: [{ tag, served: [], rendered: [] }],           # browser mode: served declarations a script changed
             scripts: [{ src, type, async, defer, head }] }
 resources: [{ url, kind: script|style|image|font|iframe|preload|manifest, origin: same|cross,
               integrity, crossorigin, observed,                 # from the HTML, or the network log

@@ -469,12 +469,30 @@ const resourceCompression: Verdict = (resource) => {
     return isText && !isCompressed && isServed(resource) ? { ...said("a text {kind} is not served with br, gzip or zstd; used by these pages", { kind: resource.kind }), data: { [resource.url]: { type, ...(coding && { "content-encoding": coding }) } } } : undefined;
 };
 
+// Values in quotes, comma separated; none when empty.
+const quoted = (values: string[]): string => (values.length === 0 ? "none" : values.map((value) => `“${value}”`).join(", "));
+
+// Served declarations a script changed once the page rendered, each as its tag, served value and rendered value; an unrendered page is skipped.
+const declarationRewritten = pageRule(
+    "html/declaration-rewritten",
+    ["html.rewritten"],
+    (page) => {
+        if (!page.parity) return;
+        const rewritten = page.html?.rewritten ?? [];
+        return rewritten.length === 0
+            ? []
+            : [{ ...said("a script changes declarations the served HTML makes; rules judge the served ones"), data: { [page.url.href]: { declarations: rewritten.length } }, value: rewritten, locations: rewritten.map((entry) => `${entry.tag} served ${quoted(entry.served)}, rendered ${quoted(entry.rendered)}`) }];
+    },
+    { docs: "https://html.spec.whatwg.org/multipage/semantics.html#the-meta-element", fix: "Serve each declaration with its final value, so readers that run no script see what the page means." },
+);
+
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
     "links/broken-internal": brokenInternal,
     "links/redirected-internal": redirectedInternal,
     "links/broken-external": brokenExternal,
     "http/frame-options": frameOptions,
+    "html/declaration-rewritten": declarationRewritten,
     "http/early-hints-preload": earlyHintsPreload,
     "html/preconnect-unused": preconnectUnused,
     "html/preconnect-missing": preconnectMissing,

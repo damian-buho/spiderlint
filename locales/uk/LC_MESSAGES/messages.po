@@ -1853,3 +1853,6 @@ msgstr "батьківська зона і власні записи NS зони
 
 msgid "these name servers are listed for the zone but do not answer for it, a leftover of a decommissioned provider or a zone never loaded: {got}; a resolver that picks one waits out a timeout or gets a refusal"
 msgstr "ці сервери імен перелічені для зони, але не відповідають за неї, залишок виведеного з роботи провайдера або ніколи не завантаженої зони: {got}; резолвер, що обере такий, чекає на тайм-аут або отримує відмову"
+
+msgid "a script changes declarations the served HTML makes; rules judge the served ones"
+msgstr "скрипт змінює оголошення, які робить відданий HTML; правила оцінюють віддані"

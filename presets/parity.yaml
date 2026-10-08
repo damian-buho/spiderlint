@@ -54,3 +54,6 @@ rules:
     message: "internal links exist only after JavaScript runs: {got}"
     fix: "Render navigation links as <a href> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
+  html/declaration-rewritten:
+    severity: info
+    score: 1.5

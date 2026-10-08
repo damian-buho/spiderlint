@@ -12,7 +12,7 @@ import { chromium, firefox, webkit, type BrowserType, type Page, type Request, t
 import { USER_AGENT } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
 import { COOKIE_WRITES, headerFacts, observedResources, scriptCookies, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
-import { extractHtml, HTML_TYPES } from "../facts/html.ts";
+import { declaredHtml, extractHtml, HTML_TYPES } from "../facts/html.ts";
 import { parityFacts } from "../facts/parity.ts";
 import { extractResources } from "../facts/resources.ts";
 import { cookieFacts, dateSkew, redactHeaders } from "../facts/transport.ts";
@@ -372,8 +372,10 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const served = isHtml ? staticHtml(raw, url, config.scope) : undefined;
                 if (isHtml && served) {
                     const $ = await parseWithCheerio();
-                    facts.html = extractHtml($, text, url, config.scope);
-                    facts.parity = parityFacts(url.href, served.$, served.html, $, facts.html);
+                    const rendered = extractHtml($, text, url, config.scope);
+                    facts.html = declaredHtml(served.html, rendered);
+                    log.debug({ url: url.href, rewritten: facts.html.rewritten?.length ?? 0 }, "served declarations kept over the rendered DOM");
+                    facts.parity = parityFacts(url.href, served.$, served.html, $, rendered);
                     facts.resources = observedResources(extractResources($, url, config.maxResourcesPerPage), observation.requests, url, config.maxResourcesPerPage);
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests), cookies: await scriptCookies(page) };
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);

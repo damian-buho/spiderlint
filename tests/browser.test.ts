@@ -218,6 +218,25 @@ describe("browser fetch", { skip }, () => {
         }
     });
 
+    it("judges a theme-color pair as served when a script collapses it, and says the script rewrote it", async () => {
+        const rules = ["html/theme-color-schemes", "html/declaration-rewritten"];
+        const judged = async (pathname: string) => {
+            const { findings } = await audit({ seeds: [`${site.origin}${pathname}`], fetch: "browser", maxPages: 1, sitemap: false, fetchResources: false, groups: { default: { rules } } });
+            return findings;
+        };
+        const scripted = await judged("/theme-script");
+        assert.deepEqual(
+            scripted.map((finding) => [finding.rule, finding.severity]),
+            [["html/declaration-rewritten", "info"]],
+        );
+        assert.deepEqual(scripted[0]?.locations, ['<meta name="theme-color"> served “#ffffff (prefers-color-scheme: light)”, “#000000 (prefers-color-scheme: dark)”, rendered “#ffffff”']);
+        const single = await judged("/theme-single");
+        assert.deepEqual(
+            single.map((finding) => finding.rule),
+            ["html/theme-color-schemes"],
+        );
+    });
+
     it("judges a download by its headers", async () => {
         const download = await audit({ seeds: [`${site.origin}/big.bin`], fetch: "browser", maxPages: 1, sitemap: false });
         const http = download.pages[0]?.http;
