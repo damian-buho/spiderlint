@@ -22,6 +22,8 @@ services:
       - LANG
       - TZ
       - SPIDERLINT_TEST_VALKEY=spiderlint-valkey:6379
+    volumes:
+      - spiderlint-browsers:/app/.cache/ms-playwright
     secrets:
       - o9s.vlky.password
   spiderlint-valkey:
@@ -41,6 +43,9 @@ services:
       - O9S_VLKY_SAVE=
     secrets:
       - o9s.vlky.password
+volumes:
+  spiderlint-browsers:
+    name: spiderlint-browsers
 secrets:
   o9s.vlky.password:
     file: ../.secrets/o9s/vlky/password

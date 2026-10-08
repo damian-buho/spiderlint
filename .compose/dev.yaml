@@ -42,6 +42,7 @@ services:
       - ../locales:/app/locales:ro
       - ../presets:/app/presets:ro
       - ../.container/user/entrypoint.d/5000-start.sh:/entrypoint.d/5000-start.sh:ro
+      - spiderlint-browsers:/app/.cache/ms-playwright
   spiderlint-valkey:
     container_name: ${M6E_CONTAINER_INSTANCE}-valkey
     image: kiota.ch/o9s/valkey:latest
@@ -58,6 +59,9 @@ services:
       O9S_VLKY_PROTECTED_MODE: "no"
     tmpfs:
       - /tmp:size=64m
+volumes:
+  spiderlint-browsers:
+    name: spiderlint-browsers
 networks:
   dev-network:
     name: ${M6E_NETWORK}
