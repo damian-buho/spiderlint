@@ -46,6 +46,16 @@ async function addressesOf(client: DnsClient, hostname: string, family: number):
     return replies.flatMap((reply) => reply.answers.flatMap((record) => (record.type === "A" || record.type === "AAAA" ? [{ address: record.data as string, family: record.type === "A" ? 4 : 6 }] : [])));
 }
 
+// `dns.lookup` overloads (`(host, cb)`, `(host, family, cb)`) normalised to the three-argument form `lookup` takes.
+function overloaded(lookup: LookupFunction): typeof dns.lookup {
+    return ((hostname: string, options: unknown, callback: unknown) => {
+        log.debug({ hostname, form: typeof options }, "dns.lookup called");
+        if (typeof options === "function") return lookup(hostname, {}, options as Parameters<LookupFunction>[2]);
+        const normal = typeof options === "number" ? { family: options } : ((options ?? {}) as LookupOptions);
+        return lookup(hostname, normal, callback as Parameters<LookupFunction>[2]);
+    }) as unknown as typeof dns.lookup;
+}
+
 // Pins first, then the configured servers, `localhost` always from the system; every answer is kept for the run.
 function crawlLookup(pins: readonly Pin[], client: DnsClient | undefined, system: typeof dns.lookup): LookupFunction {
     const answers = new Map<string, Promise<LookupAddress[]>>();
@@ -119,7 +129,7 @@ export async function openResolution(pins: readonly Pin[], resolver: string, see
     const client = isSystem ? undefined : dnsClient(resolver, new Bucket<StoredReply>("dns", undefined, 60, "off"), false);
     const system = dns.lookup;
     const lookup = crawlLookup(pins, client, system);
-    dns.lookup = (isPrivateAllowed ? lookup : guarding(lookup)) as typeof dns.lookup;
+    dns.lookup = overloaded(isPrivateAllowed ? lookup : guarding(lookup));
     syncBuiltinESMExports();
     browser.hostRules = await chromiumRules(pins, seeds, client);
     log.debug({ pins: pins.map((pin) => pin.host), resolver, isPrivateAllowed, browserRules: browser.hostRules }, "crawl resolves names through the configured resolution");
