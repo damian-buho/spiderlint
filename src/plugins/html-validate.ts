@@ -34,8 +34,8 @@ function sourceAt(body: string, offset: number): string | undefined {
     return tag.length > SOURCE ? `${tag.slice(0, SOURCE)}…` : tag;
 }
 
-// Same-origin scripts need no SRI, as `resources/sri` already judges.
-const RULES: RuleConfig = { "require-sri": ["error", { target: "crossorigin" }] };
+// Same-origin scripts need no SRI, as `resources/sri` already judges; the HTML standard bars only empty and whitespace ids.
+const RULES: RuleConfig = { "require-sri": ["error", { target: "crossorigin" }], "valid-id": ["error", { relaxed: true }] };
 const presetNames = (names: string[]) => names.map((name) => `html-validate:${name}`);
 // A rendered DOM is Chromium’s serialisation, so the serialisation-style rules are off for it.
 const validators = {

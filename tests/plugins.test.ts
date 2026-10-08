@@ -37,6 +37,13 @@ async function failing(isBrowser: boolean): Promise<string[]> {
 }
 
 describe("html-validate extractor", () => {
+// The html-validate rules that fail a page whose only anchor carries `id`.
+async function idRules(id: string): Promise<string[]> {
+    const body = `<!DOCTYPE html><html lang="en"><head><title>t</title></head><body><main><a id="${id}" href="/">x</a></main></body></html>`;
+    const facts = (await extractor?.extract(stubPage(false), body)) as HtmlValidateFacts;
+    return facts.messages.map((message) => message.rule);
+}
+
     it("drops the serialisation-style rules for a rendered DOM", async () => {
         const served = await failing(false);
         const rendered = await failing(true);
@@ -45,6 +52,12 @@ describe("html-validate extractor", () => {
     });
 
     it("skips a truncated body, whose cut-off elements would all fail", async () => {
+    it("accepts an ID the HTML standard allows, a leading underscore included, and refuses one with whitespace", async () => {
+        const [underscore, spaced] = await Promise.all([idRules("_aria_auto_id_31"), idRules("two words")]);
+        assert.ok(!underscore.includes("valid-id"));
+        assert.ok(spaced.includes("valid-id"));
+    });
+
         assert.equal(await extractor?.extract(stubPage(false, true), BODY), undefined);
     });
 });
