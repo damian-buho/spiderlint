@@ -16,16 +16,16 @@ With no domain, the targets come from org.spiderlint in the config, one run per
 site.
 
 Report:
-  --format <format>  human, json, sarif, checkstyle, csv, html, agent or a
-                     plugin’s (default: human, env: SPIDERLINT_FORMAT)
-  --fail-on <level>  exit 1 at error, warning, info, a score from 0.1 to 9.9, or
-                     never (default: error, env: SPIDERLINT_FAIL_ON)
-  --unfold           one finding per page, every URL and location listed (env:
-                     SPIDERLINT_FOLD=false)
+  --format <format>  human, json, sarif, checkstyle, csv, html, agent, …
+                     (default: human, env: SPIDERLINT_FORMAT)
+  --fail-on <level>  exit 1 at error, warning, info, 0.1–9.9 or never
+                     (default: error, env: SPIDERLINT_FAIL_ON)
+  --unfold           one finding per page, every URL and location listed
+                     (env: SPIDERLINT_FOLD=false)
   --show-hints       list hints in human output, not only their count
   --explain          print each finding’s fix and docs in human output
-  --stats            count, min, median, p95, max and total of each numeric fact
-  --output <dir>     with --format agent, one Markdown prompt per rule in dir
+  --stats            count, min, median, p95, max, total per numeric fact
+  --output <dir>     with --format agent, one prompt file per rule in dir
 
 Store:
   --store <dir>      store directory (default: /app/.cache/spiderlint/<host>)

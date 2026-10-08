@@ -101,16 +101,16 @@ function crawlOptions(): Option[] {
         flag("--fetch <mode>", "auto, http, browser or adaptive", "auto", "SPIDERLINT_FETCH"),
         flag("--browser <name>", "chromium, firefox or webkit", "chromium", "SPIDERLINT_BROWSER"),
         flag("--scope <scope>", "follow links within the origin, host or domain", "origin", "SPIDERLINT_SCOPE"),
-        flag("--concurrency <n>", "pages in flight, 0 for one per CPU, halved in a browser", "0", "SPIDERLINT_CONCURRENCY"),
+        flag("--concurrency <n>", "pages in flight, 0: one per CPU, halved in a browser", "0", "SPIDERLINT_CONCURRENCY"),
         flag("--rate <n>", "requests per minute, 0 for no limit", "0", "SPIDERLINT_RATE"),
         flag("--timeout <seconds>", "seconds one page may take", "60", "SPIDERLINT_TIMEOUT"),
-        flag("--profile <name>", "tor or i2p: its local proxy, concurrency 4, timeout 240", undefined, "SPIDERLINT_PROFILE"),
+        flag("--profile <name>", "tor or i2p: local proxy, concurrency 4, timeout 240", undefined, "SPIDERLINT_PROFILE"),
         flag("--proxy <url>", "http, https or socks5h proxy for every request", undefined, "SPIDERLINT_PROXY"),
         flag("--max-pages <n>", "page limit, 0 for none", "0", "SPIDERLINT_MAX_PAGES"),
         flag("--max-depth <n>", "link depth limit, 0 for none", "0", "SPIDERLINT_MAX_DEPTH"),
         flag("--max-body-size <bytes>", "body size cap", "10000000", "SPIDERLINT_MAX_BODY_SIZE"),
-        repeatable("--include-urls <glob>", "crawl only URLs whose path and query match, repeatable", undefined, "SPIDERLINT_INCLUDE_URLS"),
-        repeatable("--exclude-urls <glob>", "skip URLs whose path and query match, repeatable", undefined, "SPIDERLINT_EXCLUDE_URLS"),
+        repeatable("--include-urls <glob>", "crawl only matching paths and queries, repeatable", undefined, "SPIDERLINT_INCLUDE_URLS"),
+        repeatable("--exclude-urls <glob>", "skip matching paths and queries, repeatable", undefined, "SPIDERLINT_EXCLUDE_URLS"),
         repeatable("--source <id:arg>", "add a plugin source’s URLs; list:FILE crawls a URL list only, repeatable", undefined, "SPIDERLINT_SOURCES"),
         flag("--no-robots", "ignore robots.txt", undefined, "SPIDERLINT_ROBOTS=false"),
         flag("--no-sitemap", "skip sitemap discovery", undefined, "SPIDERLINT_SITEMAP=false"),
@@ -119,9 +119,9 @@ function crawlOptions(): Option[] {
         flag("--canonical-origin <url>", "origin the pages are built for; its URLs count as the crawled one’s", undefined, "SPIDERLINT_CANONICAL_ORIGIN"),
         flag("--role <role>", "production, staging or development", "production", "SPIDERLINT_ROLE"),
         flag("--resolver <list>", "DNS servers to ask, address[:port],…", "system", "SPIDERLINT_RESOLVER"),
-        repeatable("--resolve <pin>", "connect to host[:port]:address instead of resolving host, repeatable", undefined, "SPIDERLINT_RESOLVE"),
+        repeatable("--resolve <pin>", "pin host[:port]:address instead of DNS, repeatable", undefined, "SPIDERLINT_RESOLVE"),
         flag("--no-allow-private", "refuse loopback, private and link-local addresses", undefined, "SPIDERLINT_ALLOW_PRIVATE=false"),
-        flag("--no-browser-install", "never download a missing browser, fail naming the install command", undefined, "SPIDERLINT_BROWSER_INSTALL=false"),
+        flag("--no-browser-install", "fail on a missing browser, print its install command", undefined, "SPIDERLINT_BROWSER_INSTALL=false"),
     ]);
 }
 
@@ -132,19 +132,19 @@ function ruleOptions(): Option[] {
         severity("error", "report these rules as errors"),
         severity("warning", "report these rules as warnings"),
         severity("info", "report these rules as info"),
-        severity("hint", "report these rules as hints, which neither grade nor fail"),
+        severity("hint", "report these rules as hints: no grade, no failure"),
     ]);
 }
 
 function reportOptions(): Option[] {
     return section("Report", [
-        flag("--format <format>", `${formatNames().join(", ")} or a plugin’s`, "human", "SPIDERLINT_FORMAT"),
-        flag("--fail-on <level>", "exit 1 at error, warning, info, a score from 0.1 to 9.9, or never", "error", "SPIDERLINT_FAIL_ON"),
+        flag("--format <format>", `${formatNames().join(", ")}, …`, "human", "SPIDERLINT_FORMAT"),
+        flag("--fail-on <level>", "exit 1 at error, warning, info, 0.1–9.9 or never", "error", "SPIDERLINT_FAIL_ON"),
         flag("--unfold", "one finding per page, every URL and location listed", undefined, "SPIDERLINT_FOLD=false"),
         flag("--show-hints", "list hints in human output, not only their count"),
         flag("--explain", "print each finding’s fix and docs in human output"),
-        flag("--stats", "count, min, median, p95, max and total of each numeric fact"),
-        flag("--output <dir>", "with --format agent, one Markdown prompt per rule in dir"),
+        flag("--stats", "count, min, median, p95, max, total per numeric fact"),
+        flag("--output <dir>", "with --format agent, one prompt file per rule in dir"),
     ]);
 }
 
@@ -270,7 +270,7 @@ const VERBS: Verb[] = [
         name: "list-presets",
         args: [],
         group: "Rules",
-        summary: "list shipped rulesets and the groups using them",
+        summary: "list the shipped rulesets and their groups",
         about: [],
         options: listingOptions,
         examples: [["See which presets exist", "spiderlint list-presets"]],
@@ -279,7 +279,7 @@ const VERBS: Verb[] = [
         name: "explain-rule",
         args: ["<rule>"],
         group: "Rules",
-        summary: "show what a rule reads and expects, and its fix",
+        summary: "show a rule’s facts, expectation and fix",
         about: [],
         options: listingOptions,
         examples: [["Explain a rule before turning it on", "spiderlint explain-rule html/theme-color-schemes"]],
@@ -318,6 +318,16 @@ function layout(command: Command, helper: Help): string {
     const width = helper.padWidth(command, helper);
     const item = (term: string, text: string) => helper.formatItem(term, width, text, helper);
     const list = (heading: string, items: string[]) => (items.length > 0 ? ["", helper.styleTitle(heading), ...items] : []);
+    const room = (helper.helpWidth ?? 80) - width - 4;
+    // An option whose hint would wrap carries the hint on a line of its own, under the text column.
+    const optionItems = (option: Option): string[] => {
+        const term = helper.styleOptionTerm(helper.optionTerm(option));
+        const text = helper.optionDescription(option);
+        const [, head, hint] = /^(.*) (\((?:default|env): [^)]*\))$/.exec(text) ?? [];
+        if (head === undefined || hint === undefined || helper.displayWidth(text) <= room) return [item(term, helper.styleOptionDescription(text))];
+        const hints = helper.displayWidth(hint) <= room ? [hint] : hint.replace(", env: ", ")\n(env: ").split("\n");
+        return [item(term, helper.styleOptionDescription(head)), ...hints.map((line) => item("", helper.styleOptionDescription(line)))];
+    };
     const commands = helper.groupItems([...command.commands], helper.visibleCommands(command), (sub) => sub.helpGroup() || "Commands:");
     const options = helper.groupItems(
         [...command.options],
@@ -336,7 +346,7 @@ function layout(command: Command, helper: Help): string {
         ...[...options].flatMap(([heading, flags]) =>
             list(
                 heading,
-                flags.map((option) => item(helper.styleOptionTerm(helper.optionTerm(option)), helper.styleOptionDescription(helper.optionDescription(option)))),
+                flags.flatMap((option) => optionItems(option)),
             ),
         ),
         "",
@@ -369,7 +379,7 @@ function program(act: (command: Command) => Promise<void>): Command {
         styleUsage: (text) => text.replaceAll("...", "…"),
         styleSubcommandTerm: (text) => paint()("cyan", text.replace(" [options]", "").replaceAll("...", "…")),
         styleOptionTerm: (text) => paint()("cyan", text),
-        styleOptionDescription: (text) => text.replace(/ (\((default|env): [^)]*\))$/, (_hint, hint: string) => ` ${paint()("dim", hint)}`),
+        styleOptionDescription: (text) => text.replace(/(^| )(\((default|env): [^)]*\))$/, (_hint, lead: string, hint: string) => `${lead}${paint()("dim", hint)}`),
     });
     root.configureOutput({ writeOut: (text) => console.log(text.replace(/\n$/, "")), writeErr: (text) => console.error(text.replace(/\n$/, "")), getOutHasColors: hasColors, getErrHasColors: hasColors, outputError: (message, write) => write(`spiderlint: ${oneLine(root, message)} (see spiderlint --help)\n`) });
     root.exitOverride();
@@ -379,7 +389,7 @@ function program(act: (command: Command) => Promise<void>): Command {
     for (const option of [...toggle("color", "force or disable color", "auto", "NO_COLOR, FORCE_COLOR"), ...toggle("progress", "status line on an interactive stderr", "auto")]) root.addOption(option);
     root.addOption(flag("--log-level <level>", "trace, debug, info, warn, error or silent", "warn", "SPIDERLINT_LOG_LEVEL"));
     root.version(VERSION, "-V, --version", "show the version");
-    root.helpOption("-h, --help", "show this screen, or a command’s with the command");
+    root.helpOption("-h, --help", "show this screen, or a command’s");
     root.helpCommand("help [command]", "show a command’s options and examples");
     root.addHelpText("before", () => [paint()("bold", "spiderlint"), DESCRIPTION, paint()("underline", HOMEPAGE), ""].join("\n"));
     root.addHelpText("after", () =>

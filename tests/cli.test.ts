@@ -284,6 +284,15 @@ describe("cli", () => {
         assert.doesNotMatch(listing.stdout, /Crawl:|--store/);
     });
 
+    it("never wraps an item description onto a line of one or two words at 80 columns", async () => {
+        const main = await spiderlint(directory, "--help");
+        const commands = main.stdout.match(/^ {2}[a-z]+(?:-[a-z]+)* /gm)?.map((line) => line.trim()) ?? [];
+        assert.ok(commands.length > 10, commands.join(", "));
+        const screens = await Promise.all([[], ...commands.filter((command) => command !== "help").map((command) => [command])].map((command) => spiderlint(directory, ...command, "--help")));
+        const orphans = screens.flatMap((screen) => screen.stdout.split("\n").filter((line) => /^ {20,}[^\s(]/.test(line) && line.trim().split(/\s+/).length < 3 && line.trim().length < 40));
+        assert.deepEqual(orphans, []);
+    });
+
     it("points an old command name at the verbs that replaced it", async () => {
         const run = await spiderlint(directory, "facts");
         assert.equal(run.code, 2);

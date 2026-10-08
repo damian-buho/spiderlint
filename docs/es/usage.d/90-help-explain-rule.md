@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 ```console
 $ spiderlint explain-rule --help
 Usage: spiderlint explain-rule [options] <rule>
-Show what a rule reads and expects, and its fix.
+Show a rule’s facts, expectation and fix.
 
 Output:
   --format <format>  human or json (default: human, env: SPIDERLINT_FORMAT)

@@ -104,10 +104,8 @@ Inspect:
 
 Rules:
   list-rules [ruleset|id…]        list rules at the severity this config gives
-  list-presets                    list shipped rulesets and the groups using
-                                  them
-  explain-rule <rule>             show what a rule reads and expects, and its
-                                  fix
+  list-presets                    list the shipped rulesets and their groups
+  explain-rule <rule>             show a rule’s facts, expectation and fix
 
 Cache:
   show-cache [domain…]            show the entries, bytes and age of each bucket
@@ -118,19 +116,19 @@ Commands:
   help [command]                  show a command’s options and examples
 
 Options:
-  --config <path>                 settings file (default: projectfile.yaml, env:
-                                  SPIDERLINT_CONFIG)
+  --config <path>                 settings file
+                                  (default: projectfile.yaml)
+                                  (env: SPIDERLINT_CONFIG)
   --site <names>                  only these org.spiderlint.sites, repeatable
                                   (default: all)
-  --[no-]color                    force or disable color (default: auto, env:
-                                  NO_COLOR, FORCE_COLOR)
-  --[no-]progress                 status line on an interactive stderr (default:
-                                  auto)
+  --[no-]color                    force or disable color
+                                  (default: auto, env: NO_COLOR, FORCE_COLOR)
+  --[no-]progress                 status line on an interactive stderr
+                                  (default: auto)
   --log-level <level>             trace, debug, info, warn, error or silent
                                   (default: warn, env: SPIDERLINT_LOG_LEVEL)
   -V, --version                   show the version
-  -h, --help                      show this screen, or a command’s with the
-                                  command
+  -h, --help                      show this screen, or a command’s
 
 Run spiderlint <command> --help for a command’s options and examples.
 

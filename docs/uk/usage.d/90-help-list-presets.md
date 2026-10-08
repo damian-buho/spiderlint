@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 ```console
 $ spiderlint list-presets --help
 Usage: spiderlint list-presets [options]
-List shipped rulesets and the groups using them.
+List the shipped rulesets and their groups.
 
 Output:
   --format <format>  human or json (default: human, env: SPIDERLINT_FORMAT)

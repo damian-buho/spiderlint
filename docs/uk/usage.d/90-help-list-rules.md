@@ -14,17 +14,17 @@ Rule IDs and rulesets are comma-separated; an ID may be a glob such as
 lighthouse/*.
 
 Rules:
-  --rules <rulesets>     rulesets or rule IDs to run in every group (default:
-                         recommended, env: SPIDERLINT_RULES)
+  --rules <rulesets>     rulesets or rule IDs to run in every group
+                         (default: recommended, env: SPIDERLINT_RULES)
   --exclude-rules <ids>  skip these rules (env: SPIDERLINT_EXCLUDE_RULES)
-  --error <ids>          report these rules as errors (env:
-                         SPIDERLINT_OVERRIDE_ERROR)
-  --warning <ids>        report these rules as warnings (env:
-                         SPIDERLINT_OVERRIDE_WARNING)
-  --info <ids>           report these rules as info (env:
-                         SPIDERLINT_OVERRIDE_INFO)
-  --hint <ids>           report these rules as hints, which neither grade nor
-                         fail (env: SPIDERLINT_OVERRIDE_HINT)
+  --error <ids>          report these rules as errors
+                         (env: SPIDERLINT_OVERRIDE_ERROR)
+  --warning <ids>        report these rules as warnings
+                         (env: SPIDERLINT_OVERRIDE_WARNING)
+  --info <ids>           report these rules as info
+                         (env: SPIDERLINT_OVERRIDE_INFO)
+  --hint <ids>           report these rules as hints: no grade, no failure
+                         (env: SPIDERLINT_OVERRIDE_HINT)
 
 Output:
   --format <format>      human or json (default: human, env: SPIDERLINT_FORMAT)

@@ -18,35 +18,33 @@ Rule IDs and rulesets are comma-separated; an ID may be a glob such as
 lighthouse/*.
 
 Rules:
-  --rules <rulesets>     rulesets or rule IDs to run in every group (default:
-                         recommended, env: SPIDERLINT_RULES)
+  --rules <rulesets>     rulesets or rule IDs to run in every group
+                         (default: recommended, env: SPIDERLINT_RULES)
   --exclude-rules <ids>  skip these rules (env: SPIDERLINT_EXCLUDE_RULES)
-  --error <ids>          report these rules as errors (env:
-                         SPIDERLINT_OVERRIDE_ERROR)
-  --warning <ids>        report these rules as warnings (env:
-                         SPIDERLINT_OVERRIDE_WARNING)
-  --info <ids>           report these rules as info (env:
-                         SPIDERLINT_OVERRIDE_INFO)
-  --hint <ids>           report these rules as hints, which neither grade nor
-                         fail (env: SPIDERLINT_OVERRIDE_HINT)
+  --error <ids>          report these rules as errors
+                         (env: SPIDERLINT_OVERRIDE_ERROR)
+  --warning <ids>        report these rules as warnings
+                         (env: SPIDERLINT_OVERRIDE_WARNING)
+  --info <ids>           report these rules as info
+                         (env: SPIDERLINT_OVERRIDE_INFO)
+  --hint <ids>           report these rules as hints: no grade, no failure
+                         (env: SPIDERLINT_OVERRIDE_HINT)
 
 Report:
-  --format <format>      human, json, sarif, checkstyle, csv, html, agent or a
-                         plugin’s (default: human, env: SPIDERLINT_FORMAT)
-  --fail-on <level>      exit 1 at error, warning, info, a score from 0.1 to
-                         9.9, or never (default: error, env: SPIDERLINT_FAIL_ON)
+  --format <format>      human, json, sarif, checkstyle, csv, html, agent, …
+                         (default: human, env: SPIDERLINT_FORMAT)
+  --fail-on <level>      exit 1 at error, warning, info, 0.1–9.9 or never
+                         (default: error, env: SPIDERLINT_FAIL_ON)
   --unfold               one finding per page, every URL and location listed
                          (env: SPIDERLINT_FOLD=false)
   --show-hints           list hints in human output, not only their count
   --explain              print each finding’s fix and docs in human output
-  --stats                count, min, median, p95, max and total of each numeric
-                         fact
-  --output <dir>         with --format agent, one Markdown prompt per rule in
-                         dir
+  --stats                count, min, median, p95, max, total per numeric fact
+  --output <dir>         with --format agent, one prompt file per rule in dir
 
 Store:
-  --store <dir>          store directory (default:
-                         /app/.cache/spiderlint/<host>)
+  --store <dir>          store directory
+                         (default: /app/.cache/spiderlint/<host>)
 
 Options for every command, see spiderlint --help:
   --config, --site, --[no-]color, --[no-]progress, --log-level
