@@ -21,6 +21,10 @@ identity:
 includes:
   - .makefile/b19/ci.yaml
   - .makefile/b19/images/node.yaml
+  - .makefile/b19/traits/attested-images.yaml
+  - .makefile/b19/traits/sbom-images.yaml
+  - .makefile/b19/traits/signed-images.yaml
+  - .makefile/container/traits/malware.yaml
   - .makefile/container/traits/readme-tool-image.yaml
   - .makefile/core/traits/github-action.yaml
   - .makefile/library/images/valkey.yaml
