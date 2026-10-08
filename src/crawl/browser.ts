@@ -211,10 +211,27 @@ class Crawler extends PlaywrightCrawler {
     }
 }
 
-// The body as the facts see it: rendered DOM for HTML, raw text for other parsed types, nothing for a download or a binary.
-async function bodyOf(page: Page, response: Response, observation: Observation, type: string): Promise<{ raw: Buffer; text: string }> {
-    if (observation.isDownload) return { raw: Buffer.alloc(0), text: "" };
+// The response’s own bytes; for a document an XSLT stylesheet turned into another type Chromium answers the output, so those bytes are fetched once more.
+async function rawOf(page: Page, response: Response, type: string, timeout: number): Promise<Buffer> {
     const raw = await response.body();
+    if (HTML_TYPES.has(type) || !isParsed(type)) return raw;
+    try {
+        const rendered = (await page.evaluate("document.contentType")) as string;
+        if (rendered === type) return raw;
+        const again = await page.request.fetch(response.request(), { timeout, failOnStatusCode: false });
+        const body = await again.body();
+        log.debug({ url: response.url(), type, rendered, transformed: raw.length, bytes: body.length, status: again.status() }, "transformed document read again");
+        return body;
+    } catch (error) {
+        log.debug({ url: response.url(), type, error: reason(error) }, "transformed document not read again, its output kept");
+        return raw;
+    }
+}
+
+// The body as the facts see it: rendered DOM for HTML, raw text for other parsed types, nothing for a download or a binary.
+async function bodyOf(page: Page, response: Response, observation: Observation, type: string, timeout: number): Promise<{ raw: Buffer; text: string }> {
+    if (observation.isDownload) return { raw: Buffer.alloc(0), text: "" };
+    const raw = await rawOf(page, response, type, timeout);
     return { raw, text: HTML_TYPES.has(type) ? await page.content() : isParsed(type) ? raw.toString("utf8") : "" };
 }
 
@@ -360,7 +377,7 @@ export function browserCrawler(config: Config, onPage: OnPage, frontier: Frontie
                 const { type } = contentTypeOf(headers["content-type"]);
                 const isHtml = HTML_TYPES.has(type) && !observation.isDownload;
                 const settled = isHtml && (await didSettle(page));
-                const { raw, text } = await bodyOf(page, response, observation, type);
+                const { raw, text } = await bodyOf(page, response, observation, type, config.timeout * 1000);
                 const body = text.slice(0, config.maxBodySize);
                 const wire = observation.isDownload ? 0 : await wireSize(response.request(), raw.length);
                 const size = { body: wire, decoded: raw.length, ...declaredSize(headers), ...((body.length < text.length || observation.isDownload) && { truncated: true as const }) };

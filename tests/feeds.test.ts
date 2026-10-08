@@ -182,3 +182,50 @@ describe("podcast GUID", () => {
         assert.equal(podcastGuid("https://mp3s.nashownotes.com/pc20rss.xml"), "917393e3-1b1e-5cef-ace4-edaa54e1f810");
     });
 });
+
+// A feed rendered through XSLT: served as application/xml, announced as application/rss+xml.
+const STYLED: Record<string, [string, string]> = {
+    "/": ["text/html; charset=utf-8", '<!DOCTYPE html><html lang="en"><head><title>Styled</title><link rel="alternate" type="application/rss+xml" href="/posts.rss"></head><body><h1>Styled</h1><a href="/posts.rss">Feed</a> <a href="/plain.xml">Plain</a></body></html>'],
+    "/plain.xml": ["application/xml", '<?xml version="1.0"?><note>plain</note>'],
+    "/posts.rss": [
+        "application/xml; charset=utf-8",
+        '<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="/feed.xsl"?><rss version="2.0"><channel><title>Styled</title><link>ORIGIN/</link><description>Styled feed</description><item><title>One</title><link>ORIGIN/</link><guid>ORIGIN/</guid></item></channel></rss>',
+    ],
+    "/feed.xsl": ["text/xsl", '<?xml version="1.0"?><xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/"><html><body><h1><xsl:value-of select="rss/channel/title"/></h1></body></html></xsl:template></xsl:stylesheet>'],
+};
+
+// The node tool image carries no browser, as in tests/browser.test.ts.
+async function launchFailure(): Promise<string | false> {
+    const { chromium } = await import("playwright");
+    try {
+        const browser = await chromium.launch();
+        await browser.close();
+        return false;
+    } catch (error) {
+        return `chromium does not launch: ${String(error).split("\n", 1)[0]}`;
+    }
+}
+
+describe("feeds in a browser", { skip: await launchFailure() }, () => {
+    it("reads a feed an XSLT stylesheet renders as the feed it is, never as a non-feed", async () => {
+        const { createServer } = await import("node:http");
+        let origin = "";
+        const asked: string[] = [];
+        const server = createServer((request, response) => {
+            const pathname = new URL(request.url ?? "/", "http://styled").pathname;
+            asked.push(pathname);
+            const [type, body] = STYLED[pathname] ?? ["text/plain", "missing"];
+            response.writeHead(type === "text/plain" ? 404 : 200, { "content-type": type }).end(body.replaceAll("ORIGIN", () => origin));
+        });
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+        try {
+            const styled = await audit({ seeds: [`${origin}/`], fetch: "browser", rules: ["feeds/discovery-type"], sitemap: false, robots: false, cacheMode: "off", fetchResources: false });
+            assert.equal((styled.pages.find((page) => page.url.pathname === "/posts.rss")?.feed as { format?: string } | undefined)?.format, "rss");
+            assert.deepEqual(styled.findings, []);
+            assert.deepEqual([asked.filter((pathname) => pathname === "/posts.rss").length, asked.filter((pathname) => pathname === "/plain.xml").length], [2, 1], "only the transformed document is read again");
+        } finally {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
+    });
+});

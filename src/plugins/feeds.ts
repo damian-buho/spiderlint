@@ -841,6 +841,10 @@ const discoveryType: Make = (severity) => ({
             const linked = index.get(href);
             if (!linked || !isOk(linked)) continue;
             const feed = feedOf(linked);
+            if (!feed && (linked.http.size.truncated || /[/+](?:xml|json)$/.test(linked.http["content-type"]))) {
+                log.debug({ rule: "feeds/discovery-type", url: href, type: linked.http["content-type"], truncated: linked.http.size.truncated === true }, "feed discovery skipped, the target may be a feed whose facts were never extracted");
+                continue;
+            }
             const wrong = links.filter(({ type }) => !feed || FORMAT_TYPES[type] !== feed.format);
             log.debug({ rule: "feeds/discovery-type", url: href, format: feed?.format, links: links.length, wrong: wrong.length }, "feed discovery judged");
             if (wrong.length === 0) continue;
