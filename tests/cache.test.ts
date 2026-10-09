@@ -96,7 +96,11 @@ describe("cache", () => {
     });
 
     it("purges the probes bucket with the rest", async () => {
-        await new Bucket<number>("probes", bucketDirectory("probes", undefined), 60, "use").set("https://example.org/", 1);
+        const bucket = new Bucket<number>("probes", bucketDirectory("probes", undefined), 60, "use");
+        await bucket.set("https://example.org/", 1);
+        // Backdates the stored entry to the epoch.
+        const [entry] = await readdir(bucket.directory as string);
+        await utimes(path.join(bucket.directory as string, entry as string), new Date(0), new Date(0));
         const purged = await purgeCache(undefined, undefined, 0);
         assert.equal(purged.probes, 1);
     });
