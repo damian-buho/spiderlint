@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";

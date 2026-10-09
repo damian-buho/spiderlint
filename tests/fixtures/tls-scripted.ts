@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import { type AddressInfo, createServer, type Socket } from "node:net";
 import { SUITES } from "../../src/plugins/tls-registry.ts";

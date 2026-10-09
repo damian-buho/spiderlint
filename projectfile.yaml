@@ -1,7 +1,7 @@
 ---
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 $schema: https://projectfile.org/schema/v1.json
 identity:
   created: "2026-09-19"
@@ -46,7 +46,7 @@ keywords:
 kind: SoftwareSourceCode
 license:
   covers: project
-  spdx: MIT
+  spdx: AGPL-3.0-only
 links:
   - label:
       en: Spiderlint on dbuho.me

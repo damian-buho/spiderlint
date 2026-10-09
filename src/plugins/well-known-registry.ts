@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // IANA Well-Known URIs registry suffixes as of 2026-09-25, from https://www.iana.org/assignments/well-known-uris/well-known-uris-1.csv; refreshed by hand.
 export const REGISTERED = new Set([

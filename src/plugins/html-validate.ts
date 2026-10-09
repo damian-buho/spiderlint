@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import { HtmlValidate, StaticConfigLoader, type RuleConfig } from "html-validate";
 import { a11y, document as wholeDocument, recommended, standard } from "html-validate/presets";

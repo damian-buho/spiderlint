@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import { gunzipSync } from "node:zlib";
 import { load } from "cheerio";

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Analytics and ad-tech hosts by vendor, hand-kept as of 2026-09-25; a host matches itself and its subdomains.
 export const TRACKERS: Record<string, string[]> = {

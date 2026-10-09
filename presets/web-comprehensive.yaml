@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 description: The recommended rules plus link graph, language, structured data, manifest, markup, well-known files, trackers and footprint, all over HTTP — for the scan server’s form
 extends:

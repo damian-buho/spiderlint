@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // The slices of csstree-validator 4.0 and doiuse 6.0 spiderlint calls; neither package ships types.
 declare module "csstree-validator" {

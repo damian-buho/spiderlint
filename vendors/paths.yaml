@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 # Paths an edge or host serves on the site’s own origin; the first entry whose glob matches the path wins.
 - vendor: Cloudflare

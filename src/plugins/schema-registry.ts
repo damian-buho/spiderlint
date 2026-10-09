@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Every schema.org type, property and enumeration member with `supersededBy`, from schema.org 30.1 (schemaorg-current-https.jsonld) as of 2026-09-25.
 export const SUPERSEDED: Record<string, string> = {

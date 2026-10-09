@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 # damian-buho/spiderlint
@@ -37,7 +37,7 @@ recorded so the v1 shape does not block them.
 - Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` bad arguments or config, `3` no seed could be fetched, `4` the run failed after it started, `130`/`143` stopped by SIGINT/SIGTERM
 - External tools (`openssl` …) are allowed: the image installs them, and a check whose tool is not on `PATH` is skipped with one run-level warning naming the tool, never a finding or a failure
 - Features: one `docs/features.d` fragment per check family, past the 3–5 guideline on purpose, since the breadth is the pitch
-- License: MIT. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
+- License: AGPL-3.0-only. Enrolled in `mani.yaml`; published to kiota, mirrored to GitHub and Codeberg like every `damian-buho/` project
 
 ## Scope
 

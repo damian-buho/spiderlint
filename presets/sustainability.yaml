@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 description: What a site discloses about its footprint in carbon.txt, and what a view of each page emits
 extends: [spiderlint:carbon-txt]

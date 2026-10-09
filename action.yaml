@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 name: 'Spiderlint'
 description: 'Crawl a site and lint its SEO tags, security headers, TLS and links'
 author: 'Damián Búho'

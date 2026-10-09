@@ -1,5 +1,5 @@
 // Copyright 2026 Damián Búho
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import js from "@eslint/js";
 import nPlugin from "eslint-plugin-n";

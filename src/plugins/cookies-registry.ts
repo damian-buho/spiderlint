@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // First-party cookie names analytics and advertising scripts set, by vendor, hand-kept as of 2026-09-26; `*` matches any suffix.
 export const TRACKING_COOKIES: Record<string, string[]> = {

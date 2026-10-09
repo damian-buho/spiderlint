@@ -2,7 +2,7 @@
 
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # test.d/ scripts run as a subprocess via b19-run, so they source b19-i18n themselves.
 set -eou pipefail

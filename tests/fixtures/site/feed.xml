@@ -2,6 +2,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: AGPL-3.0-only
 -->
 <rss version="2.0"><channel><title>Fixture feed</title><link>http://fixture.test/</link><item><title>Post 1</title><link>http://fixture.test/posts/1</link></item></channel></rss>

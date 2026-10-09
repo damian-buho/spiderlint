@@ -2,7 +2,7 @@
 
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Checks docs/usage.d against src/cli.ts directly, with no image build; it is also the container runtime shim usage-capture.sh calls.
 set -euo pipefail

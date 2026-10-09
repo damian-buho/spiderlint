@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 redis: redis://spiderlint-valkey:6379/0
 retention: 1d

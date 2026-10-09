@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 ---
 description: A fast look at the basics over HTTP — search tags, security headers, caching, TLS, redirects and robots.txt — for the scan server’s form
 extends:

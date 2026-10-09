@@ -2,7 +2,7 @@
 
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Proves the CLI boots: --help must print the title line.
 set -eou pipefail

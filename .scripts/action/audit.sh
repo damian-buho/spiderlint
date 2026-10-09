@@ -2,7 +2,7 @@
 # shellcheck disable=SC2154 # RUNNER_TEMP, GITHUB_* and the inputs come from the runner and action.yaml
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Crawls once into a runner-side store, then renders human and SARIF from it without the network.
 set -euo pipefail

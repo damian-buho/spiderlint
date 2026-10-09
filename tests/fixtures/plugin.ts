@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import type { Facts } from "../../src/facts/types.ts";
 import { definePlugin } from "../../src/plugins/types.ts";

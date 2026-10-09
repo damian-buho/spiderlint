@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import { context, metrics, propagation, SpanStatusCode, trace, type Attributes, type Counter, type Histogram, type ObservableGauge, type Span } from "@opentelemetry/api";
 import { VERSION } from "./agent.ts";

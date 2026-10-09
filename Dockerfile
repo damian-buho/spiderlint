@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 ARG B19_NODE_BASE_IMAGE=registry.invalid/b19/node:n26
 ARG PF_CLI_IMAGE=registry.invalid/projectfile/cli:latest

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Site-wide linter for SEO tags, security headers, TLS and links",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=26"
   },

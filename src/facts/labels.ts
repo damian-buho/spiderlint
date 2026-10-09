@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // Formats a number the way the caller’s locale writes it.
 export type NumberFormat = (value: number, options?: Intl.NumberFormatOptions) => string;

@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 # Over 500 rules, and new ones written as data

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 import { label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import { utc } from "../facts/read-note.ts";

@@ -2,7 +2,7 @@
 
 # SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Serves the bundled fixture site and runs a real audit against it, end to end.
 set -eou pipefail

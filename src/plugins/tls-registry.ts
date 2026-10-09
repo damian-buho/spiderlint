@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // IANA TLS Cipher Suites and Supported Groups as of 2026-09-26, from https://www.iana.org/assignments/tls-parameters/tls-parameters-4.csv and -8.csv; refreshed by hand.
 export const SUITES: Record<number, string> = {
