@@ -43,7 +43,7 @@ jobs:
         with:
           image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}n${{ vars.B19_NODE_SERIES || '26' }}
-          run: .makefile/core/scripts/check-outdated.sh '^Package +Current' npm outdated
+          run: .makefile/core/scripts/check-outdated.sh "^Package +Current" npm outdated
           env: |-
             M6E_CHECK_OUTDATED_STRICT
           mounts: /app/data/ci-cache/npm:/app/.cache/npm:rw
