@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "tags": [
+    "-lintignore"
+  ],
+  "entry": [
+    "src/server/main.ts",
+    "src/server/health.ts",
+    "tests/fixtures/**"
+  ],
+  "ignoreDependencies": [
+    "@types/http-cache-semantics"
+  ],
+  "ignoreBinaries": [
+    "pf-cli",
+    "openssl"
+  ],
+  "ignoreExportsUsedInFile": true
+}
