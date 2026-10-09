@@ -16,6 +16,7 @@ pf-cli-managed: yes
 
 Перегляньте це спершу — можливо, відповідь уже є:
 
+- [Задачі на Codeberg](https://codeberg.org/damian-buho/spiderlint/issues)
 - [Задачі на GitHub](https://github.com/damian-buho/spiderlint/issues)
 
 ## Куди звертатися

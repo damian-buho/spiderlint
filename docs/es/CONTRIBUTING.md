@@ -17,6 +17,7 @@ Toda forma de contribución se agradece y se valora. Consulta la Tabla de conten
 
 > Y si el proyecto te gusta pero no tienes tiempo para contribuir, no pasa nada. Hay otras formas sencillas de apoyarlo y mostrar tu agradecimiento, que también nos harían mucha ilusión:
 >
+> - Dale una estrella al proyecto en [codeberg.org](https://codeberg.org/damian-buho/spiderlint)
 > - Dale una estrella al proyecto en [github.com](https://github.com/damian-buho/spiderlint)
 > - Menciona este proyecto en el readme del tuyo
 > - Habla del proyecto en encuentros locales y cuéntaselo a tus amistades y colegas

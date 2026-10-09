@@ -31,6 +31,7 @@ includes:
   - .makefile/library/languages/node.yaml
   - .makefile/library/vulnerabilities/npm/stream-json.yaml
   - .projectfile/vulnerabilities.yaml
+  - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/codeberg.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/include.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/registry/dockerhub.yaml
@@ -83,6 +84,26 @@ links:
       - readme
     type: bugs
     url: https://github.com/damian-buho/spiderlint/issues
+  - label:
+      en: Spiderlint on Codeberg
+      es: Spiderlint en Codeberg
+      uk: Spiderlint на Codeberg
+    priority: 90
+    tags:
+      - public
+      - badges
+      - badges-gitea
+    type: source-code
+    url: https://codeberg.org/damian-buho/spiderlint
+  - label:
+      en: Issues on Codeberg
+      es: Incidencias en Codeberg
+      uk: Задачі на Codeberg
+    priority: 90
+    tags:
+      - support
+    type: bugs
+    url: https://codeberg.org/damian-buho/spiderlint/issues
   - label:
       en: Packages on GHCR
       es: Paquetes en GHCR
@@ -162,6 +183,9 @@ repositories:
   - role: mirror
     type: git
     url: git@github.com:damian-buho/spiderlint.git
+  - role: mirror
+    type: git
+    url: git@codeberg.org:damian-buho/spiderlint.git
 requirements:
   runtime:
     node: '>=26'
