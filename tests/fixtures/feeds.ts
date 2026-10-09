@@ -140,6 +140,7 @@ const FILES: Record<string, [number, Record<string, string>, string | Buffer]> =
 <item><title>Moved</title><link>ORIGIN/old</link><guid isPermaLink="false">j1</guid></item>
 <item><title>Gone</title><link>ORIGIN/missing</link><guid isPermaLink="false">j2</guid></item>
 <item><title>Second</title><link>ORIGIN/posts/2</link><guid isPermaLink="false">j3</guid><pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate></item>
+<item><title>Post: First post</title><link>ORIGIN/posts/1</link><guid isPermaLink="false">j4</guid></item>
 </channel></rss>`,
     ],
     "/cast.xml": [

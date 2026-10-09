@@ -616,7 +616,9 @@ const itemTitle = siteRule(
             const { page, landing } = target(entry, index, site);
             if (landing || !page?.html || !entry.title || !isOk(page)) return [];
             const titles = [page.html.title, page.html.property["og:title"]].flatMap((title) => (title ? [normal(title)] : []));
-            return titles.length === 0 || titles.some((title) => title.includes(normal(entry.title as string))) ? [] : [`item ${entry.position} “${entry.title}” against “${page.html.title ?? page.html.property["og:title"]}”`];
+            // A `Post: ` style label a mixed feed puts before the title is not part of the page’s title.
+            const wanted = [normal(entry.title), normal(entry.title.replace(/^[^:]{1,30}:\s+/, ""))];
+            return titles.length === 0 || titles.some((title) => wanted.some((text) => title.includes(text))) ? [] : [`item ${entry.position} “${entry.title}” against “${page.html.title ?? page.html.property["og:title"]}”`];
         }),
     { docs: DOCS.rss, fix: "Use the page’s own title as the item title." },
 );
