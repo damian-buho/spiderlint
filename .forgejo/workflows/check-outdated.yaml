@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
       - name: npm-install
         if: vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true'
-        uses: projectfile/actions/run-tool@643052a02d1358d0f5a078a7f434166011d36d64 # v1
+        uses: projectfile/actions/run-tool@ffe2de775b8b50b564f401adc488fce3df2fd607 # v1
         with:
           image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}n${{ vars.B19_NODE_SERIES || '26' }}
@@ -39,7 +39,7 @@ jobs:
           mounts: /app/data/ci-cache/npm:/app/.cache/npm:rw
       - name: check-outdated-npm
         if: vars.CI_SKIP_CHECK_OUTDATED != 'true' && vars.CI_SKIP_CHECK_OUTDATED_NPM != 'true'
-        uses: projectfile/actions/run-tool@643052a02d1358d0f5a078a7f434166011d36d64 # v1
+        uses: projectfile/actions/run-tool@ffe2de775b8b50b564f401adc488fce3df2fd607 # v1
         with:
           image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}n${{ vars.B19_NODE_SERIES || '26' }}
