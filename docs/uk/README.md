@@ -57,7 +57,7 @@ Spiderlint обходить кожну сторінку сайту, збирає
 
 ## Що надає цей проєкт
 
-- **CI-дія** `damian-buho/spiderlint@0.140.0`
+- **CI-дія** `damian-buho/spiderlint@0.141.0`
 - **Образ контейнера** `ghcr.io/damian-buho/spiderlint:latest`
 - **Образ контейнера** `damianbuho/spiderlint:latest`
 - `spiderlint` — команда `spiderlint`
@@ -102,7 +102,7 @@ spiderlint --help
 Запускайте його як крок робочого процесу GitHub Actions:
 
 ```yaml
-- uses: damian-buho/spiderlint@0.140.0
+- uses: damian-buho/spiderlint@0.141.0
 ```
 
 Дія приймає такі вхідні параметри:

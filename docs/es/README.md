@@ -57,7 +57,7 @@ También hereda las características de B19 / Ubuntu; consulta [Características
 
 ## Qué entrega este proyecto
 
-- **Acción de CI** `damian-buho/spiderlint@0.140.0`
+- **Acción de CI** `damian-buho/spiderlint@0.141.0`
 - **Imagen de contenedor** `ghcr.io/damian-buho/spiderlint:latest`
 - **Imagen de contenedor** `damianbuho/spiderlint:latest`
 - `spiderlint` — comando `spiderlint`
@@ -102,7 +102,7 @@ spiderlint --help
 Ejecútalo como un paso de un flujo de trabajo de GitHub Actions:
 
 ```yaml
-- uses: damian-buho/spiderlint@0.140.0
+- uses: damian-buho/spiderlint@0.141.0
 ```
 
 La acción acepta estas entradas:
