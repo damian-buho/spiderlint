@@ -184,10 +184,11 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
     });
 
     it("leaves the suite rules silent on a Cloudflare edge, whose suites a customer cannot trim", () => {
-        const facts = { protocols: ["TLSv1.2", "TLSv1.3"], "weak-ciphers": ["TLS_RSA_WITH_AES_128_CBC_SHA"], "forward-secrecy": "some", "server-order": false };
-        const rules = (edge?: string) => judged("https://example.org", { ...facts, ...(edge && { edge }) }).map(([rule]) => rule);
-        assert.deepEqual(rules(), ["tls-probe/forward-secrecy", "tls-probe/server-cipher-order", "tls-probe/weak-ciphers"]);
+        const facts = { protocols: ["TLSv1.2", "TLSv1.3"], "weak-ciphers": ["TLS_RSA_WITH_AES_128_CBC_SHA"], "insecure-ciphers": ["TLS_RSA_WITH_3DES_EDE_CBC_SHA"], vulnerabilities: ["sweet32"], "forward-secrecy": "some", "server-order": false };
+        const rules = (edge?: string, extra = {}) => judged("https://example.org", { ...facts, ...extra, ...(edge && { edge }) }).map(([rule]) => rule);
+        assert.deepEqual(rules(), ["tls-probe/forward-secrecy", "tls-probe/insecure-ciphers", "tls-probe/server-cipher-order", "tls-probe/vulnerabilities", "tls-probe/weak-ciphers"]);
         assert.deepEqual(rules("cloudflare"), []);
+        assert.deepEqual(rules("cloudflare", { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] }), ["tls-probe/legacy-protocols", "tls-probe/tls13-missing"]);
     });
 
     it("hands org.spiderlint.tls-probe to the extractor, which keys its cached facts by it", async () => {

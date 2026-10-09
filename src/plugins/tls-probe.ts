@@ -207,7 +207,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/insecure-ciphers": {
         fact: "site.origins.*.tls-probe.insecure-ciphers",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" } },
+        when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
         message: "the server accepts suites broken outright: {got}",
         severity: "error",
         score: 9.4,
@@ -217,7 +217,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/vulnerabilities": {
         fact: "site.origins.*.tls-probe.vulnerabilities",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" } },
+        when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
         message: "what the server negotiates leaves it open to {got}",
         severity: "error",
         score: 9.6,
