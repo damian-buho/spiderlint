@@ -94,8 +94,8 @@ async function probed(origin: string, settings?: unknown, list: (url: string) =>
 }
 
 // `[rule, severity]` of each `tls-probe` finding over one origin’s facts, sorted.
-function judged(origin: string, facts: unknown): [string, string][] {
-    const site: SiteFacts = { sitemaps: [], origins: { [origin]: { "tls-probe": facts } } };
+function judged(origin: string, facts: unknown, stack?: object): [string, string][] {
+    const site: SiteFacts = { sitemaps: [], origins: { [origin]: { "tls-probe": facts, ...(stack && { stack }) } } };
     return runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), site)
         .findings.map((finding): [string, string] => [finding.rule, finding.severity])
         .toSorted(([a], [b]) => a.localeCompare(b));
@@ -186,34 +186,26 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
 
     it("leaves the suite rules silent on a Cloudflare edge, whose suites a customer cannot trim", () => {
         const facts = { protocols: ["TLSv1.2", "TLSv1.3"], "weak-ciphers": ["TLS_RSA_WITH_AES_128_CBC_SHA"], "insecure-ciphers": ["TLS_RSA_WITH_3DES_EDE_CBC_SHA"], vulnerabilities: ["sweet32"], "forward-secrecy": "some", "server-order": false };
-        const rules = (edge?: string, extra = {}) => judged("https://example.org", { ...facts, ...extra, ...(edge && { edge }) }).map(([rule]) => rule);
+        const rules = (edge?: string, extra = {}) => judged("https://example.org", { ...facts, ...extra }, edge ? { edge: { name: edge, kind: "edge", evidence: ["header cf-ray: 1"], confidence: "medium" } } : undefined).map(([rule]) => rule);
         assert.deepEqual(rules(), ["tls-probe/forward-secrecy", "tls-probe/insecure-ciphers", "tls-probe/server-cipher-order", "tls-probe/vulnerabilities", "tls-probe/weak-ciphers"]);
         assert.deepEqual(rules("cloudflare"), []);
         assert.deepEqual(rules("cloudflare", { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] }), ["tls-probe/legacy-protocols", "tls-probe/tls13-missing"]);
     });
 
-    it("takes Cloudflare’s ranges from the downloaded lists, and from the bundled ones when the download fails", async () => {
-        const modern = await serveTls(["http/1.1"], { minVersion: "TLSv1.3" });
-        const asked: string[] = [];
-        try {
-            const downloaded = await probed(modern?.origin ?? "", undefined, async (url) => {
-                asked.push(url);
-                return url.endsWith("ips-v4") ? "127.0.0.0/8\n10.0.0.0/8\n" : "2606:4700::/32\n";
-            });
-            assert.deepEqual([downloaded?.edge, asked], ["cloudflare", ["https://www.cloudflare.com/ips-v4", "https://www.cloudflare.com/ips-v6"]]);
-            const bundled = await probed(modern?.origin ?? "");
-            assert.equal(bundled?.edge, undefined);
-        } finally {
-            await modern?.close();
-        }
+    it("carries the Cloudflare dashboard hint on legacy protocols behind Cloudflare, and the generic fix elsewhere", () => {
+        const facts = { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] };
+        const hint = (stack?: object) => runRules([], new Map([["default", compileRulesets(["tls-probe"], {})]]), { sitemaps: [], origins: { "https://example.org": { "tls-probe": facts, ...(stack && { stack }) } } }).findings.find((finding) => finding.rule === "tls-probe/legacy-protocols")?.hint;
+        assert.match(hint({ edge: { name: "cloudflare", kind: "edge", evidence: ["address 104.16.0.1"], confidence: "medium" } }) ?? "", /Minimum TLS Version/);
+        assert.equal(hint(), undefined);
+        assert.equal(hint({ server: { name: "nginx", kind: "server", evidence: ["header server: nginx"], confidence: "medium" } }), undefined);
     });
 
     it("hands org.spiderlint.tls-probe to the extractor, which keys its cached facts by it", async () => {
         const rules = compileRulesets(["tls-probe"], {});
         await loadPlugins([], { "tls-probe": { scan: false } });
-        assert.deepEqual(siteExtractorsFor(rules)[0]?.settings, { scan: false });
+        assert.deepEqual(siteExtractorsFor(rules).find((extractor) => extractor.id === "tls-probe")?.settings, { scan: false });
         await loadPlugins([], {});
-        assert.deepEqual(siteExtractorsFor(rules)[0]?.settings, { scan: true });
+        assert.deepEqual(siteExtractorsFor(rules).find((extractor) => extractor.id === "tls-probe")?.settings, { scan: true });
         await assert.rejects(loadPlugins([], { "tls-probe": { scan: "no" } }), ConfigError);
         await loadPlugins([], {});
     });

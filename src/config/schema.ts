@@ -24,6 +24,7 @@ const ruleSpec = {
         score: { oneOf: [score, { type: "array", minItems: 2, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "number" } } }] },
         docs: { type: "string" },
         fix: { type: "string" },
+        hints: { type: "object", additionalProperties: { type: "string" } },
         message: { type: "string" },
         linked: { type: "boolean" },
     },

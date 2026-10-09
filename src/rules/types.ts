@@ -51,6 +51,8 @@ export interface Finding {
     sampleLocations?: Record<string, string[]>;
     // The edge or host owning the resource the finding is about.
     vendor?: string;
+    // A fix specific to the service the subject runs on, shown in place of the rule’s.
+    hint?: string;
 }
 
 export interface RuleMeta {
@@ -109,6 +111,8 @@ export interface RuleSpec {
     pinned?: true;
     docs?: string;
     fix?: string;
+    // A fix per service in the subject’s `stack`, which replaces `fix` on a finding about a subject running on it.
+    hints?: Record<string, string>;
     message?: string;
     // A `site.hosts.*.` rule that also judges hosts the crawl only links or loads under its registrable domains; off by default.
     linked?: boolean;

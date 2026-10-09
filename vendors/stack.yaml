@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Damián Búho <damian.buho@proton.me>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+---
+# Services an origin runs on; a signal is a glob, and a service seen by two distinct signals is high confidence.
+- name: cloudflare
+  kind: edge
+  # Published address ranges: downloaded into the `lists` bucket, the bundled ones when the download fails.
+  ranges:
+    lists: [https://www.cloudflare.com/ips-v4, https://www.cloudflare.com/ips-v6]
+    bundled: [173.245.48.0/20, 103.21.244.0/22, 103.22.200.0/22, 103.31.4.0/22, 141.101.64.0/18, 108.162.192.0/18, 190.93.240.0/20, 188.114.96.0/20, 197.234.240.0/22, 198.41.128.0/17, 162.158.0.0/15, 104.16.0.0/13, 104.24.0.0/14, 172.64.0.0/13, 131.0.72.0/22, "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32", "2a06:98c0::/29", "2c0f:f248::/32"]
+  headers: {cf-ray: "*", server: cloudflare}
+  cookies: [__cf_bm, cf_clearance]
+  nameservers: ["*.ns.cloudflare.com"]
+  docs: https://developers.cloudflare.com/fundamentals/reference/http-headers/
+- name: fastly
+  kind: edge
+  headers: {x-served-by: "cache-*", x-fastly-request-id: "*"}
+  docs: https://www.fastly.com/documentation/reference/http/http-headers/
+- name: vercel
+  kind: host
+  headers: {x-vercel-id: "*", server: vercel}
+  paths: ["/_next/**", "/_vercel/**"]
+  docs: https://vercel.com/docs/headers/response-headers
+- name: netlify
+  kind: host
+  headers: {x-nf-request-id: "*", server: netlify}
+  docs: https://docs.netlify.com/manage/routing/headers/
+- name: github-pages
+  kind: host
+  headers: {server: GitHub.com, x-github-request-id: "*"}
+  docs: https://docs.github.com/en/pages
+- name: wordpress
+  kind: cms
+  generator: ["WordPress*"]
+  headers: {link: "*api.w.org*"}
+  paths: ["/wp-content/**", "/wp-includes/**", "/wp-json/**"]
+  docs: https://developer.wordpress.org/
+- name: drupal
+  kind: cms
+  generator: ["Drupal*"]
+  headers: {x-generator: "Drupal*", x-drupal-cache: "*"}
+  paths: ["/sites/default/files/**", "/core/misc/**"]
+  docs: https://www.drupal.org/docs
+- name: nextjs
+  kind: framework
+  headers: {x-powered-by: "Next.js*"}
+  paths: ["/_next/static/**"]
+  docs: https://nextjs.org/docs
+- name: nginx
+  kind: server
+  headers: {server: "nginx*"}
+  docs: https://nginx.org/en/docs/
+- name: apache
+  kind: server
+  headers: {server: "Apache*"}
+  docs: https://httpd.apache.org/docs/

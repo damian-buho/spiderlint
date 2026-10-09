@@ -16,9 +16,9 @@ function subject(finding: Finding): Record<string, string> | undefined {
     return { host: url.hostname, domain: getDomain(url.hostname, { allowPrivateDomains: true }) ?? url.hostname, origin: url.origin, url: url.href };
 }
 
-// A rule’s fix with `{host}`, `{domain}`, `{origin}` and `{url}` taken from the finding, else shown as `<host>`.
+// A rule’s fix, or the hint for the service the finding’s subject runs on, with `{host}`, `{domain}`, `{origin}` and `{url}` taken from the finding, else shown as `<host>`.
 export function fixFor(fix: string, finding?: Finding): string {
     const values = finding && subject(finding);
     if (finding && !values) log.debug({ rule: finding.rule, url: finding.url }, "fix left generic, no subject");
-    return fix.replaceAll(PLACEHOLDER, (_match, name: string) => values?.[name] ?? `<${name}>`);
+    return (finding?.hint ?? fix).replaceAll(PLACEHOLDER, (_match, name: string) => values?.[name] ?? `<${name}>`);
 }

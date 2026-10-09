@@ -4,7 +4,6 @@
 
 import { spawn } from "node:child_process";
 import { X509Certificate } from "node:crypto";
-import { BlockList, isIP } from "node:net";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,7 +12,7 @@ import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { scan } from "./tls-scan.ts";
-import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
+import { definePlugin, type SiteExtractor } from "./types.ts";
 
 const TIMEOUT_MS = 10_000;
 
@@ -22,58 +21,6 @@ const SCAN_MS = 180_000;
 
 // Whether `openssl` runs, per PATH, so a missing tool warns once.
 const available = new Map<string, Promise<boolean>>();
-
-// Cloudflare’s ranges as published when this was written, used when the lists cannot be downloaded.
-const BUNDLED = [
-    "173.245.48.0/20",
-    "103.21.244.0/22",
-    "103.22.200.0/22",
-    "103.31.4.0/22",
-    "141.101.64.0/18",
-    "108.162.192.0/18",
-    "190.93.240.0/20",
-    "188.114.96.0/20",
-    "197.234.240.0/22",
-    "198.41.128.0/17",
-    "162.158.0.0/15",
-    "104.16.0.0/13",
-    "104.24.0.0/14",
-    "172.64.0.0/13",
-    "131.0.72.0/22",
-    "2400:cb00::/32",
-    "2606:4700::/32",
-    "2803:f800::/32",
-    "2405:b500::/32",
-    "2405:8100::/32",
-    "2a06:98c0::/29",
-    "2c0f:f248::/32",
-];
-const CLOUDFLARE_LISTS = ["https://www.cloudflare.com/ips-v4", "https://www.cloudflare.com/ips-v6"];
-
-// The CIDR blocks among `subnets` as a lookup; a line that is not one is dropped.
-function blocksOf(subnets: string[]): BlockList {
-    const blocks = new BlockList();
-    for (const subnet of subnets) {
-        const [network = "", prefix = ""] = subnet.split("/", 2);
-        const family = isIP(network);
-        if (family > 0 && /^\d{1,3}$/.test(prefix)) blocks.addSubnet(network, Number(prefix), family === 6 ? "ipv6" : "ipv4");
-    }
-    return blocks;
-}
-
-// Cloudflare’s published ranges from the `lists` bucket, the bundled ones when the download fails or names none.
-async function cloudflareRanges(context: SiteContext): Promise<BlockList> {
-    try {
-        const bodies = await Promise.all(CLOUDFLARE_LISTS.map((url) => context.list(url)));
-        const subnets = bodies.flatMap((body) => body.split(/\s+/).filter(Boolean));
-        log.debug({ lists: CLOUDFLARE_LISTS, subnets: subnets.length }, "cloudflare ranges downloaded");
-        if (subnets.length > 0) return blocksOf(subnets);
-    } catch (error) {
-        if (context.signal.aborted) throw error;
-        log.debug({ lists: CLOUDFLARE_LISTS, error: reason(error), bundled: BUNDLED.length }, "cloudflare ranges not downloaded; bundled list used");
-    }
-    return blocksOf(BUNDLED);
-}
 
 interface Run {
     code: number | null;
@@ -206,15 +153,12 @@ const probe: SiteExtractor = {
         const chain = chainOf(sent);
         const responder = sent[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
         const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await earlyData(host, port, address, context.signal) : undefined;
-        const family = isIP(address);
-        const ranges = family > 0 ? await cloudflareRanges(context) : undefined;
-        const isCloudflare = ranges?.check(address, family === 6 ? "ipv6" : "ipv4") ?? false;
-        log.debug({ origin, address, isFull, isCloudflare, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
-        return { address, ...(isCloudflare && { edge: "cloudflare" }), ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
+        log.debug({ origin, address, isFull, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
+        return { address, ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
     },
 };
 
-// A `when` that skips an origin whose address is a Cloudflare edge.
+// A `when` that skips an origin behind a Cloudflare edge.
 const NOT_CLOUDFLARE = { not: { const: "cloudflare" } };
 
 const RULES: Record<string, RuleSpec> = {
@@ -226,11 +170,12 @@ const RULES: Record<string, RuleSpec> = {
         score: 9.2,
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
         fix: "Disable SSLv3, TLS 1.0 and TLS 1.1; keep only TLS 1.2 and 1.3.",
+        hints: { cloudflare: "Raise Minimum TLS Version to 1.2 under SSL/TLS, Edge Certificates in the Cloudflare dashboard: https://developers.cloudflare.com/ssl/edge-certificates/additional-options/minimum-tls/" },
     },
     "tls-probe/insecure-ciphers": {
         fact: "site.origins.*.tls-probe.insecure-ciphers",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
+        when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
         message: "the server accepts suites broken outright: {got}",
         severity: "error",
         score: 9.4,
@@ -240,7 +185,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/vulnerabilities": {
         fact: "site.origins.*.tls-probe.vulnerabilities",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
+        when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
         message: "what the server negotiates leaves it open to {got}",
         severity: "error",
         score: 9.6,
@@ -250,7 +195,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/weak-ciphers": {
         fact: "site.origins.*.tls-probe.weak-ciphers",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
         message: "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}",
         severity: "warning",
         score: 6.2,
@@ -260,7 +205,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/forward-secrecy": {
         fact: "site.origins.*.tls-probe.forward-secrecy",
         expect: { const: "all" },
-        when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
+        when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
         message: "forward secrecy covers {got} of the accepted suites, where “all” are expected",
         severity: "warning",
         score: 5.8,
@@ -304,7 +249,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/server-cipher-order": {
         fact: "site.origins.*.tls-probe.server-order",
         expect: { const: true },
-        when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
         message: "the server lets the client pick a weak suite over a strong one",
         severity: "info",
         score: 2.8,

@@ -155,8 +155,9 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
     log.debug({ rule: id, kind: subject.kind, when: when.length, site: Object.keys(siteWhen(spec.when)), ignored: Object.keys(spec.when ?? {}).length - when.length - Object.keys(siteWhen(spec.when)).length }, "subject rule compiled");
     const isSkipped = guard(id, Object.fromEntries(when.map(([path, expected]) => [path.slice(prefix.length), expected])));
     const isSiteSkipped = guard(id, siteWhen(spec.when));
+    const needs = [...when.map(([path]) => path), ...(spec.hints ? [`${prefix}stack`] : [])].filter((path) => subjectPath(path)?.id !== subject.id);
     return {
-        meta: { id, severity, scope: "site", facts: [fact], docs: spec.docs, fix: spec.fix, expect: spec.expect, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
+        meta: { id, severity, scope: "site", facts: [fact, ...new Set(needs)], docs: spec.docs, fix: spec.fix, expect: spec.expect, ...(spec.linked === true && subject.kind === "hosts" && { linked: true }) },
         check(_pages, _group, site) {
             if (isSiteSkipped({}, "site", site)) return;
             const unjudged = new Set(spec.linked === true ? [] : (site?.linked ?? []));
@@ -168,10 +169,19 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
                       const value = get(facts, subject.path);
                       if (validate(value)) return [];
                       const error = validate.errors?.[0] as ErrorObject;
-                      return [{ rule: id, severity, scope: "site" as const, url: name, ...message(fact, value, error, spec.message), value }];
+                      const hint = hintFor(spec.hints, facts.stack);
+                      if (hint) log.debug({ rule: id, subject: name, service: hint.service }, "service hint chosen");
+                      return [{ rule: id, severity, scope: "site" as const, url: name, ...message(fact, value, error, spec.message), value, ...(hint && { hint: hint.text }) }];
                   });
         },
     };
+}
+
+// The hint for the first service the subject’s `stack` names, if the rule has one for it.
+function hintFor(hints: Record<string, string> | undefined, stack: unknown): { service: string; text: string } | undefined {
+    const names = Object.values((stack ?? {}) as Record<string, { name: string }>).map((entry) => entry.name);
+    const service = names.find((name) => hints?.[name] !== undefined);
+    return service && hints ? { service, text: hints[service] as string } : undefined;
 }
 
 // A built-in page rule honours `when` as a declarative one does; an aggregate one its `site.` paths.

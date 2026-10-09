@@ -43,11 +43,12 @@ import structuredData from "./structured-data.ts";
 import tlsProbe from "./tls-probe.ts";
 import mail from "./mail.ts";
 import sshfp from "./sshfp.ts";
+import stack from "./stack.ts";
 import trackers from "./trackers.ts";
 import type { Extractor, Formatter, PageContext, Plugin, ResourceExtractor, SiteExtractor, Source } from "./types.ts";
 import wellKnown from "./well-known.ts";
 
-const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, profileLinks, live, lighthouse, origin, dns, mail, sshfp, network, tlsProbe, cookies, images, css, wellKnown, feeds, structuredData, manifest, icons, linkText, markup, trackers, list];
+const plugins: Plugin[] = [report, htmlValidate, htmlhint, axe, keyboard, profileLinks, live, lighthouse, origin, dns, mail, sshfp, network, stack, tlsProbe, cookies, images, css, wellKnown, feeds, structuredData, manifest, icons, linkText, markup, trackers, list];
 // Milliseconds before a source that has not answered aborts the run.
 const SOURCE_MS = 60_000;
 const loaded = new Set(plugins.map((plugin) => plugin.name));
