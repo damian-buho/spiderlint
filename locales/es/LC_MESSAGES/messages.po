@@ -1272,8 +1272,8 @@ msgstr "lo que el servidor negocia lo deja expuesto a {got}"
 msgid "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}"
 msgstr "el servidor acepta suites sin secreto perfecto hacia adelante, con CBC o con bloque de 64 bits: {got}"
 
-msgid "{got} of the accepted suites give forward secrecy, where all should"
-msgstr "{got} de las suites aceptadas dan secreto perfecto hacia adelante, cuando todas deberían"
+msgid "forward secrecy covers {got} of the accepted suites, where “all” are expected"
+msgstr "el secreto perfecto hacia adelante cubre {got} de las suites aceptadas, cuando se espera “all”"
 
 msgid "the server’s DHE prime has {got} bits, short of 2048"
 msgstr "el primo DHE del servidor tiene {got} bits, menos de 2048"

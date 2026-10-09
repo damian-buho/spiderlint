@@ -47,7 +47,9 @@ export function describe(value: unknown): string {
 
 // The rule’s own sentence as a template over `{got}` and `{field}`, else AJV’s wording against the fact path.
 function message(fact: string, value: unknown, error: ErrorObject, text: string | undefined): Pick<Finding, "message" | "text" | "variables"> {
-    const got = value === undefined ? "none" : describe(at(value, error.instancePath));
+    const actual = value === undefined ? undefined : at(value, error.instancePath);
+    // A length says nothing against an exact value, so a `const` or `enum` miss shows the value alone.
+    const got = value === undefined ? "none" : typeof actual === "string" && ["const", "enum"].includes(error.keyword) ? `“${actual}”` : describe(actual);
     const field = error.instancePath.slice(1).replaceAll("/", ".") || (fact.split(".").at(-1) as string);
     if (text) return said(text, { got, field });
     const name = label(fact) ?? fact;

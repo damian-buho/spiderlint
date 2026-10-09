@@ -481,6 +481,12 @@ describe("presets", () => {
         assert.match(finding?.message ?? "", /found 10 characters: “unsafe-url”$/);
     });
 
+    it("shows the value alone, with no length, when an exact value is expected", () => {
+        const rule = compileRule("test/exact", { fact: "html.lang", expect: { const: "all" }, message: "got {got}", severity: "warning" }) as PageRule;
+        const [finding] = rule.check(page({ lang: "some" }), { sitemaps: [], role: "production" }) ?? [];
+        assert.equal(finding?.message, "got “some”");
+    });
+
     for (const id of Object.keys(FAILS)) {
         it(`${id} passes a clean page and flags a broken one`, () => {
             const passes = [{}, ...(PASSES[id] ?? [])];

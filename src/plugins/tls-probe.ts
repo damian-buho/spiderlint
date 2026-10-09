@@ -202,7 +202,7 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.origins.*.tls-probe.forward-secrecy",
         expect: { const: "all" },
         when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" } },
-        message: "{got} of the accepted suites give forward secrecy, where all should",
+        message: "forward secrecy covers {got} of the accepted suites, where “all” are expected",
         severity: "warning",
         score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-7.3",

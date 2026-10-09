@@ -1272,8 +1272,8 @@ msgstr "те, що узгоджує сервер, залишає його від
 msgid "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}"
 msgstr "сервер приймає набори без прямої секретності, з CBC або з 64-бітним блоком: {got}"
 
-msgid "{got} of the accepted suites give forward secrecy, where all should"
-msgstr "{got} із прийнятих наборів дають пряму секретність, а мали б усі"
+msgid "forward secrecy covers {got} of the accepted suites, where “all” are expected"
+msgstr "пряма секретність охоплює {got} із прийнятих наборів, а очікується “all”"
 
 msgid "the server’s DHE prime has {got} bits, short of 2048"
 msgstr "просте число DHE сервера має {got} біт, менше за 2048"
