@@ -44,13 +44,13 @@
     "CVE-2026-93748",
     // transitive stream-json dep of a pinned crawlee release; fixable only upstream
     "GHSA-528h-pc64-c93x",
-    // brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream
+    // bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix
     "GHSA-6j4f-fj2g-mc7p",
     // bundled inside npm (latest dist-tag); no npm release ships the fix
     "GHSA-ch52-4w7c-c8xp",
-    // brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream
+    // bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix
     "GHSA-qhr7-859c-m2p7",
-    // undici bundled in the base image’s npm 12.2.0; fixable only upstream
+    // bundled undici < 6.28.1 in npm (latest dist-tag); no npm release ships the fix
     "GHSA-rfgv-xxqx-mfg5",
     // bundled braces 3.0.3 in pnpm; no fixed braces release exists
     "GHSA-vfj7-8cjw-p6xm",

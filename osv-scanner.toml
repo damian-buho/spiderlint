@@ -74,7 +74,7 @@ reason = "transitive stream-json dep of a pinned crawlee release; fixable only u
 
 [[IgnoredVulns]]
 id = "GHSA-6j4f-fj2g-mc7p"
-reason = "brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream"
+reason = "bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix"
 
 [[IgnoredVulns]]
 id = "GHSA-ch52-4w7c-c8xp"
@@ -82,11 +82,11 @@ reason = "bundled inside npm (latest dist-tag); no npm release ships the fix"
 
 [[IgnoredVulns]]
 id = "GHSA-qhr7-859c-m2p7"
-reason = "brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream"
+reason = "bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix"
 
 [[IgnoredVulns]]
 id = "GHSA-rfgv-xxqx-mfg5"
-reason = "undici bundled in the base image’s npm 12.2.0; fixable only upstream"
+reason = "bundled undici < 6.28.1 in npm (latest dist-tag); no npm release ships the fix"
 
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"

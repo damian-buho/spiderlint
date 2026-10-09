@@ -3,13 +3,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+# No project-local suppressions: the base image’s npm bundled-tree findings
+# live in the shared b19 family fragment
+# (m6e/b19/vulnerabilities/npm-bundled.yaml), reached through
+# .makefile/b19/images/node.yaml, and are not duplicated here.
 org:
   projectfile:
     vulnerabilities:
-      suppress:
-        - id: GHSA-6j4f-fj2g-mc7p
-          reason: brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream
-        - id: GHSA-qhr7-859c-m2p7
-          reason: brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream
-        - id: GHSA-rfgv-xxqx-mfg5
-          reason: undici bundled in the base image’s npm 12.2.0; fixable only upstream
+      suppress: []

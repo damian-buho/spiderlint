@@ -74,6 +74,7 @@ depends on an upstream release, or the advisory does not apply to this project):
 | CVE-2026-13149 | bundled brace-expansion < 5.0.7 in npm; fixed upstream, drop after the node fleet rebuilds |
 | CVE-2026-14257 | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-19534 | bundled undici < 6.28.1 in npm (latest dist-tag); no npm release ships the fix |
+| GHSA-rfgv-xxqx-mfg5 | bundled undici < 6.28.1 in npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-26996 | bundled minimatch < 10.2.1 in npm; fixed upstream, drop after the node fleet rebuilds |
 | CVE-2026-27903 | bundled minimatch < 10.2.3 in npm; fixed upstream, drop after the node fleet rebuilds |
 | CVE-2026-27904 | bundled minimatch < 10.2.3 in npm; fixed upstream, drop after the node fleet rebuilds |
@@ -86,8 +87,7 @@ depends on an upstream release, or the advisory does not apply to this project):
 | CVE-2026-93748 | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | GHSA-ch52-4w7c-c8xp | bundled inside npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102276 | bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix |
+| GHSA-6j4f-fj2g-mc7p | bundled brace-expansion < 5.0.10 in npm (latest dist-tag); no npm release ships the fix |
 | CVE-2026-102278 | bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix |
+| GHSA-qhr7-859c-m2p7 | bundled brace-expansion < 5.0.11 in npm (latest dist-tag); no npm release ships the fix |
 | GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| GHSA-6j4f-fj2g-mc7p | brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream |
-| GHSA-qhr7-859c-m2p7 | brace-expansion bundled in the base image’s npm 12.2.0; fixable only upstream |
-| GHSA-rfgv-xxqx-mfg5 | undici bundled in the base image’s npm 12.2.0; fixable only upstream |
