@@ -4,6 +4,7 @@
 
 import { spawn } from "node:child_process";
 import { X509Certificate } from "node:crypto";
+import { BlockList, isIP } from "node:net";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -21,6 +22,37 @@ const SCAN_MS = 180_000;
 
 // Whether `openssl` runs, per PATH, so a missing tool warns once.
 const available = new Map<string, Promise<boolean>>();
+
+// https://www.cloudflare.com/ips-v4 and /ips-v6: the edge answers with its own suites, which a customer cannot trim.
+const CLOUDFLARE = new BlockList();
+const SUBNETS = [
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+    "2400:cb00::/32",
+    "2606:4700::/32",
+    "2803:f800::/32",
+    "2405:b500::/32",
+    "2405:8100::/32",
+    "2a06:98c0::/29",
+    "2c0f:f248::/32",
+];
+for (const subnet of SUBNETS) {
+    const [network = "", prefix = ""] = subnet.split("/", 2);
+    CLOUDFLARE.addSubnet(network, Number(prefix), network.includes(":") ? "ipv6" : "ipv4");
+}
 
 interface Run {
     code: number | null;
@@ -153,10 +185,14 @@ const probe: SiteExtractor = {
         const chain = chainOf(sent);
         const responder = sent[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
         const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await earlyData(host, port, address, context.signal) : undefined;
-        log.debug({ origin, address, isFull, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
-        return { address, ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
+        const isCloudflare = isIP(address) > 0 && CLOUDFLARE.check(address, isIP(address) === 6 ? "ipv6" : "ipv4");
+        log.debug({ origin, address, isFull, isCloudflare, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
+        return { address, ...(isCloudflare && { edge: "cloudflare" }), ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
     },
 };
+
+// A `when` that skips an origin whose address is a Cloudflare edge.
+const NOT_CLOUDFLARE = { not: { const: "cloudflare" } };
 
 const RULES: Record<string, RuleSpec> = {
     "tls-probe/legacy-protocols": {
@@ -191,7 +227,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/weak-ciphers": {
         fact: "site.origins.*.tls-probe.weak-ciphers",
         expect: { maxItems: 0 },
-        when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" } },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
         message: "the server accepts suites without forward secrecy, with CBC or with a 64-bit block: {got}",
         severity: "warning",
         score: 6.2,
@@ -201,7 +237,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/forward-secrecy": {
         fact: "site.origins.*.tls-probe.forward-secrecy",
         expect: { const: "all" },
-        when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" } },
+        when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
         message: "forward secrecy covers {got} of the accepted suites, where “all” are expected",
         severity: "warning",
         score: 5.8,
@@ -245,7 +281,7 @@ const RULES: Record<string, RuleSpec> = {
     "tls-probe/server-cipher-order": {
         fact: "site.origins.*.tls-probe.server-order",
         expect: { const: true },
-        when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 } },
+        when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 }, "site.origins.*.tls-probe.edge": NOT_CLOUDFLARE },
         message: "the server lets the client pick a weak suite over a strong one",
         severity: "info",
         score: 2.8,
