@@ -71,6 +71,7 @@ async function extract(host: string, pages: Facts[], client: DnsClient, mailSett
         delegated,
         link: () => Promise.reject(new Error("no http here")),
         cached: () => Promise.reject(new Error("no http here")),
+        list: () => Promise.reject(new Error("no http here")),
         address: () => Promise.reject(new Error("no socket here")),
     };
     const facts: Record<string, unknown> = {};

@@ -531,7 +531,7 @@ $ spiderlint purge-cache --help
 Usage: spiderlint purge-cache [options] [bucket] [domain…]
 Delete a site’s cached entries.
 
-A bucket is one of pages, probes, profiles, resources, robots, sitemaps,
+A bucket is one of pages, probes, profiles, lists, resources, robots, sitemaps,
 origins, dns, extractors; with none, every bucket is purged.
 A domain is example.com or a URL to start from; without a scheme, https:// is
 assumed.

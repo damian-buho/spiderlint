@@ -71,7 +71,7 @@ const site = {
         cache: {
             type: "object",
             additionalProperties: false,
-            properties: Object.fromEntries(["pages", "probes", "profiles", "resources", "robots", "sitemaps", "origins", "dns", "extractors"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl, ...(bucket === "resources" && { "failure-ttl": ttl }) } }])),
+            properties: Object.fromEntries(["pages", "probes", "profiles", "lists", "resources", "robots", "sitemaps", "origins", "dns", "extractors"].map((bucket) => [bucket, { type: "object", additionalProperties: false, properties: { ttl, ...(bucket === "resources" && { "failure-ttl": ttl }) } }])),
         },
         "fail-on": { oneOf: [{ enum: ["error", "warning", "info", "never"] }, { type: "number", minimum: 0.1, maximum: 9.9 }] },
         format: { type: "string" },

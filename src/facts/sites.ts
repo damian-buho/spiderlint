@@ -65,7 +65,7 @@ function linkedHosts(pages: Facts[]): Map<string, Facts[]> {
 }
 
 // One subject’s facts, abandoned with its probes once the extractor’s timeout, stretched by the run’s, passes.
-async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], isLinked: boolean, config: Pick<Config, "allowPrivate" | "linkExclude" | "timeout">, dns: DnsClient, probes: ProbeBucket, robots: RobotsFor | undefined, profiles: ProfileBucket): Promise<unknown> {
+async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[], isLinked: boolean, config: Pick<Config, "allowPrivate" | "linkExclude" | "timeout">, dns: DnsClient, probes: ProbeBucket, robots: RobotsFor | undefined, profiles: ProfileBucket, lists: ProfileBucket): Promise<unknown> {
     const timeout = ((extractor.timeout ?? TIMEOUT_MS) * config.timeout) / defaults().timeout;
     const signal = AbortSignal.timeout(timeout);
     const host = extractor.per === "origin" ? new URL(subject).hostname : subject;
@@ -75,6 +75,11 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
         fetch: (url, init = {}) => probe(url, init, { host, allowPrivate: config.allowPrivate, signal, robots }),
         delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: config.allowPrivate, signal, robots }),
         cached: (url) => cachedGet(url, profiles, robots),
+        list: async (url) => {
+            const answer = await cachedGet(url, lists, undefined);
+            if (answer.status < 200 || answer.status > 299) throw new Error(`${url} answered ${answer.status}`);
+            return answer.body;
+        },
         link: async (url) => (({ cached: _cached, ...answer }) => answer)(await answerOf(url, config, probes, signal)),
         dns: { ...dns, query: (name, type, options) => dns.query(name, type, { ...options, signal }) },
         address: (name) => connectable(name, config.allowPrivate),
@@ -102,6 +107,7 @@ export async function extractSites(
     robots?: RobotsFor,
     linked: ReadonlySet<string> = new Set(),
     profiles: ProfileBucket = new Bucket("profiles", undefined, 0, "off"),
+    lists: ProfileBucket = new Bucket("lists", undefined, 0, "off"),
 ): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
@@ -122,7 +128,7 @@ export async function extractSites(
             log.debug({ extractor: extractor.id, subject, isLinked, cached: value !== undefined }, "site extractor subject");
             if (value === undefined) {
                 try {
-                    value = await runOne(extractor, subject, members, isLinked, config, dns, probes, robots, profiles);
+                    value = await runOne(extractor, subject, members, isLinked, config, dns, probes, robots, profiles, lists);
                     ran.push(extractor.id);
                     if (value !== undefined && extractor.cached !== false) await bucket.set(key, value);
                 } catch (error) {

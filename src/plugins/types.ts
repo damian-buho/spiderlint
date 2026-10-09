@@ -58,6 +58,8 @@ export interface SiteContext {
     delegated(url: string, init?: ProbeInit): Promise<Probe>;
     // A GET on another host answered from the `profiles` bucket while fresh, else revalidated; robots.txt applies, and the answer says when it was last confirmed.
     cached(url: string): Promise<Cached>;
+    // The body of a published reference list (address ranges …) from the `lists` bucket while fresh, else downloaded; throws on a non-2xx answer or no answer.
+    list(url: string): Promise<string>;
     // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;

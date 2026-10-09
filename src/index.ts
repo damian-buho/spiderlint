@@ -549,7 +549,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
     stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory)));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory)));
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };

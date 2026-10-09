@@ -104,6 +104,7 @@ describe("carbon.txt extractor", () => {
             delegated: (url, init = {}) => probe(url, init, { host: new URL(url).hostname, allowPrivate: true, signal }),
             link: async () => ({ status: 200 }),
             cached: () => Promise.reject(new Error("no http here")),
+            list: () => Promise.reject(new Error("no http here")),
             address: async () => "127.0.0.1",
         };
     }

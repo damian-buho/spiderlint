@@ -13,7 +13,7 @@ import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { scan } from "./tls-scan.ts";
-import { definePlugin, type SiteExtractor } from "./types.ts";
+import { definePlugin, type SiteContext, type SiteExtractor } from "./types.ts";
 
 const TIMEOUT_MS = 10_000;
 
@@ -23,9 +23,8 @@ const SCAN_MS = 180_000;
 // Whether `openssl` runs, per PATH, so a missing tool warns once.
 const available = new Map<string, Promise<boolean>>();
 
-// https://www.cloudflare.com/ips-v4 and /ips-v6: the edge answers with its own suites, which a customer cannot trim.
-const CLOUDFLARE = new BlockList();
-const SUBNETS = [
+// Cloudflare’s ranges as published when this was written, used when the lists cannot be downloaded.
+const BUNDLED = [
     "173.245.48.0/20",
     "103.21.244.0/22",
     "103.22.200.0/22",
@@ -49,9 +48,31 @@ const SUBNETS = [
     "2a06:98c0::/29",
     "2c0f:f248::/32",
 ];
-for (const subnet of SUBNETS) {
-    const [network = "", prefix = ""] = subnet.split("/", 2);
-    CLOUDFLARE.addSubnet(network, Number(prefix), network.includes(":") ? "ipv6" : "ipv4");
+const CLOUDFLARE_LISTS = ["https://www.cloudflare.com/ips-v4", "https://www.cloudflare.com/ips-v6"];
+
+// The CIDR blocks among `subnets` as a lookup; a line that is not one is dropped.
+function blocksOf(subnets: string[]): BlockList {
+    const blocks = new BlockList();
+    for (const subnet of subnets) {
+        const [network = "", prefix = ""] = subnet.split("/", 2);
+        const family = isIP(network);
+        if (family > 0 && /^\d{1,3}$/.test(prefix)) blocks.addSubnet(network, Number(prefix), family === 6 ? "ipv6" : "ipv4");
+    }
+    return blocks;
+}
+
+// Cloudflare’s published ranges from the `lists` bucket, the bundled ones when the download fails or names none.
+async function cloudflareRanges(context: SiteContext): Promise<BlockList> {
+    try {
+        const bodies = await Promise.all(CLOUDFLARE_LISTS.map((url) => context.list(url)));
+        const subnets = bodies.flatMap((body) => body.split(/\s+/).filter(Boolean));
+        log.debug({ lists: CLOUDFLARE_LISTS, subnets: subnets.length }, "cloudflare ranges downloaded");
+        if (subnets.length > 0) return blocksOf(subnets);
+    } catch (error) {
+        if (context.signal.aborted) throw error;
+        log.debug({ lists: CLOUDFLARE_LISTS, error: reason(error), bundled: BUNDLED.length }, "cloudflare ranges not downloaded; bundled list used");
+    }
+    return blocksOf(BUNDLED);
 }
 
 interface Run {
@@ -185,7 +206,9 @@ const probe: SiteExtractor = {
         const chain = chainOf(sent);
         const responder = sent[0]?.infoAccess?.includes("OCSP - URI:") ?? false;
         const isEarly = scanned.protocols.includes("TLSv1.3") && (await opensslFound()) ? await earlyData(host, port, address, context.signal) : undefined;
-        const isCloudflare = isIP(address) > 0 && CLOUDFLARE.check(address, isIP(address) === 6 ? "ipv6" : "ipv4");
+        const family = isIP(address);
+        const ranges = family > 0 ? await cloudflareRanges(context) : undefined;
+        const isCloudflare = ranges?.check(address, family === 6 ? "ipv6" : "ipv4") ?? false;
         log.debug({ origin, address, isFull, isCloudflare, protocols: scanned.protocols, chain, responder, isStapled: isSuccessful(ocsp), isEarly }, "tls probed");
         return { address, ...(isCloudflare && { edge: "cloudflare" }), ...scanned, ...(chain && { chain }), ...(sent.length > 0 && { ocsp: { responder, stapled: isSuccessful(ocsp) } }), ...(isEarly !== undefined && { "early-data": isEarly }) };
     },

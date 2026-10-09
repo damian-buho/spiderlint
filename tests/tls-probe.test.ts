@@ -76,7 +76,7 @@ describe("probed browser TLS", () => {
 });
 
 // The `tls-probe` facts of `origin`, connecting to 127.0.0.1 whatever `localhost` resolves to.
-async function probed(origin: string, settings?: unknown): Promise<Record<string, unknown> | undefined> {
+async function probed(origin: string, settings?: unknown, list: (url: string) => Promise<string> = () => Promise.reject(new Error("no http here"))): Promise<Record<string, unknown> | undefined> {
     const [extractor] = tlsProbe.sites ?? [];
     const signal = AbortSignal.timeout(60_000);
     return extractor?.extract(origin, {
@@ -88,6 +88,7 @@ async function probed(origin: string, settings?: unknown): Promise<Record<string
         delegated: () => Promise.reject(new Error("no http here")),
         link: () => Promise.reject(new Error("no http here")),
         cached: () => Promise.reject(new Error("no http here")),
+        list,
         address: async () => "127.0.0.1",
     }) as Promise<Record<string, unknown> | undefined>;
 }
@@ -189,6 +190,22 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
         assert.deepEqual(rules(), ["tls-probe/forward-secrecy", "tls-probe/insecure-ciphers", "tls-probe/server-cipher-order", "tls-probe/vulnerabilities", "tls-probe/weak-ciphers"]);
         assert.deepEqual(rules("cloudflare"), []);
         assert.deepEqual(rules("cloudflare", { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] }), ["tls-probe/legacy-protocols", "tls-probe/tls13-missing"]);
+    });
+
+    it("takes Cloudflare’s ranges from the downloaded lists, and from the bundled ones when the download fails", async () => {
+        const modern = await serveTls(["http/1.1"], { minVersion: "TLSv1.3" });
+        const asked: string[] = [];
+        try {
+            const downloaded = await probed(modern?.origin ?? "", undefined, async (url) => {
+                asked.push(url);
+                return url.endsWith("ips-v4") ? "127.0.0.0/8\n10.0.0.0/8\n" : "2606:4700::/32\n";
+            });
+            assert.deepEqual([downloaded?.edge, asked], ["cloudflare", ["https://www.cloudflare.com/ips-v4", "https://www.cloudflare.com/ips-v6"]]);
+            const bundled = await probed(modern?.origin ?? "");
+            assert.equal(bundled?.edge, undefined);
+        } finally {
+            await modern?.close();
+        }
     });
 
     it("hands org.spiderlint.tls-probe to the extractor, which keys its cached facts by it", async () => {
