@@ -39,7 +39,6 @@ export interface ScanResult {
 }
 
 export type ScanJob = Job<ScanData, ScanResult>;
-export type ScanProgress = Progress;
 
 // One connection per role; BullMQ needs `maxRetriesPerRequest: null` for blocking commands, and retries with backoff itself.
 export function connect(url: string, password?: string): Redis {
