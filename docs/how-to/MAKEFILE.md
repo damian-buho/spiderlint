@@ -313,14 +313,6 @@ Capture each declared --help into docs/usage.d
 
 > Image: host runner
 
-### `usage-matches-source`
-
-Verify the committed --help captures match src/cli.ts, with no image build
-
-`.scripts/usage-check.sh`
-
-> Image: host runner
-
 ## Dependencies
 
 ### `apt-pin`

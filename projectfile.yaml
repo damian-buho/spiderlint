@@ -123,7 +123,8 @@ org:
     artifacts:
       npm-package:
         command: ${identity.name}
-        help: ["", audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, show-cache, purge-cache, warm-cache]
+        executable: bin/spiderlint.js
+        subcommands: [audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, show-cache, purge-cache, warm-cache]
     build:
       args:
         B19_NODE_SERIES: 26
@@ -138,7 +139,7 @@ org:
       nodes:
         source-is-tested:
           needs:
-            usage-matches-source: true
+            usage-check: true
         source-passes-lint:
           needs:
             npm-format-check: true
@@ -150,12 +151,6 @@ org:
           guard: package.json
           fuse: lint
           tags: [node]
-        usage-matches-source:
-          run: .scripts/usage-check.sh
-          description: Verify the committed --help captures match src/cli.ts, with no image build
-          gha: false
-          forgejo: false
-          tags: [container]
         npm-test:
           set-env:
             PLAYWRIGHT_BROWSERS_PATH: /app/.cache/host-playwright
