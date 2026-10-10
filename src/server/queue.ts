@@ -25,6 +25,8 @@ export interface ScanData {
     scanTimeout: number;
     // Rule IDs or globs the policy denies, excluded from every group.
     deny: string[];
+    // Instance the scan advertises in its user agent, from the request Host header.
+    via: string;
     // The key holding the repeat window, so the job page can say when a fresh scan may start.
     repeatKey?: string;
     // The submitting request’s trace context as W3C headers, empty when telemetry is off.

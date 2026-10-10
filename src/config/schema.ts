@@ -66,6 +66,7 @@ const site = {
         },
         links: { type: "object", additionalProperties: false, properties: { exclude: { type: "array", items: { type: "string", minLength: 1 } } } },
         proxy: { type: "string" },
+        via: { type: "string" },
         robots: { type: "boolean" },
         sitemap: { type: "boolean" },
         fold: { oneOf: [{ const: false }, { type: "object", additionalProperties: false, properties: { threshold: { type: "number", minimum: 0, maximum: 1 }, min: { type: "integer", minimum: 1 } } }] },

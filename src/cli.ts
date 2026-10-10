@@ -6,7 +6,7 @@
 import path from "node:path";
 import { getCACertificates, setDefaultCACertificates } from "node:tls";
 import { Command, CommanderError, Option, type Help } from "commander";
-import { DESCRIPTION, HOMEPAGE, VERSION } from "./agent.ts";
+import { DESCRIPTION, HOMEPAGE, VERSION, normalizeVia } from "./agent.ts";
 import { painter, type Paint } from "./color.ts";
 import { OfflineMiss, parseDuration, siteDirectory, userCacheDirectory, type CacheMode } from "./cache/index.ts";
 import { PURGEABLE, purgeCache } from "./cache/purge.ts";
@@ -106,6 +106,7 @@ function crawlOptions(): Option[] {
         flag("--timeout <seconds>", "seconds one page may take", "60", "SPIDERLINT_TIMEOUT"),
         flag("--profile <name>", "tor or i2p: local proxy, concurrency 4, timeout 240", undefined, "SPIDERLINT_PROFILE"),
         flag("--proxy <url>", "http, https or socks5h proxy for every request", undefined, "SPIDERLINT_PROXY"),
+        flag("--via <host>", "instance the user agent names as `via <host>`, for web scans", undefined, "SPIDERLINT_VIA"),
         flag("--max-pages <n>", "page limit, 0 for none", "0", "SPIDERLINT_MAX_PAGES"),
         flag("--max-depth <n>", "link depth limit, 0 for none", "0", "SPIDERLINT_MAX_DEPTH"),
         flag("--max-body-size <bytes>", "body size cap", "10000000", "SPIDERLINT_MAX_BODY_SIZE"),
@@ -461,6 +462,7 @@ function flagSettings(values: Record<string, unknown>): Settings {
         ...(values.timeout !== undefined && { timeout: parseInteger("--timeout", values.timeout as string) }),
         ...(values.profile !== undefined && { profile: pick("--profile", values.profile as string, Object.keys(PROFILES)) }),
         ...(values.proxy !== undefined && { proxy: proxyOf("--proxy", values.proxy as string) }),
+        ...(values.via !== undefined && { via: normalizeVia(values.via as string) }),
         ...(values["max-pages"] !== undefined && { maxPages: parseInteger("--max-pages", values["max-pages"] as string) }),
         ...(values["max-depth"] !== undefined && { maxDepth: parseInteger("--max-depth", values["max-depth"] as string) }),
         ...(values["max-body-size"] !== undefined && { maxBodySize: parseInteger("--max-body-size", values["max-body-size"] as string) }),

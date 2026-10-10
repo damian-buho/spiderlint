@@ -4,7 +4,7 @@
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { getDomain } from "tldts";
-import { USER_AGENT } from "../agent.ts";
+import { chromeMajorOf, clientHints } from "../agent.ts";
 import type { CookieFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resourceRule } from "../rules/builtin.ts";
@@ -134,8 +134,9 @@ const consent: Extractor = {
     cached: false,
     async extract(page, _body, live) {
         const browser = live?.context().browser();
-        if (!browser) return;
-        const context = await browser.newContext({ userAgent: USER_AGENT });
+        if (!browser || !live) return;
+        const seen = (await live.evaluate("navigator.userAgent")) as string;
+        const context = await browser.newContext({ userAgent: seen, ...(chromeMajorOf(seen) && { extraHTTPHeaders: clientHints(seen) }) });
         try {
             const fresh = await context.newPage();
             await visit(fresh, page.url.href);

@@ -490,6 +490,7 @@ org:
     resources: { fetch: true, max-per-page: 200 }
     links: { exclude: [] }             # hosts, with their subdomains, whose links are never probed
     proxy: ""                          # socks5h://127.0.0.1:9050 for Tor
+    via: ""                            # instance a web scan names in its user agent (`via <host>`)
     allow-private: true                # false refuses loopback, private and link-local addresses, and the browser
     robots: true
     sitemap: true
@@ -558,7 +559,7 @@ spiderlint show-cache|purge-cache|warm-cache  every bucket: entries, bytes, age
 Commands are verb-noun and flat, parsed by commander: each flag is declared once in `src/cli.ts`, under the help section of every command that reads it, with its default and environment variable in its help line; `environment.ts` stays the environment reader, since commander’s `.env()` sets a boolean from any value. A seed without `://` gets `https://` (`seedOf`), wherever it comes from. `spiderlint <old name>` names the verbs that replaced it.
 
 Flags mirror the config keys (`--rules`, `--canonical-origin`, `--role`, `--resolver`, `--resolve`, `--fetch`, `--browser`, `--scope`, `--concurrency`,
-`--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--no-robots`,
+`--rate`, `--timeout`, `--profile`, `--max-pages`, `--max-depth`, `--max-body-size`, `--include-urls`, `--exclude-urls`, `--source`, `--proxy`, `--via`, `--no-robots`,
 `--no-sitemap`, `--no-keepalive`, `--no-resources`, `--no-allow-private`, `--no-browser-install`, `--format`, `--fail-on`, `--unfold`, `--exclude-rules`,
 `--error`, `--warning`, `--info`, `--hint`, `--show-hints`, `--explain`, `--stats`, `--output`, `--site`, `--config`, `--resume`, `--no-cache`, `--refresh`, `--offline`).
 Later: `--fail-fast`, `--header`, `--cookie`, `--user-agent`, `--locale`. Results go to stdout, diagnostics to stderr; `human` and `--help` color on a TTY only; `NO_COLOR`, `FORCE_COLOR` and `--[no-]color` honoured.
@@ -665,7 +666,7 @@ Shipped: css-tree and lightningcss together, since neither catches what the othe
 
 ## Security
 
-- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, and `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
+- User agent identifies the tool: `spiderlint/<version> (+https://kiota.ch/damian-buho/spiderlint)` on every page, resource and sitemap request, `; via <host>` appended on a web scan from its request Host header, low-entropy Client Hints (`Sec-CH-UA` naming Chromium and spiderlint, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`) beside it, and a browser’s own UA with the token appended on rendered pages, so no log reads as a real Chrome; `robots.txt` groups are matched for `spiderlint`. spiderlint fetches `robots.txt` and the sitemap candidates itself, so they carry it too.
 - No credential is sent. Later, a static `--header` / `--cookie` is redacted from logs and the store and never appears in findings.
 - Scope restricts what is fetched; off-scope links are probed with `HEAD`, or `GET` when `HEAD` is refused, through the address guard.
 - DNS queries go to the configured `resolver` only, and to the servers `dns.compare` names, never a default public one; the address guard does not apply to them. With `allowPrivate: false` a query naming a server directly is refused, so `serve` cannot be steered at an internal authoritative server.

@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
+import { normalizeVia } from "../agent.ts";
 import { parseDuration, type BucketName } from "../cache/index.ts";
 import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
@@ -32,6 +33,7 @@ export type Settings = Partial<
         | "timeout"
         | "profile"
         | "proxy"
+        | "via"
         | "maxPages"
         | "maxDepth"
         | "maxBodySize"
@@ -99,6 +101,7 @@ const KEYS: [string, keyof Settings][] = [
     ["rulesets", "rulesets"],
     ["plugins", "plugins"],
     ["sources", "sources"],
+    ["via", "via"],
     ["allow-private", "allowPrivate"],
 ];
 
@@ -141,6 +144,7 @@ export function fromSubtree(subtree: Record<string, unknown>): Settings {
     if (links?.exclude !== undefined) settings.linkExclude = links.exclude.map((host) => host.toLowerCase());
     if (subtree["canonical-origin"] !== undefined) settings.canonicalOrigin = originOf("org.spiderlint/canonical-origin", subtree["canonical-origin"] as string);
     if (subtree.proxy !== undefined) settings.proxy = proxyOf("org.spiderlint/proxy", subtree.proxy as string);
+    if (settings.via !== undefined) settings.via = normalizeVia(settings.via);
     if (subtree.resolver !== undefined) settings.resolver = parseResolver(subtree.resolver as string);
     if (subtree.resolve !== undefined) settings.resolve = (subtree.resolve as string[]).map((pin) => parsePin(pin));
     if (subtree.cache !== undefined) settings.cacheTtl = cacheTtl(subtree.cache as Record<string, { ttl?: string | number }>);

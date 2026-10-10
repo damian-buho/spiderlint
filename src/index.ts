@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { createHash } from "node:crypto";
+import { setVia } from "./agent.ts";
 import { ConfigError, PROFILES, layered, type Config, type GroupConfig } from "./config/index.ts";
 import type { Stored } from "./cache/http.ts";
 import { ExtractorCache } from "./cache/extractors.ts";
@@ -320,7 +321,7 @@ function groupModes(config: Config): Record<string, GroupMode> {
 
 // What a crawl fetched with; a re-lint against a store crawled otherwise warns.
 function crawlHash(config: Config): string {
-    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, diversify, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow } = config;
+    const { canonicalOrigin, fetch, browser, scope, maxPages, maxDepth, maxBodySize, includeUrls: include, excludeUrls: exclude, vendorPaths, diversify, robots, sitemap, keepalive, fetchResources: resources, maxResourcesPerPage, follow, via } = config;
     const groupFetch = Object.fromEntries(Object.entries(config.groups).flatMap(([name, group]) => (group.fetch ? [[name, group.fetch]] : [])));
     const shape = {
         canonicalOrigin,
@@ -341,6 +342,7 @@ function crawlHash(config: Config): string {
         resources,
         maxResourcesPerPage,
         ...(!follow && { follow }),
+        ...(via && { via }),
     };
     return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 }
@@ -590,6 +592,7 @@ export interface StoreOptions {
 export async function audit(overrides: Partial<Config>, options: StoreOptions = {}): Promise<Report> {
     const started = new Date();
     const config = layered([overrides]);
+    setVia(config.via);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     await prepareLint(config);
@@ -605,6 +608,7 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
 // Accumulate only: fetch into `directory` and lint nothing.
 export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
     const config = layered([overrides]);
+    setVia(config.via);
     await loadPlugins(config.plugins, config.pluginSettings);
     return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
         const { pages } = await crawlPages(config, store);
@@ -651,6 +655,7 @@ export async function factsStore(overrides: Partial<Config>, directory: string):
 // Reads every seed origin’s robots.txt and sitemaps into their buckets, crawling nothing.
 export async function warmCache(overrides: Partial<Config>, directory: string): Promise<{ origins: number; sitemaps: number; urls: number }> {
     const config = layered([overrides]);
+    setVia(config.via);
     const release = await lockStore(directory);
     const network = await openNetwork(config);
     try {

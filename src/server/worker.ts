@@ -62,7 +62,7 @@ async function tracedScan(job: ScanJob): Promise<ScanResult> {
 
 // One scan in a runner child under a temporary working directory, its progress relayed at most once per second.
 async function runScan(job: ScanJob): Promise<ScanResult> {
-    const { url, settings, scanTimeout, deny } = job.data;
+    const { url, settings, scanTimeout, deny, via } = job.data;
     const cwd = await mkdtemp(path.join(tmpdir(), "spiderlint-scan-"));
     const child = spawn(process.execPath, ["--experimental-strip-types", RUNNER], { cwd, stdio: ["pipe", "pipe", "pipe", "pipe"], env: { ...process.env, SPIDERLINT_LOG_FORMAT: "json" } });
     running.add(child);
@@ -94,7 +94,7 @@ async function runScan(job: ScanJob): Promise<ScanResult> {
         progress.sent = now;
         store(line);
     });
-    child.stdin?.end(JSON.stringify({ url, settings, deny, crawlDeadline: Math.floor(scanTimeout * CRAWL_SHARE), trace: traceCarrier() }));
+    child.stdin?.end(JSON.stringify({ url, settings, deny, via, crawlDeadline: Math.floor(scanTimeout * CRAWL_SHARE), trace: traceCarrier() }));
     const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolve) => child.once("close", (exitCode, exitSignal) => resolve([exitCode, exitSignal])));
     clearTimeout(timer);
     if (progress.held) store(progress.held);

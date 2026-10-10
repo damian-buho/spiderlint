@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import CachePolicy from "http-cache-semantics";
-import { USER_AGENT } from "../agent.ts";
+import { agentHeaders } from "../agent.ts";
 import { fetchRetrying } from "../crawl/fetch.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import { log } from "../logger.ts";
@@ -33,7 +33,7 @@ export interface Served<T> {
 // A private cache, and no heuristic freshness: an origin that says nothing gets the bucket TTL instead.
 const OPTIONS = { shared: false, cacheHeuristic: 0 };
 
-const REQUEST = (url: string, headers: Record<string, string> = {}): CachePolicy.HttpRequest => ({ url, method: "GET", headers: { ...headers, "user-agent": USER_AGENT } });
+const REQUEST = (url: string, headers: Record<string, string> = {}): CachePolicy.HttpRequest => ({ url, method: "GET", headers: { ...headers, ...agentHeaders() } });
 
 // No `Cache-Control` and no `Expires`: the origin states no freshness.
 function isSilent(headers: Headers): boolean {

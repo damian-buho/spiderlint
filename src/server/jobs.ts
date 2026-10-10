@@ -8,6 +8,7 @@ import type { BlockList } from "node:net";
 import type { Queue } from "bullmq";
 import type { Context } from "hono";
 import type { Redis } from "ioredis";
+import { normalizeVia } from "../agent.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
 import { Buckets, clientOf } from "./clients.ts";
@@ -91,7 +92,8 @@ export async function submit(jobs: Jobs, body: unknown, c: Context): Promise<{ j
     const wait = rate ? jobs.buckets.take(clientAddress(c, jobs), rate) : 0;
     if (rate && wait > 0) throw new Refusal(429, "client-rate-limited", `a client may queue ${rate.jobs} scans per ${rate.seconds} s`, wait);
     await charge(jobs.redis, admitted);
-    const data: ScanData = { url: admitted.url, host: admitted.host, policy: admitted.policy.name, settings: admitted.settings, scanTimeout: admitted.policy.scanTimeout, deny: admitted.policy.rules.deny, ...(admitted.policy.repeat && { repeatKey: key }), trace: traceCarrier() };
+    const via = normalizeVia(c.req.header("host"));
+    const data: ScanData = { url: admitted.url, host: admitted.host, policy: admitted.policy.name, settings: admitted.settings, scanTimeout: admitted.policy.scanTimeout, deny: admitted.policy.rules.deny, via, ...(admitted.policy.repeat && { repeatKey: key }), trace: traceCarrier() };
     const job = (await jobs.queue.add("scan", data, { jobId: randomUUID() })) as ScanJob;
     if (admitted.policy.repeat) await jobs.redis.set(key, job.id as string, "EX", admitted.policy.repeat);
     log.info({ job: job.id, host: admitted.host, policy: admitted.policy.name, repeat: admitted.policy.repeat }, "scan queued");

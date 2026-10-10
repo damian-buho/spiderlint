@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { setTimeout as sleep } from "node:timers/promises";
-import { USER_AGENT } from "../agent.ts";
+import { agentHeaders } from "../agent.ts";
 import { log } from "../logger.ts";
 import { PrivateAddress } from "./guard.ts";
 import { guardedFetch, pace, patient } from "./network.ts";
@@ -44,7 +44,7 @@ export async function fetchRetrying<T>(url: string, consume: (response: Response
         const isLast = attempt === ATTEMPTS - 1;
         try {
             await pace();
-            const response = await guardedFetch(url, { method, headers: { ...headers, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(patient(TIMEOUT_MS)) });
+            const response = await guardedFetch(url, { method, headers: { ...headers, ...agentHeaders() }, signal: AbortSignal.timeout(patient(TIMEOUT_MS)) });
             const value = await consume(response);
             log.debug({ url, status: response.status, attempt }, "fetched");
             if (isLast || !RETRY_STATUS.has(response.status)) return { response, value, ms: Math.round(performance.now() - started) };

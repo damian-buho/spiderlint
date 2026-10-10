@@ -4,6 +4,7 @@
 
 import { parseResolver } from "../crawl/dns.ts";
 import { parsePin } from "../crawl/resolve.ts";
+import { normalizeVia } from "../agent.ts";
 import { ConfigError, PROFILES, ROLES, originOf, proxyOf, type FailOn } from "./index.ts";
 import type { Settings } from "./policy.ts";
 
@@ -66,6 +67,7 @@ export function environmentSettings(environment: NodeJS.ProcessEnv): Settings {
         ...(environment.SPIDERLINT_TIMEOUT !== undefined && { timeout: parseInteger("SPIDERLINT_TIMEOUT", environment.SPIDERLINT_TIMEOUT) }),
         ...(environment.SPIDERLINT_PROFILE !== undefined && { profile: pick("SPIDERLINT_PROFILE", environment.SPIDERLINT_PROFILE, Object.keys(PROFILES)) }),
         ...(environment.SPIDERLINT_PROXY !== undefined && { proxy: proxyOf("SPIDERLINT_PROXY", environment.SPIDERLINT_PROXY) }),
+        ...(environment.SPIDERLINT_VIA !== undefined && { via: normalizeVia(environment.SPIDERLINT_VIA) }),
         ...(environment.SPIDERLINT_MAX_PAGES !== undefined && { maxPages: parseInteger("SPIDERLINT_MAX_PAGES", environment.SPIDERLINT_MAX_PAGES) }),
         ...(environment.SPIDERLINT_MAX_DEPTH !== undefined && { maxDepth: parseInteger("SPIDERLINT_MAX_DEPTH", environment.SPIDERLINT_MAX_DEPTH) }),
         ...(environment.SPIDERLINT_MAX_BODY_SIZE !== undefined && { maxBodySize: parseInteger("SPIDERLINT_MAX_BODY_SIZE", environment.SPIDERLINT_MAX_BODY_SIZE) }),

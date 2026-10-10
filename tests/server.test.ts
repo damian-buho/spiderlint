@@ -500,6 +500,10 @@ describe("server policy", () => {
             refusal(() => admit({ url: "https://example.com/", settings: { fetch: "browser" } }, SETTINGS)),
             "forbidden-fetch",
         );
+        assert.equal(
+            refusal(() => admit({ url: "https://example.com/", settings: { via: "spoof.test" } }, SETTINGS)),
+            "forbidden-setting",
+        );
     });
 
     it("allows named rules only, and treats no rules as recommended", () => {

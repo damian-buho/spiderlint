@@ -50,6 +50,8 @@ export interface Config {
     profile: string;
     // `http`, `https` or `socks*` proxy URL every request goes through; empty goes direct.
     proxy: string;
+    // Instance a web scan advertises in its user agent (`via <host>`); empty sends the bare token.
+    via: string;
     maxPages: number;
     maxDepth: number;
     maxBodySize: number;
@@ -112,6 +114,7 @@ export function defaults(): Config {
         crawlDeadline: 0,
         profile: "",
         proxy: "",
+        via: "",
         maxPages: 0,
         maxDepth: 0,
         maxBodySize: 10_000_000,

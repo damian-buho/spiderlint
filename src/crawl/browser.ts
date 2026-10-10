@@ -12,7 +12,7 @@ import path from "node:path";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
 import { chromium, firefox, webkit, type BrowserType, type Page, type Request, type Response } from "playwright";
-import { USER_AGENT } from "../agent.ts";
+import { browserContext } from "../agent.ts";
 import { ConfigError, type BrowserName, type Config } from "../config/index.ts";
 import { COOKIE_WRITES, headerFacts, observedResources, scriptCookies, redirectFacts, remoteFacts, timingFacts, tlsFacts, weightFacts, wireSize, withProbe } from "../facts/browser.ts";
 import { declaredHtml, extractHtml, HTML_TYPES } from "../facts/html.ts";
@@ -385,6 +385,21 @@ export async function prepareBrowser(name: BrowserName): Promise<void> {
     await ensureBrowser(name, launcherOf(name), { browserInstall: true, cacheMode: "use" }, () => installBrowser(name));
 }
 
+// The UA the browser sends unmodified, read off a throwaway launch so rendered pages carry it with the token appended.
+async function realUserAgent(launcher: BrowserType): Promise<string> {
+    const launched = await launcher.launch();
+    try {
+        const context = await launched.newContext();
+        const page = await context.newPage();
+        const ua = (await page.evaluate("navigator.userAgent")) as string;
+        await context.close();
+        log.debug({ ua }, "browser default user agent read");
+        return ua;
+    } finally {
+        await launched.close();
+    }
+}
+
 // The Playwright launcher for `name`; anything else is a config error.
 function launcherOf(name: BrowserName): BrowserType {
     const launcher = Object.hasOwn(LAUNCHERS, name) ? LAUNCHERS[name] : undefined;
@@ -405,6 +420,7 @@ export interface BrowserStats {
 export async function browserCrawler(config: Config, onPage: OnPage, frontier: Frontier, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType: (contentType: string) => boolean = () => false, isDebugged = false, isExpensive = false): Promise<{ crawler: PlaywrightCrawler; stats(): BrowserStats }> {
     const launcher = launcherOf(config.browser);
     await ensureBrowser(config.browser, launcher, config, () => installBrowser(config.browser));
+    const agent = browserContext(await realUserAgent(launcher));
     const isPortOpen = isDebugged && config.browser === "chromium";
     if (isDebugged && !isPortOpen) log.warn({ browser: config.browser }, "only Chromium opens a DevTools port; its extractors add nothing");
     let pages = 0;
@@ -425,7 +441,7 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
             // Snapshot with `page.content()`; crawlee’s shadow-root expansion writes `innerHTML` into the live page.
             ignoreShadowRoots: true,
             maxConcurrency: openPages,
-            launchContext: { launcher, userAgent: USER_AGENT, launchOptions: { args: config.browser === "chromium" ? [...chromiumArguments(), ...(proxy ? [] : [DIRECT])] : [] } },
+            launchContext: { launcher, userAgent: agent.userAgent, launchOptions: { args: config.browser === "chromium" ? [...chromiumArguments(), ...(proxy ? [] : [DIRECT])] : [] } },
             browserPoolOptions: {
                 useFingerprints: false,
                 maxOpenPagesPerBrowser: openPages,
@@ -452,6 +468,7 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                     observations.set(request, observation);
                     await watchProtocols(page, observation);
                     await page.addInitScript({ content: COOKIE_WRITES });
+                    if (agent.extraHTTPHeaders) await page.context().setExtraHTTPHeaders(agent.extraHTTPHeaders);
                 },
             ],
             async requestHandler({ request, page, parseWithCheerio, enqueueLinks, browserController }) {

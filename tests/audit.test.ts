@@ -658,6 +658,19 @@ describe("audit options", () => {
         assert.ok(site.requested.slice(before).includes("/robots.txt"));
         const agents = new Set(site.headers.slice(before).map((headers) => headers["user-agent"]));
         assert.deepEqual([...agents], [`spiderlint/${VERSION} (+https://kiota.ch/damian-buho/spiderlint)`]);
+        for (const headers of site.headers.slice(before)) {
+            assert.ok(headers["sec-ch-ua"] !== undefined, "client hints travel with the user agent");
+            assert.ok(headers["sec-ch-ua-mobile"] !== undefined, "client hints travel with the user agent");
+            assert.ok(headers["sec-ch-ua-platform"] !== undefined, "client hints travel with the user agent");
+        }
+    });
+
+    it("advertises the web instance in every user agent once told its host", async () => {
+        const before = site.headers.length;
+        await audit({ seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, cacheMode: "off", via: "Spiderlint.Kiota.CH:8443" });
+        const seen = site.headers.slice(before).map((headers) => headers["user-agent"] ?? "");
+        assert.ok(seen.length > 0);
+        for (const agent of seen) assert.ok(agent.endsWith("; via spiderlint.kiota.ch)"), `instance named: ${agent}`);
     });
 
     it("asks for a fresh connection per page with --no-keepalive", async () => {

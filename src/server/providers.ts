@@ -4,7 +4,7 @@
 
 import { BlockList, isIP } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
-import { USER_AGENT } from "../agent.ts";
+import { agentHeaders } from "../agent.ts";
 import { log } from "../logger.ts";
 
 const TIMEOUT_MS = 15_000;
@@ -22,7 +22,7 @@ export const PROVIDERS: Record<string, string[]> = {
 async function fetchText(url: string): Promise<string> {
     for (let attempt = 0; ; attempt += 1) {
         try {
-            const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+            const response = await fetch(url, { headers: { ...agentHeaders() }, signal: AbortSignal.timeout(TIMEOUT_MS) });
             if (!response.ok) throw new Error(`${url} answers ${response.status}`);
             return await response.text();
         } catch (error) {
