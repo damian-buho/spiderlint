@@ -128,6 +128,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
@@ -243,6 +245,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
@@ -428,6 +432,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
@@ -531,7 +537,7 @@ $ spiderlint purge-cache --help
 Usage: spiderlint purge-cache [options] [bucket] [domain…]
 Delete a site’s cached entries.
 
-A bucket is one of pages, probes, profiles, resources, robots, sitemaps,
+A bucket is one of pages, probes, profiles, lists, resources, robots, sitemaps,
 origins, dns, extractors; with none, every bucket is purged.
 A domain is example.com or a URL to start from; without a scheme, https:// is
 assumed.
@@ -600,6 +606,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
@@ -712,6 +720,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
