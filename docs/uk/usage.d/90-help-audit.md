@@ -35,6 +35,8 @@ Crawl:
                             (env: SPIDERLINT_PROFILE)
   --proxy <url>             http, https or socks5h proxy for every request
                             (env: SPIDERLINT_PROXY)
+  --via <host>              instance a web scan names in its user agent
+                            (env: SPIDERLINT_VIA)
   --max-pages <n>           page limit, 0 for none
                             (default: 0, env: SPIDERLINT_MAX_PAGES)
   --max-depth <n>           link depth limit, 0 for none
