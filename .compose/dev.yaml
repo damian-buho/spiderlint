@@ -36,7 +36,7 @@ services:
       - /tmp:size=256m
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./server.yaml:/etc/spiderlint/server.yaml:ro
+      - ./config/server.yaml:/etc/spiderlint/server.yaml:ro
       - ./page:/etc/spiderlint/page:ro
       - ../src:/app/src:ro
       - ../locales:/app/locales:ro
