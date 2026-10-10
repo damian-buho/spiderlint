@@ -31,12 +31,17 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
+      - name: stamp npm
+        id: stamp-npm
+        if: (vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true') || (vars.CI_SKIP_CHECK_OUTDATED != 'true' && vars.CI_SKIP_CHECK_OUTDATED_NPM != 'true')
+        run: echo "stamp=$(( $(date -u +%s) / 28800 ))" >> "$GITHUB_OUTPUT"
       - name: restore npm
+        id: restore-npm
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         if: (vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true') || (vars.CI_SKIP_CHECK_OUTDATED != 'true' && vars.CI_SKIP_CHECK_OUTDATED_NPM != 'true')
         with:
           path: ${{ runner.temp }}/ci-cache/npm
-          key: ci-cache-npm-
+          key: ci-cache-npm-${{ steps.stamp-npm.outputs.stamp }}
           restore-keys: |
             ci-cache-npm-
       - name: npm-install
@@ -59,10 +64,10 @@ jobs:
           mounts: ${{ runner.temp }}/ci-cache/npm:/app/.cache/npm:rw
       - name: save npm
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
-        if: (vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true') || (vars.CI_SKIP_CHECK_OUTDATED != 'true' && vars.CI_SKIP_CHECK_OUTDATED_NPM != 'true')
+        if: ((vars.CI_SKIP_DEPS_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true') || (vars.CI_SKIP_CHECK_OUTDATED != 'true' && vars.CI_SKIP_CHECK_OUTDATED_NPM != 'true')) && steps.restore-npm.outputs.cache-hit != 'true'
         with:
           path: ${{ runner.temp }}/ci-cache/npm
-          key: ci-cache-npm-${{ github.run_id }}
+          key: ci-cache-npm-${{ steps.stamp-npm.outputs.stamp }}
   deps-installed:
     runs-on: ubuntu-26.04
     steps:
