@@ -106,7 +106,7 @@ function crawlOptions(): Option[] {
         flag("--timeout <seconds>", "seconds one page may take", "60", "SPIDERLINT_TIMEOUT"),
         flag("--profile <name>", "tor or i2p: local proxy, concurrency 4, timeout 240", undefined, "SPIDERLINT_PROFILE"),
         flag("--proxy <url>", "http, https or socks5h proxy for every request", undefined, "SPIDERLINT_PROXY"),
-        flag("--via <host>", "instance the user agent names as `via <host>`, for web scans", undefined, "SPIDERLINT_VIA"),
+        flag("--via <host>", "instance a web scan names in its user agent", undefined, "SPIDERLINT_VIA"),
         flag("--max-pages <n>", "page limit, 0 for none", "0", "SPIDERLINT_MAX_PAGES"),
         flag("--max-depth <n>", "link depth limit, 0 for none", "0", "SPIDERLINT_MAX_DEPTH"),
         flag("--max-body-size <bytes>", "body size cap", "10000000", "SPIDERLINT_MAX_BODY_SIZE"),
