@@ -39,6 +39,11 @@ export function userCacheDirectory(): string {
     return path.join(process.env.XDG_CACHE_HOME || path.join(homedir(), ".cache"), "spiderlint");
 }
 
+// `$XDG_STATE_HOME/spiderlint`, else `~/.local/state/spiderlint`.
+export function userStateDirectory(): string {
+    return path.join(process.env.XDG_STATE_HOME || path.join(homedir(), ".local", "state"), "spiderlint");
+}
+
 // `<user cache>/<host>` for the seeds’ hosts, `+`-joined when they span several; undefined without a seed.
 export function siteDirectory(seeds: string[]): string | undefined {
     const hosts = [...new Set(seeds.filter((seed) => URL.canParse(seed)).map((seed) => new URL(seed).host))].toSorted((a, b) => a.localeCompare(b));

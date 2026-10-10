@@ -46,6 +46,7 @@ import { DiskStore, lockStore } from "./store/disk.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { passing, rate, type Checks, type Rating, type RuleChecks } from "./report/rating.ts";
 import { factStats, type Stat } from "./report/stats.ts";
+import { useScratchStorage } from "./crawl/scratch.ts";
 
 const PAGE_CONTEXT_MS = 60_000;
 
@@ -462,6 +463,7 @@ async function servedOffline(pages: Facts[], store: DiskStore | undefined, activ
 
 // Fetches with the run’s network open: paced, and proxied when configured.
 async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
+    useScratchStorage();
     const network = await openNetwork(config);
     try {
         return await crawlOpen(config, store, network.proxy);
