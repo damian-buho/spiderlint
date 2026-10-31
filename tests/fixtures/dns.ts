@@ -259,14 +259,6 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides:
 // A resolver answering the fixture zones over UDP and TCP on one ephemeral port; `isValidating` sets `AD` where signed.
 export async function serveDns(isValidating = true, overrides: Record<string, Zone> = {}): Promise<DnsFixture> {
     const queries: string[] = [];
-    const udp = createSocket("udp4");
-    udp.on("message", (message, peer) => {
-        const query = dnsPacket.decode(message);
-        queries.push(`${query.questions?.[0]?.name}|${query.questions?.[0]?.type}`);
-        udp.send(answer(query, false, isValidating, overrides), peer.port, peer.address);
-    });
-    await new Promise<void>((resolve) => udp.bind(0, "127.0.0.1", resolve));
-    const { port } = udp.address();
     const tcp = createServer((socket) => {
         socket.once("data", (chunk: Buffer) => {
             const reply = answer(dnsPacket.decode(chunk.subarray(2)), true, isValidating, overrides);
@@ -275,14 +267,32 @@ export async function serveDns(isValidating = true, overrides: Record<string, Zo
             socket.end(Buffer.concat([prefix, reply]));
         });
     });
-    await new Promise<void>((resolve) => tcp.listen(port, "127.0.0.1", resolve));
-    return {
-        server: `127.0.0.1:${port}`,
-        port: (tcp.address() as AddressInfo).port,
-        queries,
-        close: async () => {
-            udp.close();
+    // TCP takes a free port and UDP joins it; a port UDP finds taken retries both.
+    for (let attempt = 1; ; attempt++) {
+        await new Promise<void>((resolve, reject) => tcp.once("error", reject).listen(0, "127.0.0.1", resolve));
+        const { port } = tcp.address() as AddressInfo;
+        const udp = createSocket("udp4");
+        udp.on("message", (message, peer) => {
+            const query = dnsPacket.decode(message);
+            queries.push(`${query.questions?.[0]?.name}|${query.questions?.[0]?.type}`);
+            udp.send(answer(query, false, isValidating, overrides), peer.port, peer.address);
+        });
+        try {
+            await new Promise<void>((resolve, reject) => udp.once("error", reject).bind(port, "127.0.0.1", resolve));
+        } catch (error) {
+            console.warn(`dns fixture port ${port} taken over UDP on attempt ${attempt}: ${String(error)}`);
             await new Promise<void>((resolve) => tcp.close(() => resolve()));
-        },
-    };
+            if (attempt === 10) throw error;
+            continue;
+        }
+        return {
+            server: `127.0.0.1:${port}`,
+            port,
+            queries,
+            close: async () => {
+                udp.close();
+                await new Promise<void>((resolve) => tcp.close(() => resolve()));
+            },
+        };
+    }
 }
