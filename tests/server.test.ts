@@ -824,6 +824,16 @@ describe("examples", () => {
         assert.deepEqual([past.status, before.status], [404, 404]);
     });
 
+    it("leaves a walled example off the page and waits a whole period before asking its site again", async () => {
+        const known = { "a.test": exampleEntry("a.test", NOW, { grade: "B", walled: "cloudflare" }), "b.test": exampleEntry("b.test", NOW, { grade: "B" }) };
+        const app = api({} as Queue, { hgetall: async () => known } as unknown as Redis, hourly(["a.test", "b.test"]));
+        const { html } = await fetched(app, "/examples");
+        assert.deepEqual([html.includes("/jobs/a.test-1"), html.includes("/jobs/b.test-1")], [false, true]);
+        const { calls, jobs } = scheduling(known);
+        await tick({ ...jobs, settings: hourly(["a.test", "b.test"]) }, NOW + HOUR - 1);
+        assert.deepEqual(calls.added, []);
+    });
+
     it("has no examples page or nav link when none are configured", async () => {
         const app = api({} as Queue, {} as Redis, () => SETTINGS);
         const [examples, form] = await Promise.all([fetched(app, "/examples"), fetched(app, "/")]);

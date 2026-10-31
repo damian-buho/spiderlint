@@ -216,7 +216,7 @@ async function examplesPage(c: Context, t: Translator, jobs: Jobs, number: numbe
     const { sites } = jobs.settings().examples;
     if (sites.length === 0) throw new Refusal(404, "not-found", "this instance lists no examples");
     const known = await exampleReports(jobs.redis);
-    const entries = sites.flatMap((site) => known.get(new URL(site).hostname) ?? []);
+    const entries = sites.flatMap((site) => known.get(new URL(site).hostname) ?? []).filter((entry) => !entry.walled);
     const pages = Math.max(1, Math.ceil(entries.length / EXAMPLES_PER_PAGE));
     log.debug({ sites: sites.length, reports: entries.length, page: number, pages }, "examples page rendered");
     if (!Number.isSafeInteger(number) || number < 1 || number > pages) throw new Refusal(404, "not-found", `examples page ${number}: out of 1–${pages}`);

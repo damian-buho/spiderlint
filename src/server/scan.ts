@@ -51,7 +51,9 @@ async function main(): Promise<number> {
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;
         process.stdout.write(formatJson(report));
-        if (previewBy) await takePreview(url, settings["allow-private"] === true, previewBy);
+        const landed = report.pages.find((page) => page.crawl["discovered-via"] === "seed")?.url.href ?? url;
+        log.debug({ url, landed, walled: report.summary.walled }, "preview target chosen");
+        if (previewBy && !report.summary.walled) await takePreview(landed, settings["allow-private"] === true, previewBy);
         return 0;
     } catch (error) {
         log.error({ url, error: error instanceof Error ? error.message : String(error) }, "scan aborted");

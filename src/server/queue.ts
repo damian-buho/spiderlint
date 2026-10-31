@@ -111,6 +111,8 @@ export interface Recent {
     title?: string;
     // Set when the scan has a preview under `previewKey`.
     preview?: true;
+    // The edge whose bot wall stopped the scan.
+    walled?: string;
 }
 
 // The hosts of the latest reports by finish time; each host’s entry sits under its own key.
@@ -132,9 +134,10 @@ export async function recordLatest(redis: Redis, job: ScanJob, retention: number
 
 // What a card shows of the finished `job`.
 async function recentOf(redis: Redis, job: ScanJob): Promise<Recent> {
-    const grade = job.returnvalue.summary.rating?.grade;
+    const { rating, walled } = job.returnvalue.summary;
+    const grade = rating?.grade;
     const title = await redis.hget(previewKey(job.id as string), "title");
-    return { id: job.id as string, host: job.data.host, finished: job.finishedOn ?? Date.now(), ...(grade && { grade }), ...(title && { title }), ...(title !== null && { preview: true }) };
+    return { id: job.id as string, host: job.data.host, finished: job.finishedOn ?? Date.now(), ...(grade && { grade }), ...(title && { title }), ...(title !== null && { preview: true }), ...(walled && { walled }) };
 }
 
 // The hash of example entries by host, never expiring.
