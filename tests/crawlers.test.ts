@@ -5,9 +5,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { botAgent, userAgent } from "../src/agent.ts";
-import type { Probe, ProbeInit } from "../src/crawl/probe.ts";
+import { edgeOf, wallOf, type Probe, type ProbeInit } from "../src/crawl/probe.ts";
 import type { SiteFacts, Stance } from "../src/facts/types.ts";
-import crawlers, { edgeOf, POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
+import crawlers, { POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
 import type { SiteContext } from "../src/plugins/types.ts";
 import { CRAWLERS } from "../src/rules/robots.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
@@ -41,7 +41,27 @@ describe("crawlers", () => {
         assert.equal(edgeOf(answer(403, {}, "Request unsuccessful. Incapsula incident ID: 1")), "imperva");
         assert.equal(edgeOf(answer(202, { "x-amzn-waf-action": "challenge" })), "aws-waf");
         assert.equal(edgeOf(answer(403, { server: "AkamaiGHost" })), "akamai");
+        assert.equal(edgeOf(answer(402, { "akamai-x-true-cache-ttl": "-1" })), "akamai");
+        assert.equal(edgeOf(answer(200, { "akamai-x-true-cache-ttl": "-1" })), undefined);
+        assert.equal(edgeOf(answer(401, { server: "cloudflare" })), undefined);
         assert.equal(edgeOf(answer(403, { server: "nginx" })), undefined);
+    });
+
+    it("calls a page walled only by marks a block or challenge carries, never a site’s own refusal behind its edge", () => {
+        assert.equal(wallOf(answer(403, { "cf-mitigated": "challenge" })), "cloudflare");
+        assert.equal(wallOf(answer(403, { server: "cloudflare", "server-timing": "cfEdge;dur=14,cfOrigin;dur=0" })), "cloudflare");
+        assert.equal(wallOf(answer(403, { server: "cloudflare", "server-timing": "cfEdge;dur=14,cfOrigin;dur=90" })), undefined);
+        assert.equal(wallOf(answer(401, { "x-datadome": "protected", "x-dd-b": "1" })), "datadome");
+        assert.equal(wallOf(answer(404, { "x-datadome": "protected", "x-dd-b": "1" })), undefined);
+        assert.equal(wallOf(answer(403, { "x-datadome": "protected" })), undefined);
+        assert.equal(wallOf(answer(404, { "x-iinfo": "1" })), undefined);
+        assert.equal(wallOf(answer(403, {}, "Request unsuccessful. Incapsula incident ID: 1")), "imperva");
+        assert.equal(wallOf(answer(202, { "x-amzn-waf-action": "challenge" })), "aws-waf");
+        assert.equal(wallOf(answer(503, { server: "AkamaiGHost" })), "akamai");
+        assert.equal(wallOf(answer(404, { server: "AkamaiGHost" })), undefined);
+        assert.equal(wallOf(answer(402, { "akamai-x-true-cache-ttl": "-1" })), "akamai");
+        assert.equal(wallOf(answer(402)), "unknown");
+        assert.equal(wallOf(answer(401)), undefined);
     });
 
     it("fetches / as each crawler with its UA, and none when spiderlint itself is refused", async () => {

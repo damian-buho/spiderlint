@@ -209,6 +209,19 @@ describe("audit", () => {
         assert.deepEqual({ ...answer, checked: undefined }, { status: 403, method: "HEAD", walled: true, checked: undefined });
     });
 
+    it("stops the crawl at a bot wall and names its edge, and never at a plain 403", async () => {
+        const options = { sitemap: false, rules: [], fold: false as const, cacheMode: "off" as const, concurrency: 1 };
+        const walled = await audit({ ...options, seeds: [`${site.origin}/walled`] });
+        const forbidden = await audit({ ...options, seeds: [`${site.origin}/forbidden`] });
+        assert.deepEqual(
+            walled.pages.map((page) => [page.url.pathname, page.http.walled]),
+            [["/walled", "cloudflare"]],
+        );
+        assert.equal(walled.summary.walled, "cloudflare");
+        assert.deepEqual(walled.site.crawl, { complete: false, reason: "walled" });
+        assert.deepEqual([forbidden.pages[0]?.http.status, forbidden.summary.walled, forbidden.site.crawl], [403, undefined, { complete: true }]);
+    });
+
     it("judges no SEO fact on a page outside 2xx", () => {
         const missing = report.pages.find((page) => page.url.pathname === "/missing");
         assert.equal(missing?.html?.title, "404");

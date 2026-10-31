@@ -183,7 +183,7 @@ export async function serveFixture(builtFor?: string): Promise<Fixture> {
         }
         if (pathname === "/walled") {
             response.writeHead(403, { "content-type": "text/html; charset=utf-8", "cf-mitigated": "challenge" });
-            response.end('<!DOCTYPE html><html lang="en"><head><title>Just a moment…</title></head><body></body></html>');
+            response.end('<!DOCTYPE html><html lang="en"><head><title>Just a moment…</title></head><body><a href="/about">About</a></body></html>');
             return;
         }
         if (pathname === "/edge-blocked") {

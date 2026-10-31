@@ -9,6 +9,7 @@ import { log } from "../logger.ts";
 import { browserCrawler } from "./browser.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage, type Runnable } from "./frontier.ts";
 import { httpCrawler } from "./http.ts";
+import { wallOf } from "./probe.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import type { CrawlerMode, Router } from "./route.ts";
 import { singleOrigin } from "./scope.ts";
@@ -20,8 +21,17 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     const modes = router.crawlers;
     if (modes.includes("browser") && !config.allowPrivate) throw new ConfigError("fetch browser: the address guard cannot check what the browser connects to");
     const frontier = await Frontier.open(config, cache, router);
-    const http = modes.includes("http") ? httpCrawler(config, onPage, frontier, storage, proxy) : undefined;
-    const browser = modes.includes("browser") ? await browserCrawler(config, onPage, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
+    // Marks a page a bot wall answered and stops the crawl after it, since asking again only feeds the wall.
+    const walling: OnPage = async (facts, body, live) => {
+        const edge = wallOf({ status: facts.http.status, headers: facts.http.headers, body });
+        if (edge) facts.http.walled = edge;
+        await onPage(facts, body, live);
+        if (!edge) return;
+        log.warn({ url: facts.url.href, status: facts.http.status, edge }, "bot wall answered, crawl stopped");
+        halt("walled", `${edge} bot wall answered ${facts.url.href}`);
+    };
+    const http = modes.includes("http") ? httpCrawler(config, walling, frontier, storage, proxy) : undefined;
+    const browser = modes.includes("browser") ? await browserCrawler(config, walling, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));

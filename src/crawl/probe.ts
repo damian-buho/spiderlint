@@ -140,3 +140,29 @@ export async function probe(href: string, init: ProbeInit, options: ProbeOptions
         url = next as URL;
     }
 }
+
+// Statuses an edge refuses a request with.
+export const REFUSED = new Set([402, 403, 429, 503]);
+
+// The edge that answered with a challenge or block page, by the marks each leaves; undefined for the origin’s own answer.
+export function edgeOf(answer: Pick<Probe, "status" | "headers" | "body">): string | undefined {
+    const header = (name: string) => [answer.headers[name] ?? []].flat().join(",").toLowerCase();
+    const isRefused = REFUSED.has(answer.status);
+    if (header("cf-mitigated") === "challenge" || (isRefused && header("server") === "cloudflare")) return "cloudflare";
+    if (header("x-datadome") || header("x-dd-b")) return "datadome";
+    if (header("x-iinfo") || /Incapsula incident ID/i.test(answer.body)) return "imperva";
+    if (header("x-amzn-waf-action")) return "aws-waf";
+    if (isRefused && (header("server").startsWith("akamaighost") || Object.keys(answer.headers).some((name) => name.startsWith("akamai-")))) return "akamai";
+    return undefined;
+}
+
+// The edge whose bot wall answered instead of the page, by marks only a block or challenge carries, so a site’s own 403 or 404 is never one.
+export function wallOf(answer: Pick<Probe, "status" | "headers" | "body">): string | undefined {
+    const header = (name: string) => [answer.headers[name] ?? []].flat().join(",").toLowerCase();
+    if (header("cf-mitigated") === "challenge" || (answer.status === 403 && /(^|,)\s*cforigin;dur=0(,|$)/.test(header("server-timing")))) return "cloudflare";
+    if ([401, 403].includes(answer.status) && header("x-dd-b")) return "datadome";
+    if (/Incapsula incident ID/i.test(answer.body)) return "imperva";
+    if (header("x-amzn-waf-action")) return "aws-waf";
+    if (REFUSED.has(answer.status) && header("server").startsWith("akamaighost")) return "akamai";
+    return answer.status === 402 ? (edgeOf(answer) ?? "unknown") : undefined;
+}

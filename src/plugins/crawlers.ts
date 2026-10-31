@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type { Probe } from "../crawl/probe.ts";
+import { edgeOf } from "../crawl/probe.ts";
 import type { ContentSignal } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { said } from "../rules/message.ts";
@@ -28,18 +28,6 @@ export interface PoseAnswer {
     status: number;
     edge?: string;
     error?: string;
-}
-
-// The edge that answered with a challenge or block page, by the marks each leaves; undefined for the origin’s own answer.
-export function edgeOf(answer: Pick<Probe, "status" | "headers" | "body">): string | undefined {
-    const header = (name: string) => [answer.headers[name] ?? []].flat().join(",").toLowerCase();
-    const isRefused = [403, 429, 503].includes(answer.status);
-    if (header("cf-mitigated") === "challenge" || (isRefused && header("server") === "cloudflare")) return "cloudflare";
-    if (header("x-datadome") || header("x-dd-b")) return "datadome";
-    if (header("x-iinfo") || /Incapsula incident ID/i.test(answer.body)) return "imperva";
-    if (header("x-amzn-waf-action")) return "aws-waf";
-    if (isRefused && header("server").startsWith("akamaighost")) return "akamai";
-    return undefined;
 }
 
 // Whether an answer is a 2xx page.

@@ -74,6 +74,8 @@ export interface Summary {
     // Shipped rules that judged nothing in this run: left out of its rulesets, or never applicable.
     untested?: string[];
     rating?: Rating;
+    // The edge whose bot wall answered a page, which stopped the crawl.
+    walled?: string;
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
     crawlHash?: string;
@@ -182,6 +184,7 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         .toSorted((a, b) => a.localeCompare(b));
     log.debug({ checked: Object.keys(checked).length, untested: untested.length }, "untested rules derived");
     const statuses = tally(pages.map((page) => String(page.http.status)));
+    const walled = pages.find((page) => page.http.walled)?.http.walled;
     return {
         started: started.toISOString(),
         durationMs: Date.now() - started.getTime(),
@@ -196,6 +199,7 @@ function summarize(pages: Facts[], run: RuleRun, rules: string[], started: Date,
         checked,
         untested,
         ...(rating && { rating }),
+        ...(walled && { walled }),
         cost,
         stats: factStats(pages),
     };

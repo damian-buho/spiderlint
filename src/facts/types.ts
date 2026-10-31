@@ -111,7 +111,7 @@ export interface SiteFacts {
 }
 
 // Why a crawl left pages unfetched.
-export type CrawlEnd = "max-pages" | "max-depth" | "interrupted" | "timeout";
+export type CrawlEnd = "max-pages" | "max-depth" | "interrupted" | "timeout" | "walled";
 
 // A page’s place in the internal link graph, derived on every lint.
 export interface GraphFacts {
@@ -164,6 +164,8 @@ export interface HttpFacts {
     "date-skew"?: number;
     // Why no attempt fetched the page; the status is then 0.
     error?: string;
+    // The edge whose bot wall answered instead of the page.
+    walled?: string;
     // The Content-Security-Policy headers and `<meta>` policies, derived on every lint.
     csp?: CspFacts;
     // Each header spiderlint knows the grammar of, parsed on every lint.
