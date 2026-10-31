@@ -73,3 +73,4 @@ depends on an upstream release, or the advisory does not apply to this project):
 | CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
 | CVE-2026-118764 | no patch for 10.x |
 | GHSA-g3hv-75wg-m249 | no patch for 10.x |
+| GHSA-3g3m-2fjr-6pw4 | no fix for 13 series |
