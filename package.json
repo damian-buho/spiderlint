@@ -1,6 +1,6 @@
 {
   "name": "spiderlint",
-  "version": "0.146.1",
+  "version": "0.147.0",
   "type": "module",
   "description": "Site-wide linter for SEO tags, security headers, TLS and links",
   "license": "AGPL-3.0-only",

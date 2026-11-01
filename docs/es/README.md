@@ -59,7 +59,7 @@ También hereda las características de B19 / Ubuntu; consulta [Características
 
 ## Qué entrega este proyecto
 
-- **Acción de CI** `damian-buho/spiderlint@0.146.1`
+- **Acción de CI** `damian-buho/spiderlint@0.147.0`
 - **Imagen de contenedor** `ghcr.io/damian-buho/spiderlint:latest`
 - **Imagen de contenedor** `damianbuho/spiderlint:latest`
 - **Paquete npm** `spiderlint` — comando `spiderlint`
@@ -116,7 +116,7 @@ Requiere Node.js >=26.
 Ejecútalo como un paso de un flujo de trabajo de GitHub Actions:
 
 ```yaml
-- uses: damian-buho/spiderlint@0.146.1
+- uses: damian-buho/spiderlint@0.147.0
 ```
 
 La acción acepta estas entradas:
