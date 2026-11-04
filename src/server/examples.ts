@@ -10,9 +10,6 @@ import { dropExample, exampleReports, PREFIX, previewKey } from "./queue.ts";
 const TICK_MS = 60_000;
 // Held by the API replica whose tick runs, so replicas queue no example twice.
 const LOCK = `${PREFIX}:examples:tick`;
-// Seconds a queued example blocks another of its host, at least.
-const QUEUED_MIN_S = 3600;
-
 // What scheduling examples reads: the queue, its Redis and the live settings.
 type Scheduling = Pick<Jobs, "queue" | "redis" | "settings">;
 
@@ -40,19 +37,23 @@ async function prune(jobs: Scheduling, hosts: Set<string>, known: Iterable<strin
     }
 }
 
-// Queues the stalest due example while no scan waits, at most one a tick; returns its job ID.
+// Queues the stalest due example while no scan waits and a worker stays free for visitors, at most one a tick and one a host per `every`, finished or not; returns its job ID.
 export async function tick(jobs: Scheduling, now = Date.now()): Promise<string | undefined> {
-    const { every } = jobs.settings().examples;
+    const {
+        examples: { every },
+        workers,
+    } = jobs.settings();
     const sites = admitted(jobs);
     const known = await exampleReports(jobs.redis);
     await prune(jobs, new Set(sites.map((site) => site.host)), known.keys());
-    const waiting = await jobs.queue.getWaitingCount();
+    const { waiting = 0, prioritized = 0, active = 0 } = await jobs.queue.getJobCounts("waiting", "prioritized", "active");
     const due = sites.filter((site) => now - (known.get(site.host)?.finished ?? 0) >= every * 1000).toSorted((a, b) => (known.get(a.host)?.finished ?? 0) - (known.get(b.host)?.finished ?? 0));
-    log.debug({ sites: sites.length, due: due.length, waiting }, "examples checked");
-    if (waiting > 0) return undefined;
+    const slots = Math.max(1, workers - 1);
+    log.debug({ sites: sites.length, due: due.length, waiting, prioritized, active, slots }, "examples checked");
+    if (waiting + prioritized > 0 || active >= slots) return undefined;
     for (const site of due) {
         const queued = `${PREFIX}:examples:queued:${site.host}`;
-        if ((await jobs.redis.set(queued, now, "EX", Math.max(QUEUED_MIN_S, 2 * site.policy.scanTimeout), "NX")) !== "OK") continue;
+        if ((await jobs.redis.set(queued, now, "EX", Math.max(every, 2 * site.policy.scanTimeout), "NX")) !== "OK") continue;
         const job = await enqueue(jobs, site, "", true);
         log.info({ job: job.id, host: site.host, last: known.get(site.host)?.finished }, "example queued");
         return job.id;

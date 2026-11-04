@@ -16,6 +16,9 @@ import { charge, jobId, repeatKey, type ScanData, type ScanJob, type ScanResult 
 import type { ServerSettings } from "./settings.ts";
 import { traceCarrier } from "../telemetry.ts";
 
+// BullMQ takes every job without a priority before any job with one.
+const EXAMPLE_PRIORITY = 1;
+
 // BullMQ states as the API names them; anything else is still waiting its turn.
 const STATUS: Record<string, string> = { active: "running", completed: "done", failed: "failed" };
 
@@ -85,9 +88,9 @@ export async function submit(jobs: Jobs, body: unknown, c: Context): Promise<{ j
         log.info({ job: repeat.id, host: admitted.host, policy: admitted.policy.name }, "scan repeated");
         return { job: repeat, isRepeat: true };
     }
-    const waiting = await jobs.queue.getWaitingCount();
-    log.debug({ waiting, maxQueued: current.maxQueued }, "queue depth checked");
-    if (waiting >= current.maxQueued) throw new Refusal(503, "queue-full", `${waiting} scans are waiting; try again later`, 60);
+    const { waiting = 0, prioritized = 0 } = await jobs.queue.getJobCounts("waiting", "prioritized");
+    log.debug({ waiting, prioritized, maxQueued: current.maxQueued }, "queue depth checked");
+    if (waiting + prioritized >= current.maxQueued) throw new Refusal(503, "queue-full", `${waiting + prioritized} scans are waiting; try again later`, 60);
     const { rate } = current.clients;
     const wait = rate ? jobs.buckets.take(clientAddress(c, jobs), rate) : 0;
     if (rate && wait > 0) throw new Refusal(429, "client-rate-limited", `a client may queue ${rate.jobs} scans per ${rate.seconds} s`, wait);
@@ -95,7 +98,7 @@ export async function submit(jobs: Jobs, body: unknown, c: Context): Promise<{ j
     return { job: await enqueue(jobs, admitted, normalizeVia(c.req.header("host"))), isRepeat: false };
 }
 
-// Queues the admitted scan and points its repeat key at it; an example is kept until its host’s next one replaces it.
+// Queues the admitted scan and points its repeat key at it; an example waits behind every visitor’s scan and is kept until its host’s next one replaces it.
 export async function enqueue(jobs: Pick<Jobs, "queue" | "redis">, admitted: Admitted, via: string, isExample = false): Promise<ScanJob> {
     const key = repeatKey(admitted);
     const data: ScanData = {
@@ -112,7 +115,7 @@ export async function enqueue(jobs: Pick<Jobs, "queue" | "redis">, admitted: Adm
         ...(admitted["content-signals"] && { "content-signals": admitted["content-signals"] }),
         trace: traceCarrier(),
     };
-    const job = (await jobs.queue.add("scan", data, { jobId: jobId(admitted.host), ...(isExample && { removeOnComplete: false }) })) as ScanJob;
+    const job = (await jobs.queue.add("scan", data, { jobId: jobId(admitted.host), ...(isExample && { removeOnComplete: false, priority: EXAMPLE_PRIORITY }) })) as ScanJob;
     if (admitted.policy.repeat) await jobs.redis.set(key, job.id as string, "EX", admitted.policy.repeat);
     log.info({ job: job.id, host: admitted.host, policy: admitted.policy.name, repeat: admitted.policy.repeat, hidden: admitted.hidden, isExample }, "scan queued");
     return job;

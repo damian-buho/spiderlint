@@ -738,23 +738,31 @@ function hourly(sites: string[]): () => ReturnType<typeof settingsOf> {
     return () => settings;
 }
 
+// Settings of `workers` scan slots listing one hourly example.
+function slotted(workers: number): () => ReturnType<typeof settingsOf> {
+    const settings = settingsOf({ workers, examples: { every: "1h", sites: ["a.test"] } });
+    return () => settings;
+}
+
 // A Redis and a queue answering `tick`, recording what it queued, removed and marked; a host in `taken` is already queued.
-function scheduling(known: Record<string, string>, waiting = 0, taken: string[] = []) {
-    const calls = { added: [] as string[], removed: [] as string[], marked: [] as string[] };
+function scheduling(known: Record<string, string>, waiting = 0, taken: string[] = [], active = 0, prioritized = 0) {
+    const calls = { added: [] as string[], removed: [] as string[], marked: [] as string[], held: [] as number[], priorities: [] as (number | undefined)[] };
     const multi = (host = "") => ({ hget: (_key: string, field: string) => multi(field), hdel: () => multi(host), exec: async () => [[undefined, known[host]]] });
     const redis = {
         hgetall: async () => known,
         multi: () => multi(),
         del: async () => 1,
-        set: async (key: string) => {
+        set: async (key: string, _value: unknown, _mode: string, seconds: number) => {
             calls.marked.push(key);
+            calls.held.push(seconds);
             return taken.some((host) => key.endsWith(`:${host}`)) ? undefined : "OK";
         },
     };
     const queue = {
-        getWaitingCount: async () => waiting,
-        add: async (_name: string, data: { host: string }) => {
+        getJobCounts: async () => ({ waiting, prioritized, active }),
+        add: async (_name: string, data: { host: string }, options: { priority?: number }) => {
             calls.added.push(data.host);
+            calls.priorities.push(options.priority);
             return { id: `${data.host}-new` };
         },
         remove: async (id: string) => {
@@ -799,6 +807,35 @@ describe("examples", () => {
         assert.equal(await tick({ ...fresh.jobs, settings: sites }, NOW), undefined);
         const due = scheduling({ "a.test": exampleEntry("a.test", NOW - HOUR) });
         assert.equal(await tick({ ...due.jobs, settings: sites }, NOW), "a.test-new");
+    });
+
+    it("keeps one worker free for visitors, and uses the only worker when there is one", async () => {
+        assert.equal(await tick({ ...scheduling({}, 0, [], 0).jobs, settings: slotted(2) }, NOW), "a.test-new");
+        assert.equal(await tick({ ...scheduling({}, 0, [], 1).jobs, settings: slotted(2) }, NOW), undefined);
+        assert.equal(await tick({ ...scheduling({}, 0, [], 1).jobs, settings: slotted(3) }, NOW), "a.test-new");
+        assert.equal(await tick({ ...scheduling({}, 0, [], 2).jobs, settings: slotted(3) }, NOW), undefined);
+        assert.equal(await tick({ ...scheduling({}, 0, [], 0).jobs, settings: slotted(1) }, NOW), "a.test-new");
+        assert.equal(await tick({ ...scheduling({}, 0, [], 1).jobs, settings: slotted(1) }, NOW), undefined);
+    });
+
+    it("counts a waiting example as waiting, though BullMQ keeps it apart", async () => {
+        const { jobs } = scheduling({}, 0, [], 0, 1);
+        assert.equal(await tick({ ...jobs, settings: hourly(["a.test"]) }, NOW), undefined);
+    });
+
+    it("queues an example behind visitors, and holds its host off for a whole cycle", async () => {
+        const settings = settingsOf({ examples: { every: "7d", sites: ["a.test"] } });
+        const { calls, jobs } = scheduling({});
+        await tick({ ...jobs, settings: () => settings }, NOW);
+        assert.deepEqual(calls.priorities, [1]);
+        assert.deepEqual(calls.held, [7 * 86_400]);
+    });
+
+    it("holds a host off for two scan timeouts when the cycle is shorter", async () => {
+        const settings = settingsOf({ examples: { every: "1m", sites: ["a.test"] } });
+        const { calls, jobs } = scheduling({});
+        await tick({ ...jobs, settings: () => settings }, NOW);
+        assert.deepEqual(calls.held, [2 * Number(settings.policies.at(-1)?.scanTimeout)]);
     });
 
     it("removes the example of a site no longer configured", async () => {
