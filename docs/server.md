@@ -75,6 +75,8 @@ policies: # the first policy whose hosts match the target wins; none matching re
       {
         max-pages: 100,
         max-depth: 5,
+        max-resources: 200,
+        max-sitemaps: 8,
         concurrency: 4,
         rate: 120,
         timeout: 30,
@@ -89,15 +91,15 @@ policies: # the first policy whose hosts match the target wins; none matching re
 
 A policy entry:
 
-| Key      | Meaning                                                                                                                                                     |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hosts`  | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host.                      |
-| `ban`    | `true`, or the reason the client is shown. The request is refused with `403`.                                                                               |
-| `rate`   | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                                                 |
-| `repeat` | A request for the same URL with the same settings inside this window gets the job already queued, running or done, with `200`. Unset: every request queues. |
-| `caps`   | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `scan-timeout` to 10 minutes.                         |
-| `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                        |
-| `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                              |
+| Key      | Meaning                                                                                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hosts`  | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host.                                                                 |
+| `ban`    | `true`, or the reason the client is shown. The request is refused with `403`.                                                                                                                          |
+| `rate`   | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                                                                                            |
+| `repeat` | A request for the same URL with the same settings inside this window gets the job already queued, running or done, with `200`. Unset: every request queues.                                            |
+| `caps`   | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `max-resources` (images fetched last) to 200, `max-sitemaps` to 8, `scan-timeout` to 10 minutes. |
+| `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                                                                   |
+| `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                                                                         |
 
 The form offers three rule sets as radios, `recommended` first: `recommended`
 (Standard), `web-quick` and `web-comprehensive`. `web-quick` runs search tags,
@@ -254,9 +256,11 @@ private address while `allow-private` is false, the same as the crawl. The previ
 lives as long as its report and is the report page’s `og:image`.
 
 `examples` names sites the instance scans by itself. Once a minute, while no scan
-waits in the queue, one API replica queues the example due longest: a site never
-scanned, else one whose last example is `every` old. So examples take only idle
-workers and never delay a reader’s scan. Each example runs under the policy its host
+waits in the queue and a worker stays free, one API replica queues the example due
+longest: a site never scanned, else one whose last example is `every` old. A host is
+tried once per `every`, finished or not. Examples leave one of `workers` to readers
+and queue behind their scans, so with `workers: 1` an example can still hold the only
+worker until it ends. Each example runs under the policy its host
 matches, with no client bucket or host window charged. Its report and preview never
 expire: the next finished example of the host replaces them, and a failed one leaves
 the previous in place. A site removed from the list loses its example within a
