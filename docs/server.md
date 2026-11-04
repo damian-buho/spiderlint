@@ -75,6 +75,7 @@ policies: # the first policy whose hosts match the target wins; none matching re
       {
         max-pages: 100,
         max-depth: 5,
+        max-links: 200,
         max-resources: 200,
         max-sitemaps: 8,
         concurrency: 4,
@@ -91,15 +92,15 @@ policies: # the first policy whose hosts match the target wins; none matching re
 
 A policy entry:
 
-| Key      | Meaning                                                                                                                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `hosts`  | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host.                                                                 |
-| `ban`    | `true`, or the reason the client is shown. The request is refused with `403`.                                                                                                                          |
-| `rate`   | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                                                                                            |
-| `repeat` | A request for the same URL with the same settings inside this window gets the job already queued, running or done, with `200`. Unset: every request queues.                                            |
-| `caps`   | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `max-resources` (images fetched last) to 200, `max-sitemaps` to 8, `scan-timeout` to 10 minutes. |
-| `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                                                                   |
-| `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                                                                         |
+| Key      | Meaning                                                                                                                                                                                                                    |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hosts`  | Host suffixes: `ua` matches `ua` and every name under it; `*.ua` and `.ua` mean the same. Unicode is accepted (`рф`). `*` is any host.                                                                                     |
+| `ban`    | `true`, or the reason the client is shown. The request is refused with `403`.                                                                                                                                              |
+| `rate`   | At most `jobs` scans of one host per `per` window (`45s`, `30m`, `1h`, `7d`). Each host has its own window.                                                                                                                |
+| `repeat` | A request for the same URL with the same settings inside this window gets the job already queued, running or done, with `200`. Unset: every request queues.                                                                |
+| `caps`   | Upper bounds; a request asking more, or `0` for unlimited, gets the cap. `max-pages` defaults to 100, `max-links` to 200, `max-resources` (images fetched last) to 200, `max-sitemaps` to 8, `scan-timeout` to 10 minutes. |
+| `fetch`  | Fetch modes a request may use; the first is the default. `http` only while `allow-private` is false.                                                                                                                       |
+| `rules`  | `allow`: rulesets, rule IDs or globs a request may name; absent allows any. `deny`: never run, even inside an allowed ruleset.                                                                                             |
 
 The form offers three rule sets as radios, `recommended` first: `recommended`
 (Standard), `web-quick` and `web-comprehensive`. `web-quick` runs search tags,

@@ -41,6 +41,7 @@ export type Settings = Partial<
         | "via"
         | "maxPages"
         | "maxDepth"
+        | "maxLinks"
         | "maxResources"
         | "maxSitemaps"
         | "maxBodySize"
@@ -92,6 +93,7 @@ const KEYS: [string, keyof Settings][] = [
     ["profile", "profile"],
     ["max-pages", "maxPages"],
     ["max-depth", "maxDepth"],
+    ["max-links", "maxLinks"],
     ["max-resources", "maxResources"],
     ["max-sitemaps", "maxSitemaps"],
     ["max-body-size", "maxBodySize"],

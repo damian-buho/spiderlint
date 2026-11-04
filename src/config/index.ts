@@ -63,6 +63,8 @@ export interface Config {
     via: string;
     maxPages: number;
     maxDepth: number;
+    // Distinct external links probed; 0 is every one.
+    maxLinks: number;
     // Distinct resources fetched, images last; 0 is every one.
     maxResources: number;
     // Sitemap files read; 0 is every one.
@@ -133,6 +135,7 @@ export function defaults(): Config {
         via: "",
         maxPages: 0,
         maxDepth: 0,
+        maxLinks: 0,
         maxResources: 0,
         maxSitemaps: 0,
         maxBodySize: 10_000_000,

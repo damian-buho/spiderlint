@@ -67,9 +67,11 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
     return answer;
 }
 
-// Probes every distinct http(s) link once, one request at a time per host, hosts in parallel, until `overdue` aborts; a link left unanswered is left out.
-export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths">, bucket: ProbeBucket, overdue = new AbortController().signal): Promise<Record<string, LinkFacts>> {
-    const hrefs = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
+// Probes every distinct http(s) link once, at most `maxLinks` of them unless 0, one request at a time per host, hosts in parallel, until `overdue` aborts; a link left unanswered is left out.
+export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths"> & Partial<Pick<Config, "maxLinks">>, bucket: ProbeBucket, overdue = new AbortController().signal): Promise<Record<string, LinkFacts>> {
+    const named = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
+    const hrefs = config.maxLinks ? named.slice(0, config.maxLinks) : named;
+    if (hrefs.length < named.length) log.info({ named: named.length, probed: hrefs.length, maxLinks: config.maxLinks }, "external links cut at max-links");
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.debug({ links: hrefs.length }, "external links found");
     const answers: Record<string, LinkFacts> = {};

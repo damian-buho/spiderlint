@@ -8,6 +8,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { translator } from "../src/i18n.ts";
+import { Bucket } from "../src/cache/index.ts";
+import { probeLinks } from "../src/crawl/links.ts";
 import { audit, type Report } from "../src/index.ts";
 import { reportBody } from "../src/report/html.ts";
 
@@ -89,6 +91,18 @@ describe("scan budgets", () => {
             [...new Set(fetched(report))].toSorted((a, b) => a.localeCompare(b)),
             ["/app.js", "/one.png", "/two.png"],
         );
+    });
+
+    it("probes exactly max-links external links, and every one at 0", async () => {
+        const links = ["/app.js", "/one.png", "/two.png"].map((entry) => `${origin}${entry}`);
+        const config = { allowPrivate: true, concurrency: 2, linkExclude: [], vendorPaths: false };
+        const probed = async (maxLinks: number) => {
+            const answers = await probeLinks(links, { ...config, maxLinks }, new Bucket("probes", undefined, 0, "off"));
+            return Object.keys(answers).length;
+        };
+        assert.equal(await probed(2), 2);
+        assert.equal(await probed(3), 3);
+        assert.equal(await probed(0), 3);
     });
 
     it("marks no report of a run inside its deadline", async () => {

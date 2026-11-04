@@ -55,6 +55,7 @@ const site = {
         profile: { enum: Object.keys(PROFILES) },
         "max-pages": { type: "integer", minimum: 0 },
         "max-depth": { type: "integer", minimum: 0 },
+        "max-links": { type: "integer", minimum: 0 },
         "max-resources": { type: "integer", minimum: 0 },
         "max-sitemaps": { type: "integer", minimum: 0 },
         "max-body-size": { type: "integer", minimum: 0 },
