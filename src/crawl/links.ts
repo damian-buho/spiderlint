@@ -10,6 +10,7 @@ import { vendorPath } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
 import { reason } from "./fetch.ts";
 import { PrivateAddress } from "./guard.ts";
+import { until } from "./network.ts";
 import { probe, type Probe } from "./probe.ts";
 import { width } from "./resources.ts";
 
@@ -66,20 +67,21 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
     return answer;
 }
 
-// Probes every distinct http(s) link once, one request at a time per host, hosts in parallel.
-export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths">, bucket: ProbeBucket): Promise<Record<string, LinkFacts>> {
+// Probes every distinct http(s) link once, one request at a time per host, hosts in parallel, until `overdue` aborts; a link left unanswered is left out.
+export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths">, bucket: ProbeBucket, overdue = new AbortController().signal): Promise<Record<string, LinkFacts>> {
     const hrefs = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
     const hosts = Map.groupBy(hrefs, (href) => new URL(href).hostname).values();
     log.debug({ links: hrefs.length }, "external links found");
     const answers: Record<string, LinkFacts> = {};
-    const signal = new AbortController().signal;
     let cached = 0;
     let probed = 0;
     progressPhase("probes", hrefs.length);
     const worker = async () => {
         for (const group of hosts) {
             for (const href of group) {
-                const { cached: isCached, ...answer } = await answerOf(href, config, bucket, signal);
+                if (overdue.aborted) return;
+                const { cached: isCached, ...answer } = await answerOf(href, config, bucket, overdue);
+                if (overdue.aborted) return;
                 cached += isCached ? 1 : 0;
                 answers[href] = answer;
                 progressCount((probed += 1));
@@ -87,7 +89,8 @@ export async function probeLinks(links: string[], config: Pick<Config, "allowPri
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), hrefs.length) }, worker);
-    await Promise.all(workers);
+    await until(Promise.all(workers), overdue);
+    if (overdue.aborted) log.warn({ probed, links: hrefs.length }, "analysis deadline reached, external links left unprobed");
     const all = Object.values(answers);
     const skipped = all.filter((answer) => !isJudged(answer)).length;
     const failed = all.filter((answer) => isJudged(answer) && (answer.status === 0 || answer.status >= 400)).length;

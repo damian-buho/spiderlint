@@ -10,6 +10,7 @@ import { fetchCached, fetchHeadCached, type Stored } from "../cache/http.ts";
 import type { Config } from "../config/index.ts";
 import type { Logged } from "./frontier.ts";
 import { attemptsFor, MISMATCH, reason } from "./fetch.ts";
+import { until } from "./network.ts";
 import { cookieFacts, redactHeaders } from "../facts/transport.ts";
 import type { Facts, ResourceFacts } from "../facts/types.ts";
 import type { ResourceExtractor } from "../plugins/types.ts";
@@ -241,13 +242,15 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
     }
 }
 
-// GETs every distinct resource URL the pages name that `logged` lacks, once each, with `extractors` reading the bodies of their types through `cache`.
-export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined)): Promise<ResourceResults> {
+// GETs every distinct resource URL the pages name that `logged` lacks, once each and at most `maxResources` of them, images last, with `extractors` reading the bodies of their types through `cache`, until `overdue` aborts.
+export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined), overdue = new AbortController().signal): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
-    const urls = [...new Set(entries.map((entry) => entry.url))];
+    const named = [...new Set(entries.map((entry) => entry.url))];
     const gotten = new Set(entries.filter((entry) => entry.kind !== "enclosure").map((entry) => entry.url));
     const headed = new Set(entries.filter((entry) => entry.kind === "enclosure" && !gotten.has(entry.url)).map((entry) => entry.url));
     const images = new Set(entries.filter((entry) => entry.kind === "image").map((entry) => entry.url));
+    const urls = config.maxResources > 0 ? [...named.filter((url) => !images.has(url)), ...named.filter((url) => images.has(url))].slice(0, config.maxResources) : named;
+    if (urls.length < named.length) log.info({ named: named.length, fetched: urls.length, maxResources: config.maxResources }, "resources cut at max-resources");
     log.debug({ resources: urls.length, references: entries.length, images: images.size, headed: headed.size, fetch: config.fetchResources }, "resources found");
     if (!config.fetchResources || urls.length === 0) return {};
     progressPhase("resources", urls.length);
@@ -256,6 +259,7 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const queue = urls.values();
     const worker = async () => {
         for (const url of queue) {
+            if (overdue.aborted) return;
             const answer = logged.get(url);
             results.set(
                 url,
@@ -269,7 +273,8 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
-    await Promise.all(workers);
+    await until(Promise.all(workers), overdue);
+    if (overdue.aborted) log.warn({ fetched: results.size, resources: urls.length }, "analysis deadline reached, resources left unfetched");
     const all = results.values().toArray();
     const [failed, cached, revalidated, fromBrowser] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length, all.filter((result) => result.logged).length];
     const failedCached = all.filter((result) => result.cached && isFailure(result.status)).length;

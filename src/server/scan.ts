@@ -39,14 +39,15 @@ async function main(): Promise<number> {
         via,
         "content-signals": signals,
         crawlDeadline,
+        analysisDeadline,
         previewBy,
         trace,
-    } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[]; via?: string; "content-signals"?: string[]; crawlDeadline: number; previewBy?: number; trace?: Record<string, string> };
+    } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[]; via?: string; "content-signals"?: string[]; crawlDeadline: number; analysisDeadline: number; previewBy?: number; trace?: Record<string, string> };
     onProgress((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
     const telemetry = await startTelemetry("spiderlint");
     try {
         const report = await withTraceCarrier(trace, async () =>
-            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, cacheMode: "off", denyRules: [...deny, ...NEVER_SERVED] })),
+            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, analysisDeadline, cacheMode: "off", denyRules: [...deny, ...NEVER_SERVED] })),
         );
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;
@@ -64,4 +65,5 @@ async function main(): Promise<number> {
 }
 
 setDefaultCACertificates(systemCaCertificates());
-process.exitCode = await main();
+// eslint-disable-next-line n/no-process-exit, unicorn/no-process-exit -- a phase cut at its deadline may still hold sockets open, and the runner must not wait for them
+process.exit(await main());

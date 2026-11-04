@@ -20,7 +20,9 @@ const PROGRESS_MS = 1000;
 const REPORT_MAX = 64 * 1024 * 1024;
 const TAIL = 20;
 // The share of a scan’s time the crawl may use, leaving the rest to lint and the report.
-const CRAWL_SHARE = 0.8;
+const CRAWL_SHARE = 0.6;
+// The share after which every network phase stops, leaving the rest to the rules, the report and the preview.
+const ANALYSIS_SHARE = 0.9;
 // Seconds before the scan’s timeout by which a preview must be done.
 const PREVIEW_MARGIN_S = 5;
 
@@ -113,7 +115,7 @@ async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Prom
         progress.sent = now;
         store(line);
     });
-    child.stdin?.end(JSON.stringify({ url, settings, deny, via, "content-signals": signals, crawlDeadline: Math.floor(scanTimeout * CRAWL_SHARE), previewBy, trace: traceCarrier() }));
+    child.stdin?.end(JSON.stringify({ url, settings, deny, via, "content-signals": signals, crawlDeadline: Math.floor(scanTimeout * CRAWL_SHARE), analysisDeadline: Math.floor(scanTimeout * ANALYSIS_SHARE), previewBy, trace: traceCarrier() }));
     const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolve) => child.once("close", (exitCode, exitSignal) => resolve([exitCode, exitSignal])));
     clearTimeout(timer);
     if (progress.held) store(progress.held);

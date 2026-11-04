@@ -76,6 +76,8 @@ export interface Summary {
     rating?: Rating;
     // The edge whose bot wall answered a page, which stopped the crawl.
     walled?: string;
+    // Why time ran out before the whole site was checked; the rating covers only what was gathered.
+    incomplete?: "timeout" | "analysis-timeout";
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
     crawlHash?: string;
@@ -457,7 +459,8 @@ function linter(config: Config): Lint {
         run.sampled = sampledCells(pages, rulesByGroup, groups);
         const findings = fold(run, config.fold);
         attributeVendors(findings, config.vendorPaths);
-        const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }) };
+        const isOutOfTime = site.crawl?.reason === "timeout" || site.crawl?.reason === "analysis-timeout";
+        const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }), ...(isOutOfTime && { incomplete: site.crawl?.reason as NonNullable<Summary["incomplete"]> }) };
         log.debug(summary, "lint summary");
         log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
         progressEnd();
@@ -513,6 +516,7 @@ function proxied(active: SiteExtractor[], config: Config): SiteExtractor[] {
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
 async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
     const memory = new MemoryStore();
+    const overdue = given.analysisDeadline > 0 ? AbortSignal.timeout(given.analysisDeadline * 1000) : new AbortController().signal;
     const earlier = store ? await store.pages() : [];
     const rules = enabledRules(given);
     const reader = pageReader(rules);
@@ -572,7 +576,7 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
-    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors);
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors, overdue);
     await store?.saveResources(results);
     const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
     const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media");
@@ -580,10 +584,12 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
     stopIfInterrupted("link probes");
-    if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes);
+    if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes, overdue);
     stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory)));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory), overdue));
+    if (overdue.aborted) site.crawl = { complete: false, reason: "analysis-timeout" };
+    log.debug({ pages: memory.pages.length, isOverdue: overdue.aborted, crawl: site.crawl }, "network phases ended");
     await store?.saveSite(site);
     attachResources(memory.pages, results);
     if (pages.browser !== undefined) cost.browser = { name: config.browser, launches, pages: pages.browser, tlsProbes };

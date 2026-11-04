@@ -1946,3 +1946,6 @@ msgstr "Ordenar por"
 
 msgid "Score"
 msgstr "Puntuación"
+
+msgid "This scan ran out of time, so its rating covers only what was checked before then."
+msgstr "Este análisis se quedó sin tiempo, así que su calificación solo cubre lo que se comprobó hasta entonces."

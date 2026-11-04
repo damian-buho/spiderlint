@@ -111,7 +111,7 @@ export interface SiteFacts {
 }
 
 // Why a crawl left pages unfetched.
-export type CrawlEnd = "max-pages" | "max-depth" | "interrupted" | "timeout" | "walled";
+export type CrawlEnd = "max-pages" | "max-depth" | "interrupted" | "timeout" | "analysis-timeout" | "walled";
 
 // A page’s place in the internal link graph, derived on every lint.
 export interface GraphFacts {

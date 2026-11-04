@@ -14,7 +14,7 @@ import { cachedGet, type ProfileBucket } from "../crawl/profile.ts";
 import type { RobotsFor } from "../crawl/robots.ts";
 import { width } from "../crawl/resources.ts";
 import { connectable } from "../crawl/guard.ts";
-import { Deadline } from "../crawl/network.ts";
+import { Deadline, until } from "../crawl/network.ts";
 import { log } from "../logger.ts";
 import type { SiteContext, SiteExtractor } from "../plugins/types.ts";
 import type { Facts, SiteFacts } from "./types.ts";
@@ -97,7 +97,7 @@ async function runOne(extractor: SiteExtractor, subject: string, pages: Facts[],
     }
 }
 
-// Runs each active extractor once per subject, and on linked hosts too for the IDs in `linked`, from `bucket` while fresh; returns the IDs of every real run.
+// Runs each active extractor once per subject, and on linked hosts too for the IDs in `linked`, from `bucket` while fresh and until `overdue` aborts; returns the IDs of every real run.
 export async function extractSites(
     pages: Facts[],
     site: SiteFacts,
@@ -110,6 +110,7 @@ export async function extractSites(
     linked: ReadonlySet<string> = new Set(),
     profiles: ProfileBucket = new Bucket("profiles", undefined, 0, "off"),
     lists: ProfileBucket = new Bucket("lists", undefined, 0, "off"),
+    overdue = new AbortController().signal,
 ): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
@@ -124,6 +125,7 @@ export async function extractSites(
     const queue = jobs.values();
     const worker = async () => {
         for (const { extractor, subject, members, isLinked } of queue) {
+            if (overdue.aborted) return;
             const key = `${extractor.id}\t${extractor.version ?? ""}\t${JSON.stringify(extractor.settings ?? {})}\t${subject}${isLinked ? "\tlinked" : ""}`;
             const entry = extractor.cached === false ? undefined : await bucket.get(key);
             let value = entry && bucket.isFresh(entry) ? entry.value : undefined;
@@ -145,7 +147,8 @@ export async function extractSites(
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), jobs.length) }, worker);
-    await Promise.all(workers);
+    await until(Promise.all(workers), overdue);
+    if (overdue.aborted) log.warn({ finished, jobs: jobs.length }, "analysis deadline reached, site extractors skipped");
     log.debug({ runs: ran.length, jobs: jobs.length }, "site extractors done");
     return ran;
 }

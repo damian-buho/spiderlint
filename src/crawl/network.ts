@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { once } from "node:events";
 import { setGlobalProxyFromEnv } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Server } from "proxy-chain";
@@ -60,6 +61,11 @@ export async function pace(): Promise<void> {
     pacing.next = slot + pacing.spacing;
     log.trace({ waitMs: slot - now, spacing: pacing.spacing }, "request paced");
     if (slot > now) await sleep(slot - now);
+}
+
+// Waits for `work`, or stops waiting once `signal` aborts, leaving `work` to the process exit.
+export async function until(work: Promise<unknown>, signal: AbortSignal): Promise<void> {
+    await Promise.race([work, signal.aborted ? undefined : once(signal, "abort")]);
 }
 
 // An abort signal whose countdown stops while any request under it waits for a domain budget.

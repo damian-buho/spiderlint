@@ -97,10 +97,11 @@ export interface Runnable {
 // What every fetch mode shares: seeds, sitemap, globs, robots, the page budget, the visited set, and which crawler each URL goes to.
 export class Frontier {
     static async open(config: Config, cache: CrawlCache, router: Router): Promise<Frontier> {
-        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps, config.canonicalOrigin) : { index: new Map(), files: [] }, router);
+        return new Frontier(config, config.sitemap ? await loadSitemap(config.seeds, cache.robots, cache.sitemaps, config.canonicalOrigin, config.maxSitemaps) : { index: new Map(), files: [] }, router);
     }
 
     readonly #config: Config;
+    readonly #isSitemapCut: boolean;
     readonly #seeds: Set<string>;
     readonly #sitemap: Sitemaps["index"];
     readonly #skipped = new Map<string, string>();
@@ -150,6 +151,7 @@ export class Frontier {
         this.#globs = globMatchers(config);
         this.#spread = config.diversify ? new Spread(config.maxPages || Infinity) : undefined;
         this.files = sitemaps.files;
+        this.#isSitemapCut = sitemaps.isCut === true;
     }
 
     // The shipped vendor entry owning `href` as a page, unless `vendor-paths` is off.
@@ -355,7 +357,7 @@ export class Frontier {
             url: { href: url.href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: url.search },
             group: "default",
             crawl: { depth: request.crawlDepth, "discovered-via": request.crawlDepth > 0 ? "link" : this.#seeds.has(request.url) ? "seed" : "sitemap", referrers: [], ...(request.url !== url.href && { requested: request.url }), at: new Date().toISOString(), ...(mode && { mode }) },
-            ...(this.#sitemap.size > 0 && { sitemap: listing ?? { listed: false } }),
+            ...(this.#sitemap.size > 0 && (listing || !this.#isSitemapCut) && { sitemap: listing ?? { listed: false } }),
         };
     }
 

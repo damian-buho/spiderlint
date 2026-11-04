@@ -53,6 +53,8 @@ export interface Config {
     timeout: number;
     // Seconds after which the crawl stops taking pages and the run goes on with what it has; 0 is no deadline.
     crawlDeadline: number;
+    // Seconds after which the run stops every network phase and lints what it has; 0 is no deadline.
+    analysisDeadline: number;
     // A named bundle of settings over the defaults, as `PROFILES` holds; empty is none.
     profile: string;
     // `http`, `https` or `socks*` proxy URL every request goes through; empty goes direct.
@@ -61,6 +63,10 @@ export interface Config {
     via: string;
     maxPages: number;
     maxDepth: number;
+    // Distinct resources fetched, images last; 0 is every one.
+    maxResources: number;
+    // Sitemap files read; 0 is every one.
+    maxSitemaps: number;
     maxBodySize: number;
     keepalive: boolean;
     fetchResources: boolean;
@@ -121,11 +127,14 @@ export function defaults(): Config {
         misses: 6,
         timeout: 60,
         crawlDeadline: 0,
+        analysisDeadline: 0,
         profile: "",
         proxy: "",
         via: "",
         maxPages: 0,
         maxDepth: 0,
+        maxResources: 0,
+        maxSitemaps: 0,
         maxBodySize: 10_000_000,
         keepalive: true,
         fetchResources: true,

@@ -1946,3 +1946,6 @@ msgstr "Сортувати за"
 
 msgid "Score"
 msgstr "Оцінка"
+
+msgid "This scan ran out of time, so its rating covers only what was checked before then."
+msgstr "Цій перевірці забракло часу, тож її оцінка охоплює лише те, що встигли перевірити."

@@ -279,6 +279,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     const { rating } = summary;
     const started = new Intl.DateTimeFormat(t.locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(summary.started));
     const head = `<header class="hero"><p class="grade grade-${rating?.grade ?? "none"}" title="${escape(t._("Rating"))}">${escape(rating?.grade ?? "–")}</p><div><h1>${escape(title)}</h1><p class="muted">${escape(rating ? t._("Rulesets: {names}", { names: rating.rulesets.join(", ") }) : t._("No checks ran"))} · ${escape(started)}</p></div></header>`;
+    const cut = summary.incomplete ? `<p class="notice">${escape(t._("This scan ran out of time, so its rating covers only what was checked before then."))}</p>` : "";
     const kpi = (value: string, name: string, tone = "") => `<div class="kpi${tone && ` ${tone}`}"><b>${escape(value)}</b><span>${escape(name)}</span></div>`;
     const measured = [
         kpi(t.number(summary.pages), t._("Pages")),
@@ -317,7 +318,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     ].map(([id, name], index) => `<label><input type="radio" name="sort" id="sort-${id}"${index === 0 ? " checked" : ""}>${escape(name)}</label>`);
     const sort = parts.length > 0 ? `<div class="sort" role="radiogroup" aria-label="${escape(t._("Sort by"))}"><span>${escape(t._("Sort by"))}</span>${sorts.join("")}</div>` : "";
     const found = `<section><h2>${escape(t._("Findings"))}</h2>${sort}${parts.length > 0 ? parts.join("") : `<p>${escape(t._("No findings."))}</p>`}</section>`;
-    return `${head}${totals}${found}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
+    return `${head}${cut}${totals}${found}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
 }
 
 // A standalone page in `lang`, the process locale unless named; colour and `isFull` do not apply, since every list folds into a disclosure.

@@ -18,7 +18,7 @@ export const DEFAULT_PATH = "/etc/spiderlint/server.yaml";
 const WATCH_MS = 5000;
 
 // Caps a policy lays over a scan; 0 in a request is unlimited, so it takes the cap.
-export const CAPPED = ["max-pages", "max-depth", "concurrency", "rate", "timeout", "max-body-size"] as const;
+export const CAPPED = ["max-pages", "max-depth", "max-resources", "max-sitemaps", "concurrency", "rate", "timeout", "max-body-size"] as const;
 
 export interface Policy {
     name: string;
@@ -166,7 +166,7 @@ function policyOf(raw: RawPolicy, isPrivateAllowed: boolean): Policy {
         ...(raw.ban !== undefined && raw.ban !== false && { ban: raw.ban === true ? `scans of this host are disabled by policy ${raw.name}` : raw.ban }),
         ...(raw.rate && { rate: { jobs: raw.rate.jobs, seconds: seconds(raw.rate.per) } }),
         ...(raw.repeat !== undefined && { repeat: seconds(raw.repeat) }),
-        caps: { "max-pages": 100, ...(caps as Policy["caps"]) },
+        caps: { "max-pages": 100, "max-resources": 200, "max-sitemaps": 8, ...(caps as Policy["caps"]) },
         scanTimeout: seconds(scanTimeout),
         fetch,
         rules: { ...(raw.rules?.allow && { allow: raw.rules.allow }), deny: raw.rules?.deny ?? [] },

@@ -20,6 +20,8 @@ export type SitemapBucket = Bucket<Stored<string>>;
 export interface Sitemaps {
     index: SitemapIndex;
     files: SitemapFileFacts[];
+    // Set when `max-sitemaps` left files unread, so an unlisted URL proves nothing.
+    isCut?: true;
 }
 
 type Fetch = (url: string) => Promise<Served<string>>;
@@ -183,8 +185,8 @@ async function discover(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBu
     return [...found];
 }
 
-// robots.txt `Sitemap:` lines plus the common `/sitemap.xml` names, each file and its nested files read once.
-export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket, canonical?: string): Promise<Sitemaps> {
+// robots.txt `Sitemap:` lines plus the common `/sitemap.xml` names, each file and its nested files read once, at most `maxFiles` of them unless 0.
+export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket: SitemapBucket, canonical?: string, maxFiles = 0): Promise<Sitemaps> {
     const index: SitemapIndex = new Map();
     const fetch = fetchOnce(bucket);
     const queue = await discover(seeds, robotsFor, bucket, fetch, canonical);
@@ -193,6 +195,10 @@ export async function loadSitemap(seeds: string[], robotsFor: RobotsFor, bucket:
     const files: SitemapFileFacts[] = [];
     for (const url of queue) {
         if (seen.has(url)) continue;
+        if (maxFiles > 0 && files.length >= maxFiles) {
+            log.info({ maxFiles, unread: new Set(queue).size - seen.size, urls: index.size }, "sitemap files cut at max-sitemaps");
+            return { index, files, isCut: true };
+        }
         seen.add(url);
         files.push(await readSitemap(url, index, queue, fetch, canonical));
     }
