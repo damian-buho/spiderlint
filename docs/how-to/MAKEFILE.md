@@ -1053,7 +1053,7 @@ Migrate to leaner dependency replacements
 
 Lint JavaScript and TypeScript
 
-`auto-eslint --max-warnings=${org.projectfile.eslint.max-warnings}`
+`auto-eslint --no-warn-ignored --max-warnings=${org.projectfile.eslint.max-warnings}`
 
 > Image: D9T_JS_TOOLS_IMAGE
 
@@ -1069,7 +1069,7 @@ Autofix ESLint findings
 
 Lint CSS and style sheets
 
-`auto-stylelint`
+`auto-stylelint --allow-empty-input`
 
 > Image: D9T_JS_TOOLS_IMAGE
 
@@ -1174,6 +1174,14 @@ Check the source is formatted by prettier
 Format the source with prettier
 
 `npm run format`
+
+> Image: NODE_TOOL_IMAGE
+
+### `npm-format-staged`
+
+Format the staged source with prettier
+
+`npx --no-install prettier --write --ignore-unknown`
 
 > Image: NODE_TOOL_IMAGE
 
