@@ -72,10 +72,10 @@ aplica a este proyecto):
 
 | ID | Motivo |
 | --- | --- |
-| GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
 | CVE-2026-118764 | no patch for 10.x |
 | GHSA-g3hv-75wg-m249 | no patch for 10.x |
+| GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
+| CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
 | GHSA-3g3m-2fjr-6pw4 | no fix for 13 series |
 
 <!-- textlint-enable -->
