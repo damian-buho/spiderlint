@@ -965,14 +965,14 @@ jobs:
         with:
           image: ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'ghcr.io/damian-buho') }}
           version: ${{ env.M6E_TAG }}
-          run: auto-eslint --max-warnings=0
+          run: auto-eslint --no-warn-ignored --max-warnings=0
       - name: auto-stylelint
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_AUTO_STYLELINT != 'true'
         uses: projectfile-org/actions/run-tool@c9f41411e83f6dbf3f94838f4ee6a9af1b0c4970 # v1
         with:
           image: ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'ghcr.io/damian-buho') }}
           version: ${{ env.M6E_TAG }}
-          run: auto-stylelint
+          run: auto-stylelint --allow-empty-input
       - name: npm-format-check
         if: vars.CI_SKIP_SOURCE_PASSES_LINT != 'true' && vars.CI_SKIP_NPM_FORMAT_CHECK != 'true'
         uses: projectfile-org/actions/run-tool@c9f41411e83f6dbf3f94838f4ee6a9af1b0c4970 # v1
