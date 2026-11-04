@@ -15,7 +15,6 @@ import { log } from "../logger.ts";
 import { onProgress } from "../progress.ts";
 import { formatJson } from "../report/json.ts";
 import { inSpan, startTelemetry, withTraceCarrier } from "../telemetry.ts";
-import { NEVER_SERVED } from "./policy.ts";
 import { PREVIEW_FILE, preview } from "./preview.ts";
 import { PROGRESS_FD } from "./queue.ts";
 
@@ -47,7 +46,7 @@ async function main(): Promise<number> {
     const telemetry = await startTelemetry("spiderlint");
     try {
         const report = await withTraceCarrier(trace, async () =>
-            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, analysisDeadline, cacheMode: "off", denyRules: [...deny, ...NEVER_SERVED] })),
+            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, analysisDeadline, cacheMode: "off", denyRules: deny })),
         );
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;

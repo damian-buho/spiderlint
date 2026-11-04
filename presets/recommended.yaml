@@ -18,6 +18,8 @@ extends:
   - spiderlint:crawlers
   - spiderlint:dns:recommended
   - spiderlint:mail:recommended
+  - spiderlint:sshfp
+  - spiderlint:network
   - spiderlint:images
   - spiderlint:icons
   - spiderlint:insights

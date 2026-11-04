@@ -14,7 +14,6 @@ import type { SiteContext } from "../src/plugins/types.ts";
 import sshfp, { fingerprint, parseKeyscan } from "../src/plugins/sshfp.ts";
 import { compileRulesets } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
-import { NEVER_SERVED } from "../src/server/policy.ts";
 import { serveDns, type DnsFixture } from "./fixtures/dns.ts";
 
 // RFC 7479 §3: an Ed25519 key in OpenSSH form and its SHA-256 SSHFP record.
@@ -129,7 +128,7 @@ describe("sshfp plugin", () => {
         }
     });
 
-    it("never runs through the scan server", () => {
-        assert.deepEqual(compileRulesets(["sshfp"], {}, new Set(NEVER_SERVED)), []);
+    it("runs in the default rules every hosted scan uses", () => {
+        assert.ok(compileRulesets(["recommended"], {}).some((rule) => rule.meta.id.startsWith("sshfp/")));
     });
 });

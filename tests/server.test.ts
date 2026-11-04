@@ -234,6 +234,10 @@ describe("server pages without Redis", () => {
         assert.throws(() => admit({ url: "https://example.com/", settings: { "content-signals": { search: "yes" } } }, SETTINGS), { code: "forbidden-setting" });
     });
 
+    it("never lets a request aim the SSH check at another port", () => {
+        assert.throws(() => admit({ url: "https://example.com/", settings: { sshfp: { port: 25 } } }, SETTINGS), { code: "forbidden-setting" });
+    });
+
     it("lists the latest reports newest first in the reader’s language and drops one whose scan expired", async () => {
         const entry = JSON.stringify({ id: "b.test-20261014T171505Z-3f9c1a7e2b4d", host: "b.test", grade: "A", finished: Date.UTC(2026, 9, 14, 17, 15, 5) });
         const dropped: string[] = [];
