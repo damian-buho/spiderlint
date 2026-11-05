@@ -195,6 +195,42 @@ describe("audit", () => {
         assert.deepEqual(rule?.check([page], undefined, { sitemaps: [], links: { [href]: first } } as unknown as SiteFacts), []);
     });
 
+    it("reports links that reached nothing once per origin and error, keeping each page’s own links", () => {
+        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const lost = { status: 0, error: "getaddrinfo ENOTFOUND mirror.onion" };
+        const links = { "http://mirror.onion/a/": lost, "http://mirror.onion/b/": lost, "http://mirror.onion/c/": lost, "http://other.onion/a/": { status: 0, error: "getaddrinfo ENOTFOUND other.onion" }, "http://slow.test/a/": { status: 0, error: "timeout" }, "http://slow.test/b/": { status: 0, error: "refused" } };
+        const pages = [
+            { url: new URL("https://site.test/a/"), html: { links: { external: ["http://mirror.onion/a/", "http://other.onion/a/", "http://slow.test/a/"] } } },
+            { url: new URL("https://site.test/b/"), html: { links: { external: ["http://mirror.onion/b/", "http://mirror.onion/c/", "http://slow.test/b/"] } } },
+        ] as unknown as Facts[];
+        const found = rule?.check(pages, undefined, { sitemaps: [], links } as unknown as SiteFacts) ?? [];
+        assert.deepEqual(
+            found.map((finding) => [finding.url, finding.value, finding.urls?.length, finding.message]),
+            [
+                ["http://mirror.onion", 0, 2, "the link could not be reached: getaddrinfo ENOTFOUND mirror.onion; linked from these pages"],
+                ["http://other.onion", 0, 1, "the link could not be reached: getaddrinfo ENOTFOUND other.onion; linked from these pages"],
+                ["http://slow.test", 0, 1, "the link could not be reached: timeout; linked from these pages"],
+                ["http://slow.test", 0, 1, "the link could not be reached: refused; linked from these pages"],
+            ],
+        );
+        assert.deepEqual(found[0]?.data, { "https://site.test/a/": { link: "http://mirror.onion/a/" }, "https://site.test/b/": { link: "http://mirror.onion/b/, http://mirror.onion/c/" } });
+        assert.deepEqual(
+            found[0]?.evidence?.map((read) => read.key),
+            ["http://mirror.onion/a/", "http://mirror.onion/b/", "http://mirror.onion/c/"],
+        );
+    });
+
+    it("keeps one finding per target for links a server answered, on the same origin", () => {
+        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const page = { url: new URL("https://site.test/"), html: { links: { external: ["https://cdn.test/a", "https://cdn.test/b", "https://cdn.test/c"] } } } as unknown as Facts;
+        const links = { "https://cdn.test/a": { status: 404 }, "https://cdn.test/b": { status: 404 }, "https://cdn.test/c": { status: 0, error: "timeout" } };
+        const found = rule?.check([page], undefined, { sitemaps: [], links } as unknown as SiteFacts) ?? [];
+        assert.deepEqual(
+            found.map((finding) => finding.url),
+            ["https://cdn.test/a", "https://cdn.test/b", "https://cdn.test"],
+        );
+    });
+
     it("treats a Cloudflare edge block that never asked the origin as a wall", async () => {
         const bucket = openBucket<LinkFacts>("probes", { cacheMode: "use", cacheTtl: {} }, undefined);
         const answer = await answerOf(`${cdn()}/edge-blocked`, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);

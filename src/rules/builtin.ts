@@ -5,7 +5,7 @@
 import { createRequire } from "node:module";
 import { isJudged } from "../crawl/links.ts";
 import { mediaOf } from "../crawl/sitemap.ts";
-import type { Facts, HtmlFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
+import type { Facts, HtmlFacts, LinkFacts, ParsedHeader, ResourceFacts, SiteFacts } from "../facts/types.ts";
 import { parseCacheControl, parseLink } from "../facts/headers.ts";
 import { evidence } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
@@ -44,7 +44,27 @@ const brokenInternal: Make = (severity) => ({
     },
 });
 
-// Every probed external link answering 4xx or 5xx, or nothing, once per target, with the pages linking to it; a 429, a bot wall, an excluded host or a refused address is not judged.
+// One finding for links that reached nothing the same way on one origin: the pages, each with its own links.
+function unreached(severity: Finding["severity"], links: [href: string, urls: string[], answer: LinkFacts][]): Finding {
+    const [[first, , { error = "" }]] = links as [[string, string[], LinkFacts]];
+    const byPage = new Map<string, string[]>();
+    for (const [href, urls] of links) for (const url of urls) byPage.set(url, [...(byPage.get(url) ?? []), href]);
+    const url = new URL(first).origin;
+    log.debug({ rule: "links/broken-external", url, error, links: links.length, pages: byPage.size }, "unreached links merged");
+    return {
+        rule: "links/broken-external",
+        severity,
+        scope: "site",
+        url,
+        ...said("the link could not be reached: {error}; linked from these pages", { error }),
+        data: Object.fromEntries(byPage.entries().map(([page, hrefs]) => [page, { link: hrefs.join(", ") }])),
+        evidence: links.map(([href, , answer]) => evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })),
+        value: 0,
+        urls: byPage.keys().toArray(),
+    };
+}
+
+// Every probed external link answering 4xx or 5xx once per target, and those answering nothing once per origin and error, with the pages linking to them; a 429, a bot wall, an excluded host or a refused address is not judged.
 const brokenExternal: Make = (severity) => ({
     meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404", fix: "Remove or repoint each broken external link." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
@@ -55,15 +75,20 @@ const brokenExternal: Make = (severity) => ({
             for (const href of hrefs) linking.set(href, [...(linking.get(href) ?? []), page.url.href]);
         }
         const findings: Finding[] = [];
+        const silent = new Map<string, [string, string[], LinkFacts][]>();
         for (const [href, urls] of linking) {
             const answer = answers[href];
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
             log.debug({ rule: "links/broken-external", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
             if (!isBroken) continue;
-            const verdict = answer.status === 0 ? said("the link could not be reached: {error}; linked from these pages", { error: answer.error ?? "" }) : said("the link answers {status}; linked from these pages", { status: String(answer.status) });
-            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, ...verdict, evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
+            if (answer.status === 0) {
+                const key = `${new URL(href).origin}\t${answer.error}`;
+                silent.set(key, [...(silent.get(key) ?? []), [href, urls, answer]]);
+                continue;
+            }
+            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, ...said("the link answers {status}; linked from these pages", { status: String(answer.status) }), evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
         }
-        return findings;
+        return [...findings, ...silent.values().map((links) => unreached(severity, links))];
     },
 });
 
