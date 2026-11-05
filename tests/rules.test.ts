@@ -76,6 +76,28 @@ describe("server disclosure", () => {
             [{ "meta generator": "WordPress 6.4.2" }],
         );
     });
+
+    it("gives one finding for a field whose values differ per response", () => {
+        const findings = rule.check([answering("https://site.test/", { "x-varnish": "101 202" }), answering("https://site.test/b", { "x-varnish": "103 204" }), answering("https://site.test/c", { "x-varnish": "103 204" })]) ?? [];
+        assert.deepEqual(
+            findings.map((finding) => finding.url),
+            ["site.test"],
+        );
+        assert.deepEqual(findings[0]?.data, {
+            "https://site.test/": { value: "101 202" },
+            "https://site.test/b": { value: "103 204" },
+            "https://site.test/c": { value: "103 204" },
+        });
+    });
+
+    it("judges a field by the worst value one of its responses discloses", () => {
+        const findings = rule.check([answering("https://site.test/", { via: "1.1 varnish" }), answering("https://site.test/b", { via: "1.1 swifty (Varnish/9.0)" })]) ?? [];
+        assert.deepEqual(
+            findings.map((finding) => finding.severity),
+            ["warning"],
+        );
+        assert.deepEqual(findings[0]?.value, { via: "1.1 swifty (Varnish/9.0)" });
+    });
 });
 
 describe("resource rules", () => {

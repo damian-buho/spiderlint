@@ -68,7 +68,7 @@ function domainOf(host: string): string {
     return getDomain(host, { allowPrivateDomains: true }) ?? host;
 }
 
-// One finding per host, field and value across every page and every resource under a crawled registrable domain.
+// One finding per host and field across every page and every resource under a crawled registrable domain.
 const serverDisclosure: Make = (severity) => ({
     meta: {
         id: "http/server-disclosure",
@@ -80,13 +80,13 @@ const serverDisclosure: Make = (severity) => ({
     },
     check(pages: Facts[]) {
         const domains = new Set(pages.map((page) => domainOf(page.url.host)));
-        const seen = new Map<string, { host: string; field: string; value: string; urls: Set<string> }>();
+        const seen = new Map<string, { host: string; field: string; values: Map<string, string> }>();
         const note = (url: string, found: [string, string][]) => {
             const host = new URL(url).host;
             for (const [field, value] of found) {
-                const key = `${host}\n${field}\n${value}`;
-                const entry = seen.get(key) ?? { host, field, value, urls: new Set<string>() };
-                entry.urls.add(url);
+                const key = `${host}\n${field}`;
+                const entry = seen.get(key) ?? { host, field, values: new Map<string, string>() };
+                if (!entry.values.has(url)) entry.values.set(url, value);
                 seen.set(key, entry);
             }
         };
@@ -96,11 +96,31 @@ const serverDisclosure: Make = (severity) => ({
             for (const resource of owned) note(resource.url, fields(resource.http?.headers));
         }
         const findings: Finding[] = [];
-        for (const { host, field, value, urls } of seen.values()) {
-            const level = judge(field, value, severity);
-            if (!level) continue;
-            const listed = [...urls].toSorted((a, b) => a.localeCompare(b));
-            findings.push({ rule: "http/server-disclosure", severity: level, scope: "site", url: host, ...said("the host names its software in {field}", { field }), data: Object.fromEntries(listed.map((url) => [url, { value }])), value: { [field]: value }, urls: listed, score: level === "hint" ? 3.5 : 5.4 });
+        for (const { host, field, values } of seen.values()) {
+            const judged = values
+                .entries()
+                .map(([url, value]): readonly [string, string, Finding["severity"] | undefined] => [url, value, judge(field, value, severity)])
+                .filter((row): row is readonly [string, string, Finding["severity"]] => row[2] !== undefined)
+                .toArray();
+            if (judged.length === 0) continue;
+            // One field, one finding: the level is the worst its values earn, and `data` keeps each URL’s own (X-Varnish ids differ per response).
+            const level = judged.some((row) => row[2] === severity) ? severity : "hint";
+            const accused = judged.find((row) => row[2] === level) ?? (judged[0] as (typeof judged)[number]);
+            const listed = values
+                .keys()
+                .toArray()
+                .toSorted((a, b) => a.localeCompare(b));
+            findings.push({
+                rule: "http/server-disclosure",
+                severity: level,
+                scope: "site",
+                url: host,
+                ...said("the host names its software in {field}", { field }),
+                data: Object.fromEntries(listed.map((url) => [url, { value: values.get(url) ?? "" }])),
+                value: { [field]: accused[1] },
+                urls: listed,
+                score: level === "hint" ? 3.5 : 5.4,
+            });
         }
         return findings;
     },
