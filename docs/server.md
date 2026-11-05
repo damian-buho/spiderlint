@@ -357,7 +357,9 @@ expires.
 
 Traces, metrics and logs go to an OpenTelemetry collector over OTLP/HTTP once
 any of these variables names an endpoint. Unset, the SDK and its exporters are
-never loaded, and stderr output is the same either way.
+never loaded, and stderr output is the same either way. The exporters resolve
+the collector through the system, so it may sit on a private address while
+`allow-private` is false; only what a scan fetches meets the address guard.
 
 | Variable                                                                                                        | Effect                                                                                     |
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |

@@ -5,6 +5,7 @@
 import { context, metrics, propagation, SpanStatusCode, trace, type Attributes, type Counter, type Histogram, type ObservableGauge, type Span } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { CompositePropagator, W3CBaggagePropagator, W3CTraceContextPropagator } from "@opentelemetry/core";
+import dns from "node:dns";
 import { VERSION } from "./agent.ts";
 import { log } from "./logger.ts";
 import { ENDPOINTS, isTelemetryConfigured } from "./telemetry-environment.ts";
@@ -45,12 +46,14 @@ export async function startTelemetry(service: string): Promise<Telemetry | undef
     ]);
     const name = process.env.OTEL_SERVICE_NAME || service;
     const resource = resourceFromAttributes({ "service.name": name, "service.version": VERSION });
-    const tracing = new TracerProvider({ resource, spanProcessors: [new BatchSpanProcessor({ exporter: new OTLPTraceExporter() })] });
+    // The system lookup, taken before a crawl guards `dns.lookup`, so the collector may sit on a private address.
+    const httpAgentOptions = { keepAlive: true, lookup: dns.lookup };
+    const tracing = new TracerProvider({ resource, spanProcessors: [new BatchSpanProcessor({ exporter: new OTLPTraceExporter({ httpAgentOptions }) })] });
     trace.setGlobalTracerProvider(tracing);
     context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
     propagation.setGlobalPropagator(new CompositePropagator({ propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()] }));
     const interval = Number(process.env.OTEL_METRIC_EXPORT_INTERVAL) || EXPORT_MS;
-    const metering = new MeterProvider({ resource, readers: [new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter(), exportIntervalMillis: interval })] });
+    const metering = new MeterProvider({ resource, readers: [new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter({ httpAgentOptions }), exportIntervalMillis: interval })] });
     metrics.setGlobalMeterProvider(metering);
     const meter = metrics.getMeter("spiderlint", VERSION);
     state.instruments = {

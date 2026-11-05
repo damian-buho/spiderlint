@@ -6,12 +6,13 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
-import { createServer, type Server } from "node:http";
+import { createServer, get, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { openResolution } from "../src/crawl/resolve.ts";
 import { isTelemetryConfigured } from "../src/telemetry-environment.ts";
-import { startTelemetry, traceCarrier } from "../src/telemetry.ts";
+import { countRequest, inSpan, startTelemetry, traceCarrier } from "../src/telemetry.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const CLI = new URL("../src/cli.ts", import.meta.url).pathname;
@@ -118,5 +119,31 @@ describe("telemetry on", () => {
         const scan = otlp.received.spans.find((span) => span.name === "scan" && span.traceId === traceId);
         assert.equal(scan?.parentSpanId, parent);
         assert.ok(otlp.received.spans.some((span) => span.name === "page" && span.traceId === traceId));
+    });
+});
+
+describe("telemetry under the address guard", () => {
+    it("exports to a named collector on a private address while the guard is open", async () => {
+        const otlp = await collector();
+        const named = otlp.endpoint.replace("127.0.0.1", "localhost");
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT = named;
+        const telemetry = await startTelemetry("spiderlint-test");
+        const restore = await openResolution([], "system", [], false, false);
+        try {
+            await assert.rejects(new Promise((resolve, reject) => get(named, resolve).on("error", reject)), { code: "EPRIVATE" });
+            await inSpan("guarded", {}, async () => {
+                countRequest("/", "GET", 200);
+            });
+            await telemetry?.shutdown();
+        } finally {
+            restore();
+            Reflect.deleteProperty(process.env, "OTEL_EXPORTER_OTLP_ENDPOINT");
+            await new Promise((resolve) => otlp.server.close(resolve));
+        }
+        assert.ok(
+            otlp.received.spans.some((span) => span.name === "guarded"),
+            "the span reached the collector",
+        );
+        assert.ok(otlp.received.metrics.includes("spiderlint.http.requests"), otlp.received.metrics.join(", "));
     });
 });
