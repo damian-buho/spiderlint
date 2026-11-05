@@ -9,6 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { agentHeaders, botAgent } from "../agent.ts";
 import { redactHeaders } from "../facts/transport.ts";
 import { log } from "../logger.ts";
+import { agentThrough } from "./darknet.ts";
 import { delay, reason } from "./fetch.ts";
 import { guardedLookup, isPrivate, PrivateAddress } from "./guard.ts";
 import { admit, pace, patient, type Deadline } from "./network.ts";
@@ -16,6 +17,7 @@ import { robotsFactsOf, type RobotsFor } from "./robots.ts";
 
 const ATTEMPTS = 2;
 const TIMEOUT_MS = 10_000;
+const PROXIED_TIMEOUT_MS = 60_000;
 const MAX_HOPS = 10;
 const MAX_BODY = 1_048_576;
 const RETRY_STATUS = new Set([429, 503]);
@@ -51,6 +53,8 @@ export interface ProbeOptions {
     deadline?: Deadline;
     // The run’s robots.txt verdicts; unset when `robots` is off.
     robots?: RobotsFor;
+    // The darknet proxy the request goes through, which resolves the name and skips the address guard.
+    proxy?: string;
 }
 
 // A probe robots.txt disallows for `spiderlint`, never sent; `unreachable` when that is only because the file did not answer.
@@ -86,9 +90,11 @@ async function once(url: URL, init: ProbeInit, options: ProbeOptions): Promise<O
     const request = url.protocol === "https:" ? httpsRequest : httpRequest;
     const settle = await admit(url.href, options.signal, options.deadline);
     await pace();
-    const expiry = AbortSignal.timeout(patient(TIMEOUT_MS));
+    const timeout = patient(options.proxy ? PROXIED_TIMEOUT_MS : TIMEOUT_MS);
+    const expiry = AbortSignal.timeout(timeout);
+    const route = options.proxy ? { agent: agentThrough(options.proxy, url, timeout) } : !options.allowPrivate && { lookup: guardedLookup };
     const response = await new Promise<IncomingMessage>((resolve, reject) => {
-        const outgoing = request(url, { method: init.method ?? "GET", headers: { ...init.headers, ...(init.as ? { "user-agent": botAgent(init.as) } : agentHeaders()) }, signal: AbortSignal.any([options.signal, expiry]), ...(!options.allowPrivate && { lookup: guardedLookup }) }, resolve);
+        const outgoing = request(url, { method: init.method ?? "GET", headers: { ...init.headers, ...(init.as ? { "user-agent": botAgent(init.as) } : agentHeaders()) }, signal: AbortSignal.any([options.signal, expiry]), ...route }, resolve);
         outgoing.on("error", reject);
         outgoing.end();
     });

@@ -79,6 +79,7 @@
     "saxes": "6.0.0",
     "sharp": "0.35.5",
     "smol-toml": "1.9.1",
+    "socks-proxy-agent": "10.1.0",
     "structured-headers": "2.1.1",
     "svgo": "4.1.0",
     "tldts": "7.4.19",

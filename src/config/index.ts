@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { BucketName, CacheMode } from "../cache/index.ts";
+import type { Darknet } from "../crawl/darknet.ts";
 import type { Pin } from "../crawl/resolve.ts";
 import type { Role, Stance } from "../facts/types.ts";
 import type { Scope } from "../crawl/scope.ts";
@@ -75,6 +76,8 @@ export interface Config {
     maxResourcesPerPage: number;
     // Hosts, each with its subdomains, whose off-scope links are never probed.
     linkExclude: string[];
+    // The proxy each darknet’s links go through; a network with none is never asked.
+    darknets: Partial<Record<Darknet, string>>;
     includeUrls: string[];
     excludeUrls: string[];
     // Whether the shipped `vendors/paths.yaml` keeps vendor-owned paths out of the crawl and its findings apart.
@@ -143,6 +146,7 @@ export function defaults(): Config {
         fetchResources: true,
         maxResourcesPerPage: 200,
         linkExclude: [],
+        darknets: {},
         includeUrls: [],
         excludeUrls: [],
         vendorPaths: true,

@@ -49,6 +49,7 @@ export type Settings = Partial<
         | "fetchResources"
         | "maxResourcesPerPage"
         | "linkExclude"
+        | "darknets"
         | "includeUrls"
         | "excludeUrls"
         | "vendorPaths"
@@ -157,6 +158,7 @@ export function fromSubtree(subtree: Record<string, unknown>): Settings {
     if (links?.exclude !== undefined) settings.linkExclude = links.exclude.map((host) => host.toLowerCase());
     if (subtree["canonical-origin"] !== undefined) settings.canonicalOrigin = originOf("org.spiderlint/canonical-origin", subtree["canonical-origin"] as string);
     if (subtree.proxy !== undefined) settings.proxy = proxyOf("org.spiderlint/proxy", subtree.proxy as string);
+    if (subtree.darknets !== undefined) settings.darknets = Object.fromEntries(Object.entries(subtree.darknets as Record<string, string>).map(([name, proxy]) => [name, proxyOf(`org.spiderlint/darknets/${name}`, proxy)]));
     if (settings.via !== undefined) settings.via = normalizeVia(settings.via);
     if (subtree.resolver !== undefined) settings.resolver = parseResolver(subtree.resolver as string);
     if (subtree.resolve !== undefined) settings.resolve = (subtree.resolve as string[]).map((pin) => parsePin(pin));

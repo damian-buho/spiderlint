@@ -7,6 +7,8 @@ import { ConfigError, PROFILES, ROLES } from "./index.ts";
 
 const ajv = new Ajv2020({ strictTypes: false, allErrors: true });
 
+// Only schemes where the proxy resolves the name, so a hidden service’s name never reaches a DNS resolver.
+const DARKNET_PROXY = "^(socks5h|socks4a|https?)://";
 const ttl = { oneOf: [{ type: "string" }, { type: "integer", minimum: 0 }] };
 const fetchMode = { enum: ["auto", "http", "browser", "adaptive"] };
 const severity = { enum: ["error", "warning", "info", "hint", "off"] };
@@ -72,6 +74,7 @@ const site = {
         },
         links: { type: "object", additionalProperties: false, properties: { exclude: { type: "array", items: { type: "string", minLength: 1 } } } },
         proxy: { type: "string" },
+        darknets: { type: "object", additionalProperties: false, properties: { tor: { type: "string", pattern: DARKNET_PROXY }, i2p: { type: "string", pattern: DARKNET_PROXY } } },
         via: { type: "string" },
         robots: { type: "boolean" },
         sitemap: { type: "boolean" },
