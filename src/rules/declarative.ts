@@ -41,7 +41,10 @@ export function describe(value: unknown): string {
     if (value === undefined) return "none";
     if (typeof value === "string") return `${value.length} characters: “${elide(value)}”`;
     if (Array.isArray(value) && value.length === 0) return "none";
-    if (Array.isArray(value)) return value.every((item) => typeof item === "string" || typeof item === "number") ? `${value.length} items: ${elide(value.map((item) => (typeof item === "string" ? `“${item}”` : String(item))).join(", "))}` : `${value.length} items`;
+    if (Array.isArray(value)) {
+        // A plain list reads as words; a count only for arrays no list can render.
+        return value.every((item) => typeof item === "string" || typeof item === "number") ? elide(value.map((item) => (typeof item === "string" ? `“${item}”` : String(item))).join(", ")) : `${value.length} items`;
+    }
     const json = JSON.stringify(value);
     return json.length > 80 ? `${json.slice(0, 77)}…` : json;
 }
@@ -50,6 +53,16 @@ export function describe(value: unknown): string {
 function offendingGot(value: unknown, error: ErrorObject): string {
     const actual = value === undefined ? undefined : at(value, error.instancePath);
     return value === undefined ? "none" : typeof actual === "string" && ["const", "enum"].includes(error.keyword) ? `“${actual}”` : describe(actual);
+}
+
+// The strings an `allOf` of `contains`es asks for that the array lacks, so findings name what is missing.
+function missingOf(expect: unknown, value: unknown): string[] {
+    const all = (expect as { allOf?: unknown[] } | undefined)?.allOf;
+    if (!Array.isArray(all) || !Array.isArray(value)) return [];
+    return all.flatMap((branch) => {
+        const wanted = (branch as { contains?: { const?: unknown } }).contains?.const;
+        return typeof wanted === "string" && !value.includes(wanted) ? [wanted] : [];
+    });
 }
 
 // The rule’s own sentence as a template over `{got}` and `{field}`, else AJV’s wording against the fact path.
@@ -187,7 +200,8 @@ function compileSubject(id: string, spec: RuleSpec, fact: string, subject: NonNu
                       const error = validate.errors?.[0] as ErrorObject;
                       const hint = hintFor(spec.hints, facts.stack);
                       if (hint) log.debug({ rule: id, subject: name, service: hint.service }, "service hint chosen");
-                      return { rule: id, severity, scope: "site" as const, url: name, ...message(fact, value, error, spec.message), value, ...(hint && { hint: hint.text }) };
+                      const missing = missingOf(spec.expect, value);
+                      return { rule: id, severity, scope: "site" as const, url: name, ...message(fact, value, error, spec.message), value, ...(hint && { hint: hint.text }), ...(missing.length > 0 && { data: { [name]: { missing: missing.join(", ") } } }) };
                   });
         },
     };

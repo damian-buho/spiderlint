@@ -191,8 +191,8 @@ describe("dns plugin", () => {
         };
         const run = runRules([], new Map([["default", compileRulesets(["dns/ns-consistent", "dns/ns-lame", "dns/ns-answers", "dns/ns-delegation"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers } } });
         const said = Object.fromEntries(run.findings.map((finding) => [finding.rule, finding.message]));
-        assert.match(said["dns/ns-consistent"] ?? "", /\(got 2 items: 6, 7\)$/);
-        assert.match(said["dns/ns-lame"] ?? "", /: 2 items: “ns1\.desec\.io”, “ns2\.desec\.org”;/);
+        assert.match(said["dns/ns-consistent"] ?? "", /\(got 6, 7\)$/);
+        assert.match(said["dns/ns-lame"] ?? "", /: “ns1\.desec\.io”, “ns2\.desec\.org”;/);
         assert.match(said["dns/ns-answers"] ?? "", /a\.ns\.cloudflare\.com answers A 192\.0\.2\.1/);
         assert.match(said["dns/ns-delegation"] ?? "", /ns1\.desec\.io is in the zone’s NS records but not delegated/);
     });

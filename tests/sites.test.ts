@@ -55,7 +55,8 @@ describe("origin preset", () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["origin"], cacheMode: "off" });
         assert.deepEqual(report.findings.find((finding) => finding.rule === "origin/cross-domain-policy")?.value, ["/crossdomain.xml"]);
         assert.deepEqual(rules(report), ["origin/compression", "origin/cross-domain-policy", "origin/favicon", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
-        assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /gzip/);
+        assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /only with “gzip”; offer br, zstd and gzip/);
+        assert.equal(report.findings.find((finding) => finding.rule === "origin/compression")?.data?.[soft.origin]?.missing, "br, zstd");
         assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404")?.message ?? "", /answers 200/);
     });
 

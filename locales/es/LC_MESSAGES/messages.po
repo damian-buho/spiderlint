@@ -1263,8 +1263,8 @@ msgstr "no hay respuesta DNS para el host de entrada {got}; asegúrate de que es
 msgid "/ lands on {got} different URLs depending on Accept-Language"
 msgstr "/ acaba en {got} URLs distintas según Accept-Language"
 
-msgid "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it"
-msgstr "/ se sirve comprimido como {got}; ofrece br, zstd y gzip, cada uno a los clientes que lo piden"
+msgid "/ is served only with {got}; offer br, zstd and gzip, each to the clients that ask for it"
+msgstr "/ se sirve solo con {got}; ofrece br, zstd y gzip, cada uno a los clientes que lo piden"
 
 msgid "/favicon.ico is not an image (got {got})"
 msgstr "/favicon.ico no es una imagen ({got})"

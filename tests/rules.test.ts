@@ -203,6 +203,13 @@ describe("finding value", () => {
         assert.match(got, /^300 characters: “ax+…x+z”$/);
         assert.equal(got.length - "300 characters: “”".length, 200);
     });
+
+    it("lists an array as words and nothing when absent", () => {
+        assert.equal(describeValue(["gzip", "zstd"]), "“gzip”, “zstd”");
+        assert.equal(describeValue([6, 7]), "6, 7");
+        assert.equal(describeValue([]), "none");
+        assert.equal(describeValue([{ served: ["gzip"] }]), "1 items");
+    });
 });
 
 describe("external link rel policy", () => {

@@ -483,7 +483,7 @@ export default {
                     fact: "site.origins.*.encodings.served",
                     expect: { allOf: [{ contains: { const: "br" } }, { contains: { const: "zstd" } }, { contains: { const: "gzip" } }] },
                     when: { "site.origins.*.encodings.bytes": { minimum: 1024 }, "site.origins.*.encodings.content-type": { pattern: String.raw`^(text/|application/xhtml\+xml)` } },
-                    message: "/ is served compressed as {got}; offer br, zstd and gzip, each to the clients that ask for it",
+                    message: "/ is served only with {got}; offer br, zstd and gzip, each to the clients that ask for it",
                     severity: "info",
                     score: 2.4,
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Accept-Encoding",
