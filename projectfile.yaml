@@ -33,7 +33,6 @@ includes:
   - .makefile/library/languages/node.yaml
   - .makefile/library/traits/node/prettier.yaml
   - .makefile/library/traits/node/publish.yaml
-  - .makefile/library/vulnerabilities/npm/stream-json.yaml
   - .projectfile/vulnerabilities.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/codeberg.yaml
   - https://kiota.ch/damian-buho/metadata/raw/branch/main/forge/github.yaml

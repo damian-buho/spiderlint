@@ -63,17 +63,4 @@ gpg --encrypt --armor --recipient B64C122EE16C3746 message.txt
 Spiderlint no ofrece actualmente un programa de recompensas. Aun así
 agradecemos los informes divulgados de forma responsable — consulta el canal de
 contacto anterior.
-
-## Vulnerabilidades reconocidas
-
-Los siguientes hallazgos fueron revisados y se suprimen de forma intencionada
-(la corrección depende de una versión posterior del proyecto base o el aviso no
-aplica a este proyecto):
-
-| ID | Motivo |
-| --- | --- |
-| GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| GHSA-3g3m-2fjr-6pw4 | no fix for 13 series |
-
 <!-- textlint-enable -->

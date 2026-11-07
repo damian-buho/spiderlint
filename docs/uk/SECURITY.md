@@ -62,16 +62,4 @@ gpg --encrypt --armor --recipient B64C122EE16C3746 message.txt
 
 Spiderlint наразі не має програми винагород за вразливості. Проте ми цінуємо
 відповідальні повідомлення — див. канал контакту вище.
-
-## Визнані вразливості
-
-Наведені знахідки переглянуто та навмисно придушено (виправлення залежить від
-наступного випуску upstream-проєкту, або повідомлення не стосується цього проєкту):
-
-| ID | Причина |
-| --- | --- |
-| GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| GHSA-3g3m-2fjr-6pw4 | no fix for 13 series |
-
 <!-- textlint-enable -->

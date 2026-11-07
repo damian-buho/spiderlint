@@ -61,14 +61,3 @@ gpg --encrypt --armor --recipient B64C122EE16C3746 message.txt
 
 Spiderlint does not currently run a bug bounty programme. We still welcome
 responsibly disclosed reports — see the contact channel above.
-
-## Acknowledged Vulnerabilities
-
-The following findings were reviewed and are intentionally suppressed (a fix
-depends on an upstream release, or the advisory does not apply to this project):
-
-| ID | Reason |
-| --- | --- |
-| GHSA-528h-pc64-c93x | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| CVE-2026-71429 | transitive stream-json dep of a pinned crawlee release; fixable only upstream |
-| GHSA-3g3m-2fjr-6pw4 | no fix for 13 series |

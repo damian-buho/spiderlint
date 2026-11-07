@@ -10,6 +10,4 @@
 org:
   projectfile:
     vulnerabilities:
-      suppress:
-        - id: GHSA-3g3m-2fjr-6pw4
-          reason: no fix for 13 series
+      suppress: []
