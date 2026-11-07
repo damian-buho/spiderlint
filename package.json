@@ -48,7 +48,7 @@
     "bullmq": "6.7.1",
     "caniuse-lite": "1.0.30001823",
     "cheerio": "1.2.0",
-    "commander": "15.0.0",
+    "commander": "15.1.0",
     "crawlee": "3.18.2",
     "css-tree": "3.2.1",
     "csstree-validator": "4.0.1",
