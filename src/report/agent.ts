@@ -12,7 +12,7 @@ import { log } from "../logger.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
 import { cachedReads, inEnglish, valuesAt } from "../rules/message.ts";
 import { utc } from "../facts/read-note.ts";
-import { importance, scoreOf } from "../rules/score.ts";
+import { scoreOf, type Sort, urgency } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { bundle } from "./human.ts";
 import { passing } from "./rating.ts";
@@ -28,17 +28,17 @@ function originOf(finding: Finding, shared: string): string {
     return shared || (URL.canParse(finding.url) ? new URL(finding.url).origin : `https://${finding.url}`);
 }
 
-// Findings grouped by rule, rules by their most important finding (score times the share of pages touched) then the pages they clear, findings within a rule by the same.
-export function ordered(findings: Finding[], pages: number): Finding[][] {
+// Findings grouped by rule, rules by their most urgent finding (level then score times pages, or impact alone with `sort`) then the pages they clear, findings within a rule by the same.
+export function ordered(findings: Finding[], pages: number, sort: Sort = "severity"): Finding[][] {
     const byRule = new Map<string, Finding[]>();
     for (const finding of findings) byRule.set(finding.rule, [...(byRule.get(finding.rule) ?? []), finding]);
+    const compare = urgency(pages, sort);
     const total = (same: Finding[]) => same.reduce((sum, finding) => sum + clears(finding), 0);
-    const top = (same: Finding[]) => Math.max(...same.map((finding) => importance(finding, pages)));
     const rules = byRule
         .values()
-        .map((same) => same.toSorted((a, b) => importance(b, pages) - importance(a, pages) || clears(b) - clears(a) || a.url.localeCompare(b.url)))
+        .map((same) => same.toSorted((a, b) => compare(a, b) || clears(b) - clears(a) || a.url.localeCompare(b.url)))
         .toArray();
-    return rules.toSorted((a, b) => top(b) - top(a) || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
+    return rules.toSorted((a, b) => compare(a[0] as Finding, b[0] as Finding) || total(b) - total(a) || (a[0] as Finding).rule.localeCompare((b[0] as Finding).rule));
 }
 
 // Where a finding sits: a fold’s samples, an aggregate’s URLs, or its pages, each with its values and locations.
@@ -100,23 +100,26 @@ function statistics(stats: Report["summary"]["stats"] = {}): string[] {
     return rows.length === 0 ? [] : [["# Site statistics", "", "| Fact | Pages | Min | Median | p95 | Max | Total |", "| --- | --: | --: | --: | --: | --: | --: |", ...rows].join("\n")];
 }
 
-// How many checks and rules came out clean, as one line; the list stays in `json`.
-function passed({ checks, checked }: Report["summary"]): string[] {
-    return [`Checks passed: ${checks.passed} of ${checks.total}; ${passing(checked).length} rules failed nowhere.`];
+// The rating and the rulesets it was earned under, the totals and how many checks and rules came out clean, before the findings; the passed list stays in `json`.
+function summary({ rating, pages, findings, checks, checked }: Report["summary"]): string {
+    const counts = (["error", "warning", "info", "hint"] as const).map((severity) => `${findings[severity] ?? 0} ${severity}`);
+    return ["# Summary", "", `- Rating: ${rating ? `${rating.grade} (${rating.rulesets.join(", ")})` : "none (no checks ran)"}`, `- Pages: ${pages}`, `- Findings: ${findings.total} (${counts.join(", ")})`, `- Checks passed: ${checks.passed} of ${checks.total}; ${passing(checked).length} rules failed nowhere.`].join(
+        "\n",
+    );
 }
 
-// One block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative.
-export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false): string {
+// The summary with the rating, one block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative; `sort` impact lists by impact alone.
+export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false, _isExplained?: boolean, _isStats?: boolean, sort: Sort = "severity"): string {
     const origin = sharedOrigin(report);
-    const blocks = ordered(actionable(report, isHintListed), report.pages.length).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
-    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, ...(blocks.length > 0 ? blocks : ["No findings."]), ...passed(report.summary), ...statistics(report.summary.stats)].join("\n\n");
+    const blocks = ordered(actionable(report, isHintListed), report.pages.length, sort).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
+    return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, summary(report.summary), ...(blocks.length > 0 ? blocks : ["No findings."]), ...statistics(report.summary.stats)].join("\n\n");
 }
 
 // One Markdown prompt per rule, by file name, the same findings always giving the same bytes.
-export function agentFiles(report: Report, isHintListed = false): Map<string, string> {
+export function agentFiles(report: Report, isHintListed = false, sort: Sort = "severity"): Map<string, string> {
     const origin = sharedOrigin(report);
     const files = new Map<string, string>();
-    const rules = ordered(actionable(report, isHintListed), report.pages.length);
+    const rules = ordered(actionable(report, isHintListed), report.pages.length, sort);
     for (const same of rules) {
         const rule = (same[0] as Finding).rule;
         const title = `# spiderlint: ${rule}${origin ? ` on ${origin}` : ""}`;
@@ -127,9 +130,9 @@ export function agentFiles(report: Report, isHintListed = false): Map<string, st
 }
 
 // Writes each rule’s prompt into `directory`, atomically, so a reader never sees half a file.
-export async function writeAgentFiles(directory: string, report: Report, isHintListed = false): Promise<void> {
+export async function writeAgentFiles(directory: string, report: Report, isHintListed = false, sort: Sort = "severity"): Promise<void> {
     await mkdir(directory, { recursive: true });
-    const files = agentFiles(report, isHintListed);
+    const files = agentFiles(report, isHintListed, sort);
     const entries = [...files];
     for (const [name, content] of entries) await writeAtomic(path.join(directory, name), content);
     log.info({ directory, files: files.size }, `${files.size} agent prompts written to ${directory}`);

@@ -62,7 +62,7 @@ describe("agent format", () => {
     });
 
     it("puts the most important rule first, the score beside its level", () => {
-        assert.match(output, /^# spiderlint findings for ORIGIN\n\n## links\/broken-internal \(error 7\.4\)/);
+        assert.match(output, /^# spiderlint findings for ORIGIN\n\n# Summary\n\n- Rating: \S+ \([^)]+\)\n- Pages: \d+\n- Findings: \d+ \([^)]+\)\n- Checks passed: [^\n]+\n\n## links\/broken-internal \(error 7\.4\)/);
     });
 
     it("writes one file per rule and rewrites the same bytes", async () => {

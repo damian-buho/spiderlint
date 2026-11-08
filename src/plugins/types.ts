@@ -10,6 +10,7 @@ import type { Probe, ProbeInit } from "../crawl/probe.ts";
 import type { Cached } from "../crawl/profile.ts";
 import type { Facts, LinkFacts } from "../facts/types.ts";
 import type { Report } from "../index.ts";
+import type { Sort } from "../rules/score.ts";
 import type { Make, RulesetConfig } from "../rules/types.ts";
 
 // Facts from one fetched page and its body, stored under `id`; undefined adds nothing.
@@ -98,8 +99,8 @@ export interface SiteExtractor {
     extract(subject: string, context: SiteContext): Promise<unknown>;
 }
 
-// A report as text; `isFull` when folding is off, `lang` the reader’s language when a formatter translates, `isHintListed` to list hints a formatter collapses, `isExplained` to print each finding’s fix.
-export type Formatter = (report: Report, paint: Paint, isFull: boolean, lang?: string, isHintListed?: boolean, isExplained?: boolean, isStats?: boolean) => string;
+// A report as text; `isFull` when folding is off, `lang` the reader’s language when a formatter translates, `isHintListed` to list hints a formatter collapses, `isExplained` to print each finding’s fix, `sort` to order findings by level then impact or by impact alone.
+export type Formatter = (report: Report, paint: Paint, isFull: boolean, lang?: string, isHintListed?: boolean, isExplained?: boolean, isStats?: boolean, sort?: Sort) => string;
 
 // URLs for the frontier, read from what follows `<id>:` in `sources`.
 export interface Source {

@@ -399,11 +399,12 @@ describe("audit", () => {
 
     it("prints findings by group then rule", () => {
         const text = formatHuman(report);
-        assert.ok(text.startsWith(`${site.origin}\nsite\n`));
+        assert.ok(text.startsWith(`${site.origin}\npages `));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
-        assert.match(text, /^posts \(5 pages\)\n {2}error {3}7\.4 html\/one-h1 — 5 pages \(100%\)/m);
-        assert.match(text, /^site\n/m);
-        assert.match(text, /\n\npages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1$/);
+        assert.match(text, /^pages in group posts \(5 pages\)\n {2}error {3}7\.4 html\/one-h1 — 5 pages \(100%\)/m);
+        assert.match(text, /^\*\* whole site \*\* \(every page\)\n/m);
+        assert.match(text, /^pages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1\n\n/m);
+        assert.ok(text.indexOf("rating     B (seo, links)") < text.indexOf("\n** whole site **"), "totals and rating come before the findings");
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
 
@@ -420,11 +421,12 @@ describe("audit", () => {
             summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, byRule: {}, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport).split("\n");
-        assert.deepEqual(lines.slice(2, 6), ["  warning 5.0 http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp /z: csp is weak"]);
-        assert.deepEqual(lines.slice(-3), ["findings   3 (0 errors, 3 warnings, 0 info)", "rating     – (no checks ran)", "fetch      none"]);
+        const start = lines.findIndex((line) => line.includes("http/csp"));
+        assert.deepEqual(lines.slice(start - 1, start + 4), ["pages (3)", "  warning 5.0 http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp /z: csp is weak"]);
+        assert.deepEqual(lines.slice(1, 7), ["pages      3 (3 × 200)", "size       0 B", "time       0 s", "rules      1", "checks     0 of 0 passed", "findings   3 (0 errors, 3 warnings, 0 info)"]);
         const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
         const progressed = formatHuman({ ...bundledReport, summary: { ...bundledReport.summary, previous } }).split("\n");
-        assert.match(progressed.at(-3) ?? "", /^findings {3}3 \u{2212}2 \(0 errors \u{2212}1, 3 warnings, 0 info \u{2212}1\) since .+$/u);
+        assert.match(progressed.find((line) => line.startsWith("findings")) ?? "", /^findings {3}3 \u{2212}2 \(0 errors \u{2212}1, 3 warnings, 0 info \u{2212}1\) since .+$/u);
     });
 
     it("sums bytes, pages per group and per status into the run summary", () => {

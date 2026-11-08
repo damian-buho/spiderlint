@@ -4,6 +4,13 @@
 
 # spiderlint findings for ORIGIN
 
+# Summary
+
+- Rating: B (seo, links)
+- Pages: 16
+- Findings: 104 (6 error, 54 warning, 44 info, 0 hint)
+- Checks passed: 393 of 453; 22 rules failed nowhere.
+
 ## links/broken-internal (error 7.4)
 
 the page answers 404; linked from these pages
@@ -26,19 +33,6 @@ Fix: Fix the page at the link target so it answers 2xx, or point the links to a 
 Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
 Done when: `spiderlint audit ORIGIN/ --rules links/broken-internal` reports no links/broken-internal finding.
 
-## html/viewport (warning 5.3)
-
-meta viewport should set width=device-width and allow zoom
-
-Where: 13 pages in groups posts, default (100 %), for example:
-- /: none
-- /about: none
-- /app/: none
-Reads: `html.meta.viewport`, expects `{"type":"string","pattern":"^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}`
-Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
-Done when: `spiderlint audit ORIGIN/ --rules html/viewport` reports no html/viewport finding.
-
 ## html/one-h1 (error 7.4)
 
 should have exactly one <h1>
@@ -52,18 +46,18 @@ Fix: Use exactly one <h1> per page.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
 Done when: `spiderlint audit ORIGIN/ --rules html/one-h1` reports no html/one-h1 finding.
 
-## html/favicon (info 2.2)
+## html/viewport (warning 5.3)
 
-no <link rel=icon> in the head
+meta viewport should set width=device-width and allow zoom
 
-Where: 12 pages in groups posts, default (92 %), for example:
-- /: 4 items
-- /app/: 2 items
-- /duplicate: 2 items
-Reads: `html.head.links`, expects `{"contains":{"required":["rel"],"properties":{"rel":{"pattern":"(?i:(^|\\s)icon(\\s|$))"}}}}`
-Fix: Add <link rel=icon href=/favicon.ico> to the head.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
-Done when: `spiderlint audit ORIGIN/ --rules html/favicon` reports no html/favicon finding.
+Where: 13 pages in groups posts, default (100 %), for example:
+- /: none
+- /about: none
+- /app/: none
+Reads: `html.meta.viewport`, expects `{"type":"string","pattern":"^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}`
+Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
+Done when: `spiderlint audit ORIGIN/ --rules html/viewport` reports no html/viewport finding.
 
 ## html/author (warning 3.7)
 
@@ -90,19 +84,6 @@ Reads: `html.published`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
 Docs: https://ogp.me/#type_article
 Done when: `spiderlint audit ORIGIN/ --rules html/published-date` reports no html/published-date finding.
-
-## html/privacy-policy (info 1.6)
-
-no link with rel=privacy-policy
-
-Where: 12 pages in groups posts, default (92 %), for example:
-- /: none
-- /app/: none
-- /duplicate: none
-Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
-Fix: Add <link rel=privacy-policy href=/privacy> to the head.
-Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
-Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
 
 ## html/theme-color (warning 3.3)
 
@@ -157,19 +138,6 @@ Fix: Give each page a distinct meta description.
 Docs: https://developers.google.com/search/docs/appearance/snippet
 Done when: `spiderlint audit ORIGIN/ --rules html/unique-description` reports no html/unique-description finding.
 
-## url/readable-slug (info 2.0)
-
-the slug is an identifier, not words
-
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1
-- /posts/2
-- /posts/3
-Reads: `url.pathname`, `html.title`, `html.h1`
-Fix: Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.
-Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
-Done when: `spiderlint audit ORIGIN/ --rules url/readable-slug` reports no url/readable-slug finding.
-
 ## html/unique-og-title (warning 4.2)
 
 pages share one og:title
@@ -193,35 +161,6 @@ Reads: `html.property.og:description`
 Fix: Give each page a distinct og:description.
 Docs: https://ogp.me/#optional
 Done when: `spiderlint audit ORIGIN/ --rules html/unique-og-description` reports no html/unique-og-description finding.
-
-## html/color-scheme (info 1.4)
-
-meta color-scheme should be normal, or scheme names such as light dark
-
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1: none
-- /posts/2: none
-- /posts/3: none
-Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
-Fix: Add <meta name=color-scheme content="light dark">.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding.
-
-## html/color-scheme (info 1.4)
-
-meta color-scheme should be normal, or scheme names such as light dark
-
-Where: 6 pages:
-- /app/: none
-- /duplicate: none
-- /orphan: none
-- /tags/a: none
-- /tags/b: none
-- /tags/c: none
-Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
-Fix: Add <meta name=color-scheme content="light dark">.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
 
 ## html/canonical-self (warning 6.4)
 
@@ -366,6 +305,74 @@ Fix: Add <meta name=theme-color media="(prefers-color-scheme: dark)"> beside the
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-schemes` reports no html/theme-color-schemes finding, and `spiderlint show-facts ORIGIN/about` shows `html.metas` meeting it.
 
+## html/favicon (info 2.2)
+
+no <link rel=icon> in the head
+
+Where: 12 pages in groups posts, default (92 %), for example:
+- /: 4 items
+- /app/: 2 items
+- /duplicate: 2 items
+Reads: `html.head.links`, expects `{"contains":{"required":["rel"],"properties":{"rel":{"pattern":"(?i:(^|\\s)icon(\\s|$))"}}}}`
+Fix: Add <link rel=icon href=/favicon.ico> to the head.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
+Done when: `spiderlint audit ORIGIN/ --rules html/favicon` reports no html/favicon finding.
+
+## html/privacy-policy (info 1.6)
+
+no link with rel=privacy-policy
+
+Where: 12 pages in groups posts, default (92 %), for example:
+- /: none
+- /app/: none
+- /duplicate: none
+Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
+Fix: Add <link rel=privacy-policy href=/privacy> to the head.
+Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
+Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy` reports no html/privacy-policy finding.
+
+## url/readable-slug (info 2.0)
+
+the slug is an identifier, not words
+
+Where: 5 pages of group posts (100 %), for example:
+- /posts/1
+- /posts/2
+- /posts/3
+Reads: `url.pathname`, `html.title`, `html.h1`
+Fix: Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.
+Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
+Done when: `spiderlint audit ORIGIN/ --rules url/readable-slug` reports no url/readable-slug finding.
+
+## html/color-scheme (info 1.4)
+
+meta color-scheme should be normal, or scheme names such as light dark
+
+Where: 5 pages of group posts (100 %), for example:
+- /posts/1: none
+- /posts/2: none
+- /posts/3: none
+Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
+Fix: Add <meta name=color-scheme content="light dark">.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding.
+
+## html/color-scheme (info 1.4)
+
+meta color-scheme should be normal, or scheme names such as light dark
+
+Where: 6 pages:
+- /app/: none
+- /duplicate: none
+- /orphan: none
+- /tags/a: none
+- /tags/b: none
+- /tags/c: none
+Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
+Fix: Add <meta name=color-scheme content="light dark">.
+Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme` reports no html/color-scheme finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
+
 ## html/hreflang-x-default (info 2.6)
 
 hreflang alternates should include x-default
@@ -423,5 +430,3 @@ Reads: `html.property.og:type`, expects `{"type":"string","pattern":"^(?:website
 Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
 Done when: `spiderlint audit ORIGIN/ --rules html/og-type` reports no html/og-type finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
-
-Checks passed: 393 of 453; 22 rules failed nowhere.

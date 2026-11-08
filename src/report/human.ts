@@ -8,7 +8,7 @@ import { bytes as sized, isLabelled, label, withUnit } from "../facts/labels.ts"
 import type { Report } from "../index.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
 import { cachedReads, valuesAt } from "../rules/message.ts";
-import { byImportance, scoreOf } from "../rules/score.ts";
+import { byUrgency, scoreOf, type Sort } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
 import { printable, printableFinding } from "./printable.ts";
@@ -135,21 +135,22 @@ function explanation(guide: RuleGuide | undefined, finding: Finding, paint: Pain
     return [...fixes, guide?.docs ? paint("dim", `${DETAIL}docs ${guide.docs}`) : ""].filter(Boolean);
 }
 
-// Findings by importance (score times the share of pages touched) then rule then URL, bundled, each followed by its explanation when `guides` is given.
-function listed(findings: Finding[], origin: string, paint: Paint, limit: number, total: number, guides?: Report["rules"]): string[] {
-    findings.sort(byImportance(total));
+// Findings by level then impact (score times pages touched), or by impact alone with `sort`, then rule then URL, bundled, each followed by its explanation when `guides` is given.
+function listed(findings: Finding[], origin: string, paint: Paint, limit: number, total: number, sort: Sort, guides?: Report["rules"]): string[] {
+    findings.sort(byUrgency(total, sort));
     return bundle(findings).flatMap((same) => {
         const first = same[0] as Finding;
         return [...(same.length > 1 ? bundled(same, origin, paint, limit) : line(first, origin, paint, limit)), ...(guides ? explanation(guides[first.rule], first, paint) : [])];
     });
 }
 
-// The shared origin once on top, findings grouped by group then rule, site-wide ones next, then each vendor’s, hints last and only counted unless `isHintListed`, the fact statistics with `isStats`, then the totals; `isFull` lists every URL and location, `isExplained` each fix.
-export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false, isStats = false): string {
+// The shared origin once on top, then the totals with the rating and the fact statistics with `isStats`, then findings grouped by group, site-wide ones first, then each vendor’s, hints last and only counted unless `isHintListed`; `isFull` lists every URL and location, `isExplained` each fix, `sort` the order within a section.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false, isStats = false, sort: Sort = "severity"): string {
     const limit = isFull ? Infinity : LIST;
     const guides = isExplained ? (report.rules ?? {}) : undefined;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
+    out.push(...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)), ...(isStats ? ["", ...statRows(report.summary.stats ?? {}, paint)] : []), "");
     const groups = new Map<string, Finding[]>();
     const vendors = new Map<string, Finding[]>();
     const findings = report.findings.map((finding) => printableFinding(finding));
@@ -159,17 +160,19 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
         const [sections, key] = finding.vendor ? [vendors, finding.vendor] : [groups, finding.scope === "site" ? "site" : (finding.group as string)];
         sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
+    const isOnlyDefault = groups.keys().every((group) => group === "site" || group === "default") && Object.keys(report.summary.groups).length <= 1;
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
-        out.push(group === "site" ? paint("bold", "site") : `${paint("bold", group)} ${paint("dim", `(${counted(pages, "page")})`)}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
+        out.push(
+            group === "site" ? `${paint("bold", "** whole site **")} ${paint("dim", "(every page)")}` : `${paint("bold", isOnlyDefault ? "pages" : `pages in group ${group}`)} ${paint("dim", `(${isOnlyDefault ? number(pages) : counted(pages, "page")})`)}`,
+            ...listed(findings, origin, paint, limit, report.pages.length, sort, guides),
+        );
     }
-    for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, guides));
-    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, sort, guides));
+    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, sort, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
     out.push(...cachedRow(findings, paint));
     if (isFull) out.push("", ...passedRows(report.summary, paint));
-    if (isStats) out.push("", ...statRows(report.summary.stats ?? {}, paint));
-    out.push("", ...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)));
-    return out.join("\n");
+    return out.join("\n").trimEnd();
 }
 
 // How many observations behind the findings came from a cache, by bucket, and how to read them again; nothing when none did.

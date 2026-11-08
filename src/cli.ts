@@ -22,7 +22,7 @@ import { parsePin } from "./crawl/resolve.ts";
 import { formatNames, formatter, withSources } from "./plugins/index.ts";
 import { NothingStored } from "./store/disk.ts";
 import { writeAgentFiles } from "./report/agent.ts";
-import { scoreOf } from "./rules/score.ts";
+import { scoreOf, SORTS } from "./rules/score.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { handleInterrupts, Interrupted } from "./interrupt.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
@@ -46,6 +46,7 @@ interface Flags {
     "show-hints"?: boolean;
     explain?: boolean;
     stats?: boolean;
+    sort?: string;
     facts?: string[];
     format?: string;
 }
@@ -146,6 +147,7 @@ function reportOptions(): Option[] {
         flag("--show-hints", "list hints in human output, not only their count"),
         flag("--explain", "print each finding’s fix and docs in human output"),
         flag("--stats", "count, min, median, p95, max, total per numeric fact"),
+        flag("--sort <order>", "severity, then impact; or impact alone", "severity"),
         flag("--output <dir>", "with --format agent, one prompt file per rule in dir"),
     ]);
 }
@@ -615,8 +617,9 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
             return pages.length === 0 ? 3 : 0;
         }
         // A report to stdout in the chosen format, or one agent prompt per rule under --output.
+        const sort = pick("--sort", values.sort ?? "severity", SORTS);
         const emit = async (report: Report) =>
-            values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true)) : writeAgentFiles(values.output, report, values["show-hints"] === true);
+            values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true, sort)) : writeAgentFiles(values.output, report, values["show-hints"] === true, sort);
         if (command === "lint" || command === "show-report") {
             const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
             await emit(stored);

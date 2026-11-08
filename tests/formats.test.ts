@@ -163,7 +163,7 @@ describe("formatHtml", () => {
         }
     });
 
-    it("lists one flat card per finding, the highest impact first, whole-site scope without a page list, and no group heading for default alone", () => {
+    it("lists one flat card per finding, errors first and the highest impact first within a level, whole-site scope without a page list, and no group heading for default alone", () => {
         const pages = Array.from({ length: 100 }, (_unused, index) => `${site.origin}/p${index}`);
         const fold: Finding = { rule: "seo/title", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "title is missing", occurrences: 100, coverage: 1, samples: pages.slice(0, 3) };
         const some: Finding = { rule: "seo/h1", severity: "error", scope: "group", group: "default", url: `${site.origin}/p0`, message: "h1 is missing", occurrences: 40, coverage: 0.4, samples: pages.slice(0, 2) };
@@ -183,14 +183,31 @@ describe("formatHtml", () => {
         const wholeSite = html.split('<article class="rule-card ').find((part) => part.includes("title is missing"));
         assert.ok(wholeSite?.includes("Whole site") && !wholeSite.includes("<ul>"), "whole-site finding lists no pages");
         assert.ok(wholeSite?.includes("Impact: 500<"), "impact is score times pages");
-        assert.ok(html.indexOf("title is missing") < html.indexOf("h1 is missing"), "highest impact first");
-        assert.ok(wholeSite?.includes("--by-impact: 0; --by-score: 1; --by-scope: 0"), "each card carries its rank by impact, score and scope");
-        assert.ok(html.includes('<input type="radio" name="sort" id="sort-impact" checked>') && html.includes('id="sort-score"') && html.includes('id="sort-scope"'), "sort control offers impact, score and scope");
+        assert.ok(html.indexOf("h1 is missing") < html.indexOf("title is missing"), "an error comes before a warning touching more pages");
+        const byImpact = formatHtml(input, undefined, false, "en", false, false, false, "impact");
+        assert.ok(byImpact.indexOf("title is missing") < byImpact.indexOf("h1 is missing"), "highest impact first when sorting by impact");
+        assert.ok(byImpact.includes('id="sort-impact" checked'), "the chosen sort is the one checked");
+        assert.ok(wholeSite?.includes("--by-severity: 1; --by-impact: 0; --by-score: 1; --by-scope: 0"), "each card carries its rank by severity, impact, score and scope");
+        assert.ok(html.includes('<input type="radio" name="sort" id="sort-severity" checked>') && html.includes('id="sort-impact"') && html.includes('id="sort-score"') && html.includes('id="sort-scope"'), "sort control offers severity, impact, score and scope");
         assert.match(wholeSite?.split("</summary>", 1)[0] ?? "", /Impact: 500<.*Scope: Whole site<.*rule-message/, "impact and scope sit in the head, before the message");
         assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
         assert.ok(wholeSite?.includes('<footer class="rule-foot"><code>seo/title</code>') && !wholeSite.split("</summary>", 1)[0]?.includes("seo/title"), "rule named in the footer, not the head");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
+    });
+
+    it("lists an error above a warning on more pages in human and agent output, impact alone with sort, and the rating before the findings", () => {
+        const many: Finding = { rule: "seo/title", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "title is missing", occurrences: 100, coverage: 1, samples: [`${site.origin}/p0`] };
+        const one: Finding = { rule: "seo/h1", severity: "error", scope: "page", group: "default", url: `${site.origin}/p1`, message: "h1 is missing" };
+        const input = { ...report, findings: [many, one] };
+        for (const [text, sorted] of [
+            [formatHuman(input), formatHuman(input, undefined, false, undefined, false, false, false, "impact")],
+            [formatAgent(input), formatAgent(input, undefined, false, undefined, false, false, false, "impact")],
+        ] as const) {
+            assert.ok(text.indexOf("h1 is missing") < text.indexOf("title is missing"), "level first");
+            assert.ok(sorted.indexOf("title is missing") < sorted.indexOf("h1 is missing"), "impact alone");
+            assert.ok(text.search(/rating:? +\S/i) < text.indexOf("h1 is missing"), "rating before the findings");
+        }
     });
 
     it("lists every rule that failed nowhere once, its counts summing to the checks, and counts them for an agent", () => {

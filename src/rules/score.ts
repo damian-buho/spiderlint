@@ -71,12 +71,17 @@ export function impact(finding: Finding, total: number): number {
     return scoreOf(finding) * pagesOf(finding, total);
 }
 
-// Score times the share of the site’s pages the finding touches; a site-wide finding touches all of them.
-export function importance(finding: Finding, total: number): number {
-    return scoreOf(finding) * (total === 0 ? 1 : Math.min(1, pagesOf(finding, total) / total));
+// How a report orders findings: by level first, or by impact alone.
+export const SORTS = ["severity", "impact"] as const;
+export type Sort = (typeof SORTS)[number];
+
+// Orders findings from the most to the least urgent: level first unless sorting by impact, then score times pages touched; equal on both is a tie.
+export function urgency(total: number, sort: Sort = "severity"): (a: Finding, b: Finding) => number {
+    return (a, b) => (sort === "severity" ? LEVELS.indexOf(a.severity) - LEVELS.indexOf(b.severity) : 0) || impact(b, total) - impact(a, total);
 }
 
-// Orders findings from the most to the least important, then by rule and URL.
-export function byImportance(total: number): (a: Finding, b: Finding) => number {
-    return (a, b) => importance(b, total) - importance(a, total) || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url);
+// The same order, a tie broken by rule then URL.
+export function byUrgency(total: number, sort: Sort = "severity"): (a: Finding, b: Finding) => number {
+    const compare = urgency(total, sort);
+    return (a, b) => compare(a, b) || a.rule.localeCompare(b.rule) || a.url.localeCompare(b.url);
 }

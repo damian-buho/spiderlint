@@ -14,7 +14,7 @@ import { compileRule } from "../src/rules/declarative.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { compileRulesets, resolveRuleset } from "../src/rules/rulesets.ts";
 import { runRules } from "../src/rules/run.ts";
-import { byImportance, impact, interpolate, levelOf, pin } from "../src/rules/score.ts";
+import { byUrgency, impact, interpolate, levelOf, pin } from "../src/rules/score.ts";
 import type { Finding, PageRule, Rule } from "../src/rules/types.ts";
 
 void builtin;
@@ -137,13 +137,35 @@ describe("rating by score", () => {
     });
 });
 
-describe("importance", () => {
-    it("counts a site-wide finding as every page and sorts by score times pages", () => {
+describe("urgency", () => {
+    it("counts a site-wide finding as every page and sorts by score times pages within a level", () => {
         const site = finding({ rule: "site/rule", scope: "site", score: 5 });
         const folded = finding({ rule: "fold/rule", scope: "group", score: 5, occurrences: 5 });
-        const lone = finding({ rule: "lone/rule", score: 9 });
-        const sorted = [lone, folded, site].toSorted(byImportance(10)).map((one) => one.rule);
+        const lone = finding({ rule: "lone/rule", score: 5 });
+        const sorted = [lone, folded, site].toSorted(byUrgency(10)).map((one) => one.rule);
         assert.deepEqual(sorted, ["site/rule", "fold/rule", "lone/rule"]);
+    });
+
+    it("puts one error above a thousand warnings, unless sorting by impact", () => {
+        const error = finding({ rule: "one/error", severity: "error", score: 8 });
+        const warnings = finding({ rule: "many/warnings", severity: "warning", score: 5, occurrences: 1000 });
+        assert.deepEqual(
+            [warnings, error].toSorted(byUrgency(1000)).map((one) => one.rule),
+            ["one/error", "many/warnings"],
+        );
+        assert.deepEqual(
+            [error, warnings].toSorted(byUrgency(1000, "impact")).map((one) => one.rule),
+            ["many/warnings", "one/error"],
+        );
+    });
+
+    it("ranks 1000 warnings above 100 of the same score", () => {
+        const most = finding({ rule: "b/most", score: 5, occurrences: 1000 });
+        const fewer = finding({ rule: "a/fewer", score: 5, occurrences: 100 });
+        assert.deepEqual(
+            [fewer, most].toSorted(byUrgency(2000)).map((one) => one.rule),
+            ["b/most", "a/fewer"],
+        );
     });
 
     it("counts a site-wide finding listing URLs as those pages, impact being score times pages", () => {
