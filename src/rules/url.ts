@@ -11,7 +11,7 @@ import type { Finding, Make } from "./types.ts";
 // A slug that is only an identifier: digits, a hex run with a digit, or a UUID.
 const ID_ONLY = /^(?:\d+|(?=[a-f]*\d)[\da-f]{6,}|[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})$/i;
 // A last segment naming a file by its extension.
-const FILE = /\.[a-z\d]{1,5}$/i;
+export const FILE = /\.[a-z\d]{1,5}$/i;
 // A well-known URI, whose form RFC 8615 fixes.
 const WELL_KNOWN = /^\/\.well-known\//;
 

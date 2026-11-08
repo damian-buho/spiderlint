@@ -29,12 +29,13 @@ describe("origin preset", () => {
     let soft: Origin;
     let trace: Origin;
     let entry: Origin;
+    let twin: Origin;
 
     before(async () => {
-        [site, soft, trace, entry] = await Promise.all([serveFixture(), serveOrigin("soft"), serveOrigin("trace"), serveOrigin("entry")]);
+        [site, soft, trace, entry, twin] = await Promise.all([serveFixture(), serveOrigin("soft"), serveOrigin("trace"), serveOrigin("entry"), serveOrigin("twin")]);
     });
 
-    after(() => Promise.all([site.close(), soft.close(), trace.close(), entry.close()]));
+    after(() => Promise.all([site.close(), soft.close(), trace.close(), entry.close(), twin.close()]));
 
     // The entry-variant findings of a run seeded on `host` of the `entry` fixture.
     async function entryRules(host: string): Promise<string[]> {
@@ -47,7 +48,7 @@ describe("origin preset", () => {
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["origin"], cacheMode: "off" });
         assert.deepEqual(rules(report), []);
         assert.equal(site.requested.filter((pathname) => pathname.startsWith("/spiderlint-")).length, 1);
-        assert.deepEqual(report.summary.cost.extractors, { "cross-domain": 1, encodings: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1, variants: 1 });
+        assert.deepEqual(report.summary.cost.extractors, { "cross-domain": 1, encodings: 1, favicon: 1, locale: 1, "not-found": 1, revalidation: 1, "slash-twins": 1, variants: 1 });
         assert.equal(site.headers.filter((headers) => headers["if-none-match"] !== undefined).length, 1, "the seed page is asked again with its ETag");
     });
 
@@ -77,6 +78,13 @@ describe("origin preset", () => {
         const port = new URL(entry.origin).port;
         const report = await audit({ seeds: [`http://www.hops.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), canonicalOrigin: `http://www.hops.test:${port}`, rules: ["origin"], maxPages: 1, cacheMode: "off" });
         assert.ok(rules(report).includes("origin/host-canonical"));
+    });
+
+    it("faults a page served under both trailing-slash forms and spares one whose twin redirects", async () => {
+        const report = await audit({ seeds: [`${twin.origin}/`], rules: ["origin"], cacheMode: "off" });
+        const finding = report.findings.find((candidate) => candidate.rule === "origin/slash-twin");
+        assert.deepEqual(finding?.value, [`${twin.origin}/posts/2 ↔ ${twin.origin}/posts/2/`]);
+        assert.ok(!JSON.stringify(finding?.value).includes("/posts/3"));
     });
 
     it("probes nothing when no enabled rule reads site.origins", async () => {

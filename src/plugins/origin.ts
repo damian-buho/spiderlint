@@ -11,6 +11,7 @@ import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
+import { FILE } from "../rules/url.ts";
 import { OfflineMiss } from "../cache/index.ts";
 import { evidence } from "../facts/read-note.ts";
 import { judged } from "./profile-links.ts";
@@ -312,6 +313,57 @@ const crossDomain: SiteExtractor = {
     },
 };
 
+// Most crawled pages whose other trailing-slash form is asked for, and most per group.
+const TWINS_MAX = 20;
+const TWINS_PER_GROUP = 2;
+
+// `pathname` with its trailing slash added or removed.
+function toggled(pathname: string): string {
+    return pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+}
+
+// A document title, whitespace collapsed.
+function titleOf(body: string): string {
+    return load(body)("title").first().text().replaceAll(/\s+/g, " ").trim();
+}
+
+// Whether a crawled page is a directory-like 2xx HTML page whose slash form can be swapped.
+function isSwappable(page: Facts): boolean {
+    const { pathname, search } = page.url;
+    return page.http.status >= 200 && page.http.status <= 299 && page.html !== undefined && pathname !== "/" && search === "" && !FILE.test(pathname) && !pathname.startsWith("/.well-known/");
+}
+
+// Each sampled page's other trailing-slash form, and the pages whose twin answers 2xx with the same title.
+const slashTwins: SiteExtractor = {
+    id: "slash-twins",
+    per: "origin",
+    crawled: true,
+    async extract(origin, context) {
+        const swappable = context.pages.filter((page) => isSwappable(page));
+        const sampled = Map.groupBy(swappable, (page) => page.group)
+            .values()
+            .flatMap((members) => members.slice(0, TWINS_PER_GROUP))
+            .take(TWINS_MAX)
+            .toArray();
+        log.debug({ origin, swappable: swappable.length, sampled: sampled.length }, "slash twins sampled");
+        const duplicated: string[] = [];
+        for (const page of sampled) {
+            const twin = new URL(page.url.href);
+            twin.pathname = toggled(twin.pathname);
+            try {
+                const answer = await context.fetch(twin.href, { redirect: "manual" });
+                const isDuplicate = answer.status >= 200 && answer.status <= 299 && mediaType(answer) === "text/html" && titleOf(answer.body) === (page.html?.title ?? "").replaceAll(/\s+/g, " ").trim();
+                log.debug({ url: page.url.href, twin: twin.href, status: answer.status, isDuplicate }, "slash twin probed");
+                if (isDuplicate) duplicated.push(`${page.url.href} ↔ ${twin.href}`);
+            } catch (error) {
+                if (!(error instanceof RobotsDisallowed)) throw error;
+                log.info({ twin: twin.href, error: reason(error) }, "robots.txt withholds the slash twin");
+            }
+        }
+        return { sampled: sampled.length, duplicated };
+    },
+};
+
 // Most `rel=me` profiles one origin’s pages name that are asked to link back.
 const REL_ME_MAX = 8;
 
@@ -392,7 +444,7 @@ const meBackLink: Make = (severity) => ({
 export default {
     name: "origin",
     rules: { "origin/host-canonical": hostCanonical, "links/rel-me": meBackLink },
-    sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, meProfiles],
+    sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, slashTwins, meProfiles],
     presets: {
         origin: {
             description: "Once per origin: missing pages, error pages, entry variants, language redirects, compression, favicon, revalidation, cross-domain policies",
@@ -507,6 +559,15 @@ export default {
                     score: 1.8,
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Conditional_requests",
                     fix: "Answer a request whose If-None-Match or If-Modified-Since still matches with 304 and no body.",
+                },
+                "origin/slash-twin": {
+                    fact: "site.origins.*.slash-twins.duplicated",
+                    expect: { maxItems: 0 },
+                    message: "a page answers 2xx with the same title under both trailing-slash forms: {got}",
+                    severity: "warning",
+                    score: 5.2,
+                    docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+                    fix: "Redirect the trailing-slash form you do not use to the one you do with a 301 or 308.",
                 },
                 "origin/cross-domain-policy": {
                     fact: "site.origins.*.cross-domain.open",
