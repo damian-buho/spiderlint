@@ -48,7 +48,7 @@ jobs:
     runs-on: docker
     if: github.event_name == 'workflow_dispatch'
     env:
-      M6E_IMAGE_PUBLISHED: kiota.ch/damian-buho/spiderlint:latest
+      M6E_IMAGE_PUBLISHED: kiota.ch/damian-buho/spiderlint:dev
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -66,4 +66,4 @@ jobs:
           advisory: "true"
           run: auto-dive
           env: |-
-            M6E_IMAGE_PUBLISHED=kiota.ch/damian-buho/spiderlint:latest
+            M6E_IMAGE_PUBLISHED=kiota.ch/damian-buho/spiderlint:dev
