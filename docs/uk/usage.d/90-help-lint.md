@@ -40,6 +40,8 @@ Report:
   --show-hints           list hints in human output, not only their count
   --explain              print each finding’s fix and docs in human output
   --stats                count, min, median, p95, max, total per numeric fact
+  --sort <order>         severity, then impact; or impact alone
+                         (default: severity)
   --output <dir>         with --format agent, one prompt file per rule in dir
 
 Store:
