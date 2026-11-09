@@ -1272,6 +1272,9 @@ msgstr "/favicon.ico не є зображенням ({got})"
 msgid "a conditional request for the seed page answers {got}, not 304 Not Modified"
 msgstr "умовний запит початкової сторінки відповідає {got}, а не 304 Not Modified"
 
+msgid "a page answers 2xx with the same title under both trailing-slash forms: {got}"
+msgstr "сторінка відповідає 2xx з тим самим заголовком і з кінцевою скісною рискою, і без неї: {got}"
+
 msgid "a cross-domain policy file lets any origin read the site as its visitor: {got}"
 msgstr "файл міждоменної політики дозволяє будь-якому origin читати сайт від імені відвідувача: {got}"
 
