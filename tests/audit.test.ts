@@ -420,10 +420,11 @@ describe("audit", () => {
             findings: [stubCsp("https://a.test/y"), stubCsp("https://a.test/x"), { ...stubCsp("https://a.test/z"), message: "csp is weak" }],
             summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, byRule: {}, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
-        const lines = formatHuman(bundledReport).split("\n");
+        const lines = formatHuman(bundledReport, undefined, false, "en").split("\n");
         const start = lines.findIndex((line) => line.includes("http/csp"));
         assert.deepEqual(lines.slice(start - 1, start + 4), ["pages (3)", "  warning 5.0 http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp /z: csp is weak"]);
-        assert.deepEqual(lines.slice(1, 7), ["pages      3 (3 × 200)", "size       0 B", "time       0 s", "rules      1", "checks     0 of 0 passed", "findings   3 (0 errors, 3 warnings, 0 info)"]);
+        assert.deepEqual(lines.slice(1, 7), ["pages      3 (3 × 200)", "size       0 byte", "time       0 sec", "rules      1", "checks     0 of 0 passed", "findings   3 (0 errors, 3 warnings, 0 info)"]);
+        assert.deepEqual(formatHuman(bundledReport, undefined, false, "es").split("\n").slice(2, 4), ["size       0 B", "time       0 s"]);
         const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
         const progressed = formatHuman({ ...bundledReport, summary: { ...bundledReport.summary, previous } }).split("\n");
         assert.match(progressed.find((line) => line.startsWith("findings")) ?? "", /^findings {3}3 \u{2212}2 \(0 errors \u{2212}1, 3 warnings, 0 info \u{2212}1\) since .+$/u);

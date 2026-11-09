@@ -4,7 +4,7 @@
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { environmentLocale } from "../i18n.ts";
-import { bytes as sized, isLabelled, label, withUnit } from "../facts/labels.ts";
+import { bytes as sized, isLabelled, label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
 import { cachedReads, valuesAt } from "../rules/message.ts";
@@ -26,15 +26,19 @@ const GRADE_TONE: Record<Grade, Style> = { S: "green", A: "green", B: "yellow", 
 const MINUS = "\u{2212}";
 
 // The locale’s digits and decimal mark, groups split by a narrow no-break space as SI writes them.
-function number(value: number, options: Intl.NumberFormatOptions = {}): string {
-    return new Intl.NumberFormat(environmentLocale(), { maximumFractionDigits: 1, ...options })
-        .formatToParts(value)
-        .map((part) => (part.type === "group" ? "\u{202F}" : part.value))
-        .join("");
+function numberIn(locale = environmentLocale()): NumberFormat {
+    return (value, options = {}) =>
+        new Intl.NumberFormat(locale, { maximumFractionDigits: 1, ...options })
+            .formatToParts(value)
+            .map((part) => (part.type === "group" ? "\u{202F}" : part.value))
+            .join("");
 }
 
+// A number in the process locale, read on each call.
+const number: NumberFormat = (value, options) => numberIn()(value, options);
+
 // A count and its noun, plural unless it is exactly one.
-function counted(count: number, noun: string): string {
+function counted(count: number, noun: string, number: NumberFormat): string {
     return `${number(count)} ${count === 1 ? noun : (PLURAL[noun] ?? noun)}`;
 }
 
@@ -124,7 +128,7 @@ function ratingValue(rating: Rating | undefined, paint: Paint): string {
 }
 
 // A signed change against the last run, green when it fell and red when it grew; nothing when equal or unknown.
-function change(now: number, before: number | undefined, paint: Paint): string {
+function change(now: number, before: number | undefined, paint: Paint, number: NumberFormat): string {
     return before === undefined || now === before ? "" : ` ${paint(now < before ? "green" : "red", `${now < before ? MINUS : "+"}${number(Math.abs(now - before))}`)}`;
 }
 
@@ -144,13 +148,15 @@ function listed(findings: Finding[], origin: string, paint: Paint, limit: number
     });
 }
 
-// The shared origin once on top, then the totals with the rating and the fact statistics with `isStats`, then findings grouped by group, site-wide ones first, then each vendor’s, hints last and only counted unless `isHintListed`; `isFull` lists every URL and location, `isExplained` each fix, `sort` the order within a section.
-export function formatHuman(report: Report, paint: Paint = plain, isFull = false, _lang?: string, isHintListed = false, isExplained = false, isStats = false, sort: Sort = "severity"): string {
+// The shared origin once on top, then the totals with the rating and the fact statistics with `isStats`, then findings grouped by group, site-wide ones first, then each vendor’s, hints last and only counted unless `isHintListed`; `isFull` lists every URL and location, `isExplained` each fix, `sort` the order within a section; numbers in `lang`, the process locale unless named.
+export function formatHuman(report: Report, paint: Paint = plain, isFull = false, lang?: string, isHintListed = false, isExplained = false, isStats = false, sort: Sort = "severity"): string {
+    const locale = lang ?? environmentLocale();
+    const number = numberIn(locale);
     const limit = isFull ? Infinity : LIST;
     const guides = isExplained ? (report.rules ?? {}) : undefined;
     const origin = singleOrigin(report.pages.map((page) => page.url.href));
     const out: string[] = origin ? [paint(["bold", "underline"], origin)] : [];
-    out.push(...totals(report.summary, paint), ...costRows(report.summary.cost).map((line) => paint("dim", line)), ...(isStats ? ["", ...statRows(report.summary.stats ?? {}, paint)] : []), "");
+    out.push(...totals(report.summary, paint, number, locale), ...costRows(report.summary.cost, number).map((line) => paint("dim", line)), ...(isStats ? ["", ...statRows(report.summary.stats ?? {}, paint)] : []), "");
     const groups = new Map<string, Finding[]>();
     const vendors = new Map<string, Finding[]>();
     const findings = report.findings.map((finding) => printableFinding(finding));
@@ -164,44 +170,44 @@ export function formatHuman(report: Report, paint: Paint = plain, isFull = false
     for (const [group, findings] of groups) {
         const pages = report.summary.groups[group] ?? 0;
         out.push(
-            group === "site" ? `${paint("bold", "** whole site **")} ${paint("dim", "(every page)")}` : `${paint("bold", isOnlyDefault ? "pages" : `pages in group ${group}`)} ${paint("dim", `(${isOnlyDefault ? number(pages) : counted(pages, "page")})`)}`,
+            group === "site" ? `${paint("bold", "** whole site **")} ${paint("dim", "(every page)")}` : `${paint("bold", isOnlyDefault ? "pages" : `pages in group ${group}`)} ${paint("dim", `(${isOnlyDefault ? number(pages) : counted(pages, "page", number)})`)}`,
             ...listed(findings, origin, paint, limit, report.pages.length, sort, guides),
         );
     }
     for (const [vendor, findings] of vendors) out.push(`${paint("bold", vendor)} ${paint("dim", "(vendor)")}`, ...listed(findings, origin, paint, limit, report.pages.length, sort, guides));
-    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint")})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, sort, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
-    out.push(...cachedRow(findings, paint));
-    if (isFull) out.push("", ...passedRows(report.summary, paint));
+    if (hints.length > 0) out.push(`${paint("bold", "hints")} ${paint("dim", `(${counted(hints.length, "hint", number)})`)}`, ...(isHintListed ? listed(hints, origin, paint, limit, report.pages.length, sort, guides) : [paint("dim", `${DETAIL}--show-hints lists them`)]));
+    out.push(...cachedRow(findings, paint, number));
+    if (isFull) out.push("", ...passedRows(report.summary, paint, number));
     return out.join("\n").trimEnd();
 }
 
 // How many observations behind the findings came from a cache, by bucket, and how to read them again; nothing when none did.
-function cachedRow(findings: Finding[], paint: Paint): string[] {
+function cachedRow(findings: Finding[], paint: Paint, number: NumberFormat): string[] {
     const reads = cachedReads(findings);
     if (reads.length === 0) return [];
     const buckets = [...new Set(reads.map((read) => read.bucket))].join(", ");
-    return ["", paint("dim", `${counted(reads.length, "cached read")} behind these findings (${buckets}); --refresh reads them again`)];
+    return ["", paint("dim", `${counted(reads.length, "cached read", number)} behind these findings (${buckets}); --refresh reads them again`)];
 }
 
 // Every rule that failed nowhere with the pages it covered, under a count; nothing when none ran.
-function passedRows({ checked }: Report["summary"], paint: Paint): string[] {
+function passedRows({ checked }: Report["summary"], paint: Paint, number: NumberFormat): string[] {
     const rules = passing(checked);
-    return rules.length === 0 ? [] : [paint("bold", `passed ${counted(rules.length, "rule")}`), ...rules.map(([id, rule]) => `  ${paint("green", "✓")} ${id} ${paint("dim", counted(rule.pages, "page"))}`)];
+    return rules.length === 0 ? [] : [paint("bold", `passed ${counted(rules.length, "rule", number)}`), ...rules.map(([id, rule]) => `  ${paint("green", "✓")} ${id} ${paint("dim", counted(rule.pages, "page", number))}`)];
 }
 
 // Pages, size, time, rules, checks, findings with their change since the last run, and the rating, one row each; findings are counted before folding.
-function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating, previous }: Report["summary"], paint: Paint): string[] {
+function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, rating, previous }: Report["summary"], paint: Paint, number: NumberFormat, locale: string | undefined): string[] {
     const answers = Object.entries(statuses).map(([status, count]) => `${number(count)} × ${status}`);
     const shown = (Object.keys(ORDER) as Finding["severity"][]).filter((severity) => severity !== "hint" || (findings.hint ?? 0) > 0);
-    const severities = shown.map((severity) => `${(findings[severity] ?? 0) > 0 ? paint(TONE[severity], counted(findings[severity], severity)) : counted(0, severity)}${change(findings[severity], previous?.findings[severity], paint)}`);
-    const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(environmentLocale(), { dateStyle: "short", timeStyle: "short" })}`) : "";
+    const severities = shown.map((severity) => `${(findings[severity] ?? 0) > 0 ? paint(TONE[severity], counted(findings[severity], severity, number)) : counted(0, severity, number)}${change(findings[severity], previous?.findings[severity], paint, number)}`);
+    const since = previous ? paint("dim", ` since ${new Date(previous.started).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}`) : "";
     return [
         row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),
         row("size", sized(bytes, number)),
         row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
         row("rules", number(rules)),
         row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
-        row("findings", `${number(findings.total)}${change(findings.total, previous?.findings.total, paint)} (${severities.join(", ")})${since}`),
+        row("findings", `${number(findings.total)}${change(findings.total, previous?.findings.total, paint, number)} (${severities.join(", ")})${since}`),
         row("rating", ratingValue(rating, paint)),
     ];
 }
@@ -232,17 +238,17 @@ export function statRows(stats: NonNullable<Report["summary"]["stats"]>, paint: 
 }
 
 // Browsers launched and pages they rendered, plain HTTP fetches, resource requests, extractor runs and cache hits, one row each.
-function costRows({ browser, http, resources, extractors, extractorsCached = {} }: Report["summary"]["cost"]): string[] {
+function costRows({ browser, http, resources, extractors, extractorsCached = {} }: Report["summary"]["cost"], number: NumberFormat): string[] {
     const runs = Object.entries(extractors).map(([id, count]) => `${id} ×${number(count)}`);
     const hits = Object.entries(extractorsCached).map(([id, count]) => `${id} ×${number(count)}`);
     return [
-        browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page")} in ${counted(browser.launches, "launch")}${browser.tlsProbes > 0 ? `, ${counted(browser.tlsProbes, "TLS probe")}` : ""}`) : "",
-        http ? row("http", `${counted(http.pages, "fetch")}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
+        browser ? row("browser", `${browser.name}, ${counted(browser.pages, "page", number)} in ${counted(browser.launches, "launch", number)}${browser.tlsProbes > 0 ? `, ${counted(browser.tlsProbes, "TLS probe", number)}` : ""}`) : "",
+        http ? row("http", `${counted(http.pages, "fetch", number)}${http.revalidated > 0 ? ` (${number(http.revalidated)} revalidated)` : ""}`) : "",
         browser || http ? "" : row("fetch", "none"),
         resources
             ? row(
                   "resources",
-                  `${counted(resources.requests, "request")}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache${resources.failuresCached ? `, ${counted(resources.failuresCached, "failure")}` : ""})` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`,
+                  `${counted(resources.requests, "request", number)}${resources.cached > 0 ? ` (${number(resources.cached)} more from cache${resources.failuresCached ? `, ${counted(resources.failuresCached, "failure", number)}` : ""})` : ""}${resources.logged > 0 ? ` (${number(resources.logged)} more from the browser)` : ""}`,
               )
             : "",
         runs.length > 0 ? row("extractors", runs.join(", ")) : "",
