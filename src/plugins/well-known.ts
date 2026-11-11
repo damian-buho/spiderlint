@@ -706,7 +706,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
     "well-known/markdown-source": {
         fact: "markdown.present",
         expect: { const: true },
-        when: { "markdown.present": { type: "boolean" } },
+        when: { "markdown.present": { type: "boolean" }, "robots.noindex": { not: { const: true } } },
         message: "no Markdown source: neither a .md twin nor Accept: text/markdown answers with one",
         severity: "hint",
         score: 0.5,

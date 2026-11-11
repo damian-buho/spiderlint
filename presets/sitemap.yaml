@@ -18,7 +18,7 @@ rules:
   sitemap/unlisted:
     fact: sitemap.listed
     expect: {const: true}
-    when: {html: {type: object}}
+    when: {html: {type: object}, robots.noindex: {not: {const: true}}}
     severity: info
     message: "missing from the sitemap"
     fix: "Add this URL to the sitemap."
