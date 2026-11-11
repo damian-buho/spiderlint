@@ -15,6 +15,9 @@ import { visit, withPage } from "./visit.ts";
 const ID = "rel-me-live";
 const MAX_PROFILES = 8;
 
+// Messenger contact links, which open a chat and can show no website to link back to.
+const CONTACT_HOSTS = new Set(["signal.me", "wa.me", "api.whatsapp.com"]);
+
 // A profile a rendered page names with `rel=me`, as a browser loaded it.
 export interface LiveProfile {
     url: string;
@@ -104,6 +107,11 @@ const rendered = pageRule(
         if (page[ID] === undefined) return;
         return examined(page)
             .filter((profile) => !profile.back && profile.status !== undefined && profile.status >= 200 && profile.status <= 299)
+            .filter((profile) => {
+                const isContact = URL.canParse(profile.url) && CONTACT_HOSTS.has(new URL(profile.url).hostname);
+                if (isContact) log.debug({ url: page.url.href, profile: profile.url }, "rel=me contact link not judged");
+                return !isContact;
+            })
             .map((profile) => ({ ...said("rel=me profile does not link back to the site"), data: { [page.url.href]: { profile: profile.url, site: page.url.origin } }, evidence: [evidence("profiles", profile.url, profile, "browser")], value: profile.url }));
     },
     { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." },
