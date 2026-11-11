@@ -11,7 +11,7 @@ import { evidence } from "../facts/read-note.ts";
 import { log } from "../logger.ts";
 import { clockRules } from "./clock.ts";
 import { deprecatedRules } from "./deprecated.ts";
-import { disclosureRules } from "./disclosure.ts";
+import { disclosureRules, UNREMOVABLE } from "./disclosure.ts";
 import { i18nRules } from "./i18n.ts";
 import { cachingRules } from "./caching.ts";
 import { insightRules, partition } from "./insights.ts";
@@ -391,7 +391,13 @@ const consistentOrigin: Make = (severity) => ({
         const hosts = Map.groupBy(pages, (page) => page.url.host)
             .entries()
             .toArray();
-        return hosts.flatMap(([host, members]) => ORIGIN.map(([fact, label, read]) => varies(severity, host, members, fact, label, read)).filter((finding) => finding !== undefined));
+        return hosts.flatMap(([host, members]) => {
+            const isEdge = members.some((page) => UNREMOVABLE.has(header(page, "server").toLowerCase()));
+            log.debug({ rule: "http/consistent-origin", host, isEdge }, "address comparison decided");
+            return ORIGIN.filter(([fact]) => !(isEdge && fact === "http.remote.address"))
+                .map(([fact, label, read]) => varies(severity, host, members, fact, label, read))
+                .filter((finding) => finding !== undefined);
+        });
     },
 });
 
