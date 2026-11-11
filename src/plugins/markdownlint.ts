@@ -110,7 +110,7 @@ function preset(description: string, levels: Map<string, Level>): RulesetConfig 
     };
 }
 
-const rules = Object.fromEntries(UPSTREAM.map(([, alias, text, documentation]) => [`${PREFIX}${alias}`, messageRule(ID, PREFIX, alias, documentation, text)]));
+const rules = Object.fromEntries(UPSTREAM.map(([name, alias, , documentation]) => [`${PREFIX}${alias}`, messageRule(ID, PREFIX, alias, documentation, `Change the Markdown at each location, or accept the style with \`${name}: false\` under \`org.spiderlint.markdownlint.config\`.`)]));
 
 export default {
     name: "markdownlint",
