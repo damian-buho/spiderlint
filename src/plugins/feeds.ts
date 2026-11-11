@@ -438,7 +438,7 @@ const PROBLEM_RULES = Object.fromEntries([
     problemRule("relative-url", "links images or pages by a relative URL, which breaks in every reader", DOCS.rss, "Make every `href` and `src` inside item content absolute, or set `xml:base` on the Atom content."),
     problemRule("unsafe-html", "carries markup readers strip", DOCS.rss, "Leave scripts, frames, forms, event handlers and positioned styles out of item content; readers remove them."),
     problemRule("double-escaped", "escapes item content twice, so readers show tags and entities as text", DOCS.rss, "Escape item HTML once: either wrap it in CDATA or escape it, not both."),
-    problemRule("content-type", "holds HTML in a plain-text field", DOCS.atom, 'Declare Atom `type="html"` on content holding tags, or put HTML into JSON Feed `content_html`.'),
+    problemRule("content-type", "holds HTML in a plain-text field", DOCS.rss, 'Mark content that holds tags as HTML: Atom `type="html"`, JSON Feed `content_html` instead of `content_text`; or remove the tags.'),
     problemRule("title-markup", "carries markup or placeholders in an item title", DOCS.rss, "Write item titles as plain text, with no tags, entities or template values."),
     problemRule("media-type", "is served with a type readers do not treat as a feed", DOCS.rss, "Serve RSS as `application/rss+xml`, Atom as `application/atom+xml` and JSON Feed as `application/feed+json`."),
     problemRule("charset", "declares or decodes its encoding inconsistently", "https://www.w3.org/TR/xml/#charencoding", "Serve the feed as UTF-8 and declare the same encoding in `Content-Type` and the XML declaration."),
