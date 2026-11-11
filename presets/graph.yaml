@@ -27,7 +27,7 @@ rules:
   links/weakly-linked:
     fact: graph.in-degree
     expect: {minimum: 2}
-    when: {graph.in-degree: {minimum: 1}, crawl.discovered-via: {not: {const: seed}}}
+    when: {graph.in-degree: {minimum: 1}, crawl.discovered-via: {not: {const: seed}}, html.rels.prev: {not: {type: array}}}
     severity: info
     score: 1.8
     message: "only a few pages of the site link here"

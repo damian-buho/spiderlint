@@ -43,6 +43,10 @@ const readableSlug: Make = (severity) => ({
         const slug = slugOf(page);
         const heading = [page.html?.title ?? "", ...(page.html?.h1 ?? [])].join(" ");
         if (!slug || !heading.trim()) return;
+        if (page.html?.rels.prev) {
+            log.debug({ rule: "url/readable-slug", url: page.url.href, slug }, "paginated page skipped");
+            return;
+        }
         const isId = ID_ONLY.test(slug);
         const shared = tokens(slug).intersection(tokens(heading)).size;
         log.debug({ rule: "url/readable-slug", url: page.url.href, slug, isId, shared }, "slug read against the title");
