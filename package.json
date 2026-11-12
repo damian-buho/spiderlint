@@ -82,7 +82,7 @@
     "socks-proxy-agent": "10.1.0",
     "structured-headers": "2.1.1",
     "svgo": "4.1.0",
-    "tldts": "7.4.21",
+    "tldts": "7.4.26",
     "yaml": "2.9.1"
   },
   "devDependencies": {
