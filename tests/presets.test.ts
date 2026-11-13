@@ -285,6 +285,11 @@ const FAILS: Record<string, Patch[]> = {
     "http/coop/missing": [{ headers: { "cross-origin-opener-policy": undefined as unknown as string } }],
     "http/coep/missing": [{ headers: { "cross-origin-embedder-policy": undefined as unknown as string } }],
     "html/h1/duplicate": [{ html: { h1: ["Hello", "Again"] } }],
+    "html/canonical/invalid": [{ html: { canonical: "/posts/hello-world/" } }],
+    "html/og-title/length": [{ html: { property: { "og:title": "Hello" } } }],
+    "html/og-description/length": [{ html: { property: { "og:description": "A first post." } } }],
+    "html/fediverse-creator/invalid": [{ meta: { "fediverse:creator": "ana" } }],
+    "http/content-type-options/invalid": [{ headers: { "x-content-type-options": "sniff" } }],
 };
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
