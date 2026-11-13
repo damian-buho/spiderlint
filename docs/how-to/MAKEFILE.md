@@ -1317,6 +1317,14 @@ Sync package.json with the projectfile
 
 > Image: PF_BRIDGE_IMAGE
 
+### `stryker`
+
+Run JavaScript mutation testing and enforce the minimum mutation score
+
+`auto-stryker`
+
+> Image: D9T_JS_TOOLS_IMAGE
+
 ## Projectfile
 
 ### `pf-bridge-ai-policy-md-check`
