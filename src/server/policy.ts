@@ -8,6 +8,7 @@ import { fromSubtree } from "../config/policy.ts";
 import { validateSubtree } from "../config/schema.ts";
 import { validateRules } from "../index.ts";
 import { log } from "../logger.ts";
+import { RULE_GLOB } from "../rules/rulesets.ts";
 import { CAPPED, type Policy, type ServerSettings } from "./settings.ts";
 
 // `org.spiderlint` keys a request may set; the rest read files, load code, leave the address guard or skip robots.txt.
@@ -77,8 +78,8 @@ function namedRules(settings: Record<string, unknown>): string[] {
 
 // Each named rule must match an `allow` entry and no `deny` entry.
 function checkRules(settings: Record<string, unknown>, policy: Policy): void {
-    const isDenied = picomatch(policy.rules.deny);
-    const isAllowed = policy.rules.allow ? picomatch(policy.rules.allow) : () => true;
+    const isDenied = picomatch(policy.rules.deny, RULE_GLOB);
+    const isAllowed = policy.rules.allow ? picomatch(policy.rules.allow, RULE_GLOB) : () => true;
     for (const id of namedRules(settings)) {
         log.debug({ id, policy: policy.name }, "requested rule checked");
         if (isDenied(id) || !isAllowed(id)) throw new Refusal(403, "forbidden-rule", `rules: ${id} is not allowed by policy ${policy.name}`);

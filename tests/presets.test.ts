@@ -11,7 +11,7 @@ import type { Facts, HtmlFacts, RedirectHop, Role, Stance, TlsFacts } from "../s
 import { compileRule } from "../src/rules/declarative.ts";
 import { isBrowserFact } from "../src/plugins/index.ts";
 import { WEB_PRESETS } from "../src/server/policy.ts";
-import { compileRulesets, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
+import { compileRulesets, isRuleMatch, presetNames, resolveRuleset } from "../src/rules/rulesets.ts";
 import { builtin } from "../src/rules/builtin.ts";
 import { isPageRule, type AggregateRule, type Finding, type PageRule } from "../src/rules/types.ts";
 
@@ -433,6 +433,14 @@ describe("presets", () => {
         assert.deepEqual(Object.keys(severities(["a/x"])), ["a/y", "b/z"]);
         assert.deepEqual(Object.keys(severities(["**"])), []);
         assert.deepEqual(severities([], { "a/*": "info", "a/y": "error" }), { "a/x": "info", "a/y": "error", "b/z": "warning" });
+    });
+
+    it("lets a rule glob’s star cross a slash", () => {
+        assert.ok(isRuleMatch("html/og-title/length", "html/*"));
+        assert.ok(isRuleMatch("html/og-title/length", "html/og-*"));
+        assert.ok(isRuleMatch("html/og-title/length", "html/*/length"));
+        assert.ok(!isRuleMatch("html/og-title/length", "http/*"));
+        assert.ok(!isRuleMatch("html/og-title/length", "html/og-title"));
     });
 
     it("reads a name no ruleset carries as a rule ID or glob", () => {

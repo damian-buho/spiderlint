@@ -104,9 +104,12 @@ function selectRules(pattern: string, rulesets: Record<string, RulesetConfig>, s
     return picked;
 }
 
+// Rule globs: `*` crosses `/`, so `html/og-*` matches `html/og-title/length`.
+export const RULE_GLOB = { bash: true } as const;
+
 // Whether a rule ID is `pattern` or matches it as a glob (`lighthouse/*`).
 export function isRuleMatch(id: string, pattern: string): boolean {
-    return id === pattern || picomatch.isMatch(id, pattern);
+    return id === pattern || picomatch.isMatch(id, pattern, RULE_GLOB);
 }
 
 // Every rule ID the named rulesets define, `off` ones included.
