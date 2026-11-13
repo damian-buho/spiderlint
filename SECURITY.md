@@ -61,3 +61,12 @@ gpg --encrypt --armor --recipient B64C122EE16C3746 message.txt
 
 Spiderlint does not currently run a bug bounty programme. We still welcome
 responsibly disclosed reports — see the contact channel above.
+
+## Acknowledged Vulnerabilities
+
+The following findings were reviewed and are intentionally suppressed (a fix
+depends on an upstream release, or the advisory does not apply to this project):
+
+| ID | Reason |
+| --- | --- |
+| [CVE-2026-123158](https://nvd.nist.gov/vuln/detail/CVE-2026-123158) | not affected on Ubuntu, sshd on musl without PAM only (ubuntu.com/security/CVE-2026-123158) |

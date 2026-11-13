@@ -26,6 +26,7 @@ includes:
   - .makefile/b19/traits/image/attested.yaml
   - .makefile/b19/traits/image/release.yaml
   - .makefile/b19/traits/image/signed.yaml
+  - .makefile/b19/vulnerabilities/deb/openssh-client.yaml
   - .makefile/container/traits/image/malware-scan.yaml
   - .makefile/container/traits/readme/tool-image.yaml
   - .makefile/core/traits/github-action.yaml

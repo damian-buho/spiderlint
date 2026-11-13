@@ -62,4 +62,14 @@ gpg --encrypt --armor --recipient B64C122EE16C3746 message.txt
 
 Spiderlint наразі не має програми винагород за вразливості. Проте ми цінуємо
 відповідальні повідомлення — див. канал контакту вище.
+
+## Визнані вразливості
+
+Наведені знахідки переглянуто та навмисно придушено (виправлення залежить від
+наступного випуску upstream-проєкту, або повідомлення не стосується цього проєкту):
+
+| ID | Причина |
+| --- | --- |
+| [CVE-2026-123158](https://nvd.nist.gov/vuln/detail/CVE-2026-123158) | not affected on Ubuntu, sshd on musl without PAM only (ubuntu.com/security/CVE-2026-123158) |
+
 <!-- textlint-enable -->
