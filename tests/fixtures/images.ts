@@ -43,9 +43,10 @@ const LIVE = `<!DOCTYPE html><html lang="en"><head><title>Live</title></head><bo
 <img src="/small.webp" width="64" height="64" alt="eager">
 </body></html>`;
 
-// The same page done right: an eager hero at its size, the image below the fold lazy.
+// The same page done right: an eager hero at its size, an SVG ten times its box, the image below the fold lazy.
 const LIVE_CLEAN = `<!DOCTYPE html><html lang="en"><head><title>Live clean</title></head><body style="margin:0"><h1>Live clean</h1>
 <img src="/wide.jpg" width="400" height="300" alt="hero">
+<img src="/wide.svg" width="40" height="30" alt="vector">
 <div style="height:2000px"></div>
 <img src="/small.webp?lazy" width="64" height="64" loading="lazy" alt="lazy">
 </body></html>`;
@@ -92,6 +93,7 @@ async function images(): Promise<Record<string, [string, Buffer]>> {
                 .toBuffer(),
         ],
         "/logo.svg": ["image/svg+xml", Buffer.from(LOGO)],
+        "/wide.svg": ["image/svg+xml", Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300"/></svg>')],
         "/twin-a.jpg": ["image/jpeg", twin],
         "/twin-b.jpg": ["image/jpeg", twin],
         "/bloated.svg": ["image/svg+xml", Buffer.from(BLOATED_SVG)],

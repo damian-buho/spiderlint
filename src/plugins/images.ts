@@ -304,13 +304,13 @@ function imgRule(id: string, facts: string[], documentation: string, sentence: S
 type Box = LayoutFacts["images"][number];
 
 // A page rule over its rendered `<img>` boxes, skipped on a page the layout extractor did not sample; hidden images are never judged.
-function layoutRule(id: string, documentation: string, sentence: Sentence, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings) => string | undefined, fix?: string): Make {
+function layoutRule(id: string, documentation: string, sentence: Sentence, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings, page: Facts) => string | undefined, fix?: string, facts: string[] = []): Make {
     return (severity, settings) => ({
-        meta: { id, severity, scope: "page", facts: [LAYOUT], docs: documentation, ...(fix && { fix }) },
+        meta: { id, severity, scope: "page", facts: [LAYOUT, ...facts], docs: documentation, ...(fix && { fix }) },
         check(page: Facts) {
             const layout = page[LAYOUT] as LayoutFacts | undefined;
             if (!layout) return;
-            const locations = layout.images.filter((box) => box.width > 0 && box.height > 0).flatMap((box) => offends(layout, box, settings as ImagesSettings) ?? []);
+            const locations = layout.images.filter((box) => box.width > 0 && box.height > 0).flatMap((box) => offends(layout, box, settings as ImagesSettings, page) ?? []);
             log.debug({ rule: id, url: page.url.href, images: layout.images.length, offending: locations.length }, "rendered images judged");
             return locations.length === 0 ? [] : [{ rule: id, severity, scope: "page", url: page.url.href, group: page.group, ...sentence, data: { [page.url.href]: { images: locations.length } }, value: locations, locations } satisfies Finding];
         },
@@ -371,8 +371,10 @@ const renderedOversize = layoutRule(
     "images/rendered-oversize",
     "https://web.dev/articles/serve-responsive-images",
     said("an <img> ships far more pixels than the page renders"),
-    (layout, box, settings) => (box.natural > box.width * layout.viewport.dpr * settings.oversize ? `${box.src} ${box.natural} px shown at ${box.width} px` : undefined),
+    // A vector image scales for free, so its natural width costs nothing.
+    (layout, box, settings, page) => (box.natural > box.width * layout.viewport.dpr * settings.oversize && loaded(page, box.src)?.format !== "svg" ? `${box.src} ${box.natural} px shown at ${box.width} px` : undefined),
     "Serve an image whose natural width matches what the layout renders.",
+    FACTS,
 );
 
 export default {
