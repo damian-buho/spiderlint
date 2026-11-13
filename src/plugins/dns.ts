@@ -539,11 +539,21 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
         fix: "End the `v=spf1` TXT record of `{host}` in `-all`, such as Content `v=spf1 mx -all`, or in `~all` while its senders are still being listed.",
     },
-    "dns/dmarc-policy/weak": {
+    "dns/dmarc/missing": {
         fact: "site.hosts.*.mail.dmarc",
         when: ACTIVE,
+        expect: { type: "object" },
+        message: "no DMARC record applies to a name that takes or sends mail, so receivers deliver mail forged from it",
+        severity: "warning",
+        score: 6.2,
+        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}` — and move to `p=reject` once the reports show only your own servers.",
+    },
+    "dns/dmarc-policy/weak": {
+        fact: "site.hosts.*.mail.dmarc",
+        when: { ...ACTIVE, "site.hosts.*.mail.dmarc": { type: "object" } },
         expect: { type: "object", required: ["policy"], properties: { policy: { enum: ["quarantine", "reject"] } } },
-        message: "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})",
+        message: "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})",
         severity: "warning",
         score: 6.2,
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",

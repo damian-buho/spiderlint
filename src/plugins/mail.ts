@@ -965,7 +965,7 @@ const RULES: Record<string, RuleSpec> = {
 };
 
 // The dns:mail rules a mail name answers to, kept under their IDs.
-const CARRIED = ["dns/null-mx/invalid", "dns/spf/duplicate", "dns/spf-all/weak", "dns/dmarc-policy/weak"];
+const CARRIED = ["dns/null-mx/invalid", "dns/spf/duplicate", "dns/spf-all/weak", "dns/dmarc/missing", "dns/dmarc-policy/weak"];
 const RECOMMENDED = [
     ...CARRIED,
     "mail/spf/invalid",

@@ -4,6 +4,18 @@
 ---
 description: Compression, caching, validators, protocol version and render-blocking HTML, no browser needed
 rules:
+  http/compression/missing:
+    fact: http.headers.content-encoding
+    expect: {type: [string, array]}
+    when:
+      http.status: {minimum: 200, maximum: 299}
+      http.content-type: {pattern: "^(text/|application/([\\w.-]+\\+)?(json|xml|javascript)\\b|image/svg\\+xml)"}
+      http.size.decoded: {minimum: 1024}
+    severity: warning
+    score: 6.3
+    message: "a text response over 1 KB is sent uncompressed"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
+    fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
   http/compression/weak:
     fact: http.headers.content-encoding
     expect: {type: string, pattern: "^\\s*(br|gzip|zstd)\\s*$"}
@@ -11,9 +23,10 @@ rules:
       http.status: {minimum: 200, maximum: 299}
       http.content-type: {pattern: "^(text/|application/([\\w.-]+\\+)?(json|xml|javascript)\\b|image/svg\\+xml)"}
       http.size.decoded: {minimum: 1024}
+      http.headers.content-encoding: {type: [string, array]}
     severity: warning
     score: 6.3
-    message: "a text response over 1 KB should be sent br, zstd or gzip"
+    message: "a text response over 1 KB is encoded with something other than br, zstd or gzip"
     fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
   http/vary-accept-encoding/missing:

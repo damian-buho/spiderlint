@@ -58,9 +58,10 @@ function page(patch: Patch = {}): Facts {
         "cross-origin-embedder-policy": "credentialless",
         "repr-digest": "sha-256=:x:",
         "server-timing": "app;dur=1",
+        "x-content-type-options": "nosniff",
         ...patch.headers,
     };
-    const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", ...patch.meta };
+    const meta = { viewport: "width=device-width, initial-scale=1", "theme-color": "#000", "color-scheme": "light dark", "fediverse:creator": "@ana@social.example", ...patch.meta };
     const facts: Facts = {
         url: { href, origin: "https://site.test", protocol: "https:", host: "site.test", pathname, search: patch.search ?? "", ...(patch.twin && { twin: patch.twin }) },
         group: "default",
@@ -71,6 +72,7 @@ function page(patch: Patch = {}): Facts {
             lang: patch.lang ?? "en-GB",
             charset: { declared: "utf8", offset: 300 },
             h1: ["Hello"],
+            canonical: href,
             meta,
             property: { "og:title": "Hello world, a first post", "og:description": "A first post on the test site, long enough to fill a preview card.", "og:image": "https://site.test/og.png", "og:type": "article", "og:url": href },
             metas: [
@@ -121,7 +123,7 @@ const FAILS: Record<string, Patch[]> = {
     "http/csp-base-uri/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }],
     "http/csp-frame-ancestors/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
     "http/reporting-endpoints/missing": [{ headers: { "reporting-endpoints": "" } }],
-    "http/hsts/weak": [{ headers: { "strict-transport-security": undefined as unknown as string } }, { headers: { "strict-transport-security": "max-age=300" } }],
+    "http/hsts/weak": [{ headers: { "strict-transport-security": "max-age=300" } }],
     "http/hsts/invalid": [{ headers: { "strict-transport-security": "max-age=abc" } }, { headers: { "strict-transport-security": "max-age=31536000, max-age=0" } }, { headers: { "strict-transport-security": "includeSubDomains" } }],
     "http/csp/invalid": [{ headers: { "content-security-policy": "default-src self" } }, { headers: { "content-security-policy": "scrpit-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none' 'self'" } }],
     "http/permissions-policy/invalid": [{ headers: { "permissions-policy": "camera=(self" } }, { headers: { "permissions-policy": "camera 'none'" } }, { headers: { "permissions-policy": "camera=none" } }],
@@ -148,7 +150,7 @@ const FAILS: Record<string, Patch[]> = {
     "url/double-slash/present": [{ pathname: "/posts//hello-world/" }],
     "url/extension/present": [{ pathname: "/posts/hello-world.php" }, { pathname: "/index.HTML" }],
     "url/slug/unreadable": [{ pathname: "/p/8f3a91c" }, { pathname: "/p/1234" }, { pathname: "/p/0b8e6f3a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" }, { pathname: "/p/spring-recipes/", html: { h1: ["Summer salads"] } }],
-    "http/date/invalid": [{ headers: { date: undefined as unknown as string } }, { headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
+    "http/date/invalid": [{ headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
     "http/header/deprecated": [{ headers: { "x-xss-protection": "0" } }, { headers: { "report-to": '{"group":"default","max_age":86400,"endpoints":[{"url":"https://site.test/reports"}]}' } }, { headers: { "feature-policy": "camera 'none'", "expect-ct": "max-age=0" } }],
     "links/internal-nofollow/present": [{ html: { links: { internal: ["https://site.test/login"], external: [], nofollow: ["https://site.test/login"] } } }],
     "http/compression/weak": [{ headers: { "content-encoding": "deflate" } }, { contentType: "application/ld+json", headers: { "content-encoding": "identity" } }],
@@ -196,7 +198,7 @@ const FAILS: Record<string, Patch[]> = {
     ],
     "html/noindex/mismatch": [{ meta: { robots: "noindex, follow" } }, { meta: { robots: "NONE" } }, { headers: { "x-robots-tag": "googlebot: noindex" } }],
     "html/dir/missing": [{ lang: "ar" }, { lang: "he-IL", html: { dir: "ltr" } }],
-    "html/charset/invalid": [{ html: { charset: { declared: "windows-1252", offset: 300 } } }, { html: { charset: { declared: "utf8", offset: 1500 } } }, { html: { charset: undefined } }],
+    "html/charset/invalid": [{ html: { charset: { declared: "windows-1252", offset: 300 } } }, { html: { charset: { declared: "utf8", offset: 1500 } } }],
     "html/favicon/missing": [{ html: { head: { links: [{ rel: "apple-touch-icon", href: "/a.png" }] } } }],
     "html/hreflang-x-default/missing": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }] } }],
     "html/jsonld/invalid": [{ html: { jsonld: [{ "@error": "Unexpected token" }] } }],
@@ -262,6 +264,27 @@ const FAILS: Record<string, Patch[]> = {
             },
         },
     ],
+    "html/lang/missing": [{ html: { lang: undefined } }],
+    "html/viewport/missing": [{ meta: { viewport: undefined as unknown as string } }],
+    "html/color-scheme/missing": [{ meta: { "color-scheme": undefined as unknown as string } }],
+    "html/charset/missing": [{ html: { charset: undefined } }],
+    "html/h1/missing": [{ html: { h1: [] } }],
+    "html/canonical/missing": [{ html: { canonical: undefined } }],
+    "html/og-title/missing": [{ html: { property: {} } }],
+    "html/og-description/missing": [{ html: { property: {} } }],
+    "html/og-image/missing": [{ html: { property: {} } }],
+    "html/og-type/missing": [{ html: { property: {} } }],
+    "html/og-url/missing": [{ html: { property: {} } }],
+    "html/fediverse-creator/missing": [{ meta: { "fediverse:creator": undefined as unknown as string } }],
+    "http/compression/missing": [{ headers: { "content-encoding": undefined as unknown as string } }],
+    "http/content-type-options/missing": [{ headers: { "x-content-type-options": undefined as unknown as string } }],
+    "http/corp/missing": [{ headers: { "cross-origin-resource-policy": undefined as unknown as string } }],
+    "http/date/missing": [{ headers: { date: undefined as unknown as string } }],
+    "http/hsts/missing": [{ headers: { "strict-transport-security": undefined as unknown as string } }],
+    "http/referrer-policy/missing": [{ headers: { "referrer-policy": undefined as unknown as string } }],
+    "http/coop/missing": [{ headers: { "cross-origin-opener-policy": undefined as unknown as string } }],
+    "http/coep/missing": [{ headers: { "cross-origin-embedder-policy": undefined as unknown as string } }],
+    "html/h1/duplicate": [{ html: { h1: ["Hello", "Again"] } }],
 };
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
@@ -284,14 +307,11 @@ const PASSES: Record<string, Patch[]> = {
         },
         { status: 404, redirects: [{ url: "https://site.test/b", status: 302 }] },
     ],
-    "http/referrer-policy/insecure": [{ headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
+    "http/referrer-policy/insecure": [{ headers: { "referrer-policy": undefined as unknown as string } }, { headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
     "http/x-xss-protection/insecure": [{ headers: { "x-xss-protection": "0" } }],
     "http/header/deprecated": [{ headers: { "report-to": '{"group":"network-errors"}', nel: '{"report_to":"network-errors","max_age":86400}' } }],
     "links/internal-nofollow/present": [{ html: { links: { internal: [], external: ["https://other.test/"], nofollow: ["https://other.test/"] } } }],
-    "http/compression/weak": [
-        { decoded: 512, headers: { "content-encoding": "identity" } },
-        { contentType: "image/png", headers: { "content-encoding": "identity" } },
-    ],
+    "http/compression/weak": [{ headers: { "content-encoding": undefined as unknown as string } }, { decoded: 512, headers: { "content-encoding": "identity" } }, { contentType: "image/png", headers: { "content-encoding": "identity" } }],
     "http/validator/missing": [{ headers: { etag: undefined as unknown as string, "last-modified": "Wed, 01 Jan 2025 00:00:00 GMT" } }],
     "http/no-store/present": [{ contentType: "application/json", headers: { "cache-control": "no-store" } }],
     "http/retry-after/missing": [
@@ -308,8 +328,8 @@ const PASSES: Record<string, Patch[]> = {
     "http/retry-after/invalid": [{ headers: { "retry-after": "0" } }, { headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } }],
     "http/sunset/invalid": [{ headers: { sunset: "Fri, 01 Jan 2027 00:00:00 GMT" } }],
     "http/deprecation/invalid": [{ headers: { deprecation: "@1767225600" } }],
-    "html/lang/invalid": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
-    "html/viewport/inaccessible": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
+    "html/lang/invalid": [{ html: { lang: undefined } }, { lang: "zh-Hant-TW" }, { lang: "es-419" }],
+    "html/viewport/inaccessible": [{ meta: { viewport: undefined as unknown as string } }, { meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
     "html/theme-color-dark/missing": [
         { meta: { "color-scheme": "light" }, html: { metas: [{ name: "theme-color", content: "#fff" }] } },
         {
@@ -329,7 +349,7 @@ const PASSES: Record<string, Patch[]> = {
     ],
     "html/noindex/mismatch": [{ meta: { robots: "noindex" }, role: "staging" }, { meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
     "html/dir/missing": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
-    "html/charset/invalid": [{ html: { charset: { declared: "utf8", offset: 1024 } } }],
+    "html/charset/invalid": [{ html: { charset: undefined } }, { html: { charset: { declared: "utf8", offset: 1024 } } }],
     "html/favicon/missing": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
     "html/hreflang-x-default/missing": [
         {
@@ -367,7 +387,7 @@ const PASSES: Record<string, Patch[]> = {
     ],
     "url/path/invalid": [{ pathname: "/es/ma%C3%B1ana/" }],
     "redirects/redirect-by/missing": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }] }],
-    "http/coep/weak": [{ headers: { "cross-origin-embedder-policy": 'require-corp; report-to="default"' } }],
+    "http/coep/weak": [{ headers: { "cross-origin-embedder-policy": undefined as unknown as string } }, { headers: { "cross-origin-embedder-policy": 'require-corp; report-to="default"' } }],
     "http/permissions-policy/invalid": [{ headers: { "permissions-policy": 'geolocation=(self "https://maps.test"), fullscreen=*' } }],
     "http/csp/invalid": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https: *.cdn.test:443/js/; img-src data: 'self'" } }],
     "http/cache-control/invalid": [{ headers: { "cache-control": 'private="set-cookie", no-cache, max-age="0"' } }],
@@ -378,7 +398,7 @@ const PASSES: Record<string, Patch[]> = {
     "http/link/invalid": [{ headers: { link: "<https://site.test/a.css>; rel=preload; as=style, <https://site.test/b.js>; rel=modulepreload" } }, { headers: { link: '<https://site.test/a,b.css>; rel="preload prefetch"; title="x, y"; crossorigin' } }],
     "http/alt-svc-h3/missing": [{ headers: { "alt-svc": 'h2=":443", h3="cdn.test:443"; ma=86400; persist=1' } }],
     "http/alt-svc/invalid": [{ headers: { "alt-svc": "clear" } }, { headers: { "alt-svc": 'h3="[::1]:443"; foo=bar' } }],
-    "html/color-scheme/invalid": [{ meta: { "color-scheme": "normal" } }, { meta: { "color-scheme": "only light" } }, { meta: { "color-scheme": "dark light only" } }],
+    "html/color-scheme/invalid": [{ meta: { "color-scheme": undefined as unknown as string } }, { meta: { "color-scheme": "normal" } }, { meta: { "color-scheme": "only light" } }, { meta: { "color-scheme": "dark light only" } }],
     "html/viewport/invalid": [{ meta: { viewport: "width = device-width; initial-scale=1.0 viewport-fit=cover, interactive-widget=resizes-content" } }],
     "html/theme-color/invalid": [
         {
@@ -390,8 +410,8 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/og-image/invalid": [{ html: { property: { "og:image": "https://site.test/og.png" } } }],
-    "html/og-type/invalid": [{ html: { property: { "og:type": "music.song" } } }, { html: { property: { "og:type": "fb:app" } } }],
+    "html/og-image/invalid": [{ html: { property: {} } }, { html: { property: { "og:image": "https://site.test/og.png" } } }],
+    "html/og-type/invalid": [{ html: { property: {} } }, { html: { property: { "og:type": "music.song" } } }, { html: { property: { "og:type": "fb:app" } } }],
     "http/use-as-dictionary-match/invalid": [{ headers: { "use-as-dictionary": 'match="/app-*.js", id="v1"' } }],
     "http/tdm-reservation/invalid": [{ headers: { "tdm-reservation": "1" } }],
     "html/tdm-reservation/invalid": [{ meta: { "tdm-reservation": "0" } }],
@@ -417,6 +437,17 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
+    "html/h1/duplicate": [{ html: { h1: [] } }],
+    "html/canonical/invalid": [{ html: { canonical: undefined } }],
+    "html/og-title/length": [{ html: { property: {} } }],
+    "html/og-description/length": [{ html: { property: {} } }],
+    "html/og-url/invalid": [{ html: { property: {} } }],
+    "html/fediverse-creator/invalid": [{ meta: { "fediverse:creator": undefined as unknown as string } }],
+    "http/content-type-options/invalid": [{ headers: { "x-content-type-options": undefined as unknown as string } }],
+    "http/corp/invalid": [{ headers: { "cross-origin-resource-policy": undefined as unknown as string } }],
+    "http/date/invalid": [{ headers: { date: undefined as unknown as string } }],
+    "http/hsts/weak": [{ headers: { "strict-transport-security": undefined as unknown as string } }],
+    "http/coop/weak": [{ headers: { "cross-origin-opener-policy": undefined as unknown as string } }],
 };
 
 const specs = resolveRuleset("spiderlint:all", {});

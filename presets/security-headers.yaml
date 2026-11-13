@@ -4,10 +4,19 @@
 ---
 description: HSTS, CSP, nosniff, Referrer-Policy, framing and cross-origin isolation
 rules:
+  http/hsts/missing:
+    fact: http.parsed.strict-transport-security
+    expect: {type: object}
+    when: {url.protocol: "https:"}
+    severity: warning
+    score: 5.8
+    message: "no Strict-Transport-Security"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
+    fix: "Send Strict-Transport-Security: max-age=63072000; includeSubDomains."
   http/hsts/weak:
     fact: http.parsed.strict-transport-security.value.max-age
     expect: {type: integer, minimum: 1000000}
-    when: {url.protocol: "https:", http.parsed.strict-transport-security.errors: {maxItems: 0}}
+    when: {url.protocol: "https:", http.parsed.strict-transport-security.errors: {maxItems: 0}, http.parsed.strict-transport-security: {type: object}}
     severity: warning
     score: 5.8
     message: "Strict-Transport-Security should carry max-age of 1000000 or more"
@@ -22,18 +31,35 @@ rules:
     message: "no enforced Content-Security-Policy, in a header or a <meta>"
     fix: "Send a Content-Security-Policy header that allows only the origins and directives the page needs."
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
+  http/content-type-options/missing:
+    fact: http.headers.x-content-type-options
+    expect: {type: [string, array]}
+    severity: warning
+    score: 5.7
+    message: "no X-Content-Type-Options"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
+    fix: "Send X-Content-Type-Options: nosniff."
   http/content-type-options/invalid:
     fact: http.headers.x-content-type-options
     expect: {type: string, pattern: "^nosniff$"}
+    when: {http.headers.x-content-type-options: {type: [string, array]}}
     severity: warning
     score: 5.7
     message: "X-Content-Type-Options should be nosniff"
     fix: "Send X-Content-Type-Options: nosniff."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
+  http/referrer-policy/missing:
+    fact: http.parsed.referrer-policy
+    expect: {type: object}
+    severity: warning
+    score: 5.1
+    message: "no Referrer-Policy"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
+    fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
   http/referrer-policy/insecure:
     fact: http.parsed.referrer-policy.value
     expect: {type: string, not: {enum: [unsafe-url, no-referrer-when-downgrade]}}
-    when: {http.parsed.referrer-policy.errors: {maxItems: 0}}
+    when: {http.parsed.referrer-policy.errors: {maxItems: 0}, http.parsed.referrer-policy: {type: object}}
     severity: warning
     score: 5.1
     message: "Referrer-Policy should not leak full URLs"
@@ -62,18 +88,36 @@ rules:
     message: "no Permissions-Policy header naming a feature"
     fix: "Send a Permissions-Policy header listing the features the page uses."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
+  http/coop/missing:
+    fact: http.parsed.cross-origin-opener-policy
+    expect: {type: object}
+    when: {http.document: true}
+    severity: info
+    score: 2.2
+    message: "no Cross-Origin-Opener-Policy"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
+    fix: "Send Cross-Origin-Opener-Policy: same-origin."
   http/coop/weak:
     fact: http.parsed.cross-origin-opener-policy.value
     expect: {enum: [same-origin, same-origin-allow-popups]}
-    when: {http.document: true, http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}}
+    when: {http.document: true, http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}, http.parsed.cross-origin-opener-policy: {type: object}}
     severity: info
     score: 2.2
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups"
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
+  http/corp/missing:
+    fact: http.headers.cross-origin-resource-policy
+    expect: {type: [string, array]}
+    severity: info
+    score: 2.1
+    message: "no Cross-Origin-Resource-Policy"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
+    fix: "Send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared."
   http/corp/invalid:
     fact: http.headers.cross-origin-resource-policy
     expect: {enum: [same-origin, same-site, cross-origin]}
+    when: {http.headers.cross-origin-resource-policy: {type: [string, array]}}
     severity: info
     score: 2.1
     message: "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin"

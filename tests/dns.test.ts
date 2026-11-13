@@ -295,7 +295,7 @@ describe("dns plugin", () => {
         assert.deepEqual(findings({ "good.fixture": silent }, "dns:mail"), ["dns/dmarc-reject/missing", "dns/null-mx/missing", "dns/spf-null/missing"]);
         const mixed = await extract("mixed.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((mixed.mail as { intent: string }).intent, "both");
-        assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc-policy/weak", "dns/null-mx/invalid", "dns/spf-all/weak", "dns/spf/duplicate"]);
+        assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc/missing", "dns/null-mx/invalid", "dns/spf-all/weak", "dns/spf/duplicate"]);
     });
 
     it("finds nothing in a clean mail domain, and one finding per fault in each broken one", async () => {

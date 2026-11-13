@@ -6,17 +6,35 @@ description: Titles, descriptions, headings, canonical, Open Graph and alt text
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:
+  html/lang/missing:
+    fact: html.lang
+    expect: {type: string}
+    severity: error
+    score: 8.2
+    message: "no <html lang>"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
+    fix: "Set <html lang> to the page’s language, as <html lang=en>."
   html/lang/invalid:
     fact: html.lang
     expect: {type: string, pattern: "^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$"}
+    when: {html.lang: {type: string}}
     severity: error
     score: 8.2
     message: "<html lang> should be a BCP 47 language tag"
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
     fix: "Set <html lang> to a BCP 47 language tag."
+  html/viewport/missing:
+    fact: html.meta.viewport
+    expect: {type: string}
+    severity: warning
+    score: 5.3
+    message: "no meta viewport"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
+    fix: "Add <meta name=viewport content=\"width=device-width\"> to the head."
   html/viewport/inaccessible:
     fact: html.meta.viewport
     expect: {type: string, pattern: "^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}
+    when: {html.meta.viewport: {type: string}}
     severity: warning
     score: 5.3
     message: "meta viewport should set width=device-width and allow zoom"
@@ -36,14 +54,23 @@ rules:
   html/theme-color/invalid:
     severity: warning
     score: 3.3
+  html/color-scheme/missing:
+    fact: html.meta.color-scheme
+    expect: {type: string}
+    severity: info
+    score: 1.4
+    message: "no meta color-scheme"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+    fix: "Add <meta name=color-scheme content=\"light dark\">."
   html/color-scheme/invalid:
     fact: html.meta.color-scheme
     expect: {type: string, pattern: "^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}
+    when: {html.meta.color-scheme: {type: string}}
     severity: info
     score: 1.4
     message: "meta color-scheme should be normal, or scheme names such as light dark"
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-    fix: "Add <meta name=color-scheme content=\"light dark\">."
+    fix: "Set meta color-scheme to normal, or to scheme names such as \"light dark\"."
   html/theme-color-dark/missing:
     when: {html.meta.color-scheme: {type: string, allOf: [{pattern: "(?i:\\blight\\b)"}, {pattern: "(?i:\\bdark\\b)"}]}}
     fact: html.metas
@@ -74,9 +101,18 @@ rules:
     message: "a right-to-left language should set <html dir=rtl>"
     docs: https://www.w3.org/International/questions/qa-html-dir
     fix: "Add dir=rtl to the <html> element."
+  html/charset/missing:
+    fact: html.charset
+    expect: {type: object}
+    severity: warning
+    score: 5.2
+    message: "no <meta charset>"
+    docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
+    fix: "Add <meta charset=utf-8> as the first element of <head>."
   html/charset/invalid:
     fact: html.charset
     expect: {type: object, required: [declared, offset], properties: {declared: {pattern: "^(?i:utf-?8)$"}, offset: {maximum: 1024}}}
+    when: {html.charset: {type: object}}
     severity: warning
     score: 5.2
     message: "<meta charset> should declare UTF-8 within the first 1024 bytes"
@@ -175,17 +211,34 @@ rules:
     message: "meta description repeats itself around a separator"
     docs: https://developers.google.com/search/docs/appearance/snippet
     fix: "Remove the repeated suffix from the meta description."
-  html/h1/duplicate:
+  html/h1/missing:
     fact: html.h1
-    expect: {type: array, minItems: 1, maxItems: 1}
+    expect: {type: array, minItems: 1}
     severity: error
     score: 7.4
-    message: "should have exactly one <h1>"
+    message: "no <h1>"
     docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
     fix: "Use exactly one <h1> per page."
+  html/h1/duplicate:
+    fact: html.h1
+    expect: {type: array, maxItems: 1}
+    severity: error
+    score: 7.4
+    message: "more than one <h1>"
+    docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
+    fix: "Use exactly one <h1> per page."
+  html/canonical/missing:
+    fact: html.canonical
+    expect: {type: string}
+    severity: warning
+    score: 5.4
+    message: "no canonical link"
+    docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+    fix: "Add <link rel=canonical> with the page’s absolute URL to the head."
   html/canonical/invalid:
     fact: html.canonical
     expect: {type: string, pattern: "^https?://"}
+    when: {html.canonical: {type: string}}
     severity: warning
     score: 5.4
     message: "canonical link should be an absolute URL"
@@ -205,41 +258,86 @@ rules:
     message: "an <img> has no alt attribute"
     docs: https://developers.google.com/search/docs/appearance/google-images
     fix: "Add an alt attribute to every <img>."
+  html/og-title/missing:
+    fact: html.property.og:title
+    expect: {type: string}
+    severity: warning
+    score: 4.0
+    message: "no og:title"
+    docs: https://ogp.me/#metadata
+    fix: "Add <meta property=og:title> with the page title."
   html/og-title/length:
     fact: html.property.og:title
     expect: {type: string, minLength: 10, maxLength: 90}
+    when: {html.property.og:title: {type: string}}
     severity: warning
     score: 4.0
     message: "og:title should be 10–90 characters"
     docs: https://ogp.me/#metadata
     fix: "Set og:title to 10–90 characters."
+  html/og-description/missing:
+    fact: html.property.og:description
+    expect: {type: string}
+    severity: warning
+    score: 3.9
+    message: "no og:description"
+    docs: https://ogp.me/#optional
+    fix: "Add <meta property=og:description> with a summary of the page."
   html/og-description/length:
     fact: html.property.og:description
     expect: {type: string, minLength: 50, maxLength: 200}
+    when: {html.property.og:description: {type: string}}
     severity: warning
     score: 3.9
     message: "og:description should be 50–200 characters"
     docs: https://ogp.me/#optional
     fix: "Set og:description to 50–200 characters."
+  html/og-image/missing:
+    fact: html.property.og:image
+    expect: {type: string}
+    severity: warning
+    score: 4.6
+    message: "no og:image"
+    docs: https://ogp.me/#metadata
+    fix: "Add <meta property=og:image> with the absolute URL of a preview image."
   html/og-image/invalid:
     fact: html.property.og:image
     expect: {type: string, format: uri, pattern: "^(?i:https?)://"}
+    when: {html.property.og:image: {type: string}}
     severity: warning
     score: 4.6
     message: "og:image should be an absolute http(s) URL"
     docs: https://ogp.me/#metadata
     fix: "Make og:image an absolute URL."
+  html/og-type/missing:
+    fact: html.property.og:type
+    expect: {type: string}
+    severity: info
+    score: 1.1
+    message: "no og:type"
+    docs: https://ogp.me/#types
+    fix: "Set og:type to website, or article on a post."
   html/og-type/invalid:
     fact: html.property.og:type
     expect: {type: string, pattern: "^(?:website|article|book|profile|music\\.(?:song|album|playlist|radio_station)|video\\.(?:movie|episode|tv_show|other)|[a-z][\\w-]*:[\\w.-]+)$"}
+    when: {html.property.og:type: {type: string}}
     severity: info
     score: 1.1
     message: "og:type should be an Open Graph type or namespace:type"
     docs: https://ogp.me/#types
     fix: "Set og:type to website, or article on a post."
+  html/og-url/missing:
+    fact: html.property.og:url
+    expect: {type: string}
+    severity: info
+    score: 2.5
+    message: "no og:url"
+    docs: https://ogp.me/#metadata
+    fix: "Add <meta property=og:url> with this page’s absolute URL."
   html/og-url/invalid:
     fact: html.property.og:url
     expect: {type: string, format: uri, pattern: "^(?i:https?)://"}
+    when: {html.property.og:url: {type: string}}
     severity: info
     score: 2.5
     message: "og:url should be an absolute http(s) URL"

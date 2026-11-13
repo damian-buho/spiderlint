@@ -555,8 +555,6 @@ msgstr "un idioma de derecha a izquierda debe fijar <html dir=rtl>"
 msgid "a script in <head> without async, defer or type=module blocks rendering"
 msgstr "un script en <head> sin async, defer ni type=module bloquea el renderizado"
 
-msgid "a text response over 1 KB should be sent br, zstd or gzip"
-msgstr "una respuesta de texto de más de 1 KB debe enviarse con br, zstd o gzip"
 
 msgid "a URL with a query has no No-Vary-Search to say which parameters change the page"
 msgstr "una URL con consulta no tiene No-Vary-Search que indique qué parámetros cambian la página"
@@ -576,8 +574,6 @@ msgstr "el enlace canónico debe ser una URL absoluta"
 msgid "certificate expires within 14 days"
 msgstr "el certificado vence en menos de 14 días"
 
-msgid "certificate expires within 2 days"
-msgstr "el certificado vence en menos de 2 días"
 
 msgid "certificate has expired"
 msgstr "el certificado ha vencido"
@@ -777,8 +773,6 @@ msgstr "Retry-After pide a los clientes volver demasiado pronto, lo que devuelve
 msgid "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry"
 msgstr "Retry-After incumple la RFC 9110 §10.2.3, así que los clientes no saben cuándo reintentar"
 
-msgid "should have exactly one <h1>"
-msgstr "debe tener exactamente un <h1>"
 
 msgid "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it"
 msgstr "Strict-Transport-Security incumple la RFC 6797 §6.1, así que los navegadores la ignoran"
@@ -1029,8 +1023,6 @@ msgstr "un TTL de registro está fuera del rango de 300 segundos a un día, dos 
 msgid "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning"
 msgstr "un servidor de nombres autoritativo responde consultas recursivas de cualquier nombre, lo que lo expone a ataques de amplificación y envenenamiento de caché"
 
-msgid "the domain registration expires in {got} days"
-msgstr "el registro del dominio vence en {got} días"
 
 msgid "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses"
 msgstr "el registro del dominio vence en {got} días, y el sitio y su correo dejan de resolverse cuando caduque"
@@ -1062,8 +1054,6 @@ msgstr "un nombre que recibe o envía correo necesita exactamente un registro v=
 msgid "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})"
 msgstr "SPF no termina en -all ni ~all, así que los receptores dejan que cualquier servidor envíe como este nombre ({got})"
 
-msgid "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})"
-msgstr "ninguna política DMARC de cuarentena o rechazo se aplica a un nombre que recibe o envía correo, así que los receptores entregan correo falsificado desde él ({got})"
 
 msgid "the favicon is missing or broken: {got}"
 msgstr "falta el favicon o está roto: {got}"
@@ -1952,3 +1942,75 @@ msgstr "Puntuación"
 
 msgid "This scan ran out of time, so its rating covers only what was checked before then."
 msgstr "Este análisis se quedó sin tiempo, así que su calificación solo cubre lo que se comprobó hasta entonces."
+
+msgid "no <html lang>"
+msgstr "no hay <html lang>"
+
+msgid "no meta viewport"
+msgstr "no hay meta viewport"
+
+msgid "no meta color-scheme"
+msgstr "no hay meta color-scheme"
+
+msgid "no <meta charset>"
+msgstr "no hay <meta charset>"
+
+msgid "no <h1>"
+msgstr "no hay <h1>"
+
+msgid "more than one <h1>"
+msgstr "hay más de un <h1>"
+
+msgid "no canonical link"
+msgstr "no hay enlace canónico"
+
+msgid "no og:title"
+msgstr "no hay og:title"
+
+msgid "no og:description"
+msgstr "no hay og:description"
+
+msgid "no og:image"
+msgstr "no hay og:image"
+
+msgid "no og:type"
+msgstr "no hay og:type"
+
+msgid "no og:url"
+msgstr "no hay og:url"
+
+msgid "fediverse:creator should name an account as @user@instance"
+msgstr "fediverse:creator debe nombrar una cuenta como @usuario@instancia"
+
+msgid "a text response over 1 KB is sent uncompressed"
+msgstr "una respuesta de texto de más de 1 KB se envía sin comprimir"
+
+msgid "a text response over 1 KB is encoded with something other than br, zstd or gzip"
+msgstr "una respuesta de texto de más de 1 KB se codifica con algo distinto de br, zstd o gzip"
+
+msgid "no X-Content-Type-Options"
+msgstr "no hay X-Content-Type-Options"
+
+msgid "no Cross-Origin-Resource-Policy"
+msgstr "no hay Cross-Origin-Resource-Policy"
+
+msgid "no Date header"
+msgstr "no hay cabecera Date"
+
+msgid "no Strict-Transport-Security"
+msgstr "no hay Strict-Transport-Security"
+
+msgid "no Referrer-Policy"
+msgstr "no hay Referrer-Policy"
+
+msgid "no Cross-Origin-Opener-Policy"
+msgstr "no hay Cross-Origin-Opener-Policy"
+
+msgid "no Cross-Origin-Embedder-Policy"
+msgstr "no hay Cross-Origin-Embedder-Policy"
+
+msgid "no DMARC record applies to a name that takes or sends mail, so receivers deliver mail forged from it"
+msgstr "ningún registro DMARC se aplica a un nombre que recibe o envía correo, así que los receptores entregan el correo falsificado en su nombre"
+
+msgid "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})"
+msgstr "la política DMARC no pone en cuarentena ni rechaza, así que los receptores entregan el correo falsificado de un nombre que recibe o envía correo (se obtuvo {got})"

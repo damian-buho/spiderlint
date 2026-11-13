@@ -7,10 +7,18 @@ when:
   http.status: {minimum: 200, maximum: 299}
   http.content-type: {pattern: "^text/html"}
 rules:
+  http/coep/missing:
+    fact: http.parsed.cross-origin-embedder-policy
+    expect: {type: object}
+    severity: hint
+    score: 0.8
+    message: "no Cross-Origin-Embedder-Policy"
+    docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
+    fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."
   http/coep/weak:
     fact: http.parsed.cross-origin-embedder-policy.value
     expect: {enum: [require-corp, credentialless]}
-    when: {http.parsed.cross-origin-embedder-policy.errors: {maxItems: 0}}
+    when: {http.parsed.cross-origin-embedder-policy.errors: {maxItems: 0}, http.parsed.cross-origin-embedder-policy: {type: object}}
     severity: hint
     score: 0.8
     message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless"
@@ -78,14 +86,23 @@ rules:
     message: "the home page links no NLWeb endpoint with rel=nlweb"
     fix: "Add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint."
     docs: https://github.com/nlweb-ai/NLWeb
-  html/fediverse-creator/invalid:
+  html/fediverse-creator/missing:
     fact: html.meta.fediverse:creator
-    expect: {type: string, pattern: "^@?[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"}
+    expect: {type: string}
     when: {html.property.og:type: article}
     severity: hint
     score: 0.3
     message: "an article names no fediverse:creator account for Mastodon previews"
+    docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
     fix: "Add <meta name=fediverse:creator content=\"@user@instance.example\"> to the article head."
+  html/fediverse-creator/invalid:
+    fact: html.meta.fediverse:creator
+    expect: {type: string, pattern: "^@?[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"}
+    when: {html.property.og:type: article, html.meta.fediverse:creator: {type: string}}
+    severity: hint
+    score: 0.3
+    message: "fediverse:creator should name an account as @user@instance"
+    fix: "Set fediverse:creator to an account, as @user@instance.example."
     docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
   redirects/redirect-by/missing:
     fact: http.redirects

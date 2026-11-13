@@ -555,8 +555,6 @@ msgstr "мова справа наліво має задавати <html dir=rtl
 msgid "a script in <head> without async, defer or type=module blocks rendering"
 msgstr "скрипт у <head> без async, defer чи type=module блокує відображення"
 
-msgid "a text response over 1 KB should be sent br, zstd or gzip"
-msgstr "текстова відповідь понад 1 КБ має надсилатися через br, zstd або gzip"
 
 msgid "a URL with a query has no No-Vary-Search to say which parameters change the page"
 msgstr "URL із запитом не має No-Vary-Search, що вказував би, які параметри змінюють сторінку"
@@ -576,8 +574,6 @@ msgstr "канонічне посилання має бути абсолютни
 msgid "certificate expires within 14 days"
 msgstr "сертифікат спливає менш ніж за 14 днів"
 
-msgid "certificate expires within 2 days"
-msgstr "сертифікат спливає менш ніж за 2 дні"
 
 msgid "certificate has expired"
 msgstr "сертифікат прострочено"
@@ -777,8 +773,6 @@ msgstr "Retry-After просить клієнтів повернутися за�
 msgid "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry"
 msgstr "Retry-After порушує RFC 9110 §10.2.3, тому клієнти не знають, коли повторити запит"
 
-msgid "should have exactly one <h1>"
-msgstr "має містити рівно один <h1>"
 
 msgid "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it"
 msgstr "Strict-Transport-Security порушує RFC 6797 §6.1, тому браузери його ігнорують"
@@ -1029,8 +1023,6 @@ msgstr "TTL запису лежить поза діапазоном від 300 �
 msgid "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning"
 msgstr "авторитетний сервер імен відповідає на рекурсивні запити для будь-якого імені, що відкриває його для атак підсилення та отруєння кешу"
 
-msgid "the domain registration expires in {got} days"
-msgstr "реєстрація домену спливає через {got} днів"
 
 msgid "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses"
 msgstr "реєстрація домену спливає через {got} днів, і сайт та його пошта перестануть розв’язуватися, коли вона мине"
@@ -1062,8 +1054,6 @@ msgstr "ім’я, що приймає чи надсилає пошту, пот�
 msgid "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})"
 msgstr "SPF не закінчується на -all чи ~all, тому одержувачі дозволяють будь-якому серверу надсилати від цього імені ({got})"
 
-msgid "no DMARC policy of quarantine or reject applies to a name that takes or sends mail, so receivers deliver mail forged from it (got {got})"
-msgstr "до імені, що приймає чи надсилає пошту, не застосовується жодна політика DMARC quarantine чи reject, тому одержувачі доставляють підроблену від нього пошту ({got})"
 
 msgid "the favicon is missing or broken: {got}"
 msgstr "favicon відсутній або пошкоджений: {got}"
@@ -1952,3 +1942,75 @@ msgstr "Оцінка"
 
 msgid "This scan ran out of time, so its rating covers only what was checked before then."
 msgstr "Цій перевірці забракло часу, тож її оцінка охоплює лише те, що встигли перевірити."
+
+msgid "no <html lang>"
+msgstr "немає <html lang>"
+
+msgid "no meta viewport"
+msgstr "немає meta viewport"
+
+msgid "no meta color-scheme"
+msgstr "немає meta color-scheme"
+
+msgid "no <meta charset>"
+msgstr "немає <meta charset>"
+
+msgid "no <h1>"
+msgstr "немає <h1>"
+
+msgid "more than one <h1>"
+msgstr "більше ніж один <h1>"
+
+msgid "no canonical link"
+msgstr "немає канонічного посилання"
+
+msgid "no og:title"
+msgstr "немає og:title"
+
+msgid "no og:description"
+msgstr "немає og:description"
+
+msgid "no og:image"
+msgstr "немає og:image"
+
+msgid "no og:type"
+msgstr "немає og:type"
+
+msgid "no og:url"
+msgstr "немає og:url"
+
+msgid "fediverse:creator should name an account as @user@instance"
+msgstr "fediverse:creator має називати обліковий запис як @user@instance"
+
+msgid "a text response over 1 KB is sent uncompressed"
+msgstr "текстова відповідь понад 1 КБ надсилається без стиснення"
+
+msgid "a text response over 1 KB is encoded with something other than br, zstd or gzip"
+msgstr "текстова відповідь понад 1 КБ закодована не через br, zstd або gzip"
+
+msgid "no X-Content-Type-Options"
+msgstr "немає X-Content-Type-Options"
+
+msgid "no Cross-Origin-Resource-Policy"
+msgstr "немає Cross-Origin-Resource-Policy"
+
+msgid "no Date header"
+msgstr "немає заголовка Date"
+
+msgid "no Strict-Transport-Security"
+msgstr "немає Strict-Transport-Security"
+
+msgid "no Referrer-Policy"
+msgstr "немає Referrer-Policy"
+
+msgid "no Cross-Origin-Opener-Policy"
+msgstr "немає Cross-Origin-Opener-Policy"
+
+msgid "no Cross-Origin-Embedder-Policy"
+msgstr "немає Cross-Origin-Embedder-Policy"
+
+msgid "no DMARC record applies to a name that takes or sends mail, so receivers deliver mail forged from it"
+msgstr "жоден запис DMARC не стосується імені, що приймає або надсилає пошту, тож одержувачі доставляють підроблену від нього пошту"
+
+msgid "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})"
+msgstr "політика DMARC не ставить у карантин і не відхиляє, тож одержувачі доставляють підроблену пошту від імені, що приймає або надсилає пошту (отримано {got})"

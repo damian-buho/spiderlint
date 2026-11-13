@@ -278,13 +278,13 @@ describe("audit", () => {
     });
 
     it("folds a template-wide defect into one finding", () => {
-        const [h1, ...rest] = of("html/h1/duplicate");
+        const [h1, ...rest] = of("html/h1/missing");
         assert.equal(rest.length, 0);
         assert.equal(h1?.group, "posts");
         assert.equal(h1?.occurrences, 5);
         assert.equal(h1?.coverage, 1);
         assert.equal(h1?.samples?.length, 3);
-        assert.match(h1?.message ?? "", /^should have exactly one <h1>$/);
+        assert.match(h1?.message ?? "", /^no <h1>$/);
     });
 
     it("keeps a one-page defect on its page", () => {
@@ -327,7 +327,7 @@ describe("audit", () => {
     });
 
     it("reports missing opengraph tags", () => {
-        for (const rule of ["html/og-title/length", "html/og-description/length", "html/og-image/invalid", "html/og-type/invalid", "html/og-url/invalid"]) {
+        for (const rule of ["html/og-title/missing", "html/og-description/missing", "html/og-image/missing", "html/og-type/missing", "html/og-url/missing"]) {
             assert.deepEqual(
                 of(rule).map((finding) => finding.url),
                 [`${site.origin}/app/`],
@@ -401,9 +401,9 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.ok(text.startsWith(`${site.origin}\npages `));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
-        assert.match(text, /^pages in group posts \(5 pages\)\n {2}error {3}7\.4 html\/h1\/duplicate — 5 pages \(100%\)/m);
+        assert.match(text, /^pages in group posts \(5 pages\)\n {2}error {3}7\.4 html\/h1\/missing — 5 pages \(100%\)/m);
         assert.match(text, /^\*\* whole site \*\* \(every page\)\n/m);
-        assert.match(text, /^pages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1\n\n/m);
+        assert.match(text, /^pages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}504 of 563 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1\n\n/m);
         assert.ok(text.indexOf("rating     B (seo, links)") < text.indexOf("\n** whole site **"), "totals and rating come before the findings");
         assert.deepEqual(report.summary.cost.http, { pages: 17, revalidated: 0 });
     });
@@ -441,8 +441,8 @@ describe("audit", () => {
         assert.deepEqual(summary.statuses, { "200": 15, "404": 1 });
         assert.equal(summary.findings.total, summary.findings.error + summary.findings.warning + summary.findings.info);
         assert.ok(summary.rules >= new Set(report.findings.map((finding) => finding.rule).filter((rule) => rule !== "groups/heterogeneous")).size);
-        assert.deepEqual(summary.checks, { total: 449, failed: 59, errored: 6, passed: 390, cost: 55.2048 });
-        assert.deepEqual(summary.rating, { grade: "B", score: 0.877, rulesets: ["seo", "links"] });
+        assert.deepEqual(summary.checks, { total: 563, failed: 59, errored: 6, passed: 504, cost: 55.2048 });
+        assert.deepEqual(summary.rating, { grade: "B", score: 0.9019, rulesets: ["seo", "links"] });
         assert.ok(summary.durationMs >= 0);
     });
 });
@@ -490,7 +490,7 @@ describe("audit options", () => {
 
     it("keeps every per-page finding without folding", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false });
-        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/duplicate").length, 5);
+        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/missing").length, 5);
     });
 
     it("counts the same findings in the summary whether folded or not", async () => {
@@ -823,13 +823,13 @@ describe("audit options", () => {
     });
 
     it("drops an --exclude-rules rule entirely, across every group", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeRules: ["html/h1/duplicate"] });
-        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/duplicate").length, 0);
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeRules: ["html/h1/missing"] });
+        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/missing").length, 0);
     });
 
     it("applies a --error/--warning/--info override on top of the ruleset severity", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false, overrides: { "html/h1/duplicate": "info" } });
-        const findings = report.findings.filter((finding) => finding.rule === "html/h1/duplicate");
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false, overrides: { "html/h1/missing": "info" } });
+        const findings = report.findings.filter((finding) => finding.rule === "html/h1/missing");
         assert.equal(findings.length, 5);
         assert.ok(findings.every((finding) => finding.severity === "info"));
     });

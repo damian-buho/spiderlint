@@ -38,9 +38,9 @@ describe("agent format", () => {
         assert.equal(output, saved.slice(header.length));
     });
 
-    it("folds html/h1/duplicate into one block naming its samples and lists links/internal/unreachable referrers", () => {
+    it("folds html/h1/missing into one block naming its samples and lists links/internal/unreachable referrers", () => {
         const blocks = output.split(/^## /m).slice(1);
-        const oneH1 = blocks.filter((block) => block.startsWith("html/h1/duplicate "));
+        const oneH1 = blocks.filter((block) => block.startsWith("html/h1/missing "));
         assert.equal(oneH1.length, 1);
         assert.match(oneH1[0] as string, /5 pages of group posts[^\n]*\n- \/posts\/1: none\n- \/posts\/2: none\n- \/posts\/3: none\n/);
         assert.match(blocks.find((block) => block.startsWith("links/internal/unreachable ")) ?? "", /Where: \/missing, used by or shared with:\n- \/\n- \/about\n/);
@@ -69,7 +69,7 @@ describe("agent format", () => {
         const directory = await mkdtemp(path.join(tmpdir(), "spiderlint-agent-"));
         try {
             await writeAgentFiles(directory, report);
-            const first = await readFile(path.join(directory, "html-h1-duplicate.md"), "utf8");
+            const first = await readFile(path.join(directory, "html-h1-missing.md"), "utf8");
             await writeAgentFiles(directory, report);
             const written = await readdir(directory);
             assert.deepEqual(
@@ -79,8 +79,8 @@ describe("agent format", () => {
                     .toArray()
                     .toSorted((a, b) => a.localeCompare(b)),
             );
-            assert.equal(await readFile(path.join(directory, "html-h1-duplicate.md"), "utf8"), first);
-            assert.match(first, /^# spiderlint: html\/h1\/duplicate on http:\/\/127\.0\.0\.1:\d+\n\n## html\/h1\/duplicate \(error 7\.4\)\n/);
+            assert.equal(await readFile(path.join(directory, "html-h1-missing.md"), "utf8"), first);
+            assert.match(first, /^# spiderlint: html\/h1\/missing on http:\/\/127\.0\.0\.1:\d+\n\n## html\/h1\/missing \(error 7\.4\)\n/);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

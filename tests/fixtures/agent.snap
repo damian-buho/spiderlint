@@ -9,7 +9,7 @@
 - Rating: B (seo, links)
 - Pages: 16
 - Findings: 104 (6 error, 54 warning, 44 info, 0 hint)
-- Checks passed: 393 of 453; 22 rules failed nowhere.
+- Checks passed: 507 of 567; 32 rules failed nowhere.
 
 ## links/internal/unreachable (error 7.4)
 
@@ -33,31 +33,31 @@ Fix: Fix the page at the link target so it answers 2xx, or point the links to a 
 Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
 Done when: `spiderlint audit ORIGIN/ --rules links/internal/unreachable` reports no links/internal/unreachable finding.
 
-## html/h1/duplicate (error 7.4)
+## html/h1/missing (error 7.4)
 
-should have exactly one <h1>
+no <h1>
 
 Where: 5 pages of group posts (100 %), for example:
 - /posts/1: none
 - /posts/2: none
 - /posts/3: none
-Reads: `html.h1`, expects `{"type":"array","minItems":1,"maxItems":1}`
+Reads: `html.h1`, expects `{"type":"array","minItems":1}`
 Fix: Use exactly one <h1> per page.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
-Done when: `spiderlint audit ORIGIN/ --rules html/h1/duplicate` reports no html/h1/duplicate finding.
+Done when: `spiderlint audit ORIGIN/ --rules html/h1/missing` reports no html/h1/missing finding.
 
-## html/viewport/inaccessible (warning 5.3)
+## html/viewport/missing (warning 5.3)
 
-meta viewport should set width=device-width and allow zoom
+no meta viewport
 
 Where: 13 pages in groups posts, default (100 %), for example:
 - /: none
 - /about: none
 - /app/: none
-Reads: `html.meta.viewport`, expects `{"type":"string","pattern":"^(?!.*(?i:user-scalable)\\s*=\\s*(?i:no|0)\\b)(?!.*(?i:maximum-scale)\\s*=\\s*1(\\.0+)?(?![\\d.]))(?=.*(?i:width\\s*=\\s*device-width))"}`
-Fix: Set <meta name=viewport content="width=device-width"> and allow zoom.
+Reads: `html.meta.viewport`, expects `{"type":"string"}`
+Fix: Add <meta name=viewport content="width=device-width"> to the head.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
-Done when: `spiderlint audit ORIGIN/ --rules html/viewport/inaccessible` reports no html/viewport/inaccessible finding.
+Done when: `spiderlint audit ORIGIN/ --rules html/viewport/missing` reports no html/viewport/missing finding.
 
 ## html/author/missing (warning 3.7)
 
@@ -222,15 +222,15 @@ Fix: Remove the repeated suffix from the meta description.
 Docs: https://developers.google.com/search/docs/appearance/snippet
 Done when: `spiderlint audit ORIGIN/ --rules html/description/redundant` reports no html/description/redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
 
-## html/og-image/invalid (warning 4.6)
+## html/og-image/missing (warning 4.6)
 
-og:image should be an absolute http(s) URL
+no og:image
 
 Where: /app/: none
-Reads: `html.property.og:image`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
-Fix: Make og:image an absolute URL.
+Reads: `html.property.og:image`, expects `{"type":"string"}`
+Fix: Add <meta property=og:image> with the absolute URL of a preview image.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-image/invalid` reports no html/og-image/invalid finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-image/missing` reports no html/og-image/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
 
 ## links/external/unreachable (warning 4.6)
 
@@ -275,25 +275,25 @@ Fix: Pick one form, with or without the trailing slash, and redirect the other t
 Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
 Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash/inconsistent` reports no url/trailing-slash/inconsistent finding.
 
-## html/og-title/length (warning 4.0)
+## html/og-title/missing (warning 4.0)
 
-og:title should be 10–90 characters
+no og:title
 
 Where: /app/: none
-Reads: `html.property.og:title`, expects `{"type":"string","minLength":10,"maxLength":90}`
-Fix: Set og:title to 10–90 characters.
+Reads: `html.property.og:title`, expects `{"type":"string"}`
+Fix: Add <meta property=og:title> with the page title.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-title/length` reports no html/og-title/length finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-title/missing` reports no html/og-title/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
 
-## html/og-description/length (warning 3.9)
+## html/og-description/missing (warning 3.9)
 
-og:description should be 50–200 characters
+no og:description
 
 Where: /app/: none
-Reads: `html.property.og:description`, expects `{"type":"string","minLength":50,"maxLength":200}`
-Fix: Set og:description to 50–200 characters.
+Reads: `html.property.og:description`, expects `{"type":"string"}`
+Fix: Add <meta property=og:description> with a summary of the page.
 Docs: https://ogp.me/#optional
-Done when: `spiderlint audit ORIGIN/ --rules html/og-description/length` reports no html/og-description/length finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-description/missing` reports no html/og-description/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
 
 ## html/theme-color-dark/missing (warning 3.4)
 
@@ -344,22 +344,22 @@ Fix: Name the page in its URL with words from its title, as /spring-recipes for 
 Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
 Done when: `spiderlint audit ORIGIN/ --rules url/slug/unreadable` reports no url/slug/unreadable finding.
 
-## html/color-scheme/invalid (info 1.4)
+## html/color-scheme/missing (info 1.4)
 
-meta color-scheme should be normal, or scheme names such as light dark
+no meta color-scheme
 
 Where: 5 pages of group posts (100 %), for example:
 - /posts/1: none
 - /posts/2: none
 - /posts/3: none
-Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
+Reads: `html.meta.color-scheme`, expects `{"type":"string"}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/invalid` reports no html/color-scheme/invalid finding.
+Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/missing` reports no html/color-scheme/missing finding.
 
-## html/color-scheme/invalid (info 1.4)
+## html/color-scheme/missing (info 1.4)
 
-meta color-scheme should be normal, or scheme names such as light dark
+no meta color-scheme
 
 Where: 6 pages:
 - /app/: none
@@ -368,10 +368,10 @@ Where: 6 pages:
 - /tags/a: none
 - /tags/b: none
 - /tags/c: none
-Reads: `html.meta.color-scheme`, expects `{"type":"string","pattern":"^\\s*(?:(?i:normal)|(?:(?i:only)\\s+)?(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*(?:\\s+(?!(?i:normal|only)\\b)[A-Za-z_-][\\w-]*)*(?:\\s+(?i:only))?)\\s*$"}`
+Reads: `html.meta.color-scheme`, expects `{"type":"string"}`
 Fix: Add <meta name=color-scheme content="light dark">.
 Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
-Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/invalid` reports no html/color-scheme/invalid finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/missing` reports no html/color-scheme/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
 
 ## html/hreflang-x-default/missing (info 2.6)
 
@@ -383,15 +383,15 @@ Fix: Add <link rel=alternate hreflang=x-default> to the head.
 Docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
 Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default/missing` reports no html/hreflang-x-default/missing finding, and `spiderlint show-facts ORIGIN/about` shows `html.hreflang` meeting it.
 
-## html/og-url/invalid (info 2.5)
+## html/og-url/missing (info 2.5)
 
-og:url should be an absolute http(s) URL
+no og:url
 
 Where: /app/: none
-Reads: `html.property.og:url`, expects `{"type":"string","format":"uri","pattern":"^(?i:https?)://"}`
-Fix: Make og:url an absolute URL of this page.
+Reads: `html.property.og:url`, expects `{"type":"string"}`
+Fix: Add <meta property=og:url> with this page’s absolute URL.
 Docs: https://ogp.me/#metadata
-Done when: `spiderlint audit ORIGIN/ --rules html/og-url/invalid` reports no html/og-url/invalid finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:url` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-url/missing` reports no html/og-url/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:url` meeting it.
 
 ## html/og-url/mismatch (info 2.4)
 
@@ -414,19 +414,19 @@ Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no gr
 
 ## groups/heterogeneous (info 2.0)
 
-html/color-scheme/invalid fails on 6 of 8 pages; the group likely spans two templates
+html/color-scheme/missing fails on 6 of 8 pages; the group likely spans two templates
 
 Where: /app/
 Reads: `group`
 Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
-## html/og-type/invalid (info 1.1)
+## html/og-type/missing (info 1.1)
 
-og:type should be an Open Graph type or namespace:type
+no og:type
 
 Where: /app/: none
-Reads: `html.property.og:type`, expects `{"type":"string","pattern":"^(?:website|article|book|profile|music\\.(?:song|album|playlist|radio_station)|video\\.(?:movie|episode|tv_show|other)|[a-z][\\w-]*:[\\w.-]+)$"}`
+Reads: `html.property.og:type`, expects `{"type":"string"}`
 Fix: Set og:type to website, or article on a post.
 Docs: https://ogp.me/#types
-Done when: `spiderlint audit ORIGIN/ --rules html/og-type/invalid` reports no html/og-type/invalid finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
+Done when: `spiderlint audit ORIGIN/ --rules html/og-type/missing` reports no html/og-type/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.

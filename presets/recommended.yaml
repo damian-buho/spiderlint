@@ -43,9 +43,18 @@ rules:
   http/content-length/invalid:
     severity: warning
     score: 5.4
+  http/date/missing:
+    fact: http.headers.date
+    expect: {type: [string, array]}
+    severity: warning
+    score: 4.2
+    message: "no Date header"
+    docs: https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
+    fix: "Send Date in IMF-fixdate form, as Sun, 06 Nov 1994 08:49:37 GMT."
   http/date/invalid:
     fact: http.headers.date
     expect: {type: string, pattern: "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d{4} \\d{2}:\\d{2}:\\d{2} GMT$"}
+    when: {http.headers.date: {type: [string, array]}}
     severity: warning
     score: 4.2
     message: "Date should be an IMF-fixdate"
