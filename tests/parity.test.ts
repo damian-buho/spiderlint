@@ -97,7 +97,7 @@ describe("parity rules", () => {
                 .filter((finding) => finding.url === `${origin}${path}`)
                 .map((finding) => finding.rule)
                 .toSorted((a, b) => a.localeCompare(b));
-        assert.deepEqual(byUrl("/client"), ["parity/canonical", "parity/description", "parity/h1", "parity/links", "parity/text", "parity/title"]);
+        assert.deepEqual(byUrl("/client"), ["parity/canonical/mismatch", "parity/description/mismatch", "parity/h1/mismatch", "parity/links/mismatch", "parity/text/mismatch", "parity/title/mismatch"]);
         assert.deepEqual(byUrl("/server"), []);
     });
 });

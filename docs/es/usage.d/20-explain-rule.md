@@ -8,8 +8,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 `explain-rule` muestra qué lee una regla, qué espera y cómo corregir un hallazgo, sin red.
 
 ```console
-$ spiderlint explain-rule cookies/host-prefix
-cookies/host-prefix
+$ spiderlint explain-rule cookies/host-prefix/invalid
+cookies/host-prefix/invalid
 severity warning (preset warning)
 score    5.0
 scope    page

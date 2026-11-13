@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { audit, type Report } from "../src/index.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
-const TIGHT = { tight: { extends: ["green/page-weight-co2"], rules: { "green/page-weight-co2": { expect: { maximum: 0.000001 } } } } };
+const TIGHT = { tight: { extends: ["green/page-co2/excessive"], rules: { "green/page-co2/excessive": { expect: { maximum: 0.000001 } } } } };
 
 describe("co2 per view", () => {
     let site: Fixture;
@@ -17,7 +17,7 @@ describe("co2 per view", () => {
     before(async () => {
         site = await serveFixture();
         const options = { seeds: [`${site.origin}/about`], maxPages: 1, sitemap: false, cacheMode: "off" as const };
-        first = await audit({ ...options, rules: ["green/page-weight-co2"] });
+        first = await audit({ ...options, rules: ["green/page-co2/excessive"] });
         second = await audit({ ...options, rulesets: TIGHT, rules: ["tight"] });
     });
     after(() => site.close());
@@ -33,7 +33,7 @@ describe("co2 per view", () => {
         assert.deepEqual(first.findings, []);
         assert.deepEqual(
             second.findings.map((finding) => finding.rule),
-            ["green/page-weight-co2"],
+            ["green/page-co2/excessive"],
         );
     });
 });

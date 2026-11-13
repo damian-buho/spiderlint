@@ -4,22 +4,22 @@
 ---
 description: Scripts, styles, images and fonts — status, mixed content, integrity, caching, compression, overlays
 rules:
-  resources/status:
+  resources/resource/unreachable:
     severity: error
     score: [[0, 9.0], [404, 7.6], [500, 9.0]]
-  resources/mixed-content:
+  resources/protocol/insecure:
     severity: error
     score: 9.4
-  resources/sri:
+  resources/integrity/missing:
     severity: warning
     score: 6.5
-  resources/cache-control:
+  resources/cache-control/weak:
     severity: warning
     score: 4.8
-  resources/compression:
+  resources/compression/missing:
     severity: warning
     score: 4.4
-  resources/a11y-overlay:
+  resources/a11y-overlay/present:
     fact: resources
     expect: {not: {contains: {properties: {url: {pattern: "^https?://([^/]+\\.)?(acsbapp\\.com|acsbap\\.com|accessibe\\.com|userway\\.org|audioeye\\.com|equalweb\\.com|nagich\\.co\\.il|maxaccess\\.io|allyable\\.com|accessiblyapp\\.com|user1st\\.info|purplelens\\.eu)(:|/|$)"}}}}}
     severity: warning

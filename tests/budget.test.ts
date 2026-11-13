@@ -67,7 +67,7 @@ describe("scan budgets", () => {
         const report = await run({ maxSitemaps: 2 });
         assert.equal(report.site?.sitemaps?.length, 2);
         assert.deepEqual(
-            report.findings.filter((finding) => finding.rule === "sitemap/unlisted"),
+            report.findings.filter((finding) => finding.rule === "sitemap/page/unlisted"),
             [],
         );
     });

@@ -18,7 +18,7 @@ const CLI = new URL("../src/cli.ts", import.meta.url).pathname;
 
 // The sitemap rule that judges the whole site, as a report shows it.
 function orphans(report: Report): string[] {
-    return report.findings.filter((finding) => finding.rule === "sitemap/orphan").map((finding) => new URL(finding.url).pathname);
+    return report.findings.filter((finding) => finding.rule === "sitemap/page/orphaned").map((finding) => new URL(finding.url).pathname);
 }
 
 describe("crawl complete", () => {
@@ -45,8 +45,8 @@ describe("crawl complete", () => {
         const report = await audit({ seeds: [`${site.origin}/`], rules: ["sitemap"], cacheMode: "off", fetchResources: false, maxPages: 2 });
         assert.deepEqual(report.site.crawl, { complete: false, reason: "max-pages" });
         assert.deepEqual(orphans(report), []);
-        assert.ok(report.summary.untested?.includes("sitemap/orphan"));
-        assert.equal(report.summary.checked?.["sitemap/orphan"], undefined);
+        assert.ok(report.summary.untested?.includes("sitemap/page/orphaned"));
+        assert.equal(report.summary.checked?.["sitemap/page/orphaned"], undefined);
     });
 
     it("names the depth limit when it cut a link", async () => {
@@ -68,7 +68,7 @@ describe("crawl complete", () => {
         const report = await lintStore({ rules: ["sitemap"] }, stopped);
         assert.deepEqual(report.site.crawl, { complete: false, reason: "interrupted" });
         assert.deepEqual(orphans(report), []);
-        assert.ok(report.summary.untested?.includes("sitemap/orphan"));
+        assert.ok(report.summary.untested?.includes("sitemap/page/orphaned"));
         const stored = await reportStore(stopped);
         assert.deepEqual(stored.site.crawl, { complete: false, reason: "interrupted" });
     });
@@ -85,7 +85,7 @@ describe("crawl complete", () => {
             const report = await audit({ seeds: [`${origin}/p0`], rules: ["sitemap"], cacheMode: "off", fetchResources: false, concurrency: 1, crawlDeadline: 1, allowPrivate: true });
             assert.deepEqual(report.site.crawl, { complete: false, reason: "timeout" });
             assert.ok(report.pages.length > 0 && report.pages.length < 10, String(report.pages.length));
-            assert.ok(report.summary.untested?.includes("sitemap/orphan"));
+            assert.ok(report.summary.untested?.includes("sitemap/page/orphaned"));
         } finally {
             slow.closeAllConnections();
             slow.close();

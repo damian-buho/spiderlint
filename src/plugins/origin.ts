@@ -193,19 +193,19 @@ export function canonicalOf(subject: string, pages: readonly Facts[]): { origin:
 
 // One finding per origin naming each resolving variant that fails or ends off the canonical origin.
 const hostCanonical: Make = (severity) => ({
-    meta: { id: "origin/host-canonical", severity, scope: "site", facts: ["site.origins.*.variants.probes"], docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308." },
+    meta: { id: "origin/canonical-host/mismatch", severity, scope: "site", facts: ["site.origins.*.variants.probes"], docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308." },
     check(pages, _group, site) {
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts.variants !== undefined);
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { origin: canonical, isConfigured } = canonicalOf(subject, pages);
             const astray = (facts.variants as { probes: Variant[] }).probes.filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
-            log.debug({ rule: "origin/host-canonical", subject, canonical, isConfigured, astray: astray.length }, "entry variants judged");
+            log.debug({ rule: "origin/canonical-host/mismatch", subject, canonical, isConfigured, astray: astray.length }, "entry variants judged");
             return astray.length === 0
                 ? []
                 : [
                       {
-                          rule: "origin/host-canonical",
+                          rule: "origin/canonical-host/mismatch",
                           severity,
                           scope: "site",
                           url: subject,
@@ -421,20 +421,20 @@ const meProfiles: SiteExtractor = {
 
 // One finding per `rel=me` profile whose page does not link back, filed on the page that declares it.
 const meBackLink: Make = (severity) => ({
-    meta: { id: "links/rel-me", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
+    meta: { id: "links/rel-me-backlink/missing", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
     check(pages, _group, site) {
         const verdicts = judged(pages);
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts["rel-me"] !== undefined);
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { unverified, declared, fetched } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]>; fetched?: Record<string, { at: string; cached?: true; revalidated?: true }> };
-            log.debug({ rule: "links/rel-me", subject, unverified: unverified.length }, "rel=me profiles judged");
+            log.debug({ rule: "links/rel-me-backlink/missing", subject, unverified: unverified.length }, "rel=me profiles judged");
             return unverified
                 .filter((profile) => !verdicts.has(bare(profile)))
                 .map((profile) => {
                     const pages = declared?.[profile] ?? [subject];
                     const seen = fetched?.[profile];
-                    return { rule: "links/rel-me", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to the site"), data: { [profile]: { site: subject } }, ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
+                    return { rule: "links/rel-me-backlink/missing", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to the site"), data: { [profile]: { site: subject } }, ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
                 });
         });
     },
@@ -443,13 +443,13 @@ const meBackLink: Make = (severity) => ({
 // Checks made once per origin rather than per page.
 export default {
     name: "origin",
-    rules: { "origin/host-canonical": hostCanonical, "links/rel-me": meBackLink },
+    rules: { "origin/canonical-host/mismatch": hostCanonical, "links/rel-me-backlink/missing": meBackLink },
     sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, slashTwins, meProfiles],
     presets: {
         origin: {
             description: "Once per origin: missing pages, error pages, entry variants, language redirects, compression, favicon, revalidation, cross-domain policies",
             rules: {
-                "origin/soft-404": {
+                "origin/soft-404/present": {
                     fact: "site.origins.*.not-found.status",
                     expect: { enum: [404, 410] },
                     message: "a missing page answers {got}, not 404 or 410",
@@ -458,7 +458,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors#soft-404-errors",
                     fix: "Return 404 or 410 for missing pages instead of 200 with a soft-404 body.",
                 },
-                "origin/error-page": {
+                "origin/error-page/disclosing": {
                     fact: "site.origins.*.not-found",
                     expect: { properties: { "content-type": { const: "text/html" }, bytes: { minimum: 1 }, trace: { const: false }, server: { not: { pattern: String.raw`\d+\.\d+` } } } },
                     when: { "site.origins.*.not-found.status": { enum: [404, 410] } },
@@ -468,16 +468,16 @@ export default {
                     docs: "https://owasp.org/www-community/Improper_Error_Handling",
                     fix: "Serve a plain HTML 404 page with no server version or stack trace.",
                 },
-                "origin/https-entry": {
+                "origin/https-redirect/missing": {
                     fact: "site.origins.*.entry",
                     expect: { required: ["status", "https"], properties: { status: { enum: [301, 308] }, https: { const: true } } },
-                    message: "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical",
+                    message: "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/canonical-host/mismatch",
                     severity: "off",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
                     fix: "Redirect every http request to https with a 301 or 308, preserving the URL.",
                 },
-                "origin/host-canonical": { severity: "warning", score: 5.6 },
-                "origin/entry-hops": {
+                "origin/canonical-host/mismatch": { severity: "warning", score: 5.6 },
+                "origin/entry-redirect/excessive": {
                     fact: "site.origins.*.variants.long",
                     expect: { maxItems: 0 },
                     message: "entry variants take more than one hop, or two not starting http to https on the same host: {got}",
@@ -486,7 +486,7 @@ export default {
                     docs: "https://hstspreload.org/#deployment-recommendations",
                     fix: "Redirect each variant straight to the canonical origin, or first to https on its own host and then there.",
                 },
-                "origin/entry-permanent": {
+                "origin/entry-redirect/temporary": {
                     fact: "site.origins.*.variants.temporary",
                     expect: { maxItems: 0 },
                     message: "entry variants redirect with a temporary status or a meta refresh: {got}",
@@ -495,7 +495,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side",
                     fix: "Answer every entry variant with 301 or 308, never 302, 307 or a meta refresh.",
                 },
-                "origin/entry-path": {
+                "origin/entry-redirect-path/missing": {
                     fact: "site.origins.*.variants.dropped",
                     expect: { maxItems: 0 },
                     message: "entry variants lose the requested path or query on the way: {got}",
@@ -504,7 +504,7 @@ export default {
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
                     fix: "Carry the request path and query into the Location of every entry redirect.",
                 },
-                "origin/entry-downgrade": {
+                "origin/entry-redirect/insecure": {
                     fact: "site.origins.*.variants.downgraded",
                     expect: { maxItems: 0 },
                     message: "entry variants are sent from https back to plain http: {got}",
@@ -513,7 +513,7 @@ export default {
                     docs: "https://developer.mozilla.org/docs/Web/Security/Practical_implementation_guides/TLS#http_redirections",
                     fix: "Never redirect an https request to an http URL.",
                 },
-                "origin/www-resolves": {
+                "origin/www/unreachable": {
                     fact: "site.origins.*.variants.unresolved",
                     expect: { maxItems: 0 },
                     message: "no DNS answer for the entry host {got}; make sure that is deliberate",
@@ -522,7 +522,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes",
                     fix: "Publish an A or AAAA record for the www or apex host and redirect it to the canonical origin.",
                 },
-                "origin/locale-redirect": {
+                "origin/locale-redirect/present": {
                     fact: "site.origins.*.locale.distinct",
                     expect: { const: 1 },
                     message: "/ lands on {got} different URLs depending on Accept-Language",
@@ -531,7 +531,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/specialty/international/locale-adaptive-pages",
                     fix: "Serve the same content for every language unless the page has language-specific alternates.",
                 },
-                "origin/compression": {
+                "origin/compression/missing": {
                     fact: "site.origins.*.encodings.served",
                     expect: { allOf: [{ contains: { const: "br" } }, { contains: { const: "zstd" } }, { contains: { const: "gzip" } }] },
                     when: { "site.origins.*.encodings.bytes": { minimum: 1024 }, "site.origins.*.encodings.content-type": { pattern: String.raw`^(text/|application/xhtml\+xml)` } },
@@ -541,7 +541,7 @@ export default {
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Accept-Encoding",
                     fix: "Configure the server to compress text responses with br, zstd and gzip.",
                 },
-                "origin/favicon": {
+                "origin/favicon/invalid": {
                     fact: "site.origins.*.favicon",
                     expect: { required: ["status", "content-type"], properties: { status: { minimum: 200, maximum: 299 }, "content-type": { pattern: "^image/" } } },
                     message: "/favicon.ico is not an image (got {got})",
@@ -550,7 +550,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/appearance/favicon-in-search",
                     fix: "Serve /favicon.ico as a real image (PNG, ICO, or SVG).",
                 },
-                "origin/revalidation": {
+                "origin/revalidation/broken": {
                     fact: "site.origins.*.revalidation.repeat",
                     expect: { const: 304 },
                     when: { "site.origins.*.revalidation.validator": { type: "string" } },
@@ -560,7 +560,7 @@ export default {
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Conditional_requests",
                     fix: "Answer a request whose If-None-Match or If-Modified-Since still matches with 304 and no body.",
                 },
-                "origin/slash-twin": {
+                "origin/slash-redirect/missing": {
                     fact: "site.origins.*.slash-twins.duplicated",
                     expect: { maxItems: 0 },
                     message: "a page answers 2xx with the same title under both trailing-slash forms: {got}",
@@ -569,7 +569,7 @@ export default {
                     docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
                     fix: "Redirect the trailing-slash form you do not use to the one you do with a 301 or 308.",
                 },
-                "origin/cross-domain-policy": {
+                "origin/cross-domain-policy/insecure": {
                     fact: "site.origins.*.cross-domain.open",
                     expect: { maxItems: 0 },
                     message: "a cross-domain policy file lets any origin read the site as its visitor: {got}",

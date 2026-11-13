@@ -19,9 +19,9 @@ function answer(status: number, headers: Record<string, string> = {}, body = "")
     return { url: `${ORIGIN}/`, status, headers, body, redirects: [], ms: 1 };
 }
 
-// The findings of crawlers/blocked over one origin’s poses and a stance.
+// The findings of crawlers/crawler/blocked over one origin’s poses and a stance.
 function judge(poses: PoseAnswer[], stance?: Stance) {
-    const rule = crawlers.rules["crawlers/blocked"]("warning") as AggregateRule;
+    const rule = crawlers.rules["crawlers/crawler/blocked"]("warning") as AggregateRule;
     const site: SiteFacts = { sitemaps: [], origins: { [ORIGIN]: { crawlers: { url: `${ORIGIN}/`, status: 200, poses } } }, ...(stance && { "content-signals": stance }) };
     return rule.check([], undefined, site) ?? [];
 }

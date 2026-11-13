@@ -84,8 +84,8 @@ spiderlint show-report example.org --format sarif > spiderlint.sarif
 `explain-rule` показує, що правило читає, чого очікує і як виправити знахідку, без мережі.
 
 ```console
-$ spiderlint explain-rule cookies/host-prefix
-cookies/host-prefix
+$ spiderlint explain-rule cookies/host-prefix/invalid
+cookies/host-prefix/invalid
 severity warning (preset warning)
 score    5.0
 scope    page
@@ -215,7 +215,7 @@ Examples:
   Run every rule except Lighthouse’s:
     spiderlint audit example.com --rules all --exclude-rules 'lighthouse/*'
   Check a single rule:
-    spiderlint audit example.com --rules http/alt-svc-h3
+    spiderlint audit example.com --rules http/alt-svc-h3/missing
   Audit only the URLs listed in a file:
     spiderlint audit --source list:urls.txt
 ```
@@ -321,7 +321,7 @@ Options for every command, see spiderlint --help:
 
 Examples:
   Explain a rule before turning it on:
-    spiderlint explain-rule html/theme-color-schemes
+    spiderlint explain-rule html/theme-color-dark/missing
 ```
 
 ## spiderlint export-facts

@@ -74,14 +74,14 @@ function outliers(pages: Facts[], path: string, settings: NumericSettings, sever
     const mad = median(deviations.toSorted((a, b) => a - b));
     const scale = mad > 0 ? mad / Z_SCALE : deviations.reduce((sum, value) => sum + value, 0) / deviations.length / MEAN_SCALE;
     const far = scale > 0 ? measured.filter((entry) => (entry.value - middle) / scale > settings.z && entry.value >= middle * settings.ratio).toSorted((a, b) => b.value - a.value) : [];
-    log.debug({ rule: "insight/numeric-outlier", fact: path, pages: measured.length, median: middle, mad, scale, outliers: far.length }, "numeric fact compared");
+    log.debug({ rule: "insight/number/outlier", fact: path, pages: measured.length, median: middle, mad, scale, outliers: far.length }, "numeric fact compared");
     const [top] = far;
     if (!top) return undefined;
     const next = sorted.slice(-NEXT - 1, -1).reduce((sum, value) => sum + value, 0);
     const isDominant = sorted.length > NEXT && top.value > next;
     const data = Object.fromEntries(far.map((entry) => [entry.url, { value: { fact: path, value: entry.value }, ...(middle > 0 && { ratio: { ratio: entry.value / middle } }) } satisfies Record<string, Datum>]));
     return {
-        rule: "insight/numeric-outlier",
+        rule: "insight/number/outlier",
         severity,
         scope: "site",
         url: top.url,
@@ -99,18 +99,18 @@ function minority(pages: Facts[], path: string, settings: MinoritySettings, seve
     const [top, ...rest] = byValue;
     const rare = rest.filter(([, members]) => members.length / total <= settings.share);
     const isDominant = top !== undefined && top[1].length / total >= settings.dominant;
-    log.debug({ rule: "insight/minority-value", fact: path, pages: total, values: byValue.length, top: top?.[0], rare: rare.length, isDominant }, "categorical fact compared");
+    log.debug({ rule: "insight/value/inconsistent", fact: path, pages: total, values: byValue.length, top: top?.[0], rare: rare.length, isDominant }, "categorical fact compared");
     if (!top || !isDominant || total < settings["min-pages"] || rare.length === 0) return undefined;
     const urls = rare.flatMap(([, members]) => members.map((page) => page.url.href));
     const data = Object.fromEntries(rare.flatMap(([value, members]) => members.map((page) => [page.url.href, { value }])));
-    return { rule: "insight/minority-value", severity, scope: "site", url: urls[0] as string, ...said(SENTENCES.minority, { label: { name: path }, common: top[0], count: top[1].length, total }), data, value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
+    return { rule: "insight/value/inconsistent", severity, scope: "site", url: urls[0] as string, ...said(SENTENCES.minority, { label: { name: path }, common: top[0], count: top[1].length, total }), data, value: Object.fromEntries(byValue.map(([value, members]) => [value, members.length])), urls };
 }
 
 // One finding per numeric fact whose pages hold robust outliers above the median.
 const numericOutlier: Make = (severity, expect) => {
     const settings = { ...NUMERIC, ...(expect as Partial<NumericSettings>) };
     return {
-        meta: { id: "insight/numeric-outlier", severity, scope: "site", facts: settings.facts, docs: DOCS, fix: "Find what makes the listed pages cost more than the rest, an uncached query or an oversized image, and bring them near the median." },
+        meta: { id: "insight/number/outlier", severity, scope: "site", facts: settings.facts, docs: DOCS, fix: "Find what makes the listed pages cost more than the rest, an uncached query or an oversized image, and bring them near the median." },
         check: (pages: Facts[]) => settings.facts.map((path) => outliers(served(pages), path, settings, severity)).filter((finding) => finding !== undefined),
     };
 };
@@ -119,9 +119,9 @@ const numericOutlier: Make = (severity, expect) => {
 const minorityValue: Make = (severity, expect) => {
     const settings = { ...MINORITY, ...(expect as Partial<MinoritySettings>) };
     return {
-        meta: { id: "insight/minority-value", severity, scope: "site", facts: settings.facts, fix: "Serve the listed pages the way the rest of the site serves them, or keep the difference only where it is deliberate." },
+        meta: { id: "insight/value/inconsistent", severity, scope: "site", facts: settings.facts, fix: "Serve the listed pages the way the rest of the site serves them, or keep the difference only where it is deliberate." },
         check: (pages: Facts[]) => settings.facts.map((path) => minority(served(pages), path, settings, severity)).filter((finding) => finding !== undefined),
     };
 };
 
-export const insightRules: Record<string, Make> = { "insight/numeric-outlier": numericOutlier, "insight/minority-value": minorityValue };
+export const insightRules: Record<string, Make> = { "insight/number/outlier": numericOutlier, "insight/value/inconsistent": minorityValue };

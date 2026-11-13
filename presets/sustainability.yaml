@@ -5,7 +5,7 @@
 description: What a site discloses about its footprint in carbon.txt, and what a view of each page emits
 extends: [spiderlint:carbon-txt]
 rules:
-  green/page-weight-co2:
+  green/page-co2/excessive:
     fact: co2.grams
     expect: {maximum: 0.209}
     when: {http.status: {minimum: 200, maximum: 299}}

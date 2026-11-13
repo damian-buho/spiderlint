@@ -10,7 +10,7 @@ import { log } from "../logger.ts";
 import { said } from "./message.ts";
 import type { Datum, Finding, Make } from "./types.ts";
 
-const ID = "caching/long-without-hash";
+const ID = "caching/cache-control/excessive";
 
 interface CachingSettings {
     // Seconds of freshness past which a URL must change with its content.

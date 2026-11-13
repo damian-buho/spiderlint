@@ -30,7 +30,7 @@ import { serveFixture, type Fixture } from "./fixtures/server.ts";
 const SETTINGS = settingsOf({
     policies: [
         { name: "ru", hosts: ["ru", "рф"], ban: true },
-        { name: "ua", hosts: [".ua"], rate: { jobs: 1, per: "1h" }, caps: { "max-pages": 20, concurrency: 2 }, rules: { allow: ["seo", "http/*"], deny: ["http/alt-svc-h3"] } },
+        { name: "ua", hosts: [".ua"], rate: { jobs: 1, per: "1h" }, caps: { "max-pages": 20, concurrency: 2 }, rules: { allow: ["seo", "http/*"], deny: ["http/alt-svc-h3/missing"] } },
         { name: "rest", hosts: ["*"] },
     ],
 });
@@ -683,11 +683,11 @@ describe("server policy", () => {
 
     it("allows named rules only, and treats no rules as recommended", () => {
         assert.equal(
-            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["seo", "http/hsts"] } }, SETTINGS)),
+            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["seo", "http/hsts/weak"] } }, SETTINGS)),
             "admitted",
         );
         assert.equal(
-            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["http/alt-svc-h3"] } }, SETTINGS)),
+            refusal(() => admit({ url: "https://a.ua/", settings: { rules: ["http/alt-svc-h3/missing"] } }, SETTINGS)),
             "forbidden-rule",
         );
         assert.equal(

@@ -49,7 +49,7 @@ function judge(field: string, value: string, severity: Finding["severity"]): Fin
     const kind = DISCLOSING[field] ?? "presence";
     const isVersioned = VERSION.test(product);
     const isUnremovable = field === "server" && UNREMOVABLE.has(product.toLowerCase().split("/", 1)[0] ?? "");
-    log.debug({ rule: "http/server-disclosure", field, value, kind, isVersioned, isUnremovable }, "disclosure judged");
+    log.debug({ rule: "http/server/disclosing", field, value, kind, isVersioned, isUnremovable }, "disclosure judged");
     if (isUnremovable || product.length === 0) return undefined;
     return kind === "always" || (isVersioned && kind === "version") ? severity : "hint";
 }
@@ -71,7 +71,7 @@ function domainOf(host: string): string {
 // One finding per host and field across every page and every resource under a crawled registrable domain.
 const serverDisclosure: Make = (severity) => ({
     meta: {
-        id: "http/server-disclosure",
+        id: "http/server/disclosing",
         severity,
         scope: "site",
         facts: ["http.headers", "html.meta.generator", "resources"],
@@ -111,7 +111,7 @@ const serverDisclosure: Make = (severity) => ({
                 .toArray()
                 .toSorted((a, b) => a.localeCompare(b));
             findings.push({
-                rule: "http/server-disclosure",
+                rule: "http/server/disclosing",
                 severity: level,
                 scope: "site",
                 url: host,
@@ -127,5 +127,5 @@ const serverDisclosure: Make = (severity) => ({
 });
 
 export const disclosureRules: Record<string, Make> = {
-    "http/server-disclosure": serverDisclosure,
+    "http/server/disclosing": serverDisclosure,
 };

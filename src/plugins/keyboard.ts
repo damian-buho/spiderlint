@@ -184,7 +184,7 @@ const keyboardOf = (page: Facts) => page[ID] as KeyboardFacts | undefined;
 const located = (element: Element) => `${element.target} ${element.html}`;
 
 const tabWalk = pageRule(
-    "keyboard/tab-walk",
+    "keyboard/tab-order/inaccessible",
     [`${ID}.trap`, `${ID}.unreached`],
     (page) => {
         const facts = keyboardOf(page);
@@ -198,7 +198,7 @@ const tabWalk = pageRule(
 );
 
 const focusVisible = pageRule(
-    "keyboard/focus-visible",
+    "keyboard/focus-outline/missing",
     [`${ID}.stops`],
     (page) => {
         const hidden = keyboardOf(page)?.stops.filter((stop) => !stop.visible);
@@ -209,7 +209,7 @@ const focusVisible = pageRule(
 );
 
 const focusObscured = pageRule(
-    "keyboard/focus-obscured",
+    "keyboard/focus/inaccessible",
     [`${ID}.stops`],
     (page) => {
         const covered = keyboardOf(page)?.stops.filter((stop) => stop["obscured-by"]);
@@ -220,7 +220,7 @@ const focusObscured = pageRule(
 );
 
 const forcedFocus = pageRule(
-    "keyboard/forced-focus",
+    "keyboard/forced-colors-focus/missing",
     [`${ID}.stops`],
     (page) => {
         const lost = keyboardOf(page)?.stops.filter((stop) => stop.forced === false);
@@ -231,7 +231,7 @@ const forcedFocus = pageRule(
 );
 
 const skipLink = pageRule(
-    "keyboard/skip-link",
+    "keyboard/skip-link/missing",
     [`${ID}.first`],
     (page) => {
         const first = keyboardOf(page)?.first;
@@ -244,16 +244,16 @@ const skipLink = pageRule(
 export default {
     name: "keyboard",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
-    rules: { "keyboard/tab-walk": tabWalk, "keyboard/focus-visible": focusVisible, "keyboard/focus-obscured": focusObscured, "keyboard/forced-focus": forcedFocus, "keyboard/skip-link": skipLink },
+    rules: { "keyboard/tab-order/inaccessible": tabWalk, "keyboard/focus-outline/missing": focusVisible, "keyboard/focus/inaccessible": focusObscured, "keyboard/forced-colors-focus/missing": forcedFocus, "keyboard/skip-link/missing": skipLink },
     presets: {
         keyboard: {
             description: "Keyboard use on sampled pages: Tab reaches every control without a trap, focus shows, also under forced colours, and is not covered, a skip link comes first",
             rules: {
-                "keyboard/tab-walk": { severity: "warning", score: 6.4 },
-                "keyboard/focus-visible": { severity: "warning", score: 6 },
-                "keyboard/focus-obscured": { severity: "warning", score: 5.8 },
-                "keyboard/forced-focus": { severity: "warning", score: 5.4 },
-                "keyboard/skip-link": { severity: "info", score: 2.8 },
+                "keyboard/tab-order/inaccessible": { severity: "warning", score: 6.4 },
+                "keyboard/focus-outline/missing": { severity: "warning", score: 6 },
+                "keyboard/focus/inaccessible": { severity: "warning", score: 5.8 },
+                "keyboard/forced-colors-focus/missing": { severity: "warning", score: 5.4 },
+                "keyboard/skip-link/missing": { severity: "info", score: 2.8 },
             },
         },
     },

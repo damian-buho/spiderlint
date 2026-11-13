@@ -57,7 +57,7 @@ const isParsed = (page: Facts, resource: ResourceFacts) => isManifest(page, reso
 const FACTS = [`resources.${ID}`];
 
 const parse = resourceRule(
-    "manifest/parse",
+    "manifest/document/invalid",
     isManifest,
     (resource) => {
         const error = manifestOf(resource)?.error;
@@ -69,7 +69,7 @@ const parse = resourceRule(
 );
 
 const fields = resourceRule(
-    "manifest/fields",
+    "manifest/fields/missing",
     isParsed,
     (resource) => {
         const members = new Set(manifestOf(resource)?.members);
@@ -82,7 +82,7 @@ const fields = resourceRule(
 );
 
 const icons = resourceRule(
-    "manifest/icons",
+    "manifest/icons/missing",
     isParsed,
     (resource) => {
         const all = manifestOf(resource)?.icons ?? [];
@@ -97,7 +97,7 @@ const icons = resourceRule(
 
 // Where the manifest is served from, as what, and whether its app stays inside its own scope and origin.
 const served = resourceRule(
-    "manifest/served",
+    "manifest/serving/invalid",
     isManifest,
     (resource) => {
         const facts = manifestOf(resource);
@@ -124,24 +124,30 @@ const isLinked = (page: Facts) => (page.html?.head.links ?? []).some((link) => (
 
 // A group where some HTML pages link a manifest and others do not: one finding naming the pages without it.
 const discovery: Make = (severity) => ({
-    meta: { id: "manifest/discovery", severity, scope: "group", facts: ["html.head.links"], docs: "https://developer.mozilla.org/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable", fix: "Link the manifest with <link rel=manifest> from every page, so the app installs from wherever a visitor lands." },
+    meta: { id: "manifest/link/missing", severity, scope: "group", facts: ["html.head.links"], docs: "https://developer.mozilla.org/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable", fix: "Link the manifest with <link rel=manifest> from every page, so the app installs from wherever a visitor lands." },
     check(pages: Facts[], group?: string): Finding[] | undefined {
         const html = pages.filter((page) => page.html !== undefined && page.http.status >= 200 && page.http.status <= 299);
         const without = html.filter((page) => !isLinked(page)).map((page) => page.url.href);
-        log.debug({ rule: "manifest/discovery", group, pages: html.length, without: without.length }, "manifest links judged");
+        log.debug({ rule: "manifest/link/missing", group, pages: html.length, without: without.length }, "manifest links judged");
         if (without.length === html.length) return;
-        return without.length === 0 ? [] : [{ rule: "manifest/discovery", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), ...said("{count} of {total} pages link no manifest while the rest do", { count: without.length, total: html.length }), urls: without }];
+        return without.length === 0 ? [] : [{ rule: "manifest/link/missing", severity, scope: "group", url: without[0] as string, ...(group !== undefined && { group }), ...said("{count} of {total} pages link no manifest while the rest do", { count: without.length, total: html.length }), urls: without }];
     },
 });
 
 export default {
     name: "manifest",
     resources: [{ id: ID, types: ["application/manifest+json", "application/json"], extract }],
-    rules: { "manifest/parse": parse, "manifest/fields": fields, "manifest/icons": icons, "manifest/served": served, "manifest/discovery": discovery },
+    rules: { "manifest/document/invalid": parse, "manifest/fields/missing": fields, "manifest/icons/missing": icons, "manifest/serving/invalid": served, "manifest/link/missing": discovery },
     presets: {
         manifest: {
             description: "Web app manifest linked from every page, served as a manifest, and carrying what installation needs: name, id, start URL inside its scope, display mode, sized and maskable icons",
-            rules: { "manifest/parse": { severity: "error", score: 7.2 }, "manifest/fields": { severity: "warning", score: 5 }, "manifest/icons": { severity: "warning", score: 4.6 }, "manifest/served": { severity: "warning", score: 5.4 }, "manifest/discovery": { severity: "warning", score: 4.2 } },
+            rules: {
+                "manifest/document/invalid": { severity: "error", score: 7.2 },
+                "manifest/fields/missing": { severity: "warning", score: 5 },
+                "manifest/icons/missing": { severity: "warning", score: 4.6 },
+                "manifest/serving/invalid": { severity: "warning", score: 5.4 },
+                "manifest/link/missing": { severity: "warning", score: 4.2 },
+            },
         },
     },
 } satisfies Plugin;

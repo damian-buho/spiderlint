@@ -38,9 +38,18 @@ interface Check {
 }
 
 const CHECKS: Check[] = [
-    { name: "secure", item: { properties: { secure: { const: true } } }, isHttpsOnly: true, severity: "warning", score: 6.5, message: "a cookie is set without the Secure flag", fix: "Add Secure to every cookie set over https:.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies" },
     {
-        name: "http-only",
+        name: "secure/missing",
+        item: { properties: { secure: { const: true } } },
+        isHttpsOnly: true,
+        severity: "warning",
+        score: 6.5,
+        message: "a cookie is set without the Secure flag",
+        fix: "Add Secure to every cookie set over https:.",
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies",
+    },
+    {
+        name: "http-only/missing",
         item: { properties: { "http-only": { const: true } } },
         isHeaderOnly: true,
         severity: "info",
@@ -49,9 +58,9 @@ const CHECKS: Check[] = [
         fix: "Add HttpOnly to cookies scripts do not need to read.",
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Cookies#block_access_to_your_cookies",
     },
-    { name: "same-site", item: { required: ["same-site"] }, severity: "info", score: 2.4, message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
+    { name: "same-site/missing", item: { required: ["same-site"] }, severity: "info", score: 2.4, message: "a cookie is set without a SameSite attribute", fix: "Set SameSite=Lax or SameSite=Strict on every cookie.", docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value" },
     {
-        name: "host-prefix",
+        name: "host-prefix/invalid",
         item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Host-)" } } } }, { properties: { secure: { const: true }, path: { const: "/" } }, required: ["path"], not: { required: ["domain"] } }] },
         severity: "warning",
         score: 6,
@@ -60,7 +69,7 @@ const CHECKS: Check[] = [
         fix: "Add Secure and Path=/, and omit Domain, from every __Host- cookie.",
     },
     {
-        name: "secure-prefix",
+        name: "secure-prefix/invalid",
         item: { anyOf: [{ not: { properties: { name: { pattern: "^(?i:__Secure-)" } } } }, { properties: { secure: { const: true } } }] },
         severity: "warning",
         score: 5.8,
@@ -69,7 +78,7 @@ const CHECKS: Check[] = [
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#cookie_prefixes",
     },
     {
-        name: "same-site-none",
+        name: "same-site-none/insecure",
         item: { anyOf: [{ not: { properties: { "same-site": { pattern: "^(?i:none)$" } }, required: ["same-site"] } }, { properties: { secure: { const: true } } }] },
         severity: "warning",
         score: 6.3,
@@ -78,7 +87,7 @@ const CHECKS: Check[] = [
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie#none",
     },
     {
-        name: "lifetime",
+        name: "lifetime/excessive",
         item: { properties: { "max-age": { maximum: 34_560_000 } } },
         severity: "info",
         score: 1.8,
@@ -199,7 +208,7 @@ export default {
             description: "Tracking vendors, and third-party or tracking cookies and web storage set before any interaction",
             extends: ["spiderlint:trackers"],
             when: { "http.status": { minimum: 200, maximum: 299 } },
-            rules: { "cookies/before-consent": BEFORE_CONSENT, "cookies/storage-before-consent": STORAGE_BEFORE_CONSENT },
+            rules: { "cookies/pre-consent/present": BEFORE_CONSENT, "cookies/pre-consent-storage/present": STORAGE_BEFORE_CONSENT },
         },
     },
 } satisfies Plugin;

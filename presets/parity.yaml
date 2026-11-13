@@ -6,7 +6,7 @@ description: What a page loses without JavaScript, from its raw HTML and its ren
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:
-  parity/title:
+  parity/title/mismatch:
     fact: parity.missing
     expect: {properties: {title: false}}
     severity: warning
@@ -14,7 +14,7 @@ rules:
     message: "the title exists only after JavaScript runs"
     fix: "Render <title> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
-  parity/description:
+  parity/description/mismatch:
     fact: parity.missing
     expect: {properties: {description: false}}
     severity: info
@@ -22,7 +22,7 @@ rules:
     message: "the meta description exists only after JavaScript runs"
     fix: "Render <meta name=\"description\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
-  parity/canonical:
+  parity/canonical/mismatch:
     fact: parity.missing
     expect: {properties: {canonical: false}}
     severity: warning
@@ -30,7 +30,7 @@ rules:
     message: "the canonical link exists only after JavaScript runs"
     fix: "Render <link rel=\"canonical\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics#properly-inject-canonical-links
-  parity/h1:
+  parity/h1/mismatch:
     fact: parity.missing
     expect: {properties: {h1: false}}
     severity: info
@@ -38,7 +38,7 @@ rules:
     message: "the h1 exists only after JavaScript runs"
     fix: "Render the page heading on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
-  parity/text:
+  parity/text/mismatch:
     fact: parity
     expect: {if: {properties: {rendered: {properties: {text: {minimum: 200}}}}}, then: {properties: {text-share: {minimum: 0.5}}}}
     severity: warning
@@ -46,7 +46,7 @@ rules:
     message: "the raw HTML carries a share of the text the rendered page shows"
     fix: "Render the main content on the server, or give it a <noscript> fallback."
     docs: https://developer.mozilla.org/docs/Glossary/SSR
-  parity/links:
+  parity/links/mismatch:
     fact: parity.missing
     expect: {properties: {links: false}}
     severity: warning
@@ -54,6 +54,6 @@ rules:
     message: "internal links exist only after JavaScript runs"
     fix: "Render navigation links as <a href> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
-  html/declaration-rewritten:
+  html/declaration/mismatch:
     severity: info
     score: 1.5

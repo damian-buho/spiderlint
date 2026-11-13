@@ -30,67 +30,67 @@ describe("feeds", () => {
             .map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`)
             .toSorted((a, b) => a.localeCompare(b));
         assert.deepEqual(found, [
-            "feeds/absolute-url /old.json",
-            "feeds/absolute-url /spec.xml",
-            "feeds/archive /atom-bad.xml",
-            "feeds/archive /spec.xml",
-            "feeds/cache /spec.xml",
-            "feeds/charset /old.json",
-            "feeds/charset /spec.xml",
-            "feeds/conditional-get /spec.xml",
-            "feeds/content-type /atom-bad.xml",
-            "feeds/date-format /atom-bad.xml",
-            "feeds/date-format /spec.xml",
-            "feeds/date-future /spec.xml",
-            "feeds/discovery-type /feed.xml",
-            "feeds/discovery-type /posts/1",
-            "feeds/double-escaped /spec.xml",
-            "feeds/duplicate-id /spec.xml",
-            "feeds/email /spec.xml",
-            "feeds/enclosure /cast-bad.xml",
-            "feeds/enclosure /podcast.xml",
-            "feeds/id-tracking /spec.xml",
-            "feeds/item-canonical /joins.xml",
-            "feeds/item-date /joins.xml",
-            "feeds/item-id /old.json",
-            "feeds/item-status /joins.xml",
-            "feeds/item-title /joins.xml",
-            "feeds/item-title /spec.xml",
-            "feeds/itunes-image ",
-            "feeds/itunes-required /podcast.xml",
-            "feeds/json-version /old.json",
-            "feeds/language /spec.xml",
-            "feeds/media-type /plain.xml",
-            "feeds/page-language /joins.xml",
-            "feeds/permalink /spec.xml",
-            "feeds/podcast-guid /podcast.xml",
-            "feeds/podcast-locked /cast-bad.xml",
-            "feeds/podcast-locked /podcast.xml",
-            "feeds/raw-markup /mdx.xml",
-            "feeds/relative-url /spec.xml",
-            "feeds/required /atom-bad.xml",
-            "feeds/required /old.json",
-            "feeds/required /podcast.xml",
-            "feeds/required /spec.xml",
-            "feeds/stale /atom-bad.xml",
-            "feeds/stylesheet /spec.xml",
-            "feeds/summary-only /summary.xml",
-            "feeds/template-leak /spec.xml",
-            "feeds/title-markup /spec.xml",
-            "feeds/unknown-element /spec.xml",
-            "feeds/unsafe-html /spec.xml",
-            "feeds/xslt /spec.xml",
+            "feeds/archive-link/unreachable /atom-bad.xml",
+            "feeds/archive-link/unreachable /spec.xml",
+            "feeds/cache-control/mismatch /spec.xml",
+            "feeds/charset/mismatch /old.json",
+            "feeds/charset/mismatch /spec.xml",
+            "feeds/content-escaping/invalid /spec.xml",
+            "feeds/content-html/insecure /spec.xml",
+            "feeds/content-markup/invalid /mdx.xml",
+            "feeds/content-type/mismatch /atom-bad.xml",
+            "feeds/content-url/invalid /spec.xml",
+            "feeds/date/invalid /atom-bad.xml",
+            "feeds/date/invalid /spec.xml",
+            "feeds/discovery-link/mismatch /feed.xml",
+            "feeds/discovery-link/mismatch /posts/1",
+            "feeds/document/stale /atom-bad.xml",
+            "feeds/element/missing /atom-bad.xml",
+            "feeds/element/missing /old.json",
+            "feeds/element/missing /podcast.xml",
+            "feeds/element/missing /spec.xml",
+            "feeds/element/unknown /spec.xml",
+            "feeds/email/invalid /spec.xml",
+            "feeds/enclosure/invalid /cast-bad.xml",
+            "feeds/enclosure/invalid /podcast.xml",
+            "feeds/full-text/missing /summary.xml",
+            "feeds/item-date/future /spec.xml",
+            "feeds/item-date/mismatch /joins.xml",
+            "feeds/item-id/duplicate /spec.xml",
+            "feeds/item-id/invalid /spec.xml",
+            "feeds/item-id/missing /old.json",
+            "feeds/item-link/mismatch /joins.xml",
+            "feeds/item-link/unreachable /joins.xml",
+            "feeds/item-title/invalid /spec.xml",
+            "feeds/item-title/mismatch /joins.xml",
+            "feeds/item-title/mismatch /spec.xml",
+            "feeds/itunes-image/invalid ",
+            "feeds/itunes-tags/missing /podcast.xml",
+            "feeds/json-version/outdated /old.json",
+            "feeds/language/invalid /spec.xml",
+            "feeds/language/mismatch /joins.xml",
+            "feeds/media-type/invalid /plain.xml",
+            "feeds/permalink/invalid /spec.xml",
+            "feeds/podcast-guid/missing /podcast.xml",
+            "feeds/podcast-locked/missing /cast-bad.xml",
+            "feeds/podcast-locked/missing /podcast.xml",
+            "feeds/stylesheet/invalid /spec.xml",
+            "feeds/template-placeholder/present /spec.xml",
+            "feeds/url/invalid /old.json",
+            "feeds/url/invalid /spec.xml",
+            "feeds/validator/missing /spec.xml",
+            "feeds/xslt/deprecated /spec.xml",
         ]);
     });
 
     it("names each item delivering raw MDX and spares one quoting it in code", () => {
-        assert.deepEqual(locations("feeds/raw-markup", "/mdx.xml"), ["item 1 content:encoded: <Callout>", "item 1 content:encoded: import Callout from '../components/Callout.astro'", "item 1 content:encoded: Markdown heading, bold, link: ## Why it matters"]);
+        assert.deepEqual(locations("feeds/content-markup/invalid", "/mdx.xml"), ["item 1 content:encoded: <Callout>", "item 1 content:encoded: import Callout from '../components/Callout.astro'", "item 1 content:encoded: Markdown heading, bold, link: ## Why it matters"]);
     });
 
     it("joins items to the pages they link, judging a redirected item once", () => {
-        assert.deepEqual(locations("feeds/item-status", "/joins.xml"), ["item 1 /old redirects to /posts/1", "item 2 /missing answers 404"]);
-        assert.deepEqual(locations("feeds/item-title", "/joins.xml"), ["item 3 “Second” against “Another name”"]);
-        assert.deepEqual(locations("feeds/page-language", "/joins.xml"), ["/posts/2 is en, the feed es"]);
+        assert.deepEqual(locations("feeds/item-link/unreachable", "/joins.xml"), ["item 1 /old redirects to /posts/1", "item 2 /missing answers 404"]);
+        assert.deepEqual(locations("feeds/item-title/mismatch", "/joins.xml"), ["item 3 “Second” against “Another name”"]);
+        assert.deepEqual(locations("feeds/language/mismatch", "/joins.xml"), ["/posts/2 is en, the feed es"]);
     });
 
     it("crawls the item links, stylesheet and archive pages a feed names", () => {
@@ -112,12 +112,12 @@ describe("feeds", () => {
             report.findings.filter((finding) => finding.url === `${site.origin}/cast.xml`).map((finding) => finding.rule),
             [],
         );
-        assert.deepEqual(locations("feeds/enclosure", "/cast-bad.xml"), ["item 1 /ep-length.mp3 serves 64 bytes, the feed declares 999999", "item 2 /ep-text.mp3 serves text/plain, the feed declares audio/mpeg", "item 3 /ep-plain.mp3 sends no Accept-Ranges: bytes", "item 4 /ep-gone.mp3 answers 404"]);
-        assert.deepEqual(locations("feeds/enclosure", "/podcast.xml"), ["item 1 /ep1.mp3 answers 404"]);
+        assert.deepEqual(locations("feeds/enclosure/invalid", "/cast-bad.xml"), ["item 1 /ep-length.mp3 serves 64 bytes, the feed declares 999999", "item 2 /ep-text.mp3 serves text/plain, the feed declares audio/mpeg", "item 3 /ep-plain.mp3 sends no Accept-Ranges: bytes", "item 4 /ep-gone.mp3 answers 404"]);
+        assert.deepEqual(locations("feeds/enclosure/invalid", "/podcast.xml"), ["item 1 /ep1.mp3 answers 404"]);
     });
 
     it("gives a feed with no enclosure no podcasts finding", () => {
-        const podcasts = new Set(["feeds/enclosure", "feeds/itunes-required", "feeds/podcast-guid", "feeds/podcast-locked"]);
+        const podcasts = new Set(["feeds/enclosure/invalid", "feeds/itunes-tags/missing", "feeds/podcast-guid/missing", "feeds/podcast-locked/missing"]);
         assert.deepEqual(
             report.findings.filter((finding) => finding.url === `${site.origin}/feed.xml` && podcasts.has(finding.rule)),
             [],
@@ -125,21 +125,21 @@ describe("feeds", () => {
     });
 
     it("names an unlocked podcast feed and spares a locked one", () => {
-        const locked = report.findings.filter((finding) => finding.rule === "feeds/podcast-locked").map((finding) => `${finding.url.replace(site.origin, "")} ${finding.message}`);
+        const locked = report.findings.filter((finding) => finding.rule === "feeds/podcast-locked/missing").map((finding) => `${finding.url.replace(site.origin, "")} ${finding.message}`);
         assert.deepEqual(locked, ["/cast-bad.xml rss podcast feed sets no podcast:locked, so any platform may import it", "/podcast.xml rss podcast feed sets no podcast:locked, so any platform may import it"]);
     });
 
     it("names a feed of teasers and spares a feed of full posts", () => {
-        const summary = report.findings.filter((finding) => finding.rule === "feeds/summary-only").map((finding) => finding.url.replace(site.origin, ""));
+        const summary = report.findings.filter((finding) => finding.rule === "feeds/full-text/missing").map((finding) => finding.url.replace(site.origin, ""));
         assert.deepEqual(summary, ["/summary.xml"]);
-        assert.match(report.findings.find((finding) => finding.rule === "feeds/summary-only")?.locations?.[0] ?? "", /7 words against 301/);
+        assert.match(report.findings.find((finding) => finding.rule === "feeds/full-text/missing")?.locations?.[0] ?? "", /7 words against 301/);
     });
 
     it("judges a revalidation answered 200 with an unchanged body", async () => {
         const directory = await mkdtemp(path.join(tmpdir(), "spiderlint-frozen-"));
         try {
-            await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
-            const second = await audit({ seeds: [`${site.origin}/`], rules: ["feeds/conditional-get"], sitemap: false, robots: false }, { store: directory });
+            await audit({ seeds: [`${site.origin}/`], rules: ["feeds/validator/missing"], sitemap: false, robots: false }, { store: directory });
+            const second = await audit({ seeds: [`${site.origin}/`], rules: ["feeds/validator/missing"], sitemap: false, robots: false }, { store: directory });
             assert.deepEqual(
                 second.findings.map((finding) => finding.url.replace(site.origin, "")).toSorted((a, b) => a.localeCompare(b)),
                 ["/frozen.xml", "/spec.xml"],
@@ -155,7 +155,7 @@ describe("feeds", () => {
         const on = await audit({ seeds: [`${site.origin}/`], rules: ["websub"], pluginSettings: { feeds: { websub: true } }, sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(
             on.findings.map((finding) => `${finding.rule} ${finding.url.replace(site.origin, "")}`),
-            ["feeds/websub-hub "],
+            ["feeds/websub-hub/unreachable "],
         );
         assert.match(on.findings[0]?.message ?? "", /dead-hub answers 404/);
     });
@@ -220,7 +220,7 @@ describe("feeds in a browser", { skip: await launchFailure() }, () => {
         await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
         origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
         try {
-            const styled = await audit({ seeds: [`${origin}/`], fetch: "browser", rules: ["feeds/discovery-type"], sitemap: false, robots: false, cacheMode: "off", fetchResources: false });
+            const styled = await audit({ seeds: [`${origin}/`], fetch: "browser", rules: ["feeds/discovery-link/mismatch"], sitemap: false, robots: false, cacheMode: "off", fetchResources: false });
             assert.equal((styled.pages.find((page) => page.url.pathname === "/posts.rss")?.feed as { format?: string } | undefined)?.format, "rss");
             assert.deepEqual(styled.findings, []);
             assert.deepEqual([asked.filter((pathname) => pathname === "/posts.rss").length, asked.filter((pathname) => pathname === "/plain.xml").length], [2, 1], "only the transformed document is read again");

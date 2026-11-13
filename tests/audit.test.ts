@@ -34,7 +34,7 @@ function stubPage(url: string) {
 }
 
 function stubCsp(url: string) {
-    return { rule: "http/csp", severity: "warning" as const, scope: "page" as const, group: "default", url, message: "csp is absent" };
+    return { rule: "http/csp/missing", severity: "warning" as const, scope: "page" as const, group: "default", url, message: "csp is absent" };
 }
 
 describe("audit", () => {
@@ -148,7 +148,7 @@ describe("audit", () => {
     });
 
     it("reports a dead in-scope link once, with its referrers", () => {
-        const [dead, ...rest] = of("links/broken-internal");
+        const [dead, ...rest] = of("links/internal/unreachable");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${site.origin}/missing`);
         assert.equal(dead?.severity, "error");
@@ -157,7 +157,7 @@ describe("audit", () => {
     });
 
     it("reports only the dead external link, and asks it again on the next run", async () => {
-        const [dead, ...rest] = of("links/broken-external");
+        const [dead, ...rest] = of("links/external/unreachable");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${cdn()}/gone`);
         assert.equal(dead?.message, "the link answers 404; linked from these pages");
@@ -177,7 +177,7 @@ describe("audit", () => {
         const excluded = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], linkExclude: ["localhost"] });
         assert.equal(site.requested.filter((pathname) => pathname === "/gone").length, before);
         assert.deepEqual(
-            excluded.findings.filter((finding) => finding.rule === "links/broken-external"),
+            excluded.findings.filter((finding) => finding.rule === "links/external/unreachable"),
             [],
         );
     });
@@ -190,13 +190,13 @@ describe("audit", () => {
         assert.ok(!Number.isNaN(Date.parse(first.checked ?? "")), "the answer says when it was probed");
         const second = await answerOf(href, { allowPrivate: true, linkExclude: [] }, bucket, new AbortController().signal);
         assert.equal(second.cached, true);
-        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const rule = builtin["links/external/unreachable"]?.("warning") as AggregateRule | undefined;
         const page = { url: new URL(`${site.origin}/`), html: { links: { external: [href] } } } as unknown as Facts;
         assert.deepEqual(rule?.check([page], undefined, { sitemaps: [], links: { [href]: first } } as unknown as SiteFacts), []);
     });
 
     it("reports links that reached nothing once per origin and error, keeping each page’s own links", () => {
-        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const rule = builtin["links/external/unreachable"]?.("warning") as AggregateRule | undefined;
         const lost = { status: 0, error: "getaddrinfo ENOTFOUND mirror.onion" };
         const links = { "http://mirror.onion/a/": lost, "http://mirror.onion/b/": lost, "http://mirror.onion/c/": lost, "http://other.onion/a/": { status: 0, error: "getaddrinfo ENOTFOUND other.onion" }, "http://slow.test/a/": { status: 0, error: "timeout" }, "http://slow.test/b/": { status: 0, error: "refused" } };
         const pages = [
@@ -221,7 +221,7 @@ describe("audit", () => {
     });
 
     it("keeps one finding per target for links a server answered, on the same origin", () => {
-        const rule = builtin["links/broken-external"]?.("warning") as AggregateRule | undefined;
+        const rule = builtin["links/external/unreachable"]?.("warning") as AggregateRule | undefined;
         const page = { url: new URL("https://site.test/"), html: { links: { external: ["https://cdn.test/a", "https://cdn.test/b", "https://cdn.test/c"] } } } as unknown as Facts;
         const links = { "https://cdn.test/a": { status: 404 }, "https://cdn.test/b": { status: 404 }, "https://cdn.test/c": { status: 0, error: "timeout" } };
         const found = rule?.check([page], undefined, { sitemaps: [], links } as unknown as SiteFacts) ?? [];
@@ -278,7 +278,7 @@ describe("audit", () => {
     });
 
     it("folds a template-wide defect into one finding", () => {
-        const [h1, ...rest] = of("html/one-h1");
+        const [h1, ...rest] = of("html/h1/duplicate");
         assert.equal(rest.length, 0);
         assert.equal(h1?.group, "posts");
         assert.equal(h1?.occurrences, 5);
@@ -288,26 +288,26 @@ describe("audit", () => {
     });
 
     it("keeps a one-page defect on its page", () => {
-        const [alt, ...rest] = of("html/img-alt");
+        const [alt, ...rest] = of("html/img-alt/missing");
         assert.equal(rest.length, 0);
         assert.equal(alt?.url, `${site.origin}/posts/3`);
         assert.match(alt?.message ?? "", /^an <img> has no alt attribute$/);
     });
 
     it("reports lengths with the actual value", () => {
-        const [title] = of("html/title-length");
+        const [title] = of("html/title/length");
         assert.equal(title?.url, `${site.origin}/about`);
         assert.equal(title?.message, "<title> should be 30–60 characters");
         assert.deepEqual(title?.data, { [`${site.origin}/about`]: { got: "11 characters: “About page!”" } });
-        assert.deepEqual(of("html/description-length"), []);
+        assert.deepEqual(of("html/description/length"), []);
     });
 
     it("reports an absent value once, by its presence rule, never by the rules judging its text", () => {
-        const [description, ...rest] = of("html/description");
+        const [description, ...rest] = of("html/description/missing");
         assert.equal(rest.length, 0);
         assert.equal(description?.url, `${site.origin}/app/`);
         assert.equal(description?.message, "no meta description");
-        assert.ok(of("html/description-redundant").every((finding) => finding.url !== `${site.origin}/app/`));
+        assert.ok(of("html/description/redundant").every((finding) => finding.url !== `${site.origin}/app/`));
     });
 
     it("keeps each repeated meta name with its media, and flags a light and dark page with one theme-color", () => {
@@ -321,13 +321,13 @@ describe("audit", () => {
         );
         assert.equal(home?.html?.meta["theme-color"], "#ffffff");
         assert.deepEqual(
-            of("html/theme-color-schemes").map((finding) => finding.url),
+            of("html/theme-color-dark/missing").map((finding) => finding.url),
             [`${site.origin}/about`],
         );
     });
 
     it("reports missing opengraph tags", () => {
-        for (const rule of ["html/og-title", "html/og-description", "html/og-image", "html/og-type", "html/og-url"]) {
+        for (const rule of ["html/og-title/length", "html/og-description/length", "html/og-image/invalid", "html/og-type/invalid", "html/og-url/invalid"]) {
             assert.deepEqual(
                 of(rule).map((finding) => finding.url),
                 [`${site.origin}/app/`],
@@ -337,7 +337,7 @@ describe("audit", () => {
     });
 
     it("asks an article, never the home page, for an author and a publication date", () => {
-        for (const rule of ["html/author", "html/published-date"]) {
+        for (const rule of ["html/author/missing", "html/published-date/missing"]) {
             const urls = of(rule).flatMap((finding) => [finding.url, ...(finding.urls ?? []), ...(finding.samples ?? [])]);
             assert.ok(urls.includes(`${site.origin}/about`), rule);
             assert.ok(!urls.includes(`${site.origin}/`) && urls.every((url) => !url?.includes("/posts/")), rule);
@@ -347,16 +347,16 @@ describe("audit", () => {
     });
 
     it("catches a templated title or description that repeats the same value twice", () => {
-        const [title, ...restTitle] = of("html/title-redundant");
+        const [title, ...restTitle] = of("html/title/redundant");
         assert.equal(restTitle.length, 0);
         assert.equal(title?.url, `${site.origin}/duplicate`);
         assert.equal(title?.message, "<title> repeats itself around a separator");
-        const description = of("html/description-redundant").find((finding) => finding.url === `${site.origin}/duplicate`);
+        const description = of("html/description/redundant").find((finding) => finding.url === `${site.origin}/duplicate`);
         assert.match(description?.message ?? "", /^meta description repeats itself around a separator$/);
     });
 
     it("reports an internal link answering a redirect once, with the pages carrying it, and counts them as referrers", () => {
-        const [redirected, ...rest] = of("links/redirected-internal");
+        const [redirected, ...rest] = of("links/internal/redirected");
         assert.equal(rest.length, 0);
         assert.equal(redirected?.url, `${site.origin}/old-about`);
         assert.equal(redirected?.message, "the link redirects elsewhere; linked from these pages");
@@ -366,19 +366,19 @@ describe("audit", () => {
     });
 
     it("reports a canonical or og:url naming another page", () => {
-        const [canonical, ...restCanonical] = of("html/canonical-self");
+        const [canonical, ...restCanonical] = of("html/canonical/mismatch");
         assert.equal(restCanonical.length, 0);
         assert.equal(canonical?.url, `${site.origin}/about`);
         assert.equal(canonical?.message, "canonical link names another URL, not this page");
         assert.deepEqual(canonical?.data, { [`${site.origin}/about`]: { target: `${site.origin}/about/` } });
-        const [ogUrl, ...restOgUrl] = of("html/og-url-self");
+        const [ogUrl, ...restOgUrl] = of("html/og-url/mismatch");
         assert.equal(restOgUrl.length, 0);
         assert.equal(ogUrl?.url, `${site.origin}/orphan`);
         assert.equal(ogUrl?.severity, "info");
     });
 
     it("reports a value shared by two pages once, listing both", () => {
-        for (const rule of ["html/unique-title", "html/unique-description", "html/unique-og-title", "html/unique-og-description"]) {
+        for (const rule of ["html/title/duplicate", "html/description/duplicate", "html/og-title/duplicate", "html/og-description/duplicate"]) {
             const [finding, ...rest] = of(rule);
             assert.equal(rest.length, 0, rule);
             assert.equal(finding?.scope, "site");
@@ -401,7 +401,7 @@ describe("audit", () => {
         const text = formatHuman(report);
         assert.ok(text.startsWith(`${site.origin}\npages `));
         assert.ok(!text.slice(site.origin.length).includes(`${site.origin}/`));
-        assert.match(text, /^pages in group posts \(5 pages\)\n {2}error {3}7\.4 html\/one-h1 — 5 pages \(100%\)/m);
+        assert.match(text, /^pages in group posts \(5 pages\)\n {2}error {3}7\.4 html\/h1\/duplicate — 5 pages \(100%\)/m);
         assert.match(text, /^\*\* whole site \*\* \(every page\)\n/m);
         assert.match(text, /^pages {6}16 \(15 × 200, 1 × 404\)\nsize {7}.+\ntime {7}.+\nrules {6}\d+\nchecks {5}390 of 449 passed\nfindings {3}\d+ \(\d+ errors, \d+ warnings, \d+ info\)\nrating {5}B \(seo, links\)\nhttp {7}17 fetches\nresources {2}\d+ requests\nextractors rel-me ×1\n\n/m);
         assert.ok(text.indexOf("rating     B (seo, links)") < text.indexOf("\n** whole site **"), "totals and rating come before the findings");
@@ -421,8 +421,8 @@ describe("audit", () => {
             summary: { pages: 3, bytes: 0, durationMs: 0, groups: { default: 3 }, statuses: { 200: 3 }, findings: { total: 3, error: 0, warning: 3, info: 0 }, rules: 1, byRule: {}, checks: { total: 0, passed: 0, failed: 0, errored: 0 }, cost: { extractors: {} } },
         } as unknown as Report;
         const lines = formatHuman(bundledReport, undefined, false, "en").split("\n");
-        const start = lines.findIndex((line) => line.includes("http/csp"));
-        assert.deepEqual(lines.slice(start - 1, start + 4), ["pages (3)", "  warning 5.0 http/csp — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp /z: csp is weak"]);
+        const start = lines.findIndex((line) => line.includes("http/csp/missing"));
+        assert.deepEqual(lines.slice(start - 1, start + 4), ["pages (3)", "  warning 5.0 http/csp/missing — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp/missing /z: csp is weak"]);
         assert.deepEqual(lines.slice(1, 7), ["pages      3 (3 × 200)", "size       0 byte", "time       0 sec", "rules      1", "checks     0 of 0 passed", "findings   3 (0 errors, 3 warnings, 0 info)"]);
         assert.deepEqual(formatHuman(bundledReport, undefined, false, "es").split("\n").slice(2, 4), ["size       0 B", "time       0 s"]);
         const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
@@ -459,18 +459,18 @@ describe("staging twin", () => {
 
     it("reports every self reference to the production origin without canonical-origin", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], sitemap: false });
-        assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical-self").reduce((pages, finding) => pages + (finding.occurrences ?? 1), 0) > 1);
+        assert.ok(report.findings.filter((finding) => finding.rule === "html/canonical/mismatch").reduce((pages, finding) => pages + (finding.occurrences ?? 1), 0) > 1);
     });
 
     it("accepts the page’s twin, still flags a wrong path, and reads the production sitemap from the twin", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeUrls: ["/tmp/**"], canonicalOrigin: production, fold: false });
         const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
         assert.deepEqual(
-            of("html/canonical-self").map((finding) => [finding.url, finding.data?.[finding.url]?.target]),
+            of("html/canonical/mismatch").map((finding) => [finding.url, finding.data?.[finding.url]?.target]),
             [[`${site.origin}/about`, `${production}/about/`]],
         );
         assert.deepEqual(
-            of("html/og-url-self").map((finding) => finding.url),
+            of("html/og-url/mismatch").map((finding) => finding.url),
             [`${site.origin}/orphan`],
         );
         assert.ok(site.requested.includes("/sitemap.xml"));
@@ -490,7 +490,7 @@ describe("audit options", () => {
 
     it("keeps every per-page finding without folding", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false });
-        assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 5);
+        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/duplicate").length, 5);
     });
 
     it("counts the same findings in the summary whether folded or not", async () => {
@@ -509,38 +509,38 @@ describe("audit options", () => {
 
     it("skips a when-guarded rule instead of failing it", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } } });
-        assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts").length, 0);
-        const csp = report.findings.find((finding) => finding.rule === "http/csp");
+        assert.equal(report.findings.filter((finding) => finding.rule === "http/hsts/weak").length, 0);
+        const csp = report.findings.find((finding) => finding.rule === "http/csp/missing");
         assert.equal(csp?.occurrences, 16);
     });
 
     it("accepts either CSP frame-ancestors or X-Frame-Options against framing", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], groups: { default: { rules: ["security-headers"] } }, fold: false });
-        const framed = report.findings.filter((finding) => finding.rule === "http/frame-options").map((finding) => new URL(finding.url).pathname);
+        const framed = report.findings.filter((finding) => finding.rule === "http/frame-options/missing").map((finding) => new URL(finding.url).pathname);
         assert.equal(framed.length, 15);
         assert.ok(!framed.includes("/about") && !framed.includes("/posts/1"));
     });
 
     it("collects rel tokens per link, flags an internal nofollow and an affiliate link a declared policy wants sponsored", async () => {
-        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel": { severity: "warning" as const, expect: { "*.amazon.*": ["sponsored"] } } } } };
+        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel/missing": { severity: "warning" as const, expect: { "*.amazon.*": ["sponsored"] } } } } };
         const report = await audit({ seeds: [`${site.origin}/rel`], maxPages: 1, sitemap: false, fold: false, rulesets, groups: { default: { rules: ["rel"] } } });
         const links = report.pages[0]?.html?.links;
         assert.deepEqual(links?.sponsored, ["https://shop.amazon.test/dp/2"]);
         assert.deepEqual(links?.ugc, ["https://forum.test/t/1"]);
         assert.deepEqual(links?.rel, { [`${site.origin}/about`]: ["nofollow"], "https://forum.test/t/1": ["ugc", "nofollow"] });
-        const found = report.findings.filter((finding) => finding.rule.startsWith("links/") && finding.rule !== "links/broken-external").map((finding) => [finding.rule, finding.value]);
+        const found = report.findings.filter((finding) => finding.rule.startsWith("links/") && finding.rule !== "links/external/unreachable").map((finding) => [finding.rule, finding.value]);
         assert.deepEqual(found, [
-            ["links/internal-nofollow", [`${site.origin}/about`]],
-            ["links/external-rel", { href: "https://www.amazon.test/dp/1", missing: ["sponsored"] }],
-            ["links/external-rel", { href: "https://shop.amazon.test/dp/2", missing: ["sponsored"] }],
+            ["links/internal-nofollow/present", [`${site.origin}/about`]],
+            ["links/external-rel/missing", { href: "https://www.amazon.test/dp/1", missing: ["sponsored"] }],
+            ["links/external-rel/missing", { href: "https://shop.amazon.test/dp/2", missing: ["sponsored"] }],
         ]);
     });
 
     it("scopes a rel policy to the comments region, leaving the same link outside it alone", async () => {
-        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel": { severity: "warning" as const, expect: { "comments:*": ["ugc"] } } } } };
+        const rulesets = { rel: { extends: ["spiderlint:links"], rules: { "links/external-rel/missing": { severity: "warning" as const, expect: { "comments:*": ["ugc"] } } } } };
         const report = await audit({ seeds: [`${site.origin}/rel`], maxPages: 1, sitemap: false, fold: false, rulesets, groups: { default: { rules: ["rel"] } } });
         assert.deepEqual(report.pages[0]?.html?.links.regions, { comments: { "https://visitor.test/": [], "https://forum.test/t/1": ["ugc", "nofollow"] } });
-        const found = report.findings.filter((finding) => finding.rule === "links/external-rel").map((finding) => finding.value);
+        const found = report.findings.filter((finding) => finding.rule === "links/external-rel/missing").map((finding) => finding.value);
         assert.deepEqual(found, [{ href: "https://visitor.test/", missing: ["ugc"], region: "comments" }]);
     });
 
@@ -559,11 +559,11 @@ describe("audit options", () => {
         assert.equal(http?.headers["content-encoding"], "br");
         assert.ok((http?.size.body ?? 0) < (http?.size.decoded ?? 0), `received ${http?.size.body} of ${http?.size.decoded} bytes`);
         assert.match(report.pages[0]?.html?.title ?? "", /\S/);
-        assert.ok(report.findings.every((finding) => finding.rule !== "http/compression" || new URL(finding.url).pathname !== "/"));
+        assert.ok(report.findings.every((finding) => finding.rule !== "http/compression/weak" || new URL(finding.url).pathname !== "/"));
     });
 
     it("fetches only the seeds when every rule reads site facts", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], sitemap: false, rules: ["robots/disallow-all"] });
+        const report = await audit({ seeds: [`${site.origin}/`], sitemap: false, rules: ["robots/root/blocked"] });
         assert.deepEqual(
             report.pages.map((page) => page.url.pathname),
             ["/"],
@@ -617,14 +617,14 @@ describe("audit options", () => {
         const pixel = report.pages[0]?.resources?.find((resource) => resource.url.endsWith("/cookie-pixel.gif"));
         assert.deepEqual(pixel?.http?.cookies, [{ name: "__Secure-px", secure: false, "http-only": true, "same-site": "Lax", path: "/" }]);
         const findings = report.findings.filter((finding) => finding.rule.startsWith("cookies/resource-")).map((finding) => [finding.rule, new URL(finding.url).pathname, finding.value]);
-        assert.deepEqual(findings, [["cookies/resource-secure-prefix", "/cookie-pixel.gif", ["__Secure-px"]]]);
+        assert.deepEqual(findings, [["cookies/resource-secure-prefix/invalid", "/cookie-pixel.gif", ["__Secure-px"]]]);
         assert.ok(!JSON.stringify(report).includes("px=1"));
     });
 
     it("reports a __Host- cookie with a Domain or a narrower Path, and passes a correct one", async () => {
         const report = await audit({ seeds: [`${site.origin}/cookies`], maxPages: 1, sitemap: false, fold: false, groups: { default: { rules: ["cookies"] } } });
         assert.deepEqual(report.pages[0]?.http.cookies[0], { name: "__Host-bad", secure: true, "http-only": false, path: "/app", domain: "127.0.0.1" });
-        assert.equal(report.findings.filter((finding) => finding.rule === "cookies/host-prefix").length, 1);
+        assert.equal(report.findings.filter((finding) => finding.rule === "cookies/host-prefix/invalid").length, 1);
     });
 
     it("reports a __Secure- or SameSite=None cookie without Secure and one outliving 400 days, and passes correct ones", async () => {
@@ -634,7 +634,7 @@ describe("audit options", () => {
             ok?.http.cookies.map((cookie) => cookie["max-age"]),
             [undefined, undefined, 3600, undefined],
         );
-        for (const rule of ["cookies/secure-prefix", "cookies/same-site-none", "cookies/lifetime"]) {
+        for (const rule of ["cookies/secure-prefix/invalid", "cookies/same-site-none/insecure", "cookies/lifetime/excessive"]) {
             const paths = report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
             assert.deepEqual(paths, ["/cookies"], rule);
         }
@@ -651,7 +651,7 @@ describe("audit options", () => {
         );
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.message]),
-            [["redirects/permanent", "reached through a temporary redirect"]],
+            [["redirects/status/temporary", "reached through a temporary redirect"]],
         );
     });
 
@@ -662,9 +662,9 @@ describe("audit options", () => {
         assert.deepEqual(
             found.toSorted((a, b) => String(a).localeCompare(String(b))),
             [
-                ["i18n/content-language", "/i18n/es", undefined],
-                ["i18n/hreflang-reciprocal", "/i18n/es", ["/i18n/en"]],
-                ["i18n/hreflang-status", "/i18n/de", ["/i18n/en"]],
+                ["i18n/content-language/mismatch", "/i18n/es", undefined],
+                ["i18n/hreflang-return/missing", "/i18n/es", ["/i18n/en"]],
+                ["i18n/hreflang/unreachable", "/i18n/de", ["/i18n/en"]],
             ],
         );
     });
@@ -674,12 +674,12 @@ describe("audit options", () => {
         const report = await audit({ seeds, maxPages: 5, fold: false, groups: { default: { rules: ["sitemap"] } } });
         const es = report.pages.find((page) => page.url.pathname === "/i18n/es");
         assert.deepEqual(es?.sitemap, { listed: true, alternates: [{ lang: "es", href: "/i18n/es" }], images: [`${site.origin}/favicon.ico`], videos: [`${site.origin}/favicon.ico`] });
-        const found = report.findings.filter((finding) => finding.rule === "sitemap/hreflang" || finding.rule === "sitemap/media").map((finding) => [finding.rule, new URL(finding.url).pathname]);
+        const found = report.findings.filter((finding) => finding.rule === "sitemap/hreflang/mismatch" || finding.rule === "sitemap/media/unreachable").map((finding) => [finding.rule, new URL(finding.url).pathname]);
         assert.deepEqual(
             found.toSorted((a, b) => String(a).localeCompare(String(b))),
             [
-                ["sitemap/hreflang", "/i18n/en"],
-                ["sitemap/media", "/i18n/missing.png"],
+                ["sitemap/hreflang/mismatch", "/i18n/en"],
+                ["sitemap/media/unreachable", "/i18n/missing.png"],
             ],
         );
     });
@@ -688,7 +688,7 @@ describe("audit options", () => {
         const report = await audit({ seeds: [`${site.origin}/hints`, `${site.origin}/hints-ok`], maxPages: 2, sitemap: false, fold: false, groups: { default: { rules: ["performance"] } } });
         const hinted = report.pages.find((page) => page.url.pathname === "/hints");
         assert.deepEqual(hinted?.http["early-hints"], [{ link: "</style.css>; rel=preload; as=style, </font.woff2>; rel=preload; as=font" }]);
-        const findings = report.findings.filter((finding) => finding.rule === "http/early-hints-preload");
+        const findings = report.findings.filter((finding) => finding.rule === "http/early-hints-preload/mismatch");
         assert.deepEqual(
             findings.map((finding) => [new URL(finding.url).pathname, finding.value]),
             [["/hints", [`${site.origin}/font.woff2`]]],
@@ -696,12 +696,12 @@ describe("audit options", () => {
     });
 
     it("finds a render-blocking origin nothing warms and a font preconnect without crossorigin", async () => {
-        const report = await audit({ seeds: [`${site.origin}/preconnect-missing`, `${site.origin}/preconnect-font`, `${site.origin}/about`], maxPages: 3, sitemap: false, fold: false, groups: { default: { rules: ["html/preconnect-*"] } } });
+        const report = await audit({ seeds: [`${site.origin}/preconnect-missing`, `${site.origin}/preconnect-font`, `${site.origin}/about`], maxPages: 3, sitemap: false, fold: false, groups: { default: { rules: ["html/preconnect*"] } } });
         const findings = report.findings.map((finding) => [finding.rule, new URL(finding.url).pathname, finding.value]).toSorted(([a], [b]) => String(a).localeCompare(String(b)));
         const cdn = site.origin.replace("127.0.0.1", "localhost");
         assert.deepEqual(findings, [
-            ["html/preconnect-crossorigin", "/preconnect-font", cdn],
-            ["html/preconnect-missing", "/preconnect-missing", cdn],
+            ["html/preconnect-crossorigin/missing", "/preconnect-font", cdn],
+            ["html/preconnect/missing", "/preconnect-missing", cdn],
         ]);
     });
 
@@ -737,7 +737,7 @@ describe("audit options", () => {
 
     it("reports one host answering from two backends once", async () => {
         const report = await audit({ seeds: [`${site.origin}/`] });
-        const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/consistent-origin");
+        const [origin, ...rest] = report.findings.filter((finding) => finding.rule === "http/host/inconsistent");
         assert.equal(rest.length, 0);
         assert.match(origin?.message ?? "", /^Server header varies across 127\.0\.0\.1:\d+$/);
         assert.deepEqual(
@@ -757,9 +757,9 @@ describe("audit options", () => {
     it("reports a sitemap page nothing links to, and a linked page no sitemap lists", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"], groups: { default: { rules: ["sitemap"] } }, fold: false });
         const paths = (rule: string) => report.findings.filter((finding) => finding.rule === rule).map((finding) => new URL(finding.url).pathname);
-        assert.deepEqual(paths("sitemap/orphan"), ["/orphan"]);
-        assert.deepEqual(paths("sitemap/unlisted"), ["/duplicate"]);
-        const unreadable = report.findings.filter((finding) => finding.rule === "sitemap/unreadable").map((finding) => [new URL(finding.url).pathname, finding.data?.[finding.url]?.error, finding.value]);
+        assert.deepEqual(paths("sitemap/page/orphaned"), ["/orphan"]);
+        assert.deepEqual(paths("sitemap/page/unlisted"), ["/duplicate"]);
+        const unreadable = report.findings.filter((finding) => finding.rule === "sitemap/document/unreadable").map((finding) => [new URL(finding.url).pathname, finding.data?.[finding.url]?.error, finding.value]);
         assert.deepEqual(unreadable, [
             ["/sitemap-broken.xml", "does not parse: Unexpected close tag", 200],
             ["/sitemap-gone.xml", "answers 404", 404],
@@ -783,7 +783,7 @@ describe("audit options", () => {
         const before = site.requested.filter((path) => path === "/cdn/lib.js").length;
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: ["/tmp/**"] });
         assert.equal(site.requested.filter((path) => path === "/cdn/lib.js").length - before, 1);
-        const statuses = report.findings.filter((finding) => finding.rule === "resources/status");
+        const statuses = report.findings.filter((finding) => finding.rule === "resources/resource/unreachable");
         assert.deepEqual(
             statuses.map((finding) => [finding.message, finding.urls?.length]).toSorted(([a], [b]) => String(a).localeCompare(String(b))),
             [
@@ -795,7 +795,7 @@ describe("audit options", () => {
         assert.match(status?.url ?? "", /^http:\/\/localhost:\d+\/cdn\/lib\.js$/);
         assert.equal(status?.message, "script answers 404; used by these pages");
         assert.equal(status?.urls?.length, 13);
-        const sri = report.findings.filter((finding) => finding.rule === "resources/sri");
+        const sri = report.findings.filter((finding) => finding.rule === "resources/integrity/missing");
         assert.deepEqual(
             sri.map((finding) => finding.message),
             ["cross-origin script without integrity; used by these pages"],
@@ -823,13 +823,13 @@ describe("audit options", () => {
     });
 
     it("drops an --exclude-rules rule entirely, across every group", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeRules: ["html/one-h1"] });
-        assert.equal(report.findings.filter((finding) => finding.rule === "html/one-h1").length, 0);
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, excludeRules: ["html/h1/duplicate"] });
+        assert.equal(report.findings.filter((finding) => finding.rule === "html/h1/duplicate").length, 0);
     });
 
     it("applies a --error/--warning/--info override on top of the ruleset severity", async () => {
-        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false, overrides: { "html/one-h1": "info" } });
-        const findings = report.findings.filter((finding) => finding.rule === "html/one-h1");
+        const report = await audit({ seeds: [`${site.origin}/`], groups: GROUPS, fold: false, overrides: { "html/h1/duplicate": "info" } });
+        const findings = report.findings.filter((finding) => finding.rule === "html/h1/duplicate");
         assert.equal(findings.length, 5);
         assert.ok(findings.every((finding) => finding.severity === "info"));
     });
@@ -838,7 +838,7 @@ describe("audit options", () => {
 describe("clock skew", () => {
     let ahead: Origin;
     let also: Origin;
-    const clock = { rulesets: { clock: { rules: { "http/clock-skew": "warning" as const } } }, groups: { default: { rules: ["clock"] } }, sitemap: false, cacheMode: "off" as const };
+    const clock = { rulesets: { clock: { rules: { "http/date/mismatch": "warning" as const } } }, groups: { default: { rules: ["clock"] } }, sitemap: false, cacheMode: "off" as const };
 
     before(async () => {
         [ahead, also] = await Promise.all([serveOrigin("skew"), serveOrigin("skew")]);
@@ -850,7 +850,7 @@ describe("clock skew", () => {
         const report = await audit({ ...clock, seeds: [`${ahead.origin}/`, `${ahead.origin}/cached`] });
         const [finding, ...rest] = report.findings;
         assert.equal(rest.length, 0);
-        assert.equal(finding?.rule, "http/clock-skew");
+        assert.equal(finding?.rule, "http/date/mismatch");
         assert.ok(Math.abs((finding?.value as number) - 600) <= 2, `skew ${String(finding?.value)}`);
         assert.deepEqual(finding?.urls, [`${ahead.origin}/`]);
     });
@@ -885,9 +885,9 @@ describe("content length", () => {
     after(() => framing.close());
 
     it("reports each wrongly framed page host and resource, and leaves a 304 and an overlong body alone", async () => {
-        const rulesets = { framing: { rules: { "http/content-length": "warning" as const, "links/broken-internal": "error" as const } } };
+        const rulesets = { framing: { rules: { "http/content-length/invalid": "warning" as const, "links/internal/unreachable": "error" as const } } };
         const report = await audit({ seeds: [`${framing.origin}/`], rulesets, groups: { default: { rules: ["framing"] } }, sitemap: false, robots: false, cacheMode: "off", timeout: 10 });
-        const found = report.findings.filter((finding) => finding.rule === "http/content-length").map((finding) => [hosted(finding.url), finding.message, finding.data?.[finding.url]?.detail]);
+        const found = report.findings.filter((finding) => finding.rule === "http/content-length/invalid").map((finding) => [hosted(finding.url), finding.message, finding.data?.[finding.url]?.detail]);
         assert.deepEqual(
             sorted(found),
             sorted([
@@ -900,7 +900,7 @@ describe("content length", () => {
                 ["HOST/twice.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages", undefined],
             ]),
         );
-        const broken = report.findings.filter((finding) => finding.rule === "links/broken-internal").map((finding) => [hosted(finding.url), finding.variables?.error]);
+        const broken = report.findings.filter((finding) => finding.rule === "links/internal/unreachable").map((finding) => [hosted(finding.url), finding.variables?.error]);
         assert.deepEqual(sorted(broken), [
             ["HOST/short", "Response body length does not match content-length header: body ended at 12 of the 400 bytes Content-Length declares"],
             ["HOST/twice", "Response body length does not match content-length header"],

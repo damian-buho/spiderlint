@@ -82,11 +82,11 @@ describe("cli-help", () => {
     });
 
     it("lists every rule with the severity this configuration runs it at", async () => {
-        const run = await spiderlint(directory, "list-rules", "--format", "json", "--error", "http/csp");
+        const run = await spiderlint(directory, "list-rules", "--format", "json", "--error", "http/csp/missing");
         const rules = new Map((parsed(run) as { id: string; severity: string; preset: string; rulesets: string[] }[]).map((rule) => [rule.id, rule]));
         assert.equal(run.code, 0);
-        assert.deepEqual(rules.get("http/csp"), { ...rules.get("http/csp"), severity: "error", preset: "warning", rulesets: ["security-headers"] });
-        assert.equal(rules.get("browser/console-errors")?.severity, "off");
+        assert.deepEqual(rules.get("http/csp/missing"), { ...rules.get("http/csp/missing"), severity: "error", preset: "warning", rulesets: ["security-headers"] });
+        assert.equal(rules.get("browser/script/broken")?.severity, "off");
     });
 
     it("lists the shipped presets and which ones the groups use", async () => {
@@ -98,12 +98,12 @@ describe("cli-help", () => {
     });
 
     it("explains a declarative, a built-in and a plugin rule, and refuses an unknown one", async () => {
-        const declarative = await spiderlint(directory, "explain-rule", "html/theme-color-schemes", "--format", "json");
+        const declarative = await spiderlint(directory, "explain-rule", "html/theme-color-dark/missing", "--format", "json");
         assert.equal(declarative.code, 0, declarative.stderr);
         const rule = parsed(declarative) as { kind: string; facts: string[]; expect: object; fix: string; docs: string };
         assert.deepEqual([rule.kind, rule.facts], ["declarative", ["html.metas"]]);
         assert.ok(rule.expect && rule.fix && rule.docs, declarative.stdout);
-        const builtin = await spiderlint(directory, "explain-rule", "links/redirected-internal", "--no-color");
+        const builtin = await spiderlint(directory, "explain-rule", "links/internal/redirected", "--no-color");
         assert.match(builtin.stdout, /^kind\s+built-in$/m);
         assert.match(builtin.stdout, /^docs\s+https:/m);
         const plugin = await spiderlint(directory, "explain-rule", "axe/color-contrast", "--format", "json");

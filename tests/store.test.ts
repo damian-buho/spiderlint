@@ -60,7 +60,7 @@ describe("store", () => {
         const first = await lintStore({}, directory);
         const again = await lintStore({}, directory);
         assert.deepEqual(again.summary.previous, { started: first.summary.started, findings: first.summary.findings });
-        const narrower = await lintStore({ rules: ["tls"], excludeRules: ["tls/cert-expiry"] }, directory);
+        const narrower = await lintStore({ rules: ["tls"], excludeRules: ["tls/certificate/expiring"] }, directory);
         assert.deepEqual(narrower.summary.previous?.findings, narrower.summary.findings, "a subset reads the wider run’s counts for its own rules");
         const wider = await lintStore({}, directory);
         assert.equal(wider.summary.previous, undefined, "the last run did not run every rule");
@@ -164,7 +164,7 @@ describe("store", () => {
         const again = path.join(directory, "failed");
         const options = { seeds: [`${site.origin}/down-page`], sitemap: false, rules: ["resources"], fold: false as const };
         const asked = () => site.requested.filter((pathname) => pathname === "/down.png").length;
-        const statuses = (report: Awaited<ReturnType<typeof audit>>) => report.findings.filter((finding) => finding.rule === "resources/status").map((finding) => finding.message);
+        const statuses = (report: Awaited<ReturnType<typeof audit>>) => report.findings.filter((finding) => finding.rule === "resources/resource/unreachable").map((finding) => finding.message);
         const first = await audit(options, { store: again });
         const before = asked();
         const second = await audit(options, { store: again });

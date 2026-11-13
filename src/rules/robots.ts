@@ -67,7 +67,7 @@ function robotsRule(id: string, documentation: string, judge: (file: RobotsFileF
 
 // Every group naming `*` that disallows `/` and allows nothing back.
 const disallowAll = robotsRule(
-    "robots/disallow-all",
+    "robots/root/blocked",
     "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.2",
     (file) => {
         const blanket = file.groups.filter((group) => group.agents.includes("*") && isBlanket(group));
@@ -78,7 +78,7 @@ const disallowAll = robotsRule(
 
 // The AI crawlers the file names, each with its purpose and whether it is shut out.
 const aiCrawlers = robotsRule(
-    "robots/ai-crawlers",
+    "robots/ai-crawlers/present",
     "https://www.rfc-editor.org/rfc/rfc9309#section-2.2.1",
     (file) => {
         const named = file.groups.flatMap((group) => group.agents.flatMap((agent) => (Object.hasOwn(CRAWLERS, agent) && CRAWLERS[agent] !== "index" ? { agent, purpose: CRAWLERS[agent], blocked: isBlanket(group) } : [])));
@@ -90,7 +90,7 @@ const aiCrawlers = robotsRule(
 
 // Every `Content-Signal` line naming an unknown signal, a value other than yes or no, or nothing.
 const contentSignal = robotsRule(
-    "robots/content-signal",
+    "robots/content-signal/invalid",
     "https://contentsignals.org/",
     (file) => {
         const malformed = file["content-signals"].filter(({ signals }) => {
@@ -116,7 +116,7 @@ export function isShutOut(file: RobotsFileFacts, agent: string): boolean {
 
 // Every crawler whose access contradicts the stance: shut out where its signal says yes, let in where a declared one says no.
 const crawlerAccess = robotsRule(
-    "robots/crawler-access",
+    "robots/crawler-access/mismatch",
     "https://contentsignals.org/",
     (file, site) => {
         if (file.status === 0 || file.status >= 500) return;
@@ -127,7 +127,7 @@ const crawlerAccess = robotsRule(
             const isBlocked = isShutOut(file, agent);
             const want = signal && stance[signal];
             const isWrong = (want === "yes" && isBlocked) || (declared !== undefined && want === "no" && !isBlocked);
-            log.debug({ rule: "robots/crawler-access", url: file.url, agent, signal, want, isBlocked, isDeclared: declared !== undefined }, "crawler access judged");
+            log.debug({ rule: "robots/crawler-access/mismatch", url: file.url, agent, signal, want, isBlocked, isDeclared: declared !== undefined }, "crawler access judged");
             return isWrong ? `${agent} (${signal}=${want}, ${isBlocked ? "disallowed" : "allowed"})` : undefined;
         });
         const wrong = judged.filter((entry) => entry !== undefined);
@@ -139,8 +139,8 @@ const crawlerAccess = robotsRule(
 );
 
 export const robotsRules: Record<string, Make> = {
-    "robots/crawler-access": crawlerAccess,
-    "robots/disallow-all": disallowAll,
-    "robots/ai-crawlers": aiCrawlers,
-    "robots/content-signal": contentSignal,
+    "robots/crawler-access/mismatch": crawlerAccess,
+    "robots/root/blocked": disallowAll,
+    "robots/ai-crawlers/present": aiCrawlers,
+    "robots/content-signal/invalid": contentSignal,
 };

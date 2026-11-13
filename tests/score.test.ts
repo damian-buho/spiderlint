@@ -29,7 +29,7 @@ function certPage(days: number): Facts {
 
 // The scored findings of one TLS rule over a page with `days` left.
 function expiring(days: number): Finding[] {
-    const rule = compileRulesets(["spiderlint:tls"], {}).find((candidate) => candidate.meta.id === "tls/cert-expiring") as PageRule;
+    const rule = compileRulesets(["spiderlint:tls"], {}).find((candidate) => candidate.meta.id === "tls/certificate/expiring") as PageRule;
     return rule.check(certPage(days)) ?? [];
 }
 
@@ -94,28 +94,30 @@ describe("shipped rules", () => {
     });
 });
 
-describe("tls/cert-expiring", () => {
-    it("scores higher the fewer days are left, crossing from warning into error", () => {
+describe("tls/certificate/expiring", () => {
+    it("scores higher the fewer days are left, crossing from info through warning into error", () => {
+        const [two] = expiring(2);
         const [one] = expiring(1);
         const [none] = expiring(0);
+        assert.equal(two?.severity, "info");
         assert.equal(one?.severity, "warning");
         assert.equal(none?.severity, "error");
         assert.ok((none?.score as number) > (one?.score as number));
     });
 
     it("stays in the warning band when a level pins it", () => {
-        const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/cert-expiring": "warning" } } };
+        const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/certificate/expiring": "warning" } } };
         const [found] = compileRulesets(["mine"], rules as never)
-            .filter((rule) => rule.meta.id === "tls/cert-expiring")
+            .filter((rule) => rule.meta.id === "tls/certificate/expiring")
             .flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
         assert.equal(found?.severity, "warning");
         assert.equal(found?.score, 6.5);
     });
 
     it("takes a number from the config as the score and its level from the band", () => {
-        const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/cert-expiring": 2.4 } } };
+        const rules = { mine: { extends: ["spiderlint:tls"], rules: { "tls/certificate/expiring": 2.4 } } };
         const [found] = compileRulesets(["mine"], rules as never)
-            .filter((rule) => rule.meta.id === "tls/cert-expiring")
+            .filter((rule) => rule.meta.id === "tls/certificate/expiring")
             .flatMap((rule) => (rule as PageRule).check(certPage(0)) ?? []);
         assert.equal(found?.severity, "info");
         assert.equal(found?.score, 2.4);
@@ -178,13 +180,13 @@ describe("urgency", () => {
 describe("sarif score", () => {
     it("writes rank on each result and security-severity on a security rule, valid against the schema", () => {
         const findings: Finding[] = [
-            { rule: "tls/authorized", severity: "error", score: 8.4, scope: "site", url: "site.test", message: "m" },
-            { rule: "html/title", severity: "warning", score: 5, scope: "page", url: "https://site.test/", message: "m" },
+            { rule: "tls/certificate/invalid", severity: "error", score: 8.4, scope: "site", url: "site.test", message: "m" },
+            { rule: "html/title/missing", severity: "warning", score: 5, scope: "page", url: "https://site.test/", message: "m" },
         ];
         const sarif = JSON.parse(formatSarif({ findings, rules: {}, summary: { started: new Date().toISOString(), durationMs: 1 } } as unknown as Report));
         const rules = sarif.runs[0].tool.driver.rules as { id: string; properties?: Record<string, unknown> }[];
-        assert.equal(rules.find((rule) => rule.id === "tls/authorized")?.properties?.["security-severity"], "8.4");
-        assert.equal(rules.find((rule) => rule.id === "html/title")?.properties, undefined);
+        assert.equal(rules.find((rule) => rule.id === "tls/certificate/invalid")?.properties?.["security-severity"], "8.4");
+        assert.equal(rules.find((rule) => rule.id === "html/title/missing")?.properties, undefined);
         assert.deepEqual(
             sarif.runs[0].results.map((result: { rank: number }) => result.rank),
             [84, 50],

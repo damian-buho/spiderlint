@@ -4,17 +4,17 @@
 ---
 description: robots.txt shutting every crawler out, the AI crawlers it names, its Content Signals, crawler access and noai pages against them
 rules:
-  robots/disallow-all: {severity: warning, score: 6.3, when: {site.role: production}}
-  robots/ai-crawlers:
+  robots/root/blocked: {severity: warning, score: 6.3, when: {site.role: production}}
+  robots/ai-crawlers/present:
     severity: info
     score: 1.6
-  robots/content-signal:
+  robots/content-signal/invalid:
     severity: warning
     score: 3.6
-  robots/crawler-access:
+  robots/crawler-access/mismatch:
     severity: warning
     score: 4.4
-  html/noai:
+  html/noai/present:
     fact: robots.noai
     expect: {const: false}
     when: {site.content-signals.ai-train: "yes"}

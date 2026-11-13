@@ -175,7 +175,7 @@ const network: SiteExtractor = {
 };
 
 const RULES: Record<string, RuleSpec> = {
-    "network/rpki-invalid": {
+    "network/rpki/invalid": {
         fact: "site.hosts.*.network.web",
         expect: { items: { properties: { rpki: { not: { const: "invalid" } } } } },
         message: "an address sits in a route RPKI marks invalid, so networks that drop invalid routes cannot reach the site",
@@ -184,7 +184,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6811",
         fix: "Have the hosting provider publish a ROA naming the origin AS and prefix length the route is announced with.",
     },
-    "network/rpki-not-found": {
+    "network/rpki/missing": {
         fact: "site.hosts.*.network.web",
         expect: { items: { properties: { rpki: { not: { const: "not-found" } } } } },
         message: "an address sits in a prefix no ROA covers, so a hijack of its route cannot be told apart",
@@ -193,7 +193,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6480",
         fix: "Ask the hosting provider to publish a ROA for the prefix that announces the address.",
     },
-    "network/mail-fcrdns": {
+    "network/mail-fcrdns/mismatch": {
         fact: "site.hosts.*.network.mail",
         expect: { items: { properties: { fcrdns: { const: true } } } },
         message: "a mail exchanger address has no PTR, or its PTR does not resolve back to it, so large mailbox providers refuse its mail",
@@ -202,7 +202,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.1",
         fix: "Set the PTR of each mail exchanger address to a name whose A or AAAA record is that address.",
     },
-    "network/single-asn": {
+    "network/asn/single": {
         fact: "site.hosts.*.network.asns",
         expect: { not: { minItems: 1, maxItems: 1 } },
         when: { "site.hosts.*.network.asns": { type: "array" } },

@@ -58,7 +58,7 @@ function isAgreeing(declared: string, expected: string): boolean {
 }
 
 const langSwitcher = pageRule(
-    "markup/lang-switcher",
+    "markup/lang-switcher/mismatch",
     [`${ID}.switcher`, "html.hreflang"],
     (page) => {
         const facts = markupOf(page);
@@ -78,7 +78,7 @@ const langSwitcher = pageRule(
 );
 
 const captions = pageRule(
-    "markup/captions",
+    "markup/captions/missing",
     [`${ID}.videos`],
     (page) => {
         const facts = markupOf(page);
@@ -93,7 +93,7 @@ const captions = pageRule(
 const EXPECTED: Record<string, string> = { email: "email", tel: "tel", "tel-national": "tel", "tel-local": "tel", url: "url", photo: "url", impp: "url" };
 
 const inputType = pageRule(
-    "markup/input-type",
+    "markup/input-type/mismatch",
     ["html.inputs"],
     (page) => {
         if (!page.html) return;
@@ -113,11 +113,11 @@ const inputType = pageRule(
 export default {
     name: "markup",
     extractors: [{ id: ID, extract }],
-    rules: { "markup/lang-switcher": langSwitcher, "markup/captions": captions, "markup/input-type": inputType },
+    rules: { "markup/lang-switcher/mismatch": langSwitcher, "markup/captions/missing": captions, "markup/input-type/mismatch": inputType },
     presets: {
         markup: {
             description: "Markup the crawl can judge alone: language switcher links, video captions, input types matching their autocomplete",
-            rules: { "markup/lang-switcher": { severity: "warning", score: 4.8 }, "markup/captions": { severity: "warning", score: 6 }, "markup/input-type": { severity: "warning", score: 4.4 } },
+            rules: { "markup/lang-switcher/mismatch": { severity: "warning", score: 4.8 }, "markup/captions/missing": { severity: "warning", score: 6 }, "markup/input-type/mismatch": { severity: "warning", score: 4.4 } },
         },
     },
 } satisfies Plugin;

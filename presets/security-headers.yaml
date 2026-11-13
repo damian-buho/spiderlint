@@ -4,7 +4,7 @@
 ---
 description: HSTS, CSP, nosniff, Referrer-Policy, framing and cross-origin isolation
 rules:
-  http/hsts:
+  http/hsts/weak:
     fact: http.parsed.strict-transport-security.value.max-age
     expect: {type: integer, minimum: 1000000}
     when: {url.protocol: "https:", http.parsed.strict-transport-security.errors: {maxItems: 0}}
@@ -13,7 +13,7 @@ rules:
     message: "Strict-Transport-Security should carry max-age of 1000000 or more"
     fix: "Send Strict-Transport-Security: max-age=63072000; includeSubDomains."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
-  http/csp:
+  http/csp/missing:
     fact: http.csp.directives
     expect: {type: object}
     when: {http.document: true}
@@ -22,7 +22,7 @@ rules:
     message: "no enforced Content-Security-Policy, in a header or a <meta>"
     fix: "Send a Content-Security-Policy header that allows only the origins and directives the page needs."
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
-  http/content-type-options:
+  http/content-type-options/invalid:
     fact: http.headers.x-content-type-options
     expect: {type: string, pattern: "^nosniff$"}
     severity: warning
@@ -30,7 +30,7 @@ rules:
     message: "X-Content-Type-Options should be nosniff"
     fix: "Send X-Content-Type-Options: nosniff."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
-  http/referrer-policy:
+  http/referrer-policy/insecure:
     fact: http.parsed.referrer-policy.value
     expect: {type: string, not: {enum: [unsafe-url, no-referrer-when-downgrade]}}
     when: {http.parsed.referrer-policy.errors: {maxItems: 0}}
@@ -39,12 +39,12 @@ rules:
     message: "Referrer-Policy should not leak full URLs"
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
-  http/frame-options:
+  http/frame-options/missing:
     when: {http.document: true}
     severity: info
     score: 3.0
-  http/server-disclosure: warning
-  http/hsts-subdomains:
+  http/server/disclosing: warning
+  http/hsts-subdomains/missing:
     fact: http.parsed.strict-transport-security.value
     expect: {required: [includesubdomains]}
     when: {url.protocol: "https:", http.parsed.strict-transport-security.value: {type: object}}
@@ -53,7 +53,7 @@ rules:
     message: "Strict-Transport-Security should carry includeSubDomains"
     fix: "Add includeSubDomains to the Strict-Transport-Security header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security#includesubdomains
-  http/permissions-policy:
+  http/permissions-policy/missing:
     fact: http.parsed.permissions-policy.value
     expect: {type: object, minProperties: 1}
     when: {http.document: true, http.parsed.permissions-policy.errors: {maxItems: 0}}
@@ -62,7 +62,7 @@ rules:
     message: "no Permissions-Policy header naming a feature"
     fix: "Send a Permissions-Policy header listing the features the page uses."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
-  http/coop:
+  http/coop/weak:
     fact: http.parsed.cross-origin-opener-policy.value
     expect: {enum: [same-origin, same-origin-allow-popups]}
     when: {http.document: true, http.parsed.cross-origin-opener-policy.errors: {maxItems: 0}}
@@ -71,7 +71,7 @@ rules:
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups"
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
-  http/corp:
+  http/corp/invalid:
     fact: http.headers.cross-origin-resource-policy
     expect: {enum: [same-origin, same-site, cross-origin]}
     severity: info
@@ -79,7 +79,7 @@ rules:
     message: "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin"
     fix: "Send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
-  http/csp-upgrade-insecure:
+  http/csp-upgrade-insecure/missing:
     fact: http.csp.directives
     expect: {required: [upgrade-insecure-requests]}
     when: {http.document: true, url.protocol: "https:", http.csp.directives: {type: object}}
@@ -88,7 +88,7 @@ rules:
     message: "Content-Security-Policy lacks upgrade-insecure-requests"
     fix: "Add upgrade-insecure-requests to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
-  http/csp-trusted-types:
+  http/csp-trusted-types/missing:
     fact: http.csp.directives
     expect: {required: [require-trusted-types-for], properties: {require-trusted-types-for: {contains: {pattern: "^(?i:'script')$"}}}}
     when: {http.document: true, http.csp.directives: {type: object}}
@@ -97,7 +97,7 @@ rules:
     message: "Content-Security-Policy lacks require-trusted-types-for 'script'"
     fix: "Add require-trusted-types-for 'script' to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
-  http/csp-script-src:
+  http/csp-script-src/missing:
     fact: http.csp.directives
     expect: {anyOf: [{required: [script-src]}, {required: [default-src]}]}
     when: {http.document: true, http.csp.directives: {type: object}}
@@ -106,7 +106,7 @@ rules:
     message: "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
     fix: "Set script-src to the origins that may run scripts, or default-src if every directive needs the same."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
-  http/csp-unsafe-inline:
+  http/csp-unsafe-inline/present:
     fact: http.csp.directives
     expect:
       if: {required: [script-src]}
@@ -118,7 +118,7 @@ rules:
     message: "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash"
     fix: "Replace 'unsafe-inline' with nonces or hashes."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_inline_script
-  http/csp-unsafe-eval:
+  http/csp-unsafe-eval/present:
     fact: http.csp.directives
     expect:
       if: {required: [script-src]}
@@ -130,7 +130,7 @@ rules:
     message: "Content-Security-Policy allows eval() with 'unsafe-eval'"
     fix: "Remove 'unsafe-eval' from script-src."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_eval_expressions
-  http/csp-script-wildcard:
+  http/csp-script-src/insecure:
     fact: http.csp.directives
     expect:
       if: {required: [script-src]}
@@ -142,7 +142,7 @@ rules:
     message: "Content-Security-Policy loads scripts from any host through a * or scheme-only source"
     fix: "Replace * and scheme-only sources with specific origins."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/Sources
-  http/csp-object-src:
+  http/csp-object-src/weak:
     fact: http.csp.directives
     expect:
       if: {required: [object-src]}
@@ -154,7 +154,7 @@ rules:
     message: "Content-Security-Policy should set object-src 'none'"
     fix: "Set object-src 'none' in the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
-  http/csp-base-uri:
+  http/csp-base-uri/missing:
     fact: http.csp.directives
     expect: {required: [base-uri]}
     when: {http.document: true, http.csp.directives: {type: object}}
@@ -163,7 +163,7 @@ rules:
     message: "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
     fix: "Add base-uri to the Content-Security-Policy, e.g. the site origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
-  http/csp-frame-ancestors:
+  http/csp-frame-ancestors/missing:
     fact: http.csp.directives
     expect: {required: [frame-ancestors]}
     when: {http.document: true, http.csp.directives: {type: object}}
@@ -172,7 +172,7 @@ rules:
     message: "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
     fix: "Add frame-ancestors to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
-  http/reporting-endpoints:
+  http/reporting-endpoints/missing:
     fact: http.parsed.reporting-endpoints.value
     expect: {type: object, minProperties: 1}
     when: {http.parsed.reporting-endpoints.errors: {maxItems: 0}}
@@ -182,7 +182,7 @@ rules:
     fix: "Send a Reporting-Endpoints header naming your reporting endpoints."
     extra: ["Report Relay https://dbuho.me/project/report-relay/ collects these reports and sends them to your Grafana: open source, self-hosted, free."]
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Reporting-Endpoints
-  http/no-x-xss-protection:
+  http/x-xss-protection/insecure:
     fact: http.headers
     expect: {properties: {x-xss-protection: {pattern: "^\\s*0\\s*$"}}}
     severity: warning
@@ -190,10 +190,10 @@ rules:
     message: "X-XSS-Protection should be absent or 0"
     fix: "Remove X-XSS-Protection."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection
-  http/deprecated-header:
+  http/header/deprecated:
     severity: info
     score: 1.2
-  http/hsts-syntax:
+  http/hsts/invalid:
     fact: http.parsed.strict-transport-security.errors
     expect: {maxItems: 0}
     when: {http.parsed.strict-transport-security: {type: object}}
@@ -202,7 +202,7 @@ rules:
     message: "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it"
     fix: "Send Strict-Transport-Security once, as max-age=63072000; includeSubDomains."
     docs: https://www.rfc-editor.org/rfc/rfc6797#section-6.1
-  http/csp-syntax:
+  http/csp/invalid:
     fact: http.parsed.content-security-policy.errors
     expect: {maxItems: 0}
     when: {http.document: true, http.parsed.content-security-policy: {type: object}}
@@ -211,7 +211,7 @@ rules:
     message: "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read"
     fix: "Spell every directive as CSP 3 names it and quote keywords, as in script-src 'self'."
     docs: https://www.w3.org/TR/CSP3/#framework-directives
-  http/permissions-policy-syntax:
+  http/permissions-policy/invalid:
     fact: http.parsed.permissions-policy.errors
     expect: {maxItems: 0}
     when: {http.document: true, http.parsed.permissions-policy: {type: object}}
@@ -220,7 +220,7 @@ rules:
     message: "Permissions-Policy breaks its structured-field grammar, so browsers ignore it"
     fix: "Write Permissions-Policy as a dictionary, as in camera=(), geolocation=(self)."
     docs: https://www.w3.org/TR/permissions-policy/#permissions-policy-http-header-field
-  http/referrer-policy-syntax:
+  http/referrer-policy/invalid:
     fact: http.parsed.referrer-policy.errors
     expect: {maxItems: 0}
     when: {http.parsed.referrer-policy: {type: object}}
@@ -229,7 +229,7 @@ rules:
     message: "Referrer-Policy breaks the Referrer Policy tokens"
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin."
     docs: https://www.w3.org/TR/referrer-policy/#referrer-policy-header
-  http/coop-syntax:
+  http/coop/invalid:
     fact: http.parsed.cross-origin-opener-policy.errors
     expect: {maxItems: 0}
     when: {http.document: true, http.parsed.cross-origin-opener-policy: {type: object}}
@@ -238,7 +238,7 @@ rules:
     message: "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it"
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers
-  http/coep-syntax:
+  http/coep/invalid:
     fact: http.parsed.cross-origin-embedder-policy.errors
     expect: {maxItems: 0}
     when: {http.parsed.cross-origin-embedder-policy: {type: object}}
@@ -247,7 +247,7 @@ rules:
     message: "Cross-Origin-Embedder-Policy breaks its structured-field grammar, so browsers ignore it"
     fix: "Send Cross-Origin-Embedder-Policy: credentialless."
     docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coep-headers
-  http/reporting-endpoints-syntax:
+  http/reporting-endpoints/invalid:
     fact: http.parsed.reporting-endpoints.errors
     expect: {maxItems: 0}
     when: {http.parsed.reporting-endpoints: {type: object}}

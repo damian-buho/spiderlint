@@ -26,7 +26,7 @@ function selfSigned(key: string[]): ReturnType<typeof tlsFacts> {
 function tlsFindings(tls: ReturnType<typeof tlsFacts>): string[] {
     const specs = resolveRuleset("spiderlint:tls", {});
     const page = { url: { href: "https://localhost/", protocol: "https:" }, tls } as unknown as Facts;
-    return ["tls/key-strength", "tls/signature"].flatMap((id) => (compileRule(id, specs[id] ?? {}) as PageRule).check(page, { sitemaps: [], role: "production" }) ?? []).map((finding) => finding.rule);
+    return ["tls/key/weak", "tls/signature/weak"].flatMap((id) => (compileRule(id, specs[id] ?? {}) as PageRule).check(page, { sitemaps: [], role: "production" }) ?? []).map((finding) => finding.rule);
 }
 
 describe("transport facts", () => {
@@ -84,8 +84,8 @@ describe("transport facts", () => {
         assert.deepEqual(tlsFindings(strong), []);
         const small = selfSigned(["-newkey", "rsa:1024"]);
         assert.deepEqual(small?.cert.key, { type: "RSA", bits: 1024 });
-        assert.deepEqual(tlsFindings(small), ["tls/key-strength"]);
-        assert.deepEqual(tlsFindings(selfSigned(["-newkey", "rsa:2048", "-sha1"])), ["tls/signature"]);
+        assert.deepEqual(tlsFindings(small), ["tls/key/weak"]);
+        assert.deepEqual(tlsFindings(selfSigned(["-newkey", "rsa:2048", "-sha1"])), ["tls/signature/weak"]);
     });
 });
 

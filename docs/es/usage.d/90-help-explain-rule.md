@@ -18,5 +18,5 @@ Options for every command, see spiderlint --help:
 
 Examples:
   Explain a rule before turning it on:
-    spiderlint explain-rule html/theme-color-schemes
+    spiderlint explain-rule html/theme-color-dark/missing
 ```

@@ -41,42 +41,42 @@ describe("well-known plugin", () => {
     it("faults every malformed file, the missing change-password and an unregistered suffix", async () => {
         const report = await audit({ seeds: [`${broken.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
         const expected = [
-            "agent-card",
-            "agent-skills",
-            "ai-catalog",
-            "api-catalog",
-            "apple-app-site-association",
-            "assetlinks",
-            "change-password",
-            "gpc",
-            "llms-full-txt-markdown",
-            "llms-full-txt-valid",
-            "llms-txt-markdown",
-            "llms-txt-valid",
-            "markdown-source",
-            "mcp-server-card",
-            "nodeinfo",
-            "oauth-authorization-server",
-            "oauth-protected-resource",
-            "okf",
-            "openid-configuration",
-            "registered",
-            "schemamap",
-            "security-txt-expires",
-            "security-txt-valid",
-            "tdmrep",
-            "traffic-advice",
-            "webauthn",
+            "agent-card/invalid",
+            "agent-skills/invalid",
+            "ai-catalog/invalid",
+            "api-catalog/invalid",
+            "apple-app-site-association/invalid",
+            "assetlinks/invalid",
+            "change-password/missing",
+            "gpc/invalid",
+            "llms-full-txt-markdown/invalid",
+            "llms-full-txt/invalid",
+            "llms-txt-markdown/invalid",
+            "llms-txt/invalid",
+            "markdown-source/missing",
+            "mcp-server-card/invalid",
+            "nodeinfo/invalid",
+            "oauth-authorization-server/invalid",
+            "oauth-protected-resource/invalid",
+            "okf/invalid",
+            "openid-configuration/invalid",
+            "schemamap/invalid",
+            "security-txt-expires/invalid",
+            "security-txt/invalid",
+            "suffix/unknown",
+            "tdmrep/invalid",
+            "traffic-advice/invalid",
+            "webauthn/invalid",
         ];
         assert.deepEqual(
             rules(report),
             expected.map((id) => `well-known/${id}`),
         );
         const message = (id: string): string => report.findings.find((finding) => finding.rule === `well-known/${id}`)?.message ?? "";
-        assert.match(message("security-txt-valid"), /line 2 is not a field.*Contact nope is not a URI/);
-        assert.match(message("registered"), /“made-up”/);
-        assert.match(message("llms-txt-markdown"), /4:1 no-alt-text/);
-        assert.match(message("llms-full-txt-markdown"), /5:1 no-reversed-links/);
+        assert.match(message("security-txt/invalid"), /line 2 is not a field.*Contact nope is not a URI/);
+        assert.match(message("suffix/unknown"), /“made-up”/);
+        assert.match(message("llms-txt-markdown/invalid"), /4:1 no-alt-text/);
+        assert.match(message("llms-full-txt-markdown/invalid"), /5:1 no-reversed-links/);
         const agents = report.site.origins?.[broken.origin]?.agents as Record<string, { errors: string[] }>;
         const errors = (key: string): string => agents[key]?.errors.join("\n") ?? "";
         for (const key of ["llms-txt", "llms-full-txt"]) for (const link of ["/missing", "/gone-ref", "/gone-auto"]) assert.match(errors(key), new RegExp(`${link} answers 404`), `${key} names ${link}`);
@@ -89,7 +89,7 @@ describe("well-known plugin", () => {
         const lean = await serveWellKnown("lean");
         try {
             const report = await audit({ seeds: [`${lean.origin}/`], rules: ["agents"], cacheMode: "off" });
-            assert.deepEqual(rules(report), ["well-known/llms-full-txt", "well-known/markdown-source"]);
+            assert.deepEqual(rules(report), ["well-known/llms-full-txt/missing", "well-known/markdown-source/missing"]);
         } finally {
             await lean.close();
         }
@@ -103,14 +103,14 @@ describe("well-known plugin", () => {
 
     it("reports only the absent security.txt, llms.txt and Markdown sources where every other file is missing", async () => {
         const report = await audit({ seeds: [`${site.origin}/`], excludeUrls: EXCLUDE, rules: ["well-known", "agents"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
+        assert.deepEqual(rules(report), ["well-known/llms-txt/missing", "well-known/markdown-source/missing", "well-known/security-txt/missing"]);
     });
 
     it("sends no probe robots.txt disallows and judges none of those files", async () => {
         const withheld = await serveWellKnown("withheld");
         try {
             const report = await audit({ seeds: [`${withheld.origin}/`], rules: ["well-known"], cacheMode: "off" });
-            assert.deepEqual(rules(report), ["well-known/registered"]);
+            assert.deepEqual(rules(report), ["well-known/suffix/unknown"]);
             assert.deepEqual(
                 withheld.requested.filter((requested) => requested.startsWith("/.well-known/")),
                 [],
@@ -124,7 +124,7 @@ describe("well-known plugin", () => {
         const withheld = await serveWellKnown("withheld");
         try {
             const report = await audit({ seeds: [`${withheld.origin}/`], rules: ["well-known"], robots: false, cacheMode: "off" });
-            assert.ok(rules(report).includes("well-known/security-txt-valid"));
+            assert.ok(rules(report).includes("well-known/security-txt/invalid"));
         } finally {
             await withheld.close();
         }
@@ -132,7 +132,7 @@ describe("well-known plugin", () => {
 
     it("takes a soft 404’s HTML for absence, not for malformed files", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["well-known", "agents"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["well-known/llms-txt", "well-known/markdown-source", "well-known/security-txt"]);
+        assert.deepEqual(rules(report), ["well-known/llms-txt/missing", "well-known/markdown-source/missing", "well-known/security-txt/missing"]);
     });
 
     it("probes a broken uncrawled llms.txt link again on every run", async () => {
@@ -147,7 +147,7 @@ describe("well-known plugin", () => {
             const requested = new Set(broken.requested.slice(before));
             assert.ok(requested.has("/llms.txt"), "the agents extractor ran again");
             assert.ok(requested.has("/uncrawled"), "a broken answer is never stored");
-            assert.match(report.findings.find((finding) => finding.rule === "well-known/llms-txt-valid")?.message ?? "", /\/uncrawled answers 404/);
+            assert.match(report.findings.find((finding) => finding.rule === "well-known/llms-txt/invalid")?.message ?? "", /\/uncrawled answers 404/);
         } finally {
             if (saved === undefined) delete process.env.XDG_CACHE_HOME;
             else process.env.XDG_CACHE_HOME = saved;
@@ -191,7 +191,7 @@ describe("well-known plugin", () => {
                 source.map((entry) => [entry.present, new URL(entry.twin.url).pathname]),
                 [[true, "/dir.md"]],
             );
-            assert.ok(!rules(report).includes("well-known/markdown-source"));
+            assert.ok(!rules(report).includes("well-known/markdown-source/missing"));
         } finally {
             await new Promise<void>((resolve) => server.close(() => resolve()));
         }

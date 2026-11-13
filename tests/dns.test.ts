@@ -177,7 +177,21 @@ describe("dns plugin", () => {
     it("finds each fault of a bad zone", async () => {
         const facts = await extract("www.bad.fixture", [page("www.bad.fixture", "Let's Encrypt", ["https://old.bad.fixture/x", "https://elsewhere.example/"])], dnsClient(fixture.server, off(), true, fixture.port));
         assert.equal((facts.dns as { zone: string }).zone, "bad.fixture");
-        assert.deepEqual(findings({ "www.bad.fixture": facts }), ["dns/aaaa", "dns/agents", "dns/caa", "dns/cname-chain", "dns/dnssec-algorithm", "dns/https-record", "dns/ns-count", "dns/ns-delegation", "dns/ns-diversity", "dns/ns-lame", "dns/nsec3-iterations", "dns/rrsig-expiry", "dns/soa-timers"]);
+        assert.deepEqual(findings({ "www.bad.fixture": facts }), [
+            "dns/aaaa/missing",
+            "dns/agents/missing",
+            "dns/caa/missing",
+            "dns/cname-chain/excessive",
+            "dns/dnssec-algorithm/deprecated",
+            "dns/https-record/missing",
+            "dns/ns-delegation/broken",
+            "dns/ns-delegation/mismatch",
+            "dns/ns-network/single",
+            "dns/ns/single",
+            "dns/nsec3-iterations/excessive",
+            "dns/rrsig/expiring",
+            "dns/soa-timers/range",
+        ]);
         assert.deepEqual((facts.nameservers as { delegation: object }).delegation, { servers: ["ns.old-host.fixture", "ns1.bad.fixture"], matches: false, differs: ["ns.old-host.fixture is delegated by the parent but not in the zone’s NS records"] });
         assert.equal((facts.nameservers as { soa: { expire: number } }).soa.expire, 3600);
     });
@@ -189,12 +203,12 @@ describe("dns plugin", () => {
             differing: ["a.ns.cloudflare.com answers A 192.0.2.1", "ns1.desec.io answers nothing"],
             delegation: { servers: ["a.ns.cloudflare.com"], matches: false, differs: ["ns1.desec.io is in the zone’s NS records but not delegated by the parent"] },
         };
-        const run = runRules([], new Map([["default", compileRulesets(["dns/ns-consistent", "dns/ns-lame", "dns/ns-answers", "dns/ns-delegation"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers } } });
+        const run = runRules([], new Map([["default", compileRulesets(["dns/ns-serial/mismatch", "dns/ns-delegation/broken", "dns/ns-answers/mismatch", "dns/ns-delegation/mismatch"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers } } });
         const said = Object.fromEntries(run.findings.map((finding) => [finding.rule, finding.message]));
-        assert.match(said["dns/ns-consistent"] ?? "", /\(got 6, 7\)$/);
-        assert.match(said["dns/ns-lame"] ?? "", /: “ns1\.desec\.io”, “ns2\.desec\.org”;/);
-        assert.match(said["dns/ns-answers"] ?? "", /a\.ns\.cloudflare\.com answers A 192\.0\.2\.1/);
-        assert.match(said["dns/ns-delegation"] ?? "", /ns1\.desec\.io is in the zone’s NS records but not delegated/);
+        assert.match(said["dns/ns-serial/mismatch"] ?? "", /\(got 6, 7\)$/);
+        assert.match(said["dns/ns-delegation/broken"] ?? "", /: “ns1\.desec\.io”, “ns2\.desec\.org”;/);
+        assert.match(said["dns/ns-answers/mismatch"] ?? "", /a\.ns\.cloudflare\.com answers A 192\.0\.2\.1/);
+        assert.match(said["dns/ns-delegation/mismatch"] ?? "", /ns1\.desec\.io is in the zone’s NS records but not delegated/);
     });
 
     it("reads the delegation, SOA and authoritative TTLs of a good zone", async () => {
@@ -204,26 +218,26 @@ describe("dns plugin", () => {
         assert.deepEqual(servers.soa, { mname: "ns1.good.fixture", refresh: 3600, retry: 600, expire: 1_209_600, minimum: 300, "retry-below-refresh": true, "mname-listed": true });
         assert.deepEqual(servers.ttl, { ns: 300, a: 300, aaaa: 300 });
         assert.deepEqual(
-            findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl"),
-            ["dns/ttl"],
+            findings({ "good.fixture": { nameservers: { ...servers, ttl: { a: 30, ns: 300 } } } }).filter((rule) => rule === "dns/ttl/range"),
+            ["dns/ttl/range"],
         );
     });
 
     it("names the SOA field out of range and spares a zone whose provider fixes the SOA", () => {
         const timers = { mname: "adam.ns.cloudflare.com", refresh: 10_000, retry: 2400, expire: 604_800, minimum: 1800, "retry-below-refresh": true, "mname-listed": true };
-        const run = runRules([], new Map([["default", compileRulesets(["dns/soa-timers"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers: { soa: timers } } } });
+        const run = runRules([], new Map([["default", compileRulesets(["dns/soa-timers/range"], {})]]), { sitemaps: [], hosts: { "a.fixture": { nameservers: { soa: timers } } } });
         assert.match(run.findings[0]?.message ?? "", /^the SOA expire is 604800, outside/);
         assert.deepEqual(dnsProvider(["adam.ns.cloudflare.com", "Lucy.NS.Cloudflare.com."])?.provider, "Cloudflare");
         assert.deepEqual(dnsProvider(["ns-1.awsdns-01.co.uk", "ns-2.awsdns-02.org"])?.["soa-editable"], true);
         assert.equal(dnsProvider(["adam.ns.cloudflare.com", "ns1.own.fixture"]), undefined);
-        const managed = (isEditable: boolean) => findings({ "a.fixture": { nameservers: { soa: timers, provider: { name: "X", "soa-editable": isEditable, docs: "" } } } }).filter((rule) => rule === "dns/soa-timers");
-        assert.deepEqual([managed(false), managed(true)], [[], ["dns/soa-timers"]]);
+        const managed = (isEditable: boolean) => findings({ "a.fixture": { nameservers: { soa: timers, provider: { name: "X", "soa-editable": isEditable, docs: "" } } } }).filter((rule) => rule === "dns/soa-timers/range");
+        assert.deepEqual([managed(false), managed(true)], [[], ["dns/soa-timers/range"]]);
     });
 
     it("finds a CNAME at the zone apex", async () => {
         const facts = await extract("alias.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((facts.dns as { "apex-cname": string })["apex-cname"], "good.fixture");
-        assert.ok(findings({ "alias.fixture": facts }).includes("dns/apex-cname"));
+        assert.ok(findings({ "alias.fixture": facts }).includes("dns/apex-cname/present"));
         const good = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((good.dns as { "apex-cname": unknown })["apex-cname"], false);
     });
@@ -236,7 +250,7 @@ describe("dns plugin", () => {
                 (facts.nameservers as { servers: { recursive: boolean }[] }).servers.map((server) => server.recursive),
                 [true, true],
             );
-            assert.deepEqual(findings({ "good.fixture": facts }), ["dns/open-recursion"]);
+            assert.deepEqual(findings({ "good.fixture": facts }), ["dns/recursion/insecure"]);
         } finally {
             await open.close();
         }
@@ -247,15 +261,15 @@ describe("dns plugin", () => {
         const caa = (...records: object[]) => ({ "good.fixture": { ...facts, dns: { ...(facts.dns as object), caa: { at: "good.fixture", records } } } });
         const iodef = { flags: 0, tag: "iodef", value: "https://rr.good.fixture" };
         const issue = { flags: 0, tag: "issue", value: "letsencrypt.org" };
-        assert.deepEqual(findings(caa(iodef), "dns:core"), ["dns/caa"]);
-        assert.deepEqual(findings(caa(issue), "dns:core"), ["dns/caa-iodef"]);
-        assert.deepEqual(findings(caa(issue, iodef, { flags: 128, tag: "tbs", value: "x" }), "dns:core"), ["dns/caa-critical"]);
+        assert.deepEqual(findings(caa(iodef), "dns:core"), ["dns/caa/missing"]);
+        assert.deepEqual(findings(caa(issue), "dns:core"), ["dns/caa-iodef/missing"]);
+        assert.deepEqual(findings(caa(issue, iodef, { flags: 128, tag: "tbs", value: "x" }), "dns:core"), ["dns/caa-flags/invalid"]);
         assert.deepEqual(findings(caa(issue, iodef, { flags: 128, tag: "issuewild", value: ";" }), "dns:core"), []);
     });
 
     it("judges CAA against the certificate actually served, and h3 against Alt-Svc", async () => {
         const facts = await extract("good.fixture", [page("good.fixture", "Actalis S.p.A.")], dnsClient(fixture.server, off(), false));
-        assert.deepEqual(findings({ "good.fixture": facts }), ["dns/caa-issuer", "dns/https-alpn"]);
+        assert.deepEqual(findings({ "good.fixture": facts }), ["dns/caa-issuer/mismatch", "dns/https-alpn/mismatch"]);
         const unknown = await extract("good.fixture", [page("good.fixture", "Snake Oil CA", [], 'h3=":443"')], dnsClient(fixture.server, off(), false));
         assert.deepEqual(findings({ "good.fixture": unknown }), []);
     });
@@ -263,7 +277,7 @@ describe("dns plugin", () => {
     it("reports a bogus zone only through a validating resolver", async () => {
         const validated = await extract("bogus.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((validated.dnssec as { bogus: boolean }).bogus, true);
-        assert.ok(findings({ "bogus.fixture": validated }).includes("dns/dnssec-bogus"));
+        assert.ok(findings({ "bogus.fixture": validated }).includes("dns/dnssec/broken"));
         const unvalidated = await extract("bogus.fixture", [], dnsClient(plain.server, off(), false));
         assert.equal((unvalidated.dnssec as { bogus?: boolean }).bogus, undefined);
     });
@@ -275,13 +289,13 @@ describe("dns plugin", () => {
         const sending = await extract("www.bad.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((sending.mail as { dmarc: { policy: string } }).dmarc.policy, "none", "a subdomain takes the organisational sp= policy");
         assert.equal((sending.mail as { intent: string }).intent, "both");
-        assert.deepEqual(findings({ "www.bad.fixture": sending }, "dns:mail"), ["dns/dmarc-policy"]);
+        assert.deepEqual(findings({ "www.bad.fixture": sending }, "dns:mail"), ["dns/dmarc-policy/weak"]);
         const silent = await extract("good.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((silent.mail as { intent: string }).intent, "none");
-        assert.deepEqual(findings({ "good.fixture": silent }, "dns:mail"), ["dns/dmarc-reject", "dns/null-mx", "dns/spf-none"]);
+        assert.deepEqual(findings({ "good.fixture": silent }, "dns:mail"), ["dns/dmarc-reject/missing", "dns/null-mx/missing", "dns/spf-null/missing"]);
         const mixed = await extract("mixed.fixture", [], dnsClient(fixture.server, off(), false));
         assert.equal((mixed.mail as { intent: string }).intent, "both");
-        assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc-policy", "dns/null-mx-mixed", "dns/spf-all", "dns/spf-record"]);
+        assert.deepEqual(findings({ "mixed.fixture": mixed }, "dns:mail"), ["dns/dmarc-policy/weak", "dns/null-mx/invalid", "dns/spf-all/weak", "dns/spf/duplicate"]);
     });
 
     it("finds nothing in a clean mail domain, and one finding per fault in each broken one", async () => {
@@ -291,13 +305,13 @@ describe("dns plugin", () => {
         assert.deepEqual((clean.mail as { "spf-walk": object })["spf-walk"], { errors: [], lookups: 2, "void-lookups": 0, ptr: false, "after-all": [], redundant: [], "missing-includes": [] });
         assert.deepEqual(findings({ "clean.fixture": clean }, "mail"), []);
         const faults: [string, string[]][] = [
-            ["lookups.fixture", ["mail/spf-lookups"]],
-            ["plusall.fixture", ["dns/spf-all"]],
-            ["twospf.fixture", ["dns/spf-record"]],
-            ["dmarcnone.fixture", ["dns/dmarc-policy", "mail/dmarc-external"]],
-            ["weakdkim.fixture", ["mail/dkim-key"]],
-            ["cnamemx.fixture", ["mail/mx-cname"]],
-            ["mtasts.fixture", ["mail/mta-sts-mx"]],
+            ["lookups.fixture", ["mail/spf-lookups/excessive"]],
+            ["plusall.fixture", ["dns/spf-all/weak"]],
+            ["twospf.fixture", ["dns/spf/duplicate"]],
+            ["dmarcnone.fixture", ["dns/dmarc-policy/weak", "mail/dmarc-external-auth/missing"]],
+            ["weakdkim.fixture", ["mail/dkim-key/invalid"]],
+            ["cnamemx.fixture", ["mail/mx-cname/present"]],
+            ["mtasts.fixture", ["mail/mta-sts-mx/mismatch"]],
         ];
         for (const [domain, expected] of faults) assert.deepEqual(findings({ [domain]: await extract(domain, [], client) }, "mail"), expected, domain);
     });
@@ -318,18 +332,18 @@ describe("dns plugin", () => {
         assert.deepEqual([(messy["mta-sts"]?.policy as Record<string, unknown>).mode, (messy["mta-sts"]?.policy as Record<string, unknown>).unmatched], ["testing", []]);
         assert.deepEqual((messy.bimi?.logo as { errors: string[] }).errors, ["<script> is not allowed", "href https://elsewhere.fixture/x.png is an external reference", "version is 1.1, not 1.2", "baseProfile is missing, not tiny-ps", "no <title>"]);
         assert.deepEqual(findings({ "messy.fixture": { mail: messy } }, "mail"), [
-            "mail/bimi-dmarc",
-            "mail/bimi-logo",
-            "mail/dkim-revoked",
-            "mail/dkim-testing",
-            "mail/dmarc-syntax",
-            "mail/mta-sts-max-age",
-            "mail/mta-sts-mode",
-            "mail/spf-after-all",
-            "mail/spf-include",
-            "mail/spf-ptr",
-            "mail/spf-redundant",
-            "mail/tls-rpt-syntax",
+            "mail/bimi-dmarc/weak",
+            "mail/bimi-logo/invalid",
+            "mail/dkim-revoked/present",
+            "mail/dkim-testing/present",
+            "mail/dmarc/invalid",
+            "mail/mta-sts-max-age/weak",
+            "mail/mta-sts-mode/weak",
+            "mail/spf-after-all/unused",
+            "mail/spf-include/broken",
+            "mail/spf-ptr/deprecated",
+            "mail/spf/redundant",
+            "mail/tls-rpt/invalid",
         ]);
     });
 
@@ -338,7 +352,7 @@ describe("dns plugin", () => {
         assert.deepEqual(findings({ "quiet.fixture": await extract("quiet.fixture", [], client) }, "mail"), []);
         const forced = await extract("quiet.fixture", [], client, { mode: "mail" });
         assert.equal((forced.mail as { mode: string }).mode, "mail");
-        assert.ok(findings({ "quiet.fixture": forced }, "mail").includes("dns/null-mx-mixed"));
+        assert.ok(findings({ "quiet.fixture": forced }, "mail").includes("dns/null-mx/invalid"));
         const silenced = await extract("clean.fixture", [], client, { mode: "none" });
         assert.deepEqual(Object.keys(silenced.mail as object), ["mx", "spf", "dmarc", "intent", "mode"]);
     });
@@ -391,11 +405,11 @@ describe("dns plugin", () => {
         assert.equal((site.hosts?.["www.bad.fixture"]?.dns as { dangling: unknown }).dangling, false);
         const reported = keyed(site, "dns");
         assert.deepEqual(
-            reported.filter(([rule]) => rule === "dns/dangling-cname"),
-            [["dns/dangling-cname", "old.bad.fixture"]],
+            reported.filter(([rule]) => rule === "dns/cname/insecure"),
+            [["dns/cname/insecure", "old.bad.fixture"]],
         );
         assert.ok(
-            reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/dangling-cname"),
+            reported.every(([rule, subject]) => subject === "www.bad.fixture" || rule === "dns/cname/insecure"),
             "only the linked rule judges the linked host",
         );
     });
@@ -421,8 +435,8 @@ describe("dns plugin", () => {
         const facts = (await nameservers?.extract("split.fixture", { pages: [], signal: new AbortController().signal, dns: stub } as unknown as SiteContext)) as Record<string, unknown>;
         assert.deepEqual([facts["answer-sets"], facts["resolver-agrees"], facts.resolver], [2, false, ["A 203.0.113.9"]]);
         assert.deepEqual(
-            findings({ "split.fixture": { nameservers: facts } }).filter((rule) => /^dns\/ns-(answers|resolver)$/.test(rule)),
-            ["dns/ns-answers", "dns/ns-resolver"],
+            findings({ "split.fixture": { nameservers: facts } }).filter((rule) => /^dns\/ns-(answers|resolver)\//.test(rule)),
+            ["dns/ns-answers/mismatch", "dns/ns-resolver/mismatch"],
         );
     });
 
@@ -438,7 +452,7 @@ describe("dns plugin", () => {
             assert.deepEqual(bogus.rcodes, ["SERVFAIL", "NOERROR"]);
             assert.deepEqual(
                 findings({ "good.fixture": { resolvers: good, dnssec: { signed: true } }, "bogus.fixture": { resolvers: bogus } }).filter((rule) => rule.startsWith("dns/resolver-")),
-                ["dns/resolver-answers", "dns/resolver-rcode", "dns/resolver-validation"],
+                ["dns/resolver-answers/mismatch", "dns/resolver-rcode/broken", "dns/resolver-validation/broken"],
             );
         } finally {
             await other.close();
@@ -513,9 +527,9 @@ describe("rdap", () => {
         const run = context();
         const hosts = Object.fromEntries(await Promise.all(["www.expiring.fixture", "unlocked.fixture", "moved.fixture"].map(async (host) => [host, { rdap: await rdap?.extract(host, run) }])));
         assert.deepEqual(keyed({ sitemaps: [], hosts }, "dns"), [
-            ["domain/expiring", "www.expiring.fixture"],
-            ["domain/lock", "unlocked.fixture"],
-            ["domain/ns-registry", "moved.fixture"],
+            ["domain/ns-registry/mismatch", "moved.fixture"],
+            ["domain/registration/expiring", "www.expiring.fixture"],
+            ["domain/transfer-lock/missing", "unlocked.fixture"],
         ]);
         const moved = (hosts["moved.fixture"] as { rdap: { "ns-differs": string[] } }).rdap["ns-differs"];
         assert.ok(moved.length > 0 && moved.every((line) => /registry|zone/.test(line)), moved.join("; "));

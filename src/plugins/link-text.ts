@@ -66,7 +66,7 @@ async function extract(page: Facts, body: string): Promise<LinkTextFacts | undef
 }
 
 const generic = pageRule(
-    "link-text/generic",
+    "link-text/label/inaccessible",
     [`${ID}.generic`],
     (page) => {
         const facts = page[ID] as LinkTextFacts | undefined;
@@ -80,11 +80,11 @@ const generic = pageRule(
 export default {
     name: "link-text",
     extractors: [{ id: ID, extract }],
-    rules: { "link-text/generic": generic },
+    rules: { "link-text/label/inaccessible": generic },
     presets: {
         "link-text": {
             description: "Links whose text says where they lead, judged in the page’s own language: English, Spanish and Ukrainian",
-            rules: { "link-text/generic": { severity: "warning", score: 4.6 } },
+            rules: { "link-text/label/inaccessible": { severity: "warning", score: 4.6 } },
         },
     },
 } satisfies Plugin;

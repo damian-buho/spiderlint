@@ -4,7 +4,7 @@
 ---
 description: Redirect chain length and permanent redirects
 rules:
-  redirects/chain-length:
+  redirects/chain/excessive:
     fact: http.redirects
     expect: {type: array, maxItems: 2}
     severity: warning
@@ -12,7 +12,7 @@ rules:
     message: "takes more than 2 redirects to land"
     fix: "Collapse the redirect chain so the final URL is reached in one or two hops."
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
-  redirects/permanent:
+  redirects/status/temporary:
     fact: http.redirects
     expect: {type: array, items: {properties: {status: {enum: [301, 308]}}}}
     when: {http.status: {minimum: 200, maximum: 299}}

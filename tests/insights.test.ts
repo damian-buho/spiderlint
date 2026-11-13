@@ -39,8 +39,8 @@ describe("insights", () => {
         assert.deepEqual(
             found.map((finding) => [finding.rule, finding.severity, finding.urls]),
             [
-                ["insight/numeric-outlier", "info", ["https://site.test/p/2"]],
-                ["insight/minority-value", "info", ["https://site.test/p/1"]],
+                ["insight/number/outlier", "info", ["https://site.test/p/2"]],
+                ["insight/value/inconsistent", "info", ["https://site.test/p/1"]],
             ],
         );
         assert.equal(found[0]?.message, "Total time is far above the median 101 ms of 25 pages; the first alone outweighs the next 10 pages combined");
@@ -50,7 +50,7 @@ describe("insights", () => {
     });
 
     it("writes a size in kilobytes with its ratio to the median, and keeps the raw numbers in the value", () => {
-        const rule = compileRulesets(["custom"], { custom: { rules: { "insight/numeric-outlier": { expect: { facts: ["http.size.body"] } } } } })[0] as AggregateRule;
+        const rule = compileRulesets(["custom"], { custom: { rules: { "insight/number/outlier": { expect: { facts: ["http.size.body"] } } } } })[0] as AggregateRule;
         const pages = Array.from({ length: 20 }, (_, index) => page(index, "3.0", 100, index === 0 ? 86_700 : 10_900 + index));
         const [finding] = rule.check(pages) ?? [];
         assert.equal(finding?.message, "Page size is far above the median 10.9 kB of 20 pages");
@@ -60,7 +60,7 @@ describe("insights", () => {
 
     it("leaves a feed among HTML pages alone", () => {
         const pages = site(25).map((facts, index) => (index === 1 ? { ...facts, http: { ...facts.http, version: "3.0", "content-type": "application/rss+xml" } } : facts));
-        assert.ok(insights(pages).every((finding) => finding.rule !== "insight/minority-value"));
+        assert.ok(insights(pages).every((finding) => finding.rule !== "insight/value/inconsistent"));
     });
 
     it("stays quiet on a site of 5 pages", () => {
@@ -68,7 +68,7 @@ describe("insights", () => {
     });
 
     it("keeps quiet when most values are equal and one differs a little, then flags a far one", () => {
-        const rule = compileRulesets(["insight/numeric-outlier"], {})[0] as AggregateRule;
+        const rule = compileRulesets(["insight/number/outlier"], {})[0] as AggregateRule;
         const flat = Array.from({ length: 20 }, (_, index) => page(index, "3.0", 100, index === 0 ? 1100 : 1000));
         assert.deepEqual(rule.check(flat), []);
         flat[0] = page(0, "3.0", 100, 50_000);
@@ -82,7 +82,7 @@ describe("insights", () => {
         const pages = site(25);
         for (const facts of pages.slice(3, 10)) facts.http.status = 404;
         assert.deepEqual(insights(pages), []);
-        const rule = compileRulesets(["custom"], { custom: { rules: { "insight/minority-value": { expect: { facts: ["http.version"], share: 0.2, "min-pages": 5 } } } } })[0] as AggregateRule;
+        const rule = compileRulesets(["custom"], { custom: { rules: { "insight/value/inconsistent": { expect: { facts: ["http.version"], share: 0.2, "min-pages": 5 } } } } })[0] as AggregateRule;
         assert.deepEqual(
             rule.check(site(5))?.map((finding) => finding.urls),
             [["https://site.test/p/1"]],

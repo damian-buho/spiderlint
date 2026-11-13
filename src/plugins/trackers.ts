@@ -18,7 +18,7 @@ function vendorOf(host: string): string | undefined {
 
 // One finding per tracker vendor a page loads from, with its hosts and the pages loading it.
 const inventory: Make = (severity) => ({
-    meta: { id: "trackers/inventory", severity, scope: "site", facts: ["resources"], docs: "https://specification.website/spec/privacy/analytics-privacy/", fix: "Drop the vendor, or name it in the privacy policy and load it only after consent." },
+    meta: { id: "trackers/vendor/present", severity, scope: "site", facts: ["resources"], docs: "https://specification.website/spec/privacy/analytics-privacy/", fix: "Drop the vendor, or name it in the privacy policy and load it only after consent." },
     check(pages: Facts[]) {
         const found = new Map<string, { hosts: Set<string>; urls: Set<string> }>();
         for (const page of pages) {
@@ -33,11 +33,11 @@ const inventory: Make = (severity) => ({
                 entry.urls.add(page.url.href);
             }
         }
-        log.debug({ rule: "trackers/inventory", pages: pages.length, vendors: found.keys().toArray() }, "trackers inventoried");
+        log.debug({ rule: "trackers/vendor/present", pages: pages.length, vendors: found.keys().toArray() }, "trackers inventoried");
         return found
             .entries()
             .map(([vendor, { hosts, urls }]): Finding => ({
-                rule: "trackers/inventory",
+                rule: "trackers/vendor/present",
                 severity,
                 scope: "site",
                 url: `https://${hosts.values().next().value}/`,
@@ -52,11 +52,11 @@ const inventory: Make = (severity) => ({
 
 export default {
     name: "trackers",
-    rules: { "trackers/inventory": inventory },
+    rules: { "trackers/vendor/present": inventory },
     presets: {
         trackers: {
             description: "Inventory of the analytics and ad-tech vendors the site loads, from a hand-kept host list",
-            rules: { "trackers/inventory": { severity: "info", score: 2.6 } },
+            rules: { "trackers/vendor/present": { severity: "info", score: 2.6 } },
         },
     },
 } satisfies Plugin;

@@ -253,21 +253,22 @@ async function extractInline(page: Facts, body: string): Promise<CssFacts | unde
 }
 
 // What each kind of message costs the page, its docs and its fix.
-const KINDS: Record<Kind, { name: string; says: Record<"sheet" | "inline", string>; docs: string; fix: string }> = {
+const KINDS: Record<Kind, { name: string; inline?: string; says: Record<"sheet" | "inline", string>; docs: string; fix: string }> = {
     parse: {
-        name: "parse-error",
+        name: "stylesheet/invalid",
+        inline: "style/invalid",
         says: { sheet: "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages", inline: "inline CSS has syntax errors, so browsers drop the rule or block each sits in" },
         docs: "https://www.w3.org/TR/css-syntax-3/#error-handling",
         fix: 'Close every block and string, and write selectors browsers accept, as in a::before { content: "" }.',
     },
     property: {
-        name: "unknown-property",
+        name: "property/unknown",
         says: { sheet: "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages", inline: "inline CSS names properties browsers do not know, so they drop those declarations" },
         docs: "https://developer.mozilla.org/docs/Web/CSS/Reference",
         fix: "Correct the property name, as in color: red for colr: red, or remove the declaration.",
     },
     value: {
-        name: "invalid-value",
+        name: "value/invalid",
         says: { sheet: "the style sheet carries values outside a property’s grammar, so browsers drop those declarations; used by these pages", inline: "inline CSS carries values outside a property’s grammar, so browsers drop those declarations" },
         docs: "https://developer.mozilla.org/docs/Web/CSS/CSS_values_and_units/Value_definition_syntax",
         fix: "Give the property a value its grammar accepts, as in margin: calc(-1 * var(--gap)) for margin: -var(--gap).",
@@ -282,7 +283,7 @@ const located = (message: CssMessage) => [`${message.line}:${message.column}`, m
 
 // A style sheet rule, keyed by its URL, and its inline twin per page, over the messages of one kind.
 function kindRules(kind: Kind): Record<string, Make> {
-    const { name, says, docs, fix } = KINDS[kind];
+    const { name, inline: inlineName = name, says, docs, fix } = KINDS[kind];
     const of = (facts: CssFacts | undefined) => facts?.messages.filter((message) => message.kind === kind) ?? [];
     const sheet = resourceRule(
         `css/${name}`,
@@ -296,7 +297,7 @@ function kindRules(kind: Kind): Record<string, Make> {
         { docs, fix },
     );
     const inline = pageRule(
-        `css/inline-${name}`,
+        `css/inline-${inlineName}`,
         [`${ID}.messages`],
         (page) => {
             const facts = page[ID] as CssFacts | undefined;
@@ -305,7 +306,7 @@ function kindRules(kind: Kind): Record<string, Make> {
         },
         { docs, fix },
     );
-    return { [`css/${name}`]: sheet, [`css/inline-${name}`]: inline };
+    return { [`css/${name}`]: sheet, [`css/inline-${inlineName}`]: inline };
 }
 
 // The browsers a run judges support against, and the query naming them.
@@ -326,9 +327,9 @@ function targetsOf(settings: CssSettings): Targets | undefined {
             targetsByQuery.set(query, query === "" ? undefined : { query, browsers: browserslist(query) });
         } catch (error) {
             targetsByQuery.set(query, undefined);
-            log.warn({ query, error: error instanceof Error ? error.message : String(error) }, `css/unsupported skipped, the browser targets "${query}" do not parse:`);
+            log.warn({ query, error: error instanceof Error ? error.message : String(error) }, `css/feature/unsupported skipped, the browser targets "${query}" do not parse:`);
         }
-        if (query === "") log.info({ cwd: process.cwd() }, "css/unsupported skipped: no browser targets, set org.spiderlint.css.targets or add a .browserslistrc");
+        if (query === "") log.info({ cwd: process.cwd() }, "css/feature/unsupported skipped: no browser targets, set org.spiderlint.css.targets or add a .browserslistrc");
     }
     return targetsByQuery.get(query);
 }
@@ -371,7 +372,7 @@ function targeted(rule: Rule, settings: CssSettings): Rule {
 const unsupported: Make = (severity, settings) =>
     targeted(
         resourceRule(
-            "css/unsupported",
+            "css/feature/unsupported",
             isLinted,
             (resource) => {
                 const targets = targetsOf(settings as CssSettings) as Targets;
@@ -389,7 +390,7 @@ const unsupported: Make = (severity, settings) =>
 const inlineUnsupported: Make = (severity, settings) =>
     targeted(
         pageRule(
-            "css/inline-unsupported",
+            "css/inline-feature/unsupported",
             [`${ID}.features`],
             (page) => {
                 const facts = page[ID] as CssFacts | undefined;
@@ -407,19 +408,19 @@ export default {
     settings: SETTINGS,
     extractors: [{ id: ID, extract: extractInline }],
     resources: [{ id: ID, types: ["text/css"], extract: extractSheet }],
-    rules: { ...kindRules("parse"), ...kindRules("property"), ...kindRules("value"), "css/unsupported": unsupported, "css/inline-unsupported": inlineUnsupported },
+    rules: { ...kindRules("parse"), ...kindRules("property"), ...kindRules("value"), "css/feature/unsupported": unsupported, "css/inline-feature/unsupported": inlineUnsupported },
     presets: {
         css: {
             description: "Style sheets and inline CSS as browsers parse them: syntax errors, unknown properties, values outside the grammar, and features the declared browser targets lack",
             rules: {
-                "css/parse-error": { severity: "warning", score: 5.6 },
-                "css/unknown-property": { severity: "warning", score: 4.6 },
-                "css/invalid-value": { severity: "warning", score: 4.4 },
-                "css/unsupported": { severity: "info", score: 2.2 },
-                "css/inline-parse-error": { severity: "warning", score: 5.2 },
-                "css/inline-unknown-property": { severity: "warning", score: 4.2 },
-                "css/inline-invalid-value": { severity: "warning", score: 4 },
-                "css/inline-unsupported": { severity: "info", score: 1.8 },
+                "css/stylesheet/invalid": { severity: "warning", score: 5.6 },
+                "css/property/unknown": { severity: "warning", score: 4.6 },
+                "css/value/invalid": { severity: "warning", score: 4.4 },
+                "css/feature/unsupported": { severity: "info", score: 2.2 },
+                "css/inline-style/invalid": { severity: "warning", score: 5.2 },
+                "css/inline-property/unknown": { severity: "warning", score: 4.2 },
+                "css/inline-value/invalid": { severity: "warning", score: 4 },
+                "css/inline-feature/unsupported": { severity: "info", score: 1.8 },
             },
         },
     },

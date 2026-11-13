@@ -169,7 +169,7 @@ const liveOf = (page: Facts) => page[ID] as LiveFacts | undefined;
 const located = (element: Element) => `${element.target} ${element.html}`;
 
 const reducedMotion = pageRule(
-    "live/reduced-motion",
+    "live/reduced-motion/missing",
     [`${ID}.motion`, `${ID}.videos`],
     (page) => {
         const facts = liveOf(page);
@@ -181,7 +181,7 @@ const reducedMotion = pageRule(
 );
 
 const clickListener = pageRule(
-    "live/click-listener",
+    "live/click-target/inaccessible",
     [`${ID}.clickables`],
     (page) => {
         const found = liveOf(page)?.clickables;
@@ -192,7 +192,7 @@ const clickListener = pageRule(
 );
 
 const inputFontSize = pageRule(
-    "live/input-font-size",
+    "live/input-font-size/weak",
     [`${ID}.inputs`],
     (page) => {
         const small = liveOf(page)?.inputs;
@@ -205,7 +205,7 @@ const inputFontSize = pageRule(
 );
 
 const darkContrast = pageRule(
-    "live/dark-contrast",
+    "live/dark-contrast/weak",
     [`${ID}.dark`],
     (page) => {
         const faintText = liveOf(page)?.dark;
@@ -225,7 +225,7 @@ const darkContrast = pageRule(
 );
 
 const forcedIcons = pageRule(
-    "live/forced-icons",
+    "live/forced-colors-icon/inaccessible",
     [`${ID}.forced.icons`],
     (page) => {
         const blank = liveOf(page)?.forced?.icons;
@@ -245,7 +245,7 @@ const forcedIcons = pageRule(
 );
 
 const forcedOptOut = pageRule(
-    "live/forced-opt-out",
+    "live/forced-color-adjust/inaccessible",
     [`${ID}.forced.opt-out`],
     (page) => {
         const kept = liveOf(page)?.forced?.["opt-out"];
@@ -256,7 +256,7 @@ const forcedOptOut = pageRule(
 );
 
 const contrastMore = pageRule(
-    "live/contrast-more",
+    "live/contrast-more/weak",
     [`${ID}.contrast.claimed`],
     (page) => {
         const contrast = liveOf(page)?.contrast;
@@ -267,7 +267,7 @@ const contrastMore = pageRule(
 );
 
 const contrastEnhanced = pageRule(
-    "live/contrast-enhanced",
+    "live/contrast-enhanced/weak",
     [`${ID}.contrast.faint`],
     (page) => {
         const faintText = liveOf(page)?.contrast?.faint;
@@ -287,7 +287,7 @@ const contrastEnhanced = pageRule(
 );
 
 const webmcp = pageRule(
-    "live/webmcp",
+    "live/webmcp/missing",
     [`${ID}.webmcp`],
     (page) => {
         const tools = liveOf(page)?.webmcp?.tools;
@@ -301,29 +301,29 @@ export default {
     name: "live",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", inputs: ["resources"], extract }],
     rules: {
-        "live/reduced-motion": reducedMotion,
-        "live/click-listener": clickListener,
-        "live/input-font-size": inputFontSize,
-        "live/dark-contrast": darkContrast,
-        "live/forced-icons": forcedIcons,
-        "live/forced-opt-out": forcedOptOut,
-        "live/contrast-more": contrastMore,
-        "live/contrast-enhanced": contrastEnhanced,
-        "live/webmcp": webmcp,
+        "live/reduced-motion/missing": reducedMotion,
+        "live/click-target/inaccessible": clickListener,
+        "live/input-font-size/weak": inputFontSize,
+        "live/dark-contrast/weak": darkContrast,
+        "live/forced-colors-icon/inaccessible": forcedIcons,
+        "live/forced-color-adjust/inaccessible": forcedOptOut,
+        "live/contrast-more/weak": contrastMore,
+        "live/contrast-enhanced/weak": contrastEnhanced,
+        "live/webmcp/missing": webmcp,
     },
     presets: {
         live: {
             description: "The rendered page on sampled pages: motion under reduced-motion, contrast in a claimed dark scheme and under increased contrast, icons and opt-outs under forced colours, click handlers on plain elements, form fields small enough to zoom",
             rules: {
-                "live/reduced-motion": { severity: "warning", score: 6.2 },
-                "live/dark-contrast": { severity: "warning", score: 5.6 },
-                "live/contrast-enhanced": { severity: "warning", score: 5 },
-                "live/forced-icons": { severity: "warning", score: 5.4 },
-                "live/click-listener": { severity: "warning", score: 5.2 },
-                "live/input-font-size": { severity: "info", score: 2.6 },
-                "live/contrast-more": { severity: "info", score: 1.6 },
-                "live/forced-opt-out": { severity: "info", score: 2.4 },
-                "live/webmcp": { severity: "hint", score: 0.8 },
+                "live/reduced-motion/missing": { severity: "warning", score: 6.2 },
+                "live/dark-contrast/weak": { severity: "warning", score: 5.6 },
+                "live/contrast-enhanced/weak": { severity: "warning", score: 5 },
+                "live/forced-colors-icon/inaccessible": { severity: "warning", score: 5.4 },
+                "live/click-target/inaccessible": { severity: "warning", score: 5.2 },
+                "live/input-font-size/weak": { severity: "info", score: 2.6 },
+                "live/contrast-more/weak": { severity: "info", score: 1.6 },
+                "live/forced-color-adjust/inaccessible": { severity: "info", score: 2.4 },
+                "live/webmcp/missing": { severity: "hint", score: 0.8 },
             },
         },
     },

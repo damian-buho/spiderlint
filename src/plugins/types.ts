@@ -63,7 +63,7 @@ export interface SiteContext {
     cached(url: string): Promise<Cached>;
     // The body of a published reference list (address ranges …) from the `lists` bucket while fresh, else downloaded; throws on a non-2xx answer or no answer.
     list(url: string): Promise<string>;
-    // A link’s status through the `probes` bucket, as `links/broken-external` probes it.
+    // A link’s status through the `probes` bucket, as `links/external/unreachable` probes it.
     link(url: string): Promise<LinkFacts>;
     dns: DnsClient;
     // The address a raw socket or external tool may connect to for a host; a private one throws unless allowed.

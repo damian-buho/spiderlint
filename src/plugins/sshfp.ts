@@ -125,7 +125,7 @@ const sshfp: SiteExtractor = {
 const WITH_RECORDS = { "site.hosts.*.sshfp.records": { type: "array", minItems: 1 } };
 
 const RULES: Record<string, RuleSpec> = {
-    "sshfp/mismatch": {
+    "sshfp/record/mismatch": {
         fact: "site.hosts.*.sshfp.mismatched",
         expect: { maxItems: 0 },
         when: { "site.hosts.*.sshfp.mismatched": { type: "array" } },
@@ -135,7 +135,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc4255#section-2.3",
         fix: "Republish the SSHFP records from the server’s current keys (`ssh-keygen -r {host}` on it), or find what answered in its place.",
     },
-    "sshfp/unsigned": {
+    "sshfp/zone/unsigned": {
         fact: "site.hosts.*.sshfp.authenticated",
         expect: { const: true },
         when: WITH_RECORDS,
@@ -145,7 +145,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc4255#section-2.4",
         fix: "Sign the zone with DNSSEC, or audit through a validating resolver.",
     },
-    "sshfp/missing": {
+    "sshfp/record/missing": {
         fact: "site.hosts.*.sshfp.records",
         expect: { minItems: 1 },
         message: "the host answers SSH but publishes no SSHFP record, so a first connection is trust on first use",
@@ -154,7 +154,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc4255#section-2.1",
         fix: "Publish the output of `ssh-keygen -r {host}` in a DNSSEC-signed zone.",
     },
-    "sshfp/deprecated": {
+    "sshfp/algorithm/deprecated": {
         fact: "site.hosts.*.sshfp.deprecated",
         expect: { maxItems: 0 },
         when: WITH_RECORDS,

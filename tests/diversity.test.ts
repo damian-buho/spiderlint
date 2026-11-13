@@ -147,8 +147,8 @@ describe("sitemap pages in a cut crawl", () => {
     });
 
     const orphans = async (maxPages: number) => {
-        const report = await audit({ seeds: [`${origin}/`], maxPages, concurrency: 1, sitemap: true, robots: false, fetchResources: false, cacheMode: "off", rules: ["sitemap/orphan"] });
-        return report.findings.filter((finding) => finding.rule === "sitemap/orphan").map((finding) => finding.url);
+        const report = await audit({ seeds: [`${origin}/`], maxPages, concurrency: 1, sitemap: true, robots: false, fetchResources: false, cacheMode: "off", rules: ["sitemap/page/orphaned"] });
+        return report.findings.filter((finding) => finding.rule === "sitemap/page/orphaned").map((finding) => finding.url);
     };
 
     it("names no orphan while the pages that may link to it are uncrawled", async () => {

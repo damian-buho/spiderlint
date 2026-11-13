@@ -24,26 +24,26 @@ extends:
   - spiderlint:icons
   - spiderlint:insights
 rules:
-  http/consistent-origin:
+  http/host/inconsistent:
     severity: info
     score: 2.8
-  icons/favicon: warning
-  icons/apple-touch: warning
-  icons/declared-size: warning
-  icons/svg: off
-  icons/mask-icon: off
-  icons/ms-tile: off
-  manifest/parse:
+  icons/favicon/missing: warning
+  icons/apple-touch/missing: warning
+  icons/declared-size/mismatch: warning
+  icons/svg/invalid: off
+  icons/mask-icon/invalid: off
+  icons/ms-tile/unreachable: off
+  manifest/document/invalid:
     severity: error
     score: 7.2
-  origin/www-resolves: info
-  http/clock-skew:
+  origin/www/unreachable: info
+  http/date/mismatch:
     severity: warning
     score: [[-3600, 6.8], [-60, 3.4], [60, 3.4], [3600, 6.8]]
-  http/content-length:
+  http/content-length/invalid:
     severity: warning
     score: 5.4
-  http/date:
+  http/date/invalid:
     fact: http.headers.date
     expect: {type: string, pattern: "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d{4} \\d{2}:\\d{2}:\\d{2} GMT$"}
     severity: warning

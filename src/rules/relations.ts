@@ -13,7 +13,7 @@ import type { Finding, Make } from "./types.ts";
 // Internal links carrying `nofollow`, which withholds the site’s own ranking from its pages.
 const internalNofollow: Make = (severity) => ({
     meta: {
-        id: "links/internal-nofollow",
+        id: "links/internal-nofollow/present",
         severity,
         scope: "page",
         facts: ["html.links.internal", "html.links.nofollow"],
@@ -24,19 +24,19 @@ const internalNofollow: Make = (severity) => ({
         if (!page.html) return;
         const internal = new Set(page.html.links.internal);
         const found = page.html.links.nofollow.filter((href) => internal.has(href));
-        log.debug({ rule: "links/internal-nofollow", url: page.url.href, found: found.length }, "internal nofollow checked");
-        return found.length === 0 ? [] : [{ rule: "links/internal-nofollow", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("internal links carry rel=nofollow"), data: { [page.url.href]: { links: found.length } }, locations: found, value: found }];
+        log.debug({ rule: "links/internal-nofollow/present", url: page.url.href, found: found.length }, "internal nofollow checked");
+        return found.length === 0 ? [] : [{ rule: "links/internal-nofollow/present", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("internal links carry rel=nofollow"), data: { [page.url.href]: { links: found.length } }, locations: found, value: found }];
     },
 });
 
-// The `expect` of `links/external-rel`: `[region:]host glob` → the rel tokens a link to a matching host, inside that region when named, carries.
+// The `expect` of `links/external-rel/missing`: `[region:]host glob` → the rel tokens a link to a matching host, inside that region when named, carries.
 function policyOf(expect: unknown): { region?: string; isMatch: picomatch.Matcher; tokens: string[] }[] {
     const entries = Object.entries((expect ?? {}) as Record<string, unknown>);
     return entries.map(([key, tokens]) => {
         const list = [tokens].flat();
         const [region, glob] = key.includes(":") ? (key.split(":", 2) as [string, string]) : [undefined, key];
-        if (region !== undefined && !Object.hasOwn(REGIONS, region)) throw new ConfigError(`rule links/external-rel: expect ${key} names region ${region}, not one of ${Object.keys(REGIONS).join(", ")}`);
-        if (glob.length === 0 || list.length === 0 || list.some((token) => typeof token !== "string" || !/^[a-z-]+$/.test(token))) throw new ConfigError(`rule links/external-rel: expect ${key || '""'} must name lower-case rel tokens, found ${JSON.stringify(tokens)}`);
+        if (region !== undefined && !Object.hasOwn(REGIONS, region)) throw new ConfigError(`rule links/external-rel/missing: expect ${key} names region ${region}, not one of ${Object.keys(REGIONS).join(", ")}`);
+        if (glob.length === 0 || list.length === 0 || list.some((token) => typeof token !== "string" || !/^[a-z-]+$/.test(token))) throw new ConfigError(`rule links/external-rel/missing: expect ${key || '""'} must name lower-case rel tokens, found ${JSON.stringify(tokens)}`);
         return { ...(region !== undefined && { region }), isMatch: picomatch(glob, { nocase: true }), tokens: list as string[] };
     });
 }
@@ -46,7 +46,7 @@ const externalRelation: Make = (severity, expect) => {
     const policy = policyOf(expect);
     return {
         meta: {
-            id: "links/external-rel",
+            id: "links/external-rel/missing",
             severity,
             scope: "page",
             facts: ["html.links.external", "html.links.rel"],
@@ -66,9 +66,9 @@ const externalRelation: Make = (severity, expect) => {
                 for (const [href, carried] of hrefs) {
                     const missing = [...new Set(policy.filter((entry) => entry.region === region && entry.isMatch(new URL(href).hostname)).flatMap(({ tokens }) => tokens))].filter((token) => !carried.includes(token));
                     if (missing.length === 0) continue;
-                    log.debug({ rule: "links/external-rel", url: page.url.href, href, region, carried, missing }, "external link lacks declared rel");
+                    log.debug({ rule: "links/external-rel/missing", url: page.url.href, href, region, carried, missing }, "external link lacks declared rel");
                     findings.push({
-                        rule: "links/external-rel",
+                        rule: "links/external-rel/missing",
                         severity,
                         scope: "page",
                         url: page.url.href,
@@ -85,6 +85,6 @@ const externalRelation: Make = (severity, expect) => {
 };
 
 export const relationRules: Record<string, Make> = {
-    "links/internal-nofollow": internalNofollow,
-    "links/external-rel": externalRelation,
+    "links/internal-nofollow/present": internalNofollow,
+    "links/external-rel/missing": externalRelation,
 };

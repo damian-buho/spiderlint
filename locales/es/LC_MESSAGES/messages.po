@@ -1242,8 +1242,8 @@ msgstr "una página inexistente responde {got}, no 404 ni 410"
 msgid "the not-found page is not plain HTML free of stack traces and server versions (got {got})"
 msgstr "la página de no encontrado no es HTML limpio, sin trazas de pila ni versiones del servidor ({got})"
 
-msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical"
-msgstr "http simple no redirige a https en un salto permanente ({got}); obsoleto, véase origin/host-canonical"
+msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/canonical-host/mismatch"
+msgstr "http simple no redirige a https en un salto permanente ({got}); obsoleto, véase origin/canonical-host/mismatch"
 
 msgid "entry variants take more than one hop, or two not starting http to https on the same host: {got}"
 msgstr "las variantes de entrada tardan más de un salto, o dos que no empiezan de http a https en el mismo host: {got}"

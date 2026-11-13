@@ -106,8 +106,8 @@ describe("validateSubtree", () => {
             "fail-on": "error",
             format: "human",
             plugins: [],
-            "exclude-rules": ["html/canonical-self"],
-            override: { error: ["html/one-h1"], warning: ["http/hsts"], info: ["html/title-length"] },
+            "exclude-rules": ["html/canonical/mismatch"],
+            override: { error: ["html/h1/duplicate"], warning: ["http/hsts/weak"], info: ["html/title/length"] },
             groups: { posts: { match: ["/posts/**"], rules: ["seo"] } },
             rulesets: { custom: { extends: ["seo"], rules: { "x/y": "warning" } } },
         });
@@ -127,7 +127,7 @@ describe("validateSubtree", () => {
     });
 
     it("rejects an unknown override bucket", () => {
-        assert.throws(() => validateSubtree({ override: { critical: ["html/one-h1"] } }), /org\.spiderlint\/override: unknown key "critical"/);
+        assert.throws(() => validateSubtree({ override: { critical: ["html/h1/duplicate"] } }), /org\.spiderlint\/override: unknown key "critical"/);
     });
 });
 
@@ -158,13 +158,13 @@ describe("environmentSettings", () => {
 
     it("parses excluded rules and merges the three override buckets", () => {
         const settings = environmentSettings({
-            SPIDERLINT_EXCLUDE_RULES: "html/canonical-self,http/hsts",
-            SPIDERLINT_OVERRIDE_ERROR: "html/one-h1",
-            SPIDERLINT_OVERRIDE_INFO: "html/one-h1 html/title-length",
+            SPIDERLINT_EXCLUDE_RULES: "html/canonical/mismatch,http/hsts/weak",
+            SPIDERLINT_OVERRIDE_ERROR: "html/h1/duplicate",
+            SPIDERLINT_OVERRIDE_INFO: "html/h1/duplicate html/title/length",
         });
         assert.deepEqual(settings, {
-            excludeRules: ["html/canonical-self", "http/hsts"],
-            overrides: { "html/one-h1": "info", "html/title-length": "info" },
+            excludeRules: ["html/canonical/mismatch", "http/hsts/weak"],
+            overrides: { "html/h1/duplicate": "info", "html/title/length": "info" },
         });
     });
 });
@@ -195,10 +195,10 @@ describe("loadSettings", () => {
 
     it("reads exclude-rules and flattens the override buckets via pf-cli", () => {
         const file = path.join(directory, "overrides.yaml");
-        writeFileSync(file, ["org:", "  spiderlint:", "    exclude-rules: [html/canonical-self]", "    override:", "      error: [html/one-h1]", "      warning: [http/hsts]"].join("\n"));
+        writeFileSync(file, ["org:", "  spiderlint:", "    exclude-rules: [html/canonical/mismatch]", "    override:", "      error: [html/h1/duplicate]", "      warning: [http/hsts/weak]"].join("\n"));
         const { settings } = loadSettings(file);
-        assert.deepEqual(settings.excludeRules, ["html/canonical-self"]);
-        assert.deepEqual(settings.overrides, { "html/one-h1": "error", "http/hsts": "warning" });
+        assert.deepEqual(settings.excludeRules, ["html/canonical/mismatch"]);
+        assert.deepEqual(settings.overrides, { "html/h1/duplicate": "error", "http/hsts/weak": "warning" });
     });
 
     it("reads each sites.<name> as its own settings over the shared ones", () => {

@@ -572,7 +572,7 @@ const present = (path: string, type = "object"): Record<string, unknown> => ({ .
 const clean = (path: string): Record<string, unknown> => ({ ...present(path), [`site.hosts.*.mail.${path}.errors`]: { maxItems: 0 } });
 
 const RULES: Record<string, RuleSpec> = {
-    "mail/spf-syntax": {
+    "mail/spf/invalid": {
         fact: "site.hosts.*.mail.spf-walk.errors",
         when: present("spf-walk"),
         expect: { maxItems: 0 },
@@ -582,7 +582,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-12",
         fix: "Rewrite the TXT record at Name `{host}` as `v=spf1`, then mechanisms such as `mx ip4:192.0.2.1 include:_spf.example.net`, then `-all`, separated by single spaces.",
     },
-    "mail/spf-lookups": {
+    "mail/spf-lookups/excessive": {
         fact: "site.hosts.*.mail.spf-walk.lookups",
         when: clean("spf-walk"),
         expect: { maximum: SPF_LOOKUPS },
@@ -592,7 +592,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.6.4",
         fix: "Cut the `include`, `a`, `mx`, `ptr` and `exists` terms of the SPF record at Name `{host}` to at most 10 lookups, replacing includes with the `ip4:` and `ip6:` ranges they name.",
     },
-    "mail/spf-void-lookups": {
+    "mail/spf-void-lookups/excessive": {
         fact: "site.hosts.*.mail.spf-walk.void-lookups",
         when: clean("spf-walk"),
         expect: { maximum: 2 },
@@ -602,7 +602,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.6.4",
         fix: "Delete the terms of the SPF record at Name `{host}` that name domains with no record, such as an `include:` of a provider you left.",
     },
-    "mail/spf-ptr": {
+    "mail/spf-ptr/deprecated": {
         fact: "site.hosts.*.mail.spf-walk.ptr",
         when: clean("spf-walk"),
         expect: { const: false },
@@ -612,7 +612,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.5",
         fix: "Replace `ptr` in the SPF record at Name `{host}` with the `ip4:` and `ip6:` ranges of the servers it matched.",
     },
-    "mail/spf-after-all": {
+    "mail/spf-after-all/unused": {
         fact: "site.hosts.*.mail.spf-walk.after-all",
         when: clean("spf-walk"),
         expect: { maxItems: 0 },
@@ -622,7 +622,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
         fix: "Move every mechanism of the SPF record at Name `{host}` before its `all`, such as `v=spf1 mx include:_spf.example.net -all`.",
     },
-    "mail/spf-redundant": {
+    "mail/spf/redundant": {
         fact: "site.hosts.*.mail.spf-walk.redundant",
         when: clean("spf-walk"),
         expect: { maxItems: 0 },
@@ -632,7 +632,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-6.1",
         fix: "Delete the repeated terms from the SPF record at Name `{host}`, and drop `redirect=` where the record ends in `all`.",
     },
-    "mail/spf-include": {
+    "mail/spf-include/broken": {
         fact: "site.hosts.*.mail.spf-walk.missing-includes",
         when: clean("spf-walk"),
         expect: { maxItems: 0 },
@@ -642,7 +642,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.2",
         fix: "Delete the `include:` or `redirect=` of the SPF record at Name `{host}` that names no SPF record, or correct its spelling.",
     },
-    "mail/dmarc-record": {
+    "mail/dmarc/duplicate": {
         fact: "site.hosts.*.mail.dmarc.records",
         when: present("dmarc"),
         expect: { maximum: 1 },
@@ -652,7 +652,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.10",
         fix: "Keep one TXT record with Content starting `v=DMARC1` at Name `_dmarc.{domain}`, merging the others into it.",
     },
-    "mail/dmarc-syntax": {
+    "mail/dmarc/invalid": {
         fact: "site.hosts.*.mail.dmarc.errors",
         when: present("dmarc"),
         expect: { maxItems: 0 },
@@ -662,7 +662,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: "Rewrite the TXT record at Name `_dmarc.{domain}` as tag=value pairs after `v=DMARC1`, such as `v=DMARC1; p=reject; rua=mailto:dmarc@{domain}`.",
     },
-    "mail/dmarc-subdomains": {
+    "mail/dmarc-subdomain-policy/weak": {
         fact: "site.hosts.*.mail.dmarc",
         when: { ...clean("dmarc"), "site.hosts.*.mail.dmarc.subdomains": true },
         expect: { required: ["sp"] },
@@ -672,7 +672,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: "Add `sp=reject`, or the policy the subdomains need, to the TXT record at Name `_dmarc.{domain}`.",
     },
-    "mail/dmarc-testing": {
+    "mail/dmarc-testing/present": {
         fact: "site.hosts.*.mail.dmarc.testing",
         when: clean("dmarc"),
         expect: { const: false },
@@ -682,7 +682,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: "Remove `t=y` and `pct=` from the TXT record at Name `_dmarc.{domain}` once its reports show only your own servers.",
     },
-    "mail/dmarc-report-uri": {
+    "mail/dmarc-report-uri/invalid": {
         fact: "site.hosts.*.mail.dmarc.not-mailto",
         when: clean("dmarc"),
         expect: { maxItems: 0 },
@@ -692,7 +692,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9990#section-3",
         fix: "Write each `rua=` and `ruf=` address in the TXT record at Name `_dmarc.{domain}` as `mailto:dmarc@{domain}`.",
     },
-    "mail/dmarc-external": {
+    "mail/dmarc-external-auth/missing": {
         fact: "site.hosts.*.mail.dmarc.unauthorized",
         when: clean("dmarc"),
         expect: { maxItems: 0 },
@@ -702,7 +702,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9990#section-4",
         fix: "Ask the report destination to publish a TXT record at Name `{domain}._report._dmarc.<destination>` with Content `v=DMARC1`, or report to an address under `{domain}`.",
     },
-    "mail/dkim": {
+    "mail/dkim/missing": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { minItems: 1 },
@@ -712,7 +712,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.2.1",
         fix: "Publish the DKIM key your mail provider gives as a TXT record at Name `<selector>._domainkey.{domain}`, and list its selector under `org.spiderlint.mail.dkim-selectors`.",
     },
-    "mail/dkim-syntax": {
+    "mail/dkim/invalid": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { items: { properties: { errors: { maxItems: 0 } } } },
@@ -722,7 +722,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
         fix: "Republish the TXT record at Name `<selector>._domainkey.{domain}` exactly as your mail provider gives it, `v=DKIM1; k=rsa; p=` and the base64 key.",
     },
-    "mail/dkim-key": {
+    "mail/dkim-key/invalid": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { items: { properties: { bits: { minimum: 1024 } } } },
@@ -732,7 +732,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8301#section-3.2",
         fix: "Generate a 2048-bit DKIM key at your mail provider and publish it at a new selector under `_domainkey.{domain}`.",
     },
-    "mail/dkim-key-size": {
+    "mail/dkim-key/weak": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { items: { properties: { bits: { not: { minimum: 1024, maximum: 2047 } } } } },
@@ -742,7 +742,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8301#section-3.2",
         fix: "Generate a 2048-bit DKIM key at your mail provider and publish it at a new selector under `_domainkey.{domain}`.",
     },
-    "mail/dkim-testing": {
+    "mail/dkim-testing/present": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { items: { properties: { testing: { const: false } } } },
@@ -752,7 +752,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
         fix: "Remove `t=y` from the TXT record at Name `<selector>._domainkey.{domain}`.",
     },
-    "mail/dkim-revoked": {
+    "mail/dkim-revoked/present": {
         fact: "site.hosts.*.mail.dkim.found",
         when: present("dkim"),
         expect: { items: { properties: { revoked: { const: false } } } },
@@ -762,7 +762,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
         fix: "Delete the TXT record at Name `<selector>._domainkey.{domain}` once no mail signed with it is in transit.",
     },
-    "mail/mx-resolves": {
+    "mail/mx-address/missing": {
         fact: "site.hosts.*.mail.exchanges",
         when: present("exchanges", "array"),
         expect: { items: { properties: { addresses: { minimum: 1 } } } },
@@ -772,7 +772,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc5321#section-5.1",
         fix: "Add A and AAAA records for the Mail server the MX record of `{host}` names, or point the MX at a server that has them.",
     },
-    "mail/mx-cname": {
+    "mail/mx-cname/present": {
         fact: "site.hosts.*.mail.exchanges",
         when: present("exchanges", "array"),
         expect: { items: { properties: { cname: { const: false } } } },
@@ -782,7 +782,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc2181#section-10.3",
         fix: "Set the Mail server of the MX record of `{host}` to the CNAME’s target, the name that has the A and AAAA records.",
     },
-    "mail/mx-literal": {
+    "mail/mx-literal/present": {
         fact: "site.hosts.*.mail.exchanges",
         when: present("exchanges", "array"),
         expect: { items: { properties: { literal: { const: false } } } },
@@ -792,7 +792,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7505#section-3",
         fix: "Give the mail server a name with an A record, such as `mx.{domain}`, and set it as the Mail server of the MX record of `{host}`.",
     },
-    "mail/mx-duplicate": {
+    "mail/mx/duplicate": {
         fact: "site.hosts.*.mail.duplicates",
         when: present("duplicates", "array"),
         expect: { maxItems: 0 },
@@ -802,7 +802,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc5321#section-5.1",
         fix: "Delete the repeated MX records of `{host}`, keeping one per Mail server.",
     },
-    "mail/mta-sts": {
+    "mail/mta-sts/missing": {
         fact: "site.hosts.*.mail.mta-sts",
         when: present("mta-sts"),
         expect: { required: ["record"] },
@@ -811,7 +811,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461",
         fix: "Serve `version: STSv1`, `mode: enforce`, one `mx:` line per Mail server and `max_age: 604800` at `https://mta-sts.{domain}/.well-known/mta-sts.txt`, then add a TXT record at Name `_mta-sts.{domain}` with Content `v=STSv1; id=20260101`.",
     },
-    "mail/mta-sts-syntax": {
+    "mail/mta-sts/invalid": {
         fact: "site.hosts.*.mail.mta-sts.errors",
         when: present("mta-sts"),
         expect: { maxItems: 0 },
@@ -821,7 +821,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-3.1",
         fix: "Keep one TXT record at Name `_mta-sts.{domain}` with Content `v=STSv1; id=20260101`, the id letters and digits only.",
     },
-    "mail/mta-sts-policy": {
+    "mail/mta-sts-policy/unreachable": {
         fact: "site.hosts.*.mail.mta-sts.policy.errors",
         when: { ...present("mta-sts"), "site.hosts.*.mail.mta-sts.policy": { type: "object" } },
         expect: { maxItems: 0 },
@@ -831,7 +831,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-3.2",
         fix: "Serve `https://mta-sts.{domain}/.well-known/mta-sts.txt` with status 200 as `text/plain`, carrying `version: STSv1`, `mode: enforce`, one `mx:` line per Mail server and `max_age: 604800`.",
     },
-    "mail/mta-sts-mode": {
+    "mail/mta-sts-mode/weak": {
         fact: "site.hosts.*.mail.mta-sts.policy.mode",
         when: { ...present("mta-sts"), "site.hosts.*.mail.mta-sts.policy.errors": { maxItems: 0 } },
         expect: { const: "enforce" },
@@ -841,7 +841,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-5",
         fix: "Set `mode: enforce` in `https://mta-sts.{domain}/.well-known/mta-sts.txt` once TLS reports show no failures, and change the id of the TXT record at Name `_mta-sts.{domain}`.",
     },
-    "mail/mta-sts-mx": {
+    "mail/mta-sts-mx/mismatch": {
         fact: "site.hosts.*.mail.mta-sts.policy.unmatched",
         when: { ...present("mta-sts"), "site.hosts.*.mail.mta-sts.policy.errors": { maxItems: 0 } },
         expect: { maxItems: 0 },
@@ -851,7 +851,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-4.1",
         fix: "Add an `mx:` line for every Mail server of `{host}` to `https://mta-sts.{domain}/.well-known/mta-sts.txt`, and change the id of the TXT record at Name `_mta-sts.{domain}`.",
     },
-    "mail/mta-sts-max-age": {
+    "mail/mta-sts-max-age/weak": {
         fact: "site.hosts.*.mail.mta-sts.policy.max-age",
         when: { ...present("mta-sts"), "site.hosts.*.mail.mta-sts.policy.errors": { maxItems: 0 } },
         expect: { minimum: 86_400 },
@@ -861,7 +861,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-3.2",
         fix: "Set `max_age: 604800` or more in `https://mta-sts.{domain}/.well-known/mta-sts.txt`.",
     },
-    "mail/tls-rpt": {
+    "mail/tls-rpt/missing": {
         fact: "site.hosts.*.mail.tls-rpt",
         when: present("tls-rpt"),
         expect: { required: ["record"] },
@@ -872,7 +872,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Add a TXT record at Name `_smtp._tls.{domain}` with Content `v=TLSRPTv1; rua=mailto:tls-reports@{domain}`.",
         extra: ["Report Relay https://dbuho.me/project/report-relay/ collects these reports and sends them to your Grafana: open source, self-hosted, free."],
     },
-    "mail/tls-rpt-syntax": {
+    "mail/tls-rpt/invalid": {
         fact: "site.hosts.*.mail.tls-rpt.errors",
         when: present("tls-rpt"),
         expect: { maxItems: 0 },
@@ -882,7 +882,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8460#section-3",
         fix: "Keep one TXT record at Name `_smtp._tls.{domain}` with Content `v=TLSRPTv1; rua=mailto:tls-reports@{domain}`.",
     },
-    "mail/bimi-syntax": {
+    "mail/bimi/invalid": {
         fact: "site.hosts.*.mail.bimi.errors",
         when: present("bimi"),
         expect: { maxItems: 0 },
@@ -892,7 +892,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://datatracker.ietf.org/doc/draft-brand-indicators-for-message-identification/",
         fix: "Keep one TXT record at Name `default._bimi.{domain}` with Content `v=BIMI1; l=https://{domain}/logo.svg; a=https://{domain}/vmc.pem`.",
     },
-    "mail/bimi-dmarc": {
+    "mail/bimi-dmarc/weak": {
         fact: "site.hosts.*.mail.bimi.dmarc-enforced",
         when: present("bimi"),
         expect: { const: true },
@@ -902,7 +902,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://datatracker.ietf.org/doc/draft-brand-indicators-for-message-identification/",
         fix: "Set `p=quarantine` or `p=reject` without `t=y` or `pct=` in the TXT record at Name `_dmarc.{domain}`.",
     },
-    "mail/bimi-logo": {
+    "mail/bimi-logo/invalid": {
         fact: "site.hosts.*.mail.bimi.logo.errors",
         when: { ...present("bimi"), "site.hosts.*.mail.bimi.logo": { type: "object" } },
         expect: { maxItems: 0 },
@@ -912,7 +912,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://datatracker.ietf.org/doc/draft-svg-tiny-ps-abrotman/",
         fix: 'Serve the logo the `l=` tag names as an SVG with `version="1.2" baseProfile="tiny-ps"`, a `<title>`, no script and no external reference.',
     },
-    "mail/bimi-vmc": {
+    "mail/bimi-vmc/invalid": {
         fact: "site.hosts.*.mail.bimi.vmc.parses",
         when: { ...present("bimi"), "site.hosts.*.mail.bimi.vmc": { type: "object" } },
         expect: { const: true },
@@ -922,7 +922,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://datatracker.ietf.org/doc/draft-brand-indicators-for-message-identification/",
         fix: "Serve the mark certificate your CA issued, in PEM form, at the URL the `a=` tag of `default._bimi.{domain}` names.",
     },
-    "mail/dane": {
+    "mail/dane/missing": {
         fact: "site.hosts.*.mail.dane",
         when: present("dane", "array"),
         expect: { items: { properties: { tlsa: { minimum: 1 }, signed: { const: true } } } },
@@ -932,7 +932,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7672",
         fix: "Sign the zone of each Mail server of `{host}` and add a TLSA record at Name `_25._tcp.<mail server>` with Usage `3`, Selector `1`, Matching type `1` and the hash of its key.",
     },
-    "mail/starttls": {
+    "mail/starttls/missing": {
         fact: "site.hosts.*.mail.starttls",
         when: present("starttls", "array"),
         expect: { items: { properties: { offered: { const: true } } } },
@@ -942,7 +942,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc3207",
         fix: "Turn on STARTTLS with a certificate for the Mail server name on every MX of `{host}`.",
     },
-    "mail/starttls-certificate": {
+    "mail/starttls-certificate/invalid": {
         fact: "site.hosts.*.mail.starttls",
         when: present("starttls", "array"),
         expect: { items: { anyOf: [{ properties: { offered: { const: false } } }, { properties: { authorized: { const: true } } }] } },
@@ -952,7 +952,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-4.2",
         fix: "Install a certificate from a public CA covering the Mail server name, with its full chain, on every MX of `{host}`.",
     },
-    "mail/starttls-banner": {
+    "mail/smtp-banner/mismatch": {
         fact: "site.hosts.*.mail.starttls",
         when: present("starttls", "array"),
         expect: { items: { properties: { "banner-matches": { const: true } } } },
@@ -965,8 +965,22 @@ const RULES: Record<string, RuleSpec> = {
 };
 
 // The dns:mail rules a mail name answers to, kept under their IDs.
-const CARRIED = ["dns/null-mx-mixed", "dns/spf-record", "dns/spf-all", "dns/dmarc-policy"];
-const RECOMMENDED = [...CARRIED, "mail/spf-syntax", "mail/spf-lookups", "mail/spf-void-lookups", "mail/spf-include", "mail/dmarc-record", "mail/dmarc-syntax", "mail/dmarc-report-uri", "mail/dmarc-external", "mail/mx-resolves", "mail/mx-cname", "mail/mx-literal", "mail/mx-duplicate"];
+const CARRIED = ["dns/null-mx/invalid", "dns/spf/duplicate", "dns/spf-all/weak", "dns/dmarc-policy/weak"];
+const RECOMMENDED = [
+    ...CARRIED,
+    "mail/spf/invalid",
+    "mail/spf-lookups/excessive",
+    "mail/spf-void-lookups/excessive",
+    "mail/spf-include/broken",
+    "mail/dmarc/duplicate",
+    "mail/dmarc/invalid",
+    "mail/dmarc-report-uri/invalid",
+    "mail/dmarc-external-auth/missing",
+    "mail/mx-address/missing",
+    "mail/mx-cname/present",
+    "mail/mx-literal/present",
+    "mail/mx/duplicate",
+];
 const ALL: Record<string, RuleSpec> = { ...Object.fromEntries(CARRIED.map((id) => [id, MAIL_RULES[id] as RuleSpec])), ...RULES };
 
 // Every recommended rule as a warning; a score outside the warning band is pinned into it.

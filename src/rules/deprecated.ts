@@ -30,18 +30,18 @@ export const DEPRECATED: Record<string, Deprecation> = {
 
 // One finding per page naming every deprecated header it sends, with what replaces each.
 const deprecatedHeader: Make = (severity) => ({
-    meta: { id: "http/deprecated-header", severity, scope: "page", facts: ["http.headers"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers", fix: "Remove each deprecated header, and send Reporting-Endpoints in place of Report-To unless NEL still reads it." },
+    meta: { id: "http/header/deprecated", severity, scope: "page", facts: ["http.headers"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers", fix: "Remove each deprecated header, and send Reporting-Endpoints in place of Report-To unless NEL still reads it." },
     check(page: Facts) {
         const sent = Object.keys(page.http.headers).filter((name) => {
             const entry = DEPRECATED[name];
             return entry !== undefined && (entry.unless === undefined || page.http.headers[entry.unless] === undefined);
         });
-        log.debug({ rule: "http/deprecated-header", url: page.url.href, sent }, "deprecated headers checked");
+        log.debug({ rule: "http/header/deprecated", url: page.url.href, sent }, "deprecated headers checked");
         if (sent.length === 0) return [];
         const listed = sent.map((name) => DEPRECATED[name] as Deprecation);
         return [
             {
-                rule: "http/deprecated-header",
+                rule: "http/header/deprecated",
                 severity,
                 scope: "page" as const,
                 url: page.url.href,
@@ -56,5 +56,5 @@ const deprecatedHeader: Make = (severity) => ({
 });
 
 export const deprecatedRules: Record<string, Make> = {
-    "http/deprecated-header": deprecatedHeader,
+    "http/header/deprecated": deprecatedHeader,
 };

@@ -28,13 +28,13 @@ describe("images preset", () => {
 
     it("reports the heavy PNG, the oversized JPEG and the image without dimensions, and passes the rest", async () => {
         const report = await audit({ seeds: [`${gallery.origin}/`], rules: ["images"], sitemap: false, robots: false, cacheMode: "off" });
-        assert.deepEqual(found(report, gallery.origin), ["images/dimensions /", "images/modern-format /heavy.png", "images/oversized /", "images/recompress /heavy.png", "images/weight /heavy.png"]);
-        const modern = report.findings.find((finding) => finding.rule === "images/modern-format");
+        assert.deepEqual(found(report, gallery.origin), ["images/compression/weak /heavy.png", "images/dimensions/missing /", "images/format/outdated /heavy.png", "images/srcset/large /", "images/weight/large /heavy.png"]);
+        const modern = report.findings.find((finding) => finding.rule === "images/format/outdated");
         assert.match(modern?.message ?? "", /^a png image is smaller as (avif|webp); used by these pages$/);
         const [measured] = Object.values(modern?.data ?? {});
         assert.ok((measured?.smaller as { value: number }).value < (measured?.size as { value: number }).value);
-        assert.deepEqual(report.findings.find((finding) => finding.rule === "images/oversized")?.locations, ["/wide.jpg 400 px for width=100"]);
-        assert.deepEqual(report.findings.find((finding) => finding.rule === "images/dimensions")?.locations, ["/small.webp"]);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "images/srcset/large")?.locations, ["/wide.jpg 400 px for width=100"]);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "images/dimensions/missing")?.locations, ["/small.webp"]);
         assert.equal(report.summary.cost.extractors.images, 4);
         const svg = report.pages[0]?.resources?.find((resource) => resource.url.endsWith("/logo.svg"));
         assert.deepEqual(svg?.images, { format: "svg", bytes: 99, encoded: { same: (svg?.images as { encoded: { same: number } }).encoded.same } });
@@ -45,8 +45,8 @@ describe("images preset", () => {
         const metadata = mock.method(sharp.prototype, "metadata");
         try {
             const report = await audit({ seeds: [`${gallery.origin}/assets`], maxPages: 1, rules: ["images", "images:assets"], sitemap: false, robots: false, cacheMode: "off" });
-            assert.deepEqual(found(report, gallery.origin), ["images/font-display /fonts.css", "images/font-format /heavy.ttf", "images/minify /bloated.js", "images/recompress /bloated.svg"]);
-            const display = report.findings.find((finding) => finding.rule === "images/font-display");
+            assert.deepEqual(found(report, gallery.origin), ["images/compression/weak /bloated.svg", "images/font-display/missing /fonts.css", "images/font-format/outdated /heavy.ttf", "images/minification/missing /bloated.js"]);
+            const display = report.findings.find((finding) => finding.rule === "images/font-display/missing");
             assert.equal(display?.message, "@font-face rules without font-display: swap, fallback or optional; used by these pages");
             assert.deepEqual(Object.values(display?.data ?? {}), [{ faces: 1, families: "Heavy" }]);
             assert.equal(metadata.mock.callCount(), 1, "the twin JPEGs share a digest");
@@ -67,7 +67,7 @@ describe("images preset", () => {
     it("takes its thresholds from org.spiderlint.images, and rejects a bad or unclaimed key", async () => {
         const config = { seeds: [`${gallery.origin}/`], rules: ["images"], sitemap: false, robots: false, cacheMode: "off" as const };
         const report = await audit({ ...config, pluginSettings: { images: { weight: 1_000_000, oversize: 10, saving: { share: 0.99 } } } });
-        assert.deepEqual(found(report, gallery.origin), ["images/dimensions /"]);
+        assert.deepEqual(found(report, gallery.origin), ["images/dimensions/missing /"]);
         await assert.rejects(audit({ ...config, pluginSettings: { images: { weight: -1 } } }), (error: Error) => error instanceof ConfigError && error.message === "org.spiderlint/images/weight: must be >= 0");
         await assert.rejects(audit({ ...config, pluginSettings: { imagez: {} } }), (error: Error) => error instanceof ConfigError && error.message === 'org.spiderlint: unknown key "imagez"');
     });

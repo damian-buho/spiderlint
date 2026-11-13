@@ -38,7 +38,7 @@ function primary(tag: string): string {
 
 // Every crawled 2xx alternate that does not name back the 2xx pages listing it, once per alternate.
 const hreflangReciprocal: Make = (severity) => ({
-    meta: { id: "i18n/hreflang-reciprocal", severity, scope: "site", facts: ["html.hreflang", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "List every language version, itself included, in the hreflang links of each version." },
+    meta: { id: "i18n/hreflang-return/missing", severity, scope: "site", facts: ["html.hreflang", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "List every language version, itself included, in the hreflang links of each version." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const find = pageIndex(pages, site);
         const unanswered = new Map<string, string[]>();
@@ -47,20 +47,20 @@ const hreflangReciprocal: Make = (severity) => ({
             for (const href of alternatesOf(page)) {
                 const alternate = find(href);
                 const isNamedBack = alternate === undefined || alternatesOf(alternate).some((back) => selves(page).has(back));
-                log.debug({ rule: "i18n/hreflang-reciprocal", url: page.url.href, alternate: href, isCrawled: alternate !== undefined, isNamedBack }, "hreflang alternate judged");
+                log.debug({ rule: "i18n/hreflang-return/missing", url: page.url.href, alternate: href, isCrawled: alternate !== undefined, isNamedBack }, "hreflang alternate judged");
                 if (!isNamedBack) unanswered.set(alternate.url.href, [...(unanswered.get(alternate.url.href) ?? []), page.url.href]);
             }
         }
         return unanswered
             .entries()
-            .map(([url, urls]): Finding => ({ rule: "i18n/hreflang-reciprocal", severity, scope: "site", url, ...said("the page does not name back the pages listing it as an hreflang alternate"), value: urls, urls }))
+            .map(([url, urls]): Finding => ({ rule: "i18n/hreflang-return/missing", severity, scope: "site", url, ...said("the page does not name back the pages listing it as an hreflang alternate"), value: urls, urls }))
             .toArray();
     },
 });
 
 // Every crawled hreflang target answering outside 2xx or redirecting, once per target, with the pages naming it.
 const hreflangStatus: Make = (severity) => ({
-    meta: { id: "i18n/hreflang-status", severity, scope: "site", facts: ["html.hreflang", "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "Point each hreflang link at the final URL of a page that answers 200." },
+    meta: { id: "i18n/hreflang/unreachable", severity, scope: "site", facts: ["html.hreflang", "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "Point each hreflang link at the final URL of a page that answers 200." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const status = new Map(pages.flatMap((page) => [...selves(page)].map((href) => [href, page.http.status] as const)));
         const naming = new Map<string, string[]>();
@@ -68,9 +68,9 @@ const hreflangStatus: Make = (severity) => ({
         const findings: Finding[] = [];
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), site?.redirects?.[url]];
-            log.debug({ rule: "i18n/hreflang-status", url, status: answer, landing, pages: urls.length }, "hreflang target judged");
+            log.debug({ rule: "i18n/hreflang/unreachable", url, status: answer, landing, pages: urls.length }, "hreflang target judged");
             const verdict = landing ? { ...said("the hreflang target redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the hreflang target answers {status}; named by these pages", { status: String(answer) }) : undefined;
-            if (verdict) findings.push({ rule: "i18n/hreflang-status", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
+            if (verdict) findings.push({ rule: "i18n/hreflang/unreachable", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;
     },
@@ -78,14 +78,14 @@ const hreflangStatus: Make = (severity) => ({
 
 // A page whose `lang` names a language its `Content-Language` header leaves out; a page lacking either is skipped.
 const contentLanguage: Make = (severity) => ({
-    meta: { id: "i18n/content-language", severity, scope: "page", facts: ["html.lang", "http.headers.content-language"], docs: "https://www.w3.org/International/questions/qa-http-and-lang", fix: "Make the Content-Language header name the language the html lang attribute declares, or drop the header." },
+    meta: { id: "i18n/content-language/mismatch", severity, scope: "page", facts: ["html.lang", "http.headers.content-language"], docs: "https://www.w3.org/International/questions/qa-http-and-lang", fix: "Make the Content-Language header name the language the html lang attribute declares, or drop the header." },
     check(page: Facts) {
         const [lang, header] = [page.html?.lang, [page.http.headers["content-language"] ?? []].flat().join(",")];
         if (!lang || header === "") return;
         const languages = header.split(",").map((tag) => primary(tag));
         const isListed = languages.includes(primary(lang));
-        log.debug({ rule: "i18n/content-language", url: page.url.href, lang, languages, isListed }, "content language compared");
-        return isListed ? [] : [{ rule: "i18n/content-language", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("lang and Content-Language name different languages"), data: { [page.url.href]: { lang, "content-language": header } }, value: header }];
+        log.debug({ rule: "i18n/content-language/mismatch", url: page.url.href, lang, languages, isListed }, "content language compared");
+        return isListed ? [] : [{ rule: "i18n/content-language/mismatch", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("lang and Content-Language name different languages"), data: { [page.url.href]: { lang, "content-language": header } }, value: header }];
     },
 });
 
@@ -96,22 +96,22 @@ function pairs(alternates: { lang: string; href: string }[], base: string): Set<
 
 // A page whose sitemap alternates and hreflang links both exist and disagree.
 const sitemapHreflang: Make = (severity) => ({
-    meta: { id: "sitemap/hreflang", severity, scope: "page", facts: ["sitemap.alternates", "html.hreflang"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap", fix: "Generate the sitemap alternates and the page’s hreflang links from one list." },
+    meta: { id: "sitemap/hreflang/mismatch", severity, scope: "page", facts: ["sitemap.alternates", "html.hreflang"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap", fix: "Generate the sitemap alternates and the page’s hreflang links from one list." },
     check(page: Facts) {
         const [listed, linked] = [page.sitemap?.alternates ?? [], page.html?.hreflang ?? []];
         if (listed.length === 0 || linked.length === 0) return;
         const [inSitemap, onPage] = [pairs(listed, page.url.href), pairs(linked, page.url.href)];
         const differ = [...inSitemap.symmetricDifference(onPage)];
-        log.debug({ rule: "sitemap/hreflang", url: page.url.href, sitemap: inSitemap.size, page: onPage.size, differ: differ.length }, "sitemap alternates compared");
+        log.debug({ rule: "sitemap/hreflang/mismatch", url: page.url.href, sitemap: inSitemap.size, page: onPage.size, differ: differ.length }, "sitemap alternates compared");
         if (differ.length === 0) return [];
         const only = (side: Set<string>) => differ.filter((pair) => side.has(pair)).join(", ");
-        return [{ rule: "sitemap/hreflang", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("sitemap alternates differ from the page’s hreflang"), data: { [page.url.href]: { "sitemap only": only(inSitemap), "page only": only(onPage) } }, value: differ }];
+        return [{ rule: "sitemap/hreflang/mismatch", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("sitemap alternates differ from the page’s hreflang"), data: { [page.url.href]: { "sitemap only": only(inSitemap), "page only": only(onPage) } }, value: differ }];
     },
 });
 
 // A title or description confidently identified as a language other than the primary subtag of `lang`.
 const metadataLanguage: Make = (severity) => ({
-    meta: { id: "i18n/metadata-language", severity, scope: "page", facts: ["html.detected", "html.lang"], docs: "https://www.w3.org/International/questions/qa-html-language-declarations", fix: "Translate the title and meta description into the language lang declares, or correct lang." },
+    meta: { id: "i18n/metadata-language/mismatch", severity, scope: "page", facts: ["html.detected", "html.lang"], docs: "https://www.w3.org/International/questions/qa-html-language-declarations", fix: "Translate the title and meta description into the language lang declares, or correct lang." },
     check(page: Facts) {
         const [lang, detected] = [page.html?.lang, page.html?.detected];
         if (!lang || !detected) return;
@@ -120,15 +120,15 @@ const metadataLanguage: Make = (severity) => ({
             const guess = detected[field];
             return guess?.reliable && guess.language !== declared ? `${field} reads as ${guess.language} (${guess.confidence})` : [];
         });
-        log.debug({ rule: "i18n/metadata-language", url: page.url.href, lang, declared, title: detected.title?.language, description: detected.description?.language, off: off.length }, "metadata language compared");
-        return off.length === 0 ? [] : [{ rule: "i18n/metadata-language", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("the title or description reads as another language than lang declares"), data: { [page.url.href]: { lang } }, locations: off, value: detected }];
+        log.debug({ rule: "i18n/metadata-language/mismatch", url: page.url.href, lang, declared, title: detected.title?.language, description: detected.description?.language, off: off.length }, "metadata language compared");
+        return off.length === 0 ? [] : [{ rule: "i18n/metadata-language/mismatch", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("the title or description reads as another language than lang declares"), data: { [page.url.href]: { lang } }, locations: off, value: detected }];
     },
 });
 
 export const i18nRules: Record<string, Make> = {
-    "i18n/metadata-language": metadataLanguage,
-    "sitemap/hreflang": sitemapHreflang,
-    "i18n/hreflang-reciprocal": hreflangReciprocal,
-    "i18n/hreflang-status": hreflangStatus,
-    "i18n/content-language": contentLanguage,
+    "i18n/metadata-language/mismatch": metadataLanguage,
+    "sitemap/hreflang/mismatch": sitemapHreflang,
+    "i18n/hreflang-return/missing": hreflangReciprocal,
+    "i18n/hreflang/unreachable": hreflangStatus,
+    "i18n/content-language/mismatch": contentLanguage,
 };

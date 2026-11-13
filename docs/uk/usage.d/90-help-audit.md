@@ -120,7 +120,7 @@ Examples:
   Run every rule except Lighthouse’s:
     spiderlint audit example.com --rules all --exclude-rules 'lighthouse/*'
   Check a single rule:
-    spiderlint audit example.com --rules http/alt-svc-h3
+    spiderlint audit example.com --rules http/alt-svc-h3/missing
   Audit only the URLs listed in a file:
     spiderlint audit --source list:urls.txt
 ```

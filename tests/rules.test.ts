@@ -37,13 +37,13 @@ function answering(href: string, headers: Record<string, string>, resources: Res
     return facts;
 }
 
-// The severities `http/server-disclosure` gives one page answering with `headers`.
+// The severities `http/server/disclosing` gives one page answering with `headers`.
 function levels(headers: Record<string, string>): string[] {
-    return ((builtin["http/server-disclosure"]?.("warning") as AggregateRule).check([answering("https://site.test/", headers)]) ?? []).map((finding) => finding.severity);
+    return ((builtin["http/server/disclosing"]?.("warning") as AggregateRule).check([answering("https://site.test/", headers)]) ?? []).map((finding) => finding.severity);
 }
 
 describe("server disclosure", () => {
-    const rule = builtin["http/server-disclosure"]?.("warning") as AggregateRule;
+    const rule = builtin["http/server/disclosing"]?.("warning") as AggregateRule;
 
     it("warns on a version or X-Powered-By, and keeps quiet on a CDN name", () => {
         assert.deepEqual(levels({ server: "nginx/1.25.3" }), ["warning"]);
@@ -103,7 +103,7 @@ describe("server disclosure", () => {
 describe("resource rules", () => {
     it("reports an http: resource on https: pages only", () => {
         const script: ResourceFacts = { url: "http://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" };
-        const rule = builtin["resources/mixed-content"]?.("error") as AggregateRule;
+        const rule = builtin["resources/protocol/insecure"]?.("error") as AggregateRule;
         const findings = rule.check([page("https://site.test/", [script]), page("https://site.test/b", [script]), page("http://site.test/c", [script])]) ?? [];
         assert.equal(findings.length, 1);
         assert.equal(findings[0]?.message, "script loads over http: on the https: pages that use it");
@@ -111,7 +111,7 @@ describe("resource rules", () => {
     });
 
     it("accepts a cross-origin script that carries integrity", () => {
-        const rule = builtin["resources/sri"]?.("warning") as AggregateRule;
+        const rule = builtin["resources/integrity/missing"]?.("warning") as AggregateRule;
         assert.deepEqual(rule.check([page("https://site.test/", [{ url: "https://cdn.test/a.js", kind: "script", origin: "cross", integrity: "sha384-x" }])]), []);
     });
 
@@ -124,7 +124,7 @@ describe("resource rules", () => {
             served("https://site.test/main.4e5f6a7b.js", "script", "text/javascript", { "cache-control": "public, max-age=31536000, immutable" }),
             served("https://site.test/analytics-tracking.js", "script", "text/javascript", { "cache-control": "no-cache" }),
         ];
-        const rule = builtin["resources/cache-control"]?.("warning") as AggregateRule;
+        const rule = builtin["resources/cache-control/weak"]?.("warning") as AggregateRule;
         const findings = rule.check([page("https://site.test/", resources)]) ?? [];
         assert.deepEqual(
             findings.map((finding) => finding.url),
@@ -144,7 +144,7 @@ describe("resource rules", () => {
             served("https://site.test/f.woff2", "style", "font/woff2", {}),
             served("https://site.test/c.css", "style", "text/css", {}, 512),
         ];
-        const rule = builtin["resources/compression"]?.("warning") as AggregateRule;
+        const rule = builtin["resources/compression/missing"]?.("warning") as AggregateRule;
         const findings = rule.check([page("https://site.test/", resources)]) ?? [];
         assert.deepEqual(
             findings.map((finding) => [finding.url, finding.message, finding.data?.[finding.url]]),
@@ -164,7 +164,7 @@ describe("resource hints", () => {
         ];
         const statik = { ...page("https://site.test/", [{ url: "https://cdn.test/a.js", kind: "script", origin: "cross" }]), html: { head: { links } } as Facts["html"] };
         const rendered: Facts = { ...statik, browser: { timing: {}, console: { errors: [], warnings: [] }, weight: {}, cookies: [] } };
-        const rule = builtin["html/preconnect-unused"]?.("info") as PageRule;
+        const rule = builtin["html/preconnect/unused"]?.("info") as PageRule;
         assert.equal(rule.check(statik), undefined);
         assert.deepEqual(
             rule.check(rendered)?.map((finding) => [finding.message, finding.data?.["https://site.test/"]]),
@@ -175,7 +175,7 @@ describe("resource hints", () => {
     it("counts a preconnect the Link header sends", () => {
         const statik = { ...page("https://site.test/", []), html: { head: { links: [] }, scripts: [{ src: "https://cdn.test/a.js", async: false, defer: false, head: true }] } as unknown as Facts["html"] };
         const hinted: Facts = { ...statik, http: { ...statik.http, parsed: { link: parseLink("<https://cdn.test>; rel=preconnect") } } };
-        const rule = builtin["html/preconnect-missing"]?.("info") as PageRule;
+        const rule = builtin["html/preconnect/missing"]?.("info") as PageRule;
         assert.equal(rule.check(statik)?.length, 1);
         assert.deepEqual(rule.check(hinted), []);
     });
@@ -183,7 +183,7 @@ describe("resource hints", () => {
     it("leaves early hints unjudged while the final Link breaks its grammar", () => {
         const hints = { ...page("https://site.test/", []), http: { ...page("https://site.test/", []).http, "early-hints": [{ link: "</a.css>; rel=preload; as=style" }] } };
         const broken: Facts = { ...hints, http: { ...hints.http, parsed: { link: parseLink("</a.css>; as=style") } } };
-        const rule = builtin["http/early-hints-preload"]?.("info") as PageRule;
+        const rule = builtin["http/early-hints-preload/mismatch"]?.("info") as PageRule;
         assert.deepEqual(
             rule.check(hints)?.map((finding) => finding.value),
             [["https://site.test/a.css"]],
@@ -214,17 +214,17 @@ describe("finding value", () => {
 
 describe("external link rel policy", () => {
     it("reads its expect as host globs to rel tokens, and refuses anything else", () => {
-        assert.equal(compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": "sponsored" } }).meta.id, "links/external-rel");
-        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": [] } }), /must name lower-case rel tokens/);
-        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "*.amazon.*": ["Sponsored"] } }), /must name lower-case rel tokens/);
-        assert.throws(() => compileRule("links/external-rel", { severity: "warning", expect: { "sidebar:*": ["ugc"] } }), /names region sidebar, not one of main, nav/);
+        assert.equal(compileRule("links/external-rel/missing", { severity: "warning", expect: { "*.amazon.*": "sponsored" } }).meta.id, "links/external-rel/missing");
+        assert.throws(() => compileRule("links/external-rel/missing", { severity: "warning", expect: { "*.amazon.*": [] } }), /must name lower-case rel tokens/);
+        assert.throws(() => compileRule("links/external-rel/missing", { severity: "warning", expect: { "*.amazon.*": ["Sponsored"] } }), /must name lower-case rel tokens/);
+        assert.throws(() => compileRule("links/external-rel/missing", { severity: "warning", expect: { "sidebar:*": ["ugc"] } }), /names region sidebar, not one of main, nav/);
         assert.throws(() => compileRule("links/no-such-rule", { expect: { type: "string" } }), /needs both fact and expect/);
     });
 });
 
 // A site finding keyed by `url`, for filling fixes.
 function siteFinding(url: string): Finding {
-    return { rule: "dns/dmarc-reject", severity: "warning", scope: "site", url, message: "" };
+    return { rule: "dns/dmarc-reject/missing", severity: "warning", scope: "site", url, message: "" };
 }
 
 describe("rule fixes", () => {

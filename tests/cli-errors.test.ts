@@ -80,16 +80,16 @@ describe("cli-errors", () => {
     });
 
     it("enables a rule a severity option names, with a warning", async () => {
-        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--max-pages", "1", "--no-cache", "--rules", "markdownlint", "--error", "links/broken-internal", "--format", "json", "--fail-on", "never");
+        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--max-pages", "1", "--no-cache", "--rules", "markdownlint", "--error", "links/internal/unreachable", "--format", "json", "--fail-on", "never");
         assert.equal(run.code, 0, run.stderr);
-        assert.match(run.stderr, /links\/broken-internal enabled because a severity option names it/);
-        assert.match(run.stdout, /"links\/broken-internal"/);
+        assert.match(run.stderr, /links\/internal\/unreachable enabled because a severity option names it/);
+        assert.match(run.stdout, /"links\/internal\/unreachable"/);
     });
 
     it("warns, and runs on, when --exclude-rules names a rule no ruleset enables", async () => {
-        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--max-pages", "1", "--no-cache", "--rules", "markdownlint", "--exclude-rules", "links/broken-internal", "--format", "json", "--fail-on", "never");
+        const run = await spiderlint(directory, "audit", `${site.origin}/`, "--max-pages", "1", "--no-cache", "--rules", "markdownlint", "--exclude-rules", "links/internal/unreachable", "--format", "json", "--fail-on", "never");
         assert.equal(run.code, 0, run.stderr);
-        assert.match(run.stderr, /links\/broken-internal excluded, but no ruleset of this run enables it/);
+        assert.match(run.stderr, /links\/internal\/unreachable excluded, but no ruleset of this run enables it/);
     });
 
     it("selects a plugin’s rules with a glob in --rules", async () => {

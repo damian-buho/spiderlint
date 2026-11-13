@@ -32,19 +32,19 @@ describe("css plugin", () => {
     it("reports the broken style sheet and the inline block at their line and column, sparing vendor prefixes and hacks", async () => {
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, rules: ["css"], sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(found(report, site.origin), [
-            "css/inline-unknown-property /about 23:13 <style> Unknown property `font-weigth` — font-weigth: bold",
-            "css/invalid-value /broken.css 8:17 Invalid value for `font-size` property — font-size: 12",
-            "css/parse-error /broken.css 9:10 Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Delim('*')' — a::before *",
-            "css/unknown-property /broken.css 7:19 Unknown property `colr` — colr: #222",
+            "css/inline-property/unknown /about 23:13 <style> Unknown property `font-weigth` — font-weigth: bold",
+            "css/property/unknown /broken.css 7:19 Unknown property `colr` — colr: #222",
+            "css/stylesheet/invalid /broken.css 9:10 Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Delim('*')' — a::before *",
+            "css/value/invalid /broken.css 8:17 Invalid value for `font-size` property — font-size: 12",
         ]);
-        const unknown = report.findings.find((finding) => finding.rule === "css/unknown-property");
+        const unknown = report.findings.find((finding) => finding.rule === "css/property/unknown");
         assert.equal(unknown?.message, "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages");
         assert.deepEqual(unknown?.data, { [unknown?.url as string]: { messages: 1 } });
     });
 
     it("judges features against the declared browser targets", async () => {
-        const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, rules: ["css/unsupported"], pluginSettings: { css: { targets: "ie 11" } }, sitemap: false, robots: false, cacheMode: "off" });
-        assert.deepEqual(found(report, site.origin), ["css/unsupported /broken.css 7:31 CSS Variables (Custom Properties) — IE 11"]);
+        const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, rules: ["css/feature/unsupported"], pluginSettings: { css: { targets: "ie 11" } }, sitemap: false, robots: false, cacheMode: "off" });
+        assert.deepEqual(found(report, site.origin), ["css/feature/unsupported /broken.css 7:31 CSS Variables (Custom Properties) — IE 11"]);
         assert.equal(report.findings[0]?.message, "the style sheet uses features the browser targets “ie 11” lack; used by these pages");
         assert.deepEqual(report.findings[0]?.variables, { query: "ie 11" });
     });

@@ -64,7 +64,7 @@ describe("browser wire size", () => {
 
 describe("fetch mode", () => {
     it("refuses a browser rule under an http pin, naming it", async () => {
-        await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "http", groups: { default: { rules: ["browser"] } } }), (error: Error) => error instanceof ConfigError && error.message.includes("rule browser/console-errors in group default"));
+        await assert.rejects(audit({ seeds: ["http://127.0.0.1:9/"], fetch: "http", groups: { default: { rules: ["browser"] } } }), (error: Error) => error instanceof ConfigError && error.message.includes("rule browser/script/broken in group default"));
     });
 
     it("renders for a rule reading a browser-mode extractor’s facts, as an http pin shows", async () => {
@@ -115,7 +115,7 @@ describe("browser fetch", { skip }, () => {
         const runtime = app?.resources?.find((resource) => resource.url === `${site.origin}/runtime.png`);
         assert.deepEqual([runtime?.kind, runtime?.origin, runtime?.observed], ["image", "same", true], "loaded by script, absent from the static HTML");
         assert.equal(app?.resources?.find((resource) => resource.url.endsWith("/cdn/lib.js"))?.observed, true, "a request the browser blocked is still observed");
-        assert.ok(report.findings.some((finding) => finding.rule === "browser/console-errors" && finding.url.endsWith("/app/")));
+        assert.ok(report.findings.some((finding) => finding.rule === "browser/script/broken" && finding.url.endsWith("/app/")));
     });
 
     it("runs axe in the rendered page of every HTML page", () => {
@@ -210,16 +210,16 @@ describe("browser fetch", { skip }, () => {
             const live = await audit({ seeds: [`${gallery.origin}/live`, `${gallery.origin}/live-clean`], maxPages: 2, sitemap: false, robots: false, cacheMode: "off", groups: { default: { rules: ["images:live"], sample: "all" } } });
             const findings = live.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname} ${(finding.locations ?? []).join(", ")}`).toSorted((a, b) => a.localeCompare(b));
             assert.equal(findings.length, 3, findings.join("; "));
-            assert.match(findings[0] ?? "", /^images\/lazy-above-fold \/live \/wide\.jpg at \d+ px$/);
-            assert.match(findings[1] ?? "", /^images\/lazy-below-fold \/live \/small\.webp at \d{4} px$/);
-            assert.equal(findings[2], "images/rendered-oversize /live /wide.jpg 400 px shown at 100 px");
+            assert.match(findings[0] ?? "", /^images\/lazy-loading\/missing \/live \/small\.webp at \d{4} px$/);
+            assert.match(findings[1] ?? "", /^images\/lazy-loading\/slow \/live \/wide\.jpg at \d+ px$/);
+            assert.equal(findings[2], "images/rendered-size/large /live /wide.jpg 400 px shown at 100 px");
         } finally {
             await gallery.close();
         }
     });
 
     it("judges a theme-color pair as served when a script collapses it, and says the script rewrote it", async () => {
-        const rules = ["html/theme-color-schemes", "html/declaration-rewritten"];
+        const rules = ["html/theme-color-dark/missing", "html/declaration/mismatch"];
         const judged = async (pathname: string) => {
             const { findings } = await audit({ seeds: [`${site.origin}${pathname}`], fetch: "browser", maxPages: 1, sitemap: false, fetchResources: false, groups: { default: { rules } } });
             return findings;
@@ -227,13 +227,13 @@ describe("browser fetch", { skip }, () => {
         const scripted = await judged("/theme-script");
         assert.deepEqual(
             scripted.map((finding) => [finding.rule, finding.severity]),
-            [["html/declaration-rewritten", "info"]],
+            [["html/declaration/mismatch", "info"]],
         );
         assert.deepEqual(scripted[0]?.locations, ['<meta name="theme-color"> served “#ffffff (prefers-color-scheme: light)”, “#000000 (prefers-color-scheme: dark)”, rendered “#ffffff”']);
         const single = await judged("/theme-single");
         assert.deepEqual(
             single.map((finding) => finding.rule),
-            ["html/theme-color-schemes"],
+            ["html/theme-color-dark/missing"],
         );
     });
 
@@ -254,7 +254,7 @@ describe("browser fetch", { skip }, () => {
                 .map((finding) => finding.rule)
                 .filter((rule) => rule.startsWith("cookies/"))
                 .toSorted((a, b) => a.localeCompare(b)),
-            ["cookies/script-lifetime", "cookies/script-same-site"],
+            ["cookies/script-lifetime/excessive", "cookies/script-same-site/missing"],
         );
     });
 
@@ -268,7 +268,7 @@ describe("browser fetch", { skip }, () => {
             ],
             storage: [],
         });
-        const findings = report.findings.filter((finding) => finding.rule === "cookies/before-consent").map((finding) => new URL(finding.url).pathname);
+        const findings = report.findings.filter((finding) => finding.rule === "cookies/pre-consent/present").map((finding) => new URL(finding.url).pathname);
         assert.deepEqual(findings, ["/consent-tracked"]);
         assert.ok(!JSON.stringify(report.pages.map((entry) => entry.consent)).includes("uid=1"));
     });
@@ -285,22 +285,22 @@ describe("browser fetch", { skip }, () => {
             .map((finding) => `${new URL(finding.url).pathname} ${finding.rule}`)
             .toSorted((a, b) => a.localeCompare(b));
         const bad = [
-            "cookies/before-consent",
-            "cookies/storage-before-consent",
-            "keyboard/focus-obscured",
-            "keyboard/focus-visible",
-            "keyboard/forced-focus",
-            "keyboard/skip-link",
-            "keyboard/tab-walk",
-            "live/click-listener",
-            "live/contrast-enhanced",
-            "live/dark-contrast",
-            "live/forced-icons",
-            "live/forced-opt-out",
-            "live/input-font-size",
-            "live/reduced-motion",
+            "cookies/pre-consent-storage/present",
+            "cookies/pre-consent/present",
+            "keyboard/focus-outline/missing",
+            "keyboard/focus/inaccessible",
+            "keyboard/forced-colors-focus/missing",
+            "keyboard/skip-link/missing",
+            "keyboard/tab-order/inaccessible",
+            "live/click-target/inaccessible",
+            "live/contrast-enhanced/weak",
+            "live/dark-contrast/weak",
+            "live/forced-color-adjust/inaccessible",
+            "live/forced-colors-icon/inaccessible",
+            "live/input-font-size/weak",
+            "live/reduced-motion/missing",
         ];
-        assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-walk", "/live-skip live/contrast-more"]);
+        assert.deepEqual(failed, [...bad.map((rule) => `/live-bad ${rule}`), "/live-skip keyboard/tab-order/inaccessible", "/live-skip live/contrast-more/weak"]);
         const keyboard = (path: string) => report.pages.find((entry) => entry.url.pathname === path)?.keyboard as KeyboardFacts | undefined;
         assert.equal(keyboard("/live-bad")?.trap, "#a", "B sends Tab back to A");
         assert.deepEqual(
@@ -422,7 +422,7 @@ describe("rel=me in a browser", { skip }, () => {
         process.env.XDG_CACHE_HOME = directory;
         try {
             const loads = () => requested.filter((entry) => entry === "/@none").length;
-            const run = async (cacheMode: "use" | "refresh") => audit({ seeds: [`${origin}/`], rules: ["links/rel-me-rendered"], cacheMode, sitemap: false, groups: { default: { rules: ["links/rel-me-rendered"], sample: "all" } } });
+            const run = async (cacheMode: "use" | "refresh") => audit({ seeds: [`${origin}/`], rules: ["links/rel-me-rendered/missing"], cacheMode, sitemap: false, groups: { default: { rules: ["links/rel-me-rendered/missing"], sample: "all" } } });
             const first = await run("use");
             const base = loads();
             assert.equal(first.findings.length, 1);
@@ -443,10 +443,10 @@ describe("rel=me in a browser", { skip }, () => {
     });
 
     it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
-        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me", "links/rel-me-rendered"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me", "links/rel-me-rendered"], sample: "all" } } });
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me-backlink/missing", "links/rel-me-rendered/missing"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me-backlink/missing", "links/rel-me-rendered/missing"], sample: "all" } } });
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.value]),
-            [["links/rel-me-rendered", `${profile}/@none`]],
+            [["links/rel-me-rendered/missing", `${profile}/@none`]],
         );
         assert.ok(!requested.includes("/@blocked"), "robots.txt keeps the browser off a disallowed profile");
         const live = report.pages[0]?.["rel-me-live"] as { profiles: { url: string; error?: string }[] };

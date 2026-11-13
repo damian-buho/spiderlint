@@ -8,7 +8,7 @@ import { fold } from "../src/fold/index.ts";
 import { cell, type RuleRun } from "../src/rules/run.ts";
 import type { Finding } from "../src/rules/types.ts";
 
-const RULE = "css/inline-unsupported";
+const RULE = "css/inline-feature/unsupported";
 const HAS = ["74:9 <style> :has() CSS relational pseudo-class — Firefox 115–120"];
 
 // One page’s finding of the shared `<style>` block, at `locations`.

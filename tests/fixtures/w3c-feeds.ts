@@ -38,7 +38,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-item-guid/guid_duplicate_value.xml",
         expects: "DuplicateValue{element:guid}",
-        rule: "feeds/duplicate-id",
+        rule: "feeds/item-id/duplicate",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -70,7 +70,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-item-guid/missing_guid.xml",
         expects: "MissingGuid",
-        rule: "feeds/item-id",
+        rule: "feeds/item-id/missing",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -97,7 +97,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-item-guid/invalid_guid_value.xml",
         expects: "InvalidHttpGUID{parent:item,element:guid}",
-        rule: "feeds/permalink",
+        rule: "feeds/permalink/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -125,7 +125,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-language/invalid_language.xml",
         expects: "InvalidLanguage{parent:channel,element:language}",
-        rule: "feeds/language",
+        rule: "feeds/language/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -150,7 +150,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-managingeditor/invalid_managingEditor.xml",
         expects: "InvalidContact{parent:channel,element:managingEditor}",
-        rule: "feeds/email",
+        rule: "feeds/email/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -175,7 +175,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/element-channel-link/invalid_link.xml",
         expects: "InvalidLink{parent:channel,element:link}",
-        rule: "feeds/absolute-url",
+        rule: "feeds/url/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -199,7 +199,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/data-types-datetime/invalid_pubdate.xml",
         expects: "InvalidRFC2822Date{parent:channel,element:pubDate}",
-        rule: "feeds/date-format",
+        rule: "feeds/date/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -224,7 +224,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/data-types-datetime/invalid_pubdate_dow.xml",
         expects: "InvalidRFC2822Date{parent:channel,element:pubDate}",
-        rule: "feeds/date-format",
+        rule: "feeds/date/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -249,7 +249,7 @@ export const W3C_CASES: W3CCase[] = [
         type: RSS,
         source: "testcases/rss20/data-types-email/jumbled.xml",
         expects: "EmailFormat",
-        rule: "feeds/email",
+        rule: "feeds/email/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2002 Sam Ruby and Mark Pilgrim
@@ -300,7 +300,7 @@ export const W3C_CASES: W3CCase[] = [
         type: ATOM,
         source: "testcases/atom/4.1.1/authorless-with-one-entry.xml",
         expects: "MissingElement{element:author,parent:entry}",
-        rule: "feeds/required",
+        rule: "feeds/element/missing",
         body: `<?xml version="1.0" encoding="utf-8"?>
 <!--
 Author:       Sam Ruby <rubys@intertwingly.net>
@@ -333,7 +333,7 @@ Expect:       MissingElement{element:author,parent:entry}
         type: ATOM,
         source: "testcases/atom/must/feed_modified_wrong_format.xml",
         expects: "InvalidRFC3339Date{parent:feed,element:updated}",
-        rule: "feeds/date-format",
+        rule: "feeds/date/invalid",
         body: `<!--
   Author:       Sam Ruby (http://intertwingly.net/) and Mark Pilgrim (http://diveintomark.org/)
   Copyright:    Copyright (c) 2003 Sam Ruby and Mark Pilgrim

@@ -105,68 +105,68 @@ function page(patch: Patch = {}): Facts {
 
 // Rule ID → pages it must flag; every rule also passes on the bare `page()`.
 const FAILS: Record<string, Patch[]> = {
-    "http/hsts-subdomains": [{ headers: { "strict-transport-security": "max-age=31536000" } }],
-    "http/referrer-policy": [{ headers: { "referrer-policy": "unsafe-url" } }, { headers: { "referrer-policy": "no-referrer, no-referrer-when-downgrade" } }],
-    "http/permissions-policy": [{ headers: { "permissions-policy": "" } }],
-    "http/coop": [{ headers: { "cross-origin-opener-policy": "unsafe-none" } }],
-    "http/corp": [{ headers: { "cross-origin-resource-policy": "" } }],
-    "http/csp": [{ headers: { "content-security-policy": undefined as unknown as string, "content-security-policy-report-only": "default-src 'self'" } }],
-    "http/csp-upgrade-insecure": [{ headers: { "content-security-policy": "default-src 'self'" } }],
-    "http/csp-trusted-types": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "require-trusted-types-for 'none'" } }],
-    "http/csp-script-src": [{ headers: { "content-security-policy": "img-src 'self'; object-src 'none'" } }],
-    "http/csp-unsafe-inline": [{ headers: { "content-security-policy": "default-src 'self' 'unsafe-inline'" } }, { headers: { "content-security-policy": "default-src 'self'; script-src 'self' 'UNSAFE-INLINE'" } }],
-    "http/csp-unsafe-eval": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" } }, { headers: { "content-security-policy": "default-src 'unsafe-eval', img-src *" } }],
-    "http/csp-script-wildcard": [{ headers: { "content-security-policy": "script-src *" } }, { headers: { "content-security-policy": "default-src https:" } }],
-    "http/csp-object-src": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none'; object-src 'self'" } }],
-    "http/csp-base-uri": [{ headers: { "content-security-policy": "default-src 'self'" } }],
-    "http/csp-frame-ancestors": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
-    "http/reporting-endpoints": [{ headers: { "reporting-endpoints": "" } }],
-    "http/hsts": [{ headers: { "strict-transport-security": undefined as unknown as string } }, { headers: { "strict-transport-security": "max-age=300" } }],
-    "http/hsts-syntax": [{ headers: { "strict-transport-security": "max-age=abc" } }, { headers: { "strict-transport-security": "max-age=31536000, max-age=0" } }, { headers: { "strict-transport-security": "includeSubDomains" } }],
-    "http/csp-syntax": [{ headers: { "content-security-policy": "default-src self" } }, { headers: { "content-security-policy": "scrpit-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none' 'self'" } }],
-    "http/permissions-policy-syntax": [{ headers: { "permissions-policy": "camera=(self" } }, { headers: { "permissions-policy": "camera 'none'" } }, { headers: { "permissions-policy": "camera=none" } }],
-    "http/referrer-policy-syntax": [{ headers: { "referrer-policy": "strict" } }],
-    "http/coop-syntax": [{ headers: { "cross-origin-opener-policy": "same-site" } }],
-    "http/coep-syntax": [{ headers: { "cross-origin-embedder-policy": "require-corp;" } }],
-    "http/reporting-endpoints-syntax": [{ headers: { "reporting-endpoints": "default=/reports" } }],
-    "http/cache-control-syntax": [{ headers: { "cache-control": "banana" } }, { headers: { "cache-control": "max-age=1h" } }, { headers: { "cache-control": "min-fresh=60" } }, { headers: { "cache-control": "no-store=1" } }],
-    "http/vary-syntax": [{ headers: { vary: "Accept Encoding" } }],
-    "http/content-type-syntax": [{ headers: { "content-type": "html" } }, { headers: { "content-type": "text/html; utf-8" } }],
-    "http/use-as-dictionary-syntax": [{ headers: { "use-as-dictionary": "match=/app-*.js" } }],
-    "http/accept-ch-syntax": [{ headers: { "accept-ch": "Sec-CH-UA;;" } }],
-    "http/priority-syntax": [{ headers: { priority: "u=high" } }],
-    "http/cache-status-syntax": [{ headers: { "cache-status": "Cache; hit=" } }],
-    "http/retry-after-short": [
+    "http/hsts-subdomains/missing": [{ headers: { "strict-transport-security": "max-age=31536000" } }],
+    "http/referrer-policy/insecure": [{ headers: { "referrer-policy": "unsafe-url" } }, { headers: { "referrer-policy": "no-referrer, no-referrer-when-downgrade" } }],
+    "http/permissions-policy/missing": [{ headers: { "permissions-policy": "" } }],
+    "http/coop/weak": [{ headers: { "cross-origin-opener-policy": "unsafe-none" } }],
+    "http/corp/invalid": [{ headers: { "cross-origin-resource-policy": "" } }],
+    "http/csp/missing": [{ headers: { "content-security-policy": undefined as unknown as string, "content-security-policy-report-only": "default-src 'self'" } }],
+    "http/csp-upgrade-insecure/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }],
+    "http/csp-trusted-types/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "require-trusted-types-for 'none'" } }],
+    "http/csp-script-src/missing": [{ headers: { "content-security-policy": "img-src 'self'; object-src 'none'" } }],
+    "http/csp-unsafe-inline/present": [{ headers: { "content-security-policy": "default-src 'self' 'unsafe-inline'" } }, { headers: { "content-security-policy": "default-src 'self'; script-src 'self' 'UNSAFE-INLINE'" } }],
+    "http/csp-unsafe-eval/present": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" } }, { headers: { "content-security-policy": "default-src 'unsafe-eval', img-src *" } }],
+    "http/csp-script-src/insecure": [{ headers: { "content-security-policy": "script-src *" } }, { headers: { "content-security-policy": "default-src https:" } }],
+    "http/csp-object-src/weak": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none'; object-src 'self'" } }],
+    "http/csp-base-uri/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }],
+    "http/csp-frame-ancestors/missing": [{ headers: { "content-security-policy": "default-src 'self'" } }, { headers: { "content-security-policy": "default-src 'self'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "frame-ancestors 'none'" }] } }],
+    "http/reporting-endpoints/missing": [{ headers: { "reporting-endpoints": "" } }],
+    "http/hsts/weak": [{ headers: { "strict-transport-security": undefined as unknown as string } }, { headers: { "strict-transport-security": "max-age=300" } }],
+    "http/hsts/invalid": [{ headers: { "strict-transport-security": "max-age=abc" } }, { headers: { "strict-transport-security": "max-age=31536000, max-age=0" } }, { headers: { "strict-transport-security": "includeSubDomains" } }],
+    "http/csp/invalid": [{ headers: { "content-security-policy": "default-src self" } }, { headers: { "content-security-policy": "scrpit-src 'self'" } }, { headers: { "content-security-policy": "default-src 'none' 'self'" } }],
+    "http/permissions-policy/invalid": [{ headers: { "permissions-policy": "camera=(self" } }, { headers: { "permissions-policy": "camera 'none'" } }, { headers: { "permissions-policy": "camera=none" } }],
+    "http/referrer-policy/invalid": [{ headers: { "referrer-policy": "strict" } }],
+    "http/coop/invalid": [{ headers: { "cross-origin-opener-policy": "same-site" } }],
+    "http/coep/invalid": [{ headers: { "cross-origin-embedder-policy": "require-corp;" } }],
+    "http/reporting-endpoints/invalid": [{ headers: { "reporting-endpoints": "default=/reports" } }],
+    "http/cache-control/invalid": [{ headers: { "cache-control": "banana" } }, { headers: { "cache-control": "max-age=1h" } }, { headers: { "cache-control": "min-fresh=60" } }, { headers: { "cache-control": "no-store=1" } }],
+    "http/vary/invalid": [{ headers: { vary: "Accept Encoding" } }],
+    "http/content-type/invalid": [{ headers: { "content-type": "html" } }, { headers: { "content-type": "text/html; utf-8" } }],
+    "http/use-as-dictionary/invalid": [{ headers: { "use-as-dictionary": "match=/app-*.js" } }],
+    "http/accept-ch/invalid": [{ headers: { "accept-ch": "Sec-CH-UA;;" } }],
+    "http/priority/invalid": [{ headers: { priority: "u=high" } }],
+    "http/cache-status/invalid": [{ headers: { "cache-status": "Cache; hit=" } }],
+    "http/retry-after/weak": [
         { status: 503, headers: { "retry-after": "1" } },
         { status: 429, headers: { "retry-after": "Sun, 06 Nov 1994 08:49:30 GMT" } },
     ],
-    "http/retry-after-syntax": [{ headers: { "retry-after": "2m" } }, { headers: { "retry-after": "-5" } }, { headers: { "retry-after": "Mon, 31 Feb 2027 00:00:00 GMT" } }, { headers: { "retry-after": "2027-01-01T00:00:00Z" } }],
-    "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "1; mode=block" } }],
-    "url/length": [{ pathname: `/posts/${"very-long-words-".repeat(6)}/` }],
-    "url/uppercase": [{ pathname: "/Posts/hello-world/" }],
-    "url/session-param": [{ search: "?sid=4f2a" }, { pathname: "/posts/hello-world;jsessionid=4F2A" }],
-    "url/double-slash": [{ pathname: "/posts//hello-world/" }],
-    "url/extension": [{ pathname: "/posts/hello-world.php" }, { pathname: "/index.HTML" }],
-    "url/readable-slug": [{ pathname: "/p/8f3a91c" }, { pathname: "/p/1234" }, { pathname: "/p/0b8e6f3a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" }, { pathname: "/p/spring-recipes/", html: { h1: ["Summer salads"] } }],
-    "http/date": [{ headers: { date: undefined as unknown as string } }, { headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
-    "http/deprecated-header": [{ headers: { "x-xss-protection": "0" } }, { headers: { "report-to": '{"group":"default","max_age":86400,"endpoints":[{"url":"https://site.test/reports"}]}' } }, { headers: { "feature-policy": "camera 'none'", "expect-ct": "max-age=0" } }],
-    "links/internal-nofollow": [{ html: { links: { internal: ["https://site.test/login"], external: [], nofollow: ["https://site.test/login"] } } }],
-    "http/compression": [{ headers: { "content-encoding": "deflate" } }, { contentType: "application/ld+json", headers: { "content-encoding": "identity" } }],
-    "http/vary-encoding": [{ headers: { vary: "Origin" } }],
-    "http/vary-star": [{ headers: { vary: "*" } }],
-    "http/validator": [{ headers: { etag: undefined as unknown as string } }],
-    "http/html-cache-control": [{ headers: { "cache-control": "" } }],
-    "http/no-store-bfcache": [{ headers: { "cache-control": "private, no-store" } }],
-    "http/version": [{ version: "1.1" }],
-    "http/alt-svc-h3": [{ headers: { "alt-svc": 'h2=":443"' } }, { headers: { "alt-svc": "clear" } }, { headers: { "alt-svc": undefined as unknown as string } }],
-    "http/alt-svc-syntax": [{ headers: { "alt-svc": "h3=:443" } }, { headers: { "alt-svc": 'h3="443"' } }, { headers: { "alt-svc": 'h3=":443"; ma=1d' } }],
-    "http/retry-after": [{ status: 503 }],
-    "http/sunset-format": [{ headers: { sunset: "2027-01-01" } }],
-    "http/deprecation-format": [{ headers: { deprecation: "true" } }],
-    "html/lang": [{ lang: "english" }, { lang: "en_GB" }],
-    "html/viewport": [{ meta: { viewport: "initial-scale=1" } }, { meta: { viewport: "width=device-width, user-scalable=no" } }, { meta: { viewport: "width=device-width, maximum-scale=1.0" } }],
-    "html/theme-color": [{ meta: { "theme-color": "" } }],
-    "html/theme-color-syntax": [
+    "http/retry-after/invalid": [{ headers: { "retry-after": "2m" } }, { headers: { "retry-after": "-5" } }, { headers: { "retry-after": "Mon, 31 Feb 2027 00:00:00 GMT" } }, { headers: { "retry-after": "2027-01-01T00:00:00Z" } }],
+    "http/x-xss-protection/insecure": [{ headers: { "x-xss-protection": "1; mode=block" } }],
+    "url/href/length": [{ pathname: `/posts/${"very-long-words-".repeat(6)}/` }],
+    "url/uppercase/present": [{ pathname: "/Posts/hello-world/" }],
+    "url/session-param/present": [{ search: "?sid=4f2a" }, { pathname: "/posts/hello-world;jsessionid=4F2A" }],
+    "url/double-slash/present": [{ pathname: "/posts//hello-world/" }],
+    "url/extension/present": [{ pathname: "/posts/hello-world.php" }, { pathname: "/index.HTML" }],
+    "url/slug/unreadable": [{ pathname: "/p/8f3a91c" }, { pathname: "/p/1234" }, { pathname: "/p/0b8e6f3a-1c2d-4e5f-8a9b-0c1d2e3f4a5b" }, { pathname: "/p/spring-recipes/", html: { h1: ["Summer salads"] } }],
+    "http/date/invalid": [{ headers: { date: undefined as unknown as string } }, { headers: { date: "Sunday, 06-Nov-94 08:49:37 GMT" } }],
+    "http/header/deprecated": [{ headers: { "x-xss-protection": "0" } }, { headers: { "report-to": '{"group":"default","max_age":86400,"endpoints":[{"url":"https://site.test/reports"}]}' } }, { headers: { "feature-policy": "camera 'none'", "expect-ct": "max-age=0" } }],
+    "links/internal-nofollow/present": [{ html: { links: { internal: ["https://site.test/login"], external: [], nofollow: ["https://site.test/login"] } } }],
+    "http/compression/weak": [{ headers: { "content-encoding": "deflate" } }, { contentType: "application/ld+json", headers: { "content-encoding": "identity" } }],
+    "http/vary-accept-encoding/missing": [{ headers: { vary: "Origin" } }],
+    "http/vary-star/present": [{ headers: { vary: "*" } }],
+    "http/validator/missing": [{ headers: { etag: undefined as unknown as string } }],
+    "http/cache-control/missing": [{ headers: { "cache-control": "" } }],
+    "http/no-store/present": [{ headers: { "cache-control": "private, no-store" } }],
+    "http/version/outdated": [{ version: "1.1" }],
+    "http/alt-svc-h3/missing": [{ headers: { "alt-svc": 'h2=":443"' } }, { headers: { "alt-svc": "clear" } }, { headers: { "alt-svc": undefined as unknown as string } }],
+    "http/alt-svc/invalid": [{ headers: { "alt-svc": "h3=:443" } }, { headers: { "alt-svc": 'h3="443"' } }, { headers: { "alt-svc": 'h3=":443"; ma=1d' } }],
+    "http/retry-after/missing": [{ status: 503 }],
+    "http/sunset/invalid": [{ headers: { sunset: "2027-01-01" } }],
+    "http/deprecation/invalid": [{ headers: { deprecation: "true" } }],
+    "html/lang/invalid": [{ lang: "english" }, { lang: "en_GB" }],
+    "html/viewport/inaccessible": [{ meta: { viewport: "initial-scale=1" } }, { meta: { viewport: "width=device-width, user-scalable=no" } }, { meta: { viewport: "width=device-width, maximum-scale=1.0" } }],
+    "html/theme-color/missing": [{ meta: { "theme-color": "" } }],
+    "html/theme-color/invalid": [
         { html: { metas: [{ name: "theme-color", content: "blue-ish" }] } },
         { html: { metas: [{ name: "Theme-Color", content: " " }] } },
         {
@@ -178,12 +178,12 @@ const FAILS: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/color-scheme": [{ meta: { "color-scheme": "" } }, { meta: { "color-scheme": "light, dark" } }, { meta: { "color-scheme": "normal dark" } }, { meta: { "color-scheme": "only" } }],
-    "html/viewport-syntax": [{ meta: { viewport: "width=device-width, initial-scale=1, shrink-to-fit=no" } }, { meta: { viewport: "width=device-width, viewport-fit=full" } }, { meta: { viewport: "width=device-width, initial-scale" } }],
-    "html/og-image": [{ html: { property: { "og:image": "https://" } } }, { html: { property: { "og:image": "/og.png" } } }],
-    "html/og-url": [{ html: { property: { "og:url": "https://site test/posts/" } } }],
-    "html/og-type": [{ html: { property: { "og:type": "blog" } } }, { html: { property: { "og:type": "" } } }],
-    "html/theme-color-schemes": [
+    "html/color-scheme/invalid": [{ meta: { "color-scheme": "" } }, { meta: { "color-scheme": "light, dark" } }, { meta: { "color-scheme": "normal dark" } }, { meta: { "color-scheme": "only" } }],
+    "html/viewport/invalid": [{ meta: { viewport: "width=device-width, initial-scale=1, shrink-to-fit=no" } }, { meta: { viewport: "width=device-width, viewport-fit=full" } }, { meta: { viewport: "width=device-width, initial-scale" } }],
+    "html/og-image/invalid": [{ html: { property: { "og:image": "https://" } } }, { html: { property: { "og:image": "/og.png" } } }],
+    "html/og-url/invalid": [{ html: { property: { "og:url": "https://site test/posts/" } } }],
+    "html/og-type/invalid": [{ html: { property: { "og:type": "blog" } } }, { html: { property: { "og:type": "" } } }],
+    "html/theme-color-dark/missing": [
         { html: { metas: [{ name: "theme-color", content: "#000" }] } },
         {
             html: {
@@ -194,20 +194,20 @@ const FAILS: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/noindex-listed": [{ meta: { robots: "noindex, follow" } }, { meta: { robots: "NONE" } }, { headers: { "x-robots-tag": "googlebot: noindex" } }],
-    "html/dir-rtl": [{ lang: "ar" }, { lang: "he-IL", html: { dir: "ltr" } }],
-    "html/charset": [{ html: { charset: { declared: "windows-1252", offset: 300 } } }, { html: { charset: { declared: "utf8", offset: 1500 } } }, { html: { charset: undefined } }],
-    "html/favicon": [{ html: { head: { links: [{ rel: "apple-touch-icon", href: "/a.png" }] } } }],
-    "html/hreflang-x-default": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }] } }],
-    "html/jsonld-parses": [{ html: { jsonld: [{ "@error": "Unexpected token" }] } }],
-    "html/render-blocking-script": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: false, head: true }] } }],
-    "html/img-dimensions": [{ html: { images: [{ src: "/a.png", alt: "" }] } }],
-    "html/first-img-lazy": [{ html: { images: [{ src: "/hero.png", alt: "", loading: "LAZY" }] } }],
-    "html/privacy-policy": [{ html: { rels: {} } }, { html: { rels: { "privacy-policy": [] } } }],
-    "url/shape": [{ pathname: "/Posts/" }, { pathname: "/posts/hello_world/" }, { pathname: "/posts//x/" }],
-    "resources/a11y-overlay": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
-    "browser/unused-preload": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
-    "redirects/permanent": [
+    "html/noindex/mismatch": [{ meta: { robots: "noindex, follow" } }, { meta: { robots: "NONE" } }, { headers: { "x-robots-tag": "googlebot: noindex" } }],
+    "html/dir/missing": [{ lang: "ar" }, { lang: "he-IL", html: { dir: "ltr" } }],
+    "html/charset/invalid": [{ html: { charset: { declared: "windows-1252", offset: 300 } } }, { html: { charset: { declared: "utf8", offset: 1500 } } }, { html: { charset: undefined } }],
+    "html/favicon/missing": [{ html: { head: { links: [{ rel: "apple-touch-icon", href: "/a.png" }] } } }],
+    "html/hreflang-x-default/missing": [{ html: { hreflang: [{ lang: "en", href: "https://site.test/" }] } }],
+    "html/jsonld/invalid": [{ html: { jsonld: [{ "@error": "Unexpected token" }] } }],
+    "html/script/blocking": [{ html: { scripts: [{ src: "https://site.test/a.js", async: false, defer: false, head: true }] } }],
+    "html/img-dimensions/missing": [{ html: { images: [{ src: "/a.png", alt: "" }] } }],
+    "html/first-image/slow": [{ html: { images: [{ src: "/hero.png", alt: "", loading: "LAZY" }] } }],
+    "html/privacy-policy/missing": [{ html: { rels: {} } }, { html: { rels: { "privacy-policy": [] } } }],
+    "url/path/invalid": [{ pathname: "/Posts/" }, { pathname: "/posts/hello_world/" }, { pathname: "/posts//x/" }],
+    "resources/a11y-overlay/present": [{ resources: ["https://acsbapp.com/apps/app/dist/js/app.js"] }, { resources: ["https://cdn.userway.org/widget.js"] }],
+    "browser/preload/unused": [{ warnings: ["The resource https://site.test/a.woff2 was preloaded using link preload but not used within a few seconds from the window’s load event."] }],
+    "redirects/status/temporary": [
         {
             redirects: [
                 { url: "https://site.test/a", status: 301 },
@@ -216,7 +216,7 @@ const FAILS: Record<string, Patch[]> = {
         },
         { redirects: [{ url: "https://site.test/b", status: 307 }] },
     ],
-    "redirects/by": [
+    "redirects/redirect-by/missing": [
         {
             redirects: [
                 { url: "https://site.test/a", status: 301, by: "WordPress" },
@@ -224,34 +224,33 @@ const FAILS: Record<string, Patch[]> = {
             ],
         },
     ],
-    "http/coep": [{ headers: { "cross-origin-embedder-policy": "unsafe-none" } }],
-    "http/digest": [{ headers: { "repr-digest": undefined as unknown as string } }],
-    "http/server-timing": [
+    "http/coep/weak": [{ headers: { "cross-origin-embedder-policy": "unsafe-none" } }],
+    "http/digest/missing": [{ headers: { "repr-digest": undefined as unknown as string } }],
+    "http/server-timing/missing": [
         { role: "development", headers: { "server-timing": "" } },
         { role: "staging", headers: { "server-timing": "" } },
     ],
-    "html/noai": [
+    "html/noai/present": [
         { stance: { "ai-train": "yes" }, meta: { robots: "noai" } },
         { stance: { "ai-train": "yes" }, headers: { "x-robots-tag": "noimageai" } },
     ],
-    "html/noindex-staging": [{ role: "staging" }, { role: "development", meta: { robots: "nofollow" } }],
-    "http/no-vary-search": [{ search: "?utm_source=x" }],
-    "http/link-syntax": [{ headers: { link: "https://site.test/a.css; rel=preload" } }, { headers: { link: "<https://site.test/a.css>" } }, { headers: { link: '<https://site.test/a.css>; rel=preload; as="style' } }],
-    "http/dictionary-format": [{ headers: { "use-as-dictionary": 'id="v1"' } }],
-    "http/tdm-reservation": [{ headers: { "tdm-reservation": "yes" } }],
-    "html/tdm-reservation": [{ meta: { "tdm-reservation": "2" } }],
-    "html/speculation-rules": [{ html: { scripts: [] } }],
-    "html/feed-discovery": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
-    "html/alternate-formats": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/html", hreflang: "es", href: "https://site.test/es/" }] } } }],
-    "html/nlweb": [{ pathname: "/" }],
-    "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/" }],
-    "tls/cert-expiry": [{ daysLeft: 13 }, { daysLeft: 2 }],
-    "tls/cert-expiring": [{ daysLeft: 1 }, { daysLeft: 0 }],
-    "tls/cert-expired": [{ daysLeft: -1 }],
-    "tls/key-strength": [{ cert: { key: { type: "RSA", bits: 1024 } } }, { cert: { key: { type: "EC", curve: "P-192" } } }, { cert: { key: { type: "DSA" } } }],
-    "tls/signature": [{ cert: { signatures: ["sha256WithRSAEncryption", "sha1WithRSAEncryption"] } }, { cert: { signatures: ["md5WithRSAEncryption"] } }, { cert: { signatures: ["ecdsa-with-SHA1"] } }],
-    "tls/ec-key": [{ cert: { key: { type: "RSA", bits: 2048 } } }],
-    "html/render-blocking-css": [
+    "html/noindex-staging/missing": [{ role: "staging" }, { role: "development", meta: { robots: "nofollow" } }],
+    "http/no-vary-search/missing": [{ search: "?utm_source=x" }],
+    "http/link/invalid": [{ headers: { link: "https://site.test/a.css; rel=preload" } }, { headers: { link: "<https://site.test/a.css>" } }, { headers: { link: '<https://site.test/a.css>; rel=preload; as="style' } }],
+    "http/use-as-dictionary-match/invalid": [{ headers: { "use-as-dictionary": 'id="v1"' } }],
+    "http/tdm-reservation/invalid": [{ headers: { "tdm-reservation": "yes" } }],
+    "html/tdm-reservation/invalid": [{ meta: { "tdm-reservation": "2" } }],
+    "html/speculation-rules/missing": [{ html: { scripts: [] } }],
+    "html/feed-link/missing": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
+    "html/alternate-format/missing": [{ pathname: "/" }, { pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/html", hreflang: "es", href: "https://site.test/es/" }] } } }],
+    "html/nlweb/missing": [{ pathname: "/" }],
+    "html/noindex-twin/missing": [{ twin: "https://prod.test/posts/hello-world/" }],
+    "tls/certificate/expiring": [{ daysLeft: 13 }, { daysLeft: 2 }, { daysLeft: 1 }, { daysLeft: 0 }],
+    "tls/certificate/expired": [{ daysLeft: -1 }],
+    "tls/key/weak": [{ cert: { key: { type: "RSA", bits: 1024 } } }, { cert: { key: { type: "EC", curve: "P-192" } } }, { cert: { key: { type: "DSA" } } }],
+    "tls/signature/weak": [{ cert: { signatures: ["sha256WithRSAEncryption", "sha1WithRSAEncryption"] } }, { cert: { signatures: ["md5WithRSAEncryption"] } }, { cert: { signatures: ["ecdsa-with-SHA1"] } }],
+    "tls/ec-key/missing": [{ cert: { key: { type: "RSA", bits: 2048 } } }],
+    "html/stylesheet/blocking": [
         {
             html: {
                 head: {
@@ -267,16 +266,16 @@ const FAILS: Record<string, Patch[]> = {
 
 // Pages the rule must pass or skip, beyond the bare `page()`.
 const PASSES: Record<string, Patch[]> = {
-    "url/uppercase": [{ pathname: "/posts/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82/" }],
-    "url/session-param": [{ search: "?side=left" }],
-    "url/extension": [{ pathname: "/feed.xml" }],
-    "url/readable-slug": [{ pathname: "/" }, { pathname: "/p/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82-%D0%BC%D0%B8%D1%80/", html: { h1: ["Привет, мир"] } }, { pathname: "/privet/", html: { h1: ["Привет"] } }, { pathname: "/strasse.html", html: { h1: ["Die Straße"] } }],
-    "http/csp": [{ headers: { "content-security-policy": undefined as unknown as string }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
-    "http/csp-unsafe-inline": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'unsafe-inline'" } }, { headers: { "content-security-policy": "script-src 'self' 'unsafe-inline', script-src 'self'" } }, { headers: { "content-security-policy": "style-src 'unsafe-inline'; script-src 'self'" } }],
-    "http/csp-unsafe-eval": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
-    "http/csp-script-wildcard": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https:" } }, { headers: { "content-security-policy": "default-src *, script-src 'self'" } }],
-    "http/csp-object-src": [{ headers: { "content-security-policy": "default-src 'none'" } }, { headers: { "content-security-policy": "default-src 'self', object-src 'none'" } }],
-    "redirects/permanent": [
+    "url/uppercase/present": [{ pathname: "/posts/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82/" }],
+    "url/session-param/present": [{ search: "?side=left" }],
+    "url/extension/present": [{ pathname: "/feed.xml" }],
+    "url/slug/unreadable": [{ pathname: "/" }, { pathname: "/p/%D0%BF%D1%80%D0%B8%D0%B2%D0%B5%D1%82-%D0%BC%D0%B8%D1%80/", html: { h1: ["Привет, мир"] } }, { pathname: "/privet/", html: { h1: ["Привет"] } }, { pathname: "/strasse.html", html: { h1: ["Die Straße"] } }],
+    "http/csp/missing": [{ headers: { "content-security-policy": undefined as unknown as string }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
+    "http/csp-unsafe-inline/present": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'unsafe-inline'" } }, { headers: { "content-security-policy": "script-src 'self' 'unsafe-inline', script-src 'self'" } }, { headers: { "content-security-policy": "style-src 'unsafe-inline'; script-src 'self'" } }],
+    "http/csp-unsafe-eval/present": [{ headers: { "content-security-policy": "script-src 'self' 'unsafe-eval'" }, html: { "http-equiv": [{ name: "content-security-policy", content: "default-src 'self'" }] } }],
+    "http/csp-script-src/insecure": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https:" } }, { headers: { "content-security-policy": "default-src *, script-src 'self'" } }],
+    "http/csp-object-src/weak": [{ headers: { "content-security-policy": "default-src 'none'" } }, { headers: { "content-security-policy": "default-src 'self', object-src 'none'" } }],
+    "redirects/status/temporary": [
         {
             redirects: [
                 { url: "https://site.test/a", status: 301 },
@@ -285,33 +284,33 @@ const PASSES: Record<string, Patch[]> = {
         },
         { status: 404, redirects: [{ url: "https://site.test/b", status: 302 }] },
     ],
-    "http/referrer-policy": [{ headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
-    "http/no-x-xss-protection": [{ headers: { "x-xss-protection": "0" } }],
-    "http/deprecated-header": [{ headers: { "report-to": '{"group":"network-errors"}', nel: '{"report_to":"network-errors","max_age":86400}' } }],
-    "links/internal-nofollow": [{ html: { links: { internal: [], external: ["https://other.test/"], nofollow: ["https://other.test/"] } } }],
-    "http/compression": [
+    "http/referrer-policy/insecure": [{ headers: { "referrer-policy": "unsafe-url, no-referrer" } }],
+    "http/x-xss-protection/insecure": [{ headers: { "x-xss-protection": "0" } }],
+    "http/header/deprecated": [{ headers: { "report-to": '{"group":"network-errors"}', nel: '{"report_to":"network-errors","max_age":86400}' } }],
+    "links/internal-nofollow/present": [{ html: { links: { internal: [], external: ["https://other.test/"], nofollow: ["https://other.test/"] } } }],
+    "http/compression/weak": [
         { decoded: 512, headers: { "content-encoding": "identity" } },
         { contentType: "image/png", headers: { "content-encoding": "identity" } },
     ],
-    "http/validator": [{ headers: { etag: undefined as unknown as string, "last-modified": "Wed, 01 Jan 2025 00:00:00 GMT" } }],
-    "http/no-store-bfcache": [{ contentType: "application/json", headers: { "cache-control": "no-store" } }],
-    "http/retry-after": [
+    "http/validator/missing": [{ headers: { etag: undefined as unknown as string, "last-modified": "Wed, 01 Jan 2025 00:00:00 GMT" } }],
+    "http/no-store/present": [{ contentType: "application/json", headers: { "cache-control": "no-store" } }],
+    "http/retry-after/missing": [
         { status: 503, headers: { "retry-after": "120" } },
         { status: 503, headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } },
         { status: 503, headers: { "retry-after": "2m" } },
     ],
-    "http/retry-after-short": [
+    "http/retry-after/weak": [
         { status: 503, headers: { "retry-after": "120" } },
         { status: 429, headers: { "retry-after": "Sun, 06 Nov 1994 08:59:37 GMT" } },
         { status: 301, headers: { "retry-after": "1" } },
         { status: 503, headers: { "retry-after": "Sun, 06 Nov 1994 08:49:30 GMT", date: undefined as unknown as string } },
     ],
-    "http/retry-after-syntax": [{ headers: { "retry-after": "0" } }, { headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } }],
-    "http/sunset-format": [{ headers: { sunset: "Fri, 01 Jan 2027 00:00:00 GMT" } }],
-    "http/deprecation-format": [{ headers: { deprecation: "@1767225600" } }],
-    "html/lang": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
-    "html/viewport": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
-    "html/theme-color-schemes": [
+    "http/retry-after/invalid": [{ headers: { "retry-after": "0" } }, { headers: { "retry-after": "Fri, 01 Jan 2027 00:00:00 GMT" } }],
+    "http/sunset/invalid": [{ headers: { sunset: "Fri, 01 Jan 2027 00:00:00 GMT" } }],
+    "http/deprecation/invalid": [{ headers: { deprecation: "@1767225600" } }],
+    "html/lang/invalid": [{ lang: "zh-Hant-TW" }, { lang: "es-419" }],
+    "html/viewport/inaccessible": [{ meta: { viewport: "width=device-width, maximum-scale=1.5" } }],
+    "html/theme-color-dark/missing": [
         { meta: { "color-scheme": "light" }, html: { metas: [{ name: "theme-color", content: "#fff" }] } },
         {
             html: {
@@ -322,17 +321,17 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "http/server-timing": [{ headers: { "server-timing": "" } }],
-    "html/noai": [{ meta: { robots: "noai" } }, { stance: { "ai-train": "no" }, meta: { robots: "noai" } }, { stance: { "ai-train": "yes" } }],
-    "html/noindex-staging": [
+    "http/server-timing/missing": [{ headers: { "server-timing": "" } }],
+    "html/noai/present": [{ meta: { robots: "noai" } }, { stance: { "ai-train": "no" }, meta: { robots: "noai" } }, { stance: { "ai-train": "yes" } }],
+    "html/noindex-staging/missing": [
         { role: "staging", meta: { robots: "noindex" } },
         { role: "staging", twin: "https://prod.test/posts/hello-world/" },
     ],
-    "html/noindex-listed": [{ meta: { robots: "noindex" }, role: "staging" }, { meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
-    "html/dir-rtl": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
-    "html/charset": [{ html: { charset: { declared: "utf8", offset: 1024 } } }],
-    "html/favicon": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
-    "html/hreflang-x-default": [
+    "html/noindex/mismatch": [{ meta: { robots: "noindex" }, role: "staging" }, { meta: { robots: "noindex" }, listed: false }, { meta: { robots: "noindex" }, twin: "https://prod.test/posts/hello-world/" }, { meta: { robots: "max-image-preview:large" } }, { headers: { "x-robots-tag": "nofollow" } }],
+    "html/dir/missing": [{ lang: "ar-EG", html: { dir: "rtl" } }, { lang: "arn" }],
+    "html/charset/invalid": [{ html: { charset: { declared: "utf8", offset: 1024 } } }],
+    "html/favicon/missing": [{ html: { head: { links: [{ rel: "shortcut icon", href: "/favicon.ico" }] } } }],
+    "html/hreflang-x-default/missing": [
         {
             html: {
                 hreflang: [
@@ -342,8 +341,8 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/jsonld-parses": [{ html: { jsonld: [[{ "@type": "Thing" }, { "@type": "Place" }, { "@type": "Person" }]] } }],
-    "html/render-blocking-script": [
+    "html/jsonld/invalid": [{ html: { jsonld: [[{ "@type": "Thing" }, { "@type": "Place" }, { "@type": "Person" }]] } }],
+    "html/script/blocking": [
         {
             html: {
                 scripts: [
@@ -354,8 +353,8 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/img-dimensions": [{ html: { images: [{ src: "/pixel.gif", alt: "", noscript: true }] } }],
-    "html/first-img-lazy": [
+    "html/img-dimensions/missing": [{ html: { images: [{ src: "/pixel.gif", alt: "", noscript: true }] } }],
+    "html/first-image/slow": [
         { html: { images: [] } },
         {
             html: {
@@ -366,22 +365,22 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "url/shape": [{ pathname: "/es/ma%C3%B1ana/" }],
-    "redirects/by": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }] }],
-    "http/coep": [{ headers: { "cross-origin-embedder-policy": 'require-corp; report-to="default"' } }],
-    "http/permissions-policy-syntax": [{ headers: { "permissions-policy": 'geolocation=(self "https://maps.test"), fullscreen=*' } }],
-    "http/csp-syntax": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https: *.cdn.test:443/js/; img-src data: 'self'" } }],
-    "http/cache-control-syntax": [{ headers: { "cache-control": 'private="set-cookie", no-cache, max-age="0"' } }],
-    "http/priority-syntax": [{ headers: { priority: "u=1, i" } }],
-    "http/cache-status-syntax": [{ headers: { "cache-status": "ExampleCache; hit; ttl=30" } }],
-    "http/digest": [{ headers: { "repr-digest": undefined as unknown as string, "content-digest": "sha-256=:x:" } }],
-    "http/no-vary-search": [{ search: "?q=1", headers: { "no-vary-search": "params" } }],
-    "http/link-syntax": [{ headers: { link: "<https://site.test/a.css>; rel=preload; as=style, <https://site.test/b.js>; rel=modulepreload" } }, { headers: { link: '<https://site.test/a,b.css>; rel="preload prefetch"; title="x, y"; crossorigin' } }],
-    "http/alt-svc-h3": [{ headers: { "alt-svc": 'h2=":443", h3="cdn.test:443"; ma=86400; persist=1' } }],
-    "http/alt-svc-syntax": [{ headers: { "alt-svc": "clear" } }, { headers: { "alt-svc": 'h3="[::1]:443"; foo=bar' } }],
-    "html/color-scheme": [{ meta: { "color-scheme": "normal" } }, { meta: { "color-scheme": "only light" } }, { meta: { "color-scheme": "dark light only" } }],
-    "html/viewport-syntax": [{ meta: { viewport: "width = device-width; initial-scale=1.0 viewport-fit=cover, interactive-widget=resizes-content" } }],
-    "html/theme-color-syntax": [
+    "url/path/invalid": [{ pathname: "/es/ma%C3%B1ana/" }],
+    "redirects/redirect-by/missing": [{ redirects: [{ url: "https://site.test/a", status: 301, by: "WordPress" }] }],
+    "http/coep/weak": [{ headers: { "cross-origin-embedder-policy": 'require-corp; report-to="default"' } }],
+    "http/permissions-policy/invalid": [{ headers: { "permissions-policy": 'geolocation=(self "https://maps.test"), fullscreen=*' } }],
+    "http/csp/invalid": [{ headers: { "content-security-policy": "script-src 'nonce-r4nd0m' 'strict-dynamic' https: *.cdn.test:443/js/; img-src data: 'self'" } }],
+    "http/cache-control/invalid": [{ headers: { "cache-control": 'private="set-cookie", no-cache, max-age="0"' } }],
+    "http/priority/invalid": [{ headers: { priority: "u=1, i" } }],
+    "http/cache-status/invalid": [{ headers: { "cache-status": "ExampleCache; hit; ttl=30" } }],
+    "http/digest/missing": [{ headers: { "repr-digest": undefined as unknown as string, "content-digest": "sha-256=:x:" } }],
+    "http/no-vary-search/missing": [{ search: "?q=1", headers: { "no-vary-search": "params" } }],
+    "http/link/invalid": [{ headers: { link: "<https://site.test/a.css>; rel=preload; as=style, <https://site.test/b.js>; rel=modulepreload" } }, { headers: { link: '<https://site.test/a,b.css>; rel="preload prefetch"; title="x, y"; crossorigin' } }],
+    "http/alt-svc-h3/missing": [{ headers: { "alt-svc": 'h2=":443", h3="cdn.test:443"; ma=86400; persist=1' } }],
+    "http/alt-svc/invalid": [{ headers: { "alt-svc": "clear" } }, { headers: { "alt-svc": 'h3="[::1]:443"; foo=bar' } }],
+    "html/color-scheme/invalid": [{ meta: { "color-scheme": "normal" } }, { meta: { "color-scheme": "only light" } }, { meta: { "color-scheme": "dark light only" } }],
+    "html/viewport/invalid": [{ meta: { viewport: "width = device-width; initial-scale=1.0 viewport-fit=cover, interactive-widget=resizes-content" } }],
+    "html/theme-color/invalid": [
         {
             html: {
                 metas: [
@@ -391,22 +390,21 @@ const PASSES: Record<string, Patch[]> = {
             },
         },
     ],
-    "html/og-image": [{ html: { property: { "og:image": "https://site.test/og.png" } } }],
-    "html/og-type": [{ html: { property: { "og:type": "music.song" } } }, { html: { property: { "og:type": "fb:app" } } }],
-    "http/dictionary-format": [{ headers: { "use-as-dictionary": 'match="/app-*.js", id="v1"' } }],
-    "http/tdm-reservation": [{ headers: { "tdm-reservation": "1" } }],
-    "html/tdm-reservation": [{ meta: { "tdm-reservation": "0" } }],
-    "html/speculation-rules": [{ html: { scripts: [] }, headers: { "speculation-rules": '"/rules.json"' } }],
-    "html/feed-discovery": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "application/atom+xml", href: "https://site.test/feed.xml" }] } } }],
-    "html/alternate-formats": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
-    "html/nlweb": [{ pathname: "/", html: { rels: { nlweb: ["https://site.test/ask"] } } }],
-    "html/noindex-twin": [{ twin: "https://prod.test/posts/hello-world/", meta: { robots: "noindex" } }],
-    "tls/cert-expiry": [{ daysLeft: 14 }, { daysLeft: 1 }, { daysLeft: -3 }],
-    "tls/cert-expiring": [{ daysLeft: 2 }, { daysLeft: -1 }],
-    "tls/cert-expired": [{ daysLeft: 0 }, { daysLeft: 13 }],
-    "tls/key-strength": [{ cert: { key: { type: "RSA", bits: 4096 } } }, { cert: { key: { type: "Ed25519" } } }, { cert: { key: undefined } }],
-    "tls/signature": [{ cert: { signatures: undefined } }],
-    "html/render-blocking-css": [
+    "html/og-image/invalid": [{ html: { property: { "og:image": "https://site.test/og.png" } } }],
+    "html/og-type/invalid": [{ html: { property: { "og:type": "music.song" } } }, { html: { property: { "og:type": "fb:app" } } }],
+    "http/use-as-dictionary-match/invalid": [{ headers: { "use-as-dictionary": 'match="/app-*.js", id="v1"' } }],
+    "http/tdm-reservation/invalid": [{ headers: { "tdm-reservation": "1" } }],
+    "html/tdm-reservation/invalid": [{ meta: { "tdm-reservation": "0" } }],
+    "html/speculation-rules/missing": [{ html: { scripts: [] }, headers: { "speculation-rules": '"/rules.json"' } }],
+    "html/feed-link/missing": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "application/atom+xml", href: "https://site.test/feed.xml" }] } } }],
+    "html/alternate-format/missing": [{ pathname: "/", html: { head: { links: [{ rel: "alternate", type: "text/markdown", href: "https://site.test/index.md" }] } } }],
+    "html/nlweb/missing": [{ pathname: "/", html: { rels: { nlweb: ["https://site.test/ask"] } } }],
+    "html/noindex-twin/missing": [{ twin: "https://prod.test/posts/hello-world/", meta: { robots: "noindex" } }],
+    "tls/certificate/expiring": [{ daysLeft: 14 }, { daysLeft: -1 }],
+    "tls/certificate/expired": [{ daysLeft: 0 }, { daysLeft: 13 }],
+    "tls/key/weak": [{ cert: { key: { type: "RSA", bits: 4096 } } }, { cert: { key: { type: "Ed25519" } } }, { cert: { key: undefined } }],
+    "tls/signature/weak": [{ cert: { signatures: undefined } }],
+    "html/stylesheet/blocking": [
         {
             html: {
                 head: {
@@ -440,14 +438,14 @@ describe("presets", () => {
         assert.ok(isRuleMatch("html/og-title/length", "html/og-*"));
         assert.ok(isRuleMatch("html/og-title/length", "html/*/length"));
         assert.ok(!isRuleMatch("html/og-title/length", "http/*"));
-        assert.ok(!isRuleMatch("html/og-title/length", "html/og-title"));
+        assert.ok(!isRuleMatch("html/og-title/length", "html/og-title/missing"));
     });
 
     it("reads a name no ruleset carries as a rule ID or glob", () => {
-        assert.deepEqual(Object.keys(resolveRuleset("http/alt-svc-h3", {})), ["http/alt-svc-h3"]);
-        assert.equal(resolveRuleset("http/alt-svc-h3", {})["http/alt-svc-h3"]?.severity, "warning");
+        assert.deepEqual(Object.keys(resolveRuleset("http/alt-svc-h3/missing", {})), ["http/alt-svc-h3/missing"]);
+        assert.equal(resolveRuleset("http/alt-svc-h3/missing", {})["http/alt-svc-h3/missing"]?.severity, "warning");
         assert.ok(Object.keys(resolveRuleset("tls/*", {})).every((id) => id.startsWith("tls/")));
-        assert.deepEqual(Object.keys(resolveRuleset("mine", { mine: { extends: ["http/alt-svc-h3"] } })), ["http/alt-svc-h3"]);
+        assert.deepEqual(Object.keys(resolveRuleset("mine", { mine: { extends: ["http/alt-svc-h3/missing"] } })), ["http/alt-svc-h3/missing"]);
         assert.throws(() => resolveRuleset("http/no-such-rule", {}), /no rule ID matches it/);
     });
 
@@ -462,29 +460,29 @@ describe("presets", () => {
             );
         }
         const quick = new Set(compileRulesets(["web-quick"], {}).map((rule) => rule.meta.id));
-        assert.ok(!quick.has("links/broken-external") && quick.has("links/broken-internal"), "no outbound probe of external links");
+        assert.ok(!quick.has("links/external/unreachable") && quick.has("links/internal/unreachable"), "no outbound probe of external links");
         assert.ok(compileRulesets(["web-comprehensive"], {}).length > compileRulesets(["recommended"], {}).length);
     });
 
     it("derives server from the recommended rules that need no page past the seeds", () => {
         const server = resolveRuleset("server", {});
         assert.ok(presetNames().includes("server"));
-        assert.ok(Object.hasOwn(server, "robots/disallow-all"));
-        assert.ok(Object.hasOwn(server, "dns/caa"));
-        assert.ok(!Object.hasOwn(server, "http/compression"), "a page rule");
-        assert.ok(!Object.hasOwn(server, "dns/dangling-cname"), "a linked rule");
-        assert.ok(!Object.hasOwn(server, "links/rel-me"), "its extractor reads every crawled page");
+        assert.ok(Object.hasOwn(server, "robots/root/blocked"));
+        assert.ok(Object.hasOwn(server, "dns/caa/missing"));
+        assert.ok(!Object.hasOwn(server, "http/compression/weak"), "a page rule");
+        assert.ok(!Object.hasOwn(server, "dns/cname/insecure"), "a linked rule");
+        assert.ok(!Object.hasOwn(server, "links/rel-me-backlink/missing"), "its extractor reads every crawled page");
     });
 
     it("lists performance, and recommended extends it", () => {
         assert.ok(presetNames().includes("performance"));
-        assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression"));
-        assert.ok(!Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/digest"));
-        assert.equal(resolveRuleset("spiderlint:recommended", {})["insight/numeric-outlier"]?.severity, "info");
+        assert.ok(Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/compression/weak"));
+        assert.ok(!Object.hasOwn(resolveRuleset("spiderlint:recommended", {}), "http/digest/missing"));
+        assert.equal(resolveRuleset("spiderlint:recommended", {})["insight/number/outlier"]?.severity, "info");
     });
 
     it("keeps the offending value in data for a header rule", () => {
-        const [finding] = check("http/referrer-policy", { headers: { "referrer-policy": "unsafe-url" } });
+        const [finding] = check("http/referrer-policy/insecure", { headers: { "referrer-policy": "unsafe-url" } });
         assert.equal(finding?.text, "Referrer-Policy should not leak full URLs");
         assert.deepEqual(finding?.variables, { field: "value" });
         assert.equal(finding?.message, "Referrer-Policy should not leak full URLs");
@@ -526,14 +524,14 @@ function paths(findings: ReturnType<AggregateRule["check"]>): string[] {
 
 describe("url shape across pages", () => {
     it("names the pages joining words with the separator fewer pages use", () => {
-        const rule = builtin["url/separators"]?.("warning") as AggregateRule;
+        const rule = builtin["url/separator/inconsistent"]?.("warning") as AggregateRule;
         const pages = ["/a-b/", "/c-d/", "/e_f/", "/", "/g/"].map((pathname) => page({ pathname }));
         assert.deepEqual(paths(rule.check(pages)), ["/e_f/"]);
         assert.deepEqual(rule.check(["/a_b/", "/c_d/"].map((pathname) => page({ pathname }))), []);
     });
 
     it("names the pages of a group whose trailing slash breaks the group's usual form", () => {
-        const rule = builtin["url/trailing-slash"]?.("warning") as AggregateRule;
+        const rule = builtin["url/trailing-slash/inconsistent"]?.("warning") as AggregateRule;
         const pages = ["/a/", "/b/", "/c", "/", "/feed.xml", "/.well-known/api-catalog"].map((pathname) => page({ pathname }));
         const [finding, ...rest] = rule.check(pages) ?? [];
         assert.equal(rest.length, 0);
@@ -551,12 +549,12 @@ const fired = (facts: Facts) => pageRules.flatMap((rule) => rule.check(facts, { 
 
 describe("header grammar", () => {
     const cases: [string, string, string][] = [
-        ["cache-control", "banana", "http/cache-control-syntax"],
-        ["strict-transport-security", "max-age=abc", "http/hsts-syntax"],
-        ["permissions-policy", "camera=(self", "http/permissions-policy-syntax"],
-        ["retry-after", "2m", "http/retry-after-syntax"],
-        ["alt-svc", "h3=:443", "http/alt-svc-syntax"],
-        ["link", "<https://site.test/a.css>", "http/link-syntax"],
+        ["cache-control", "banana", "http/cache-control/invalid"],
+        ["strict-transport-security", "max-age=abc", "http/hsts/invalid"],
+        ["permissions-policy", "camera=(self", "http/permissions-policy/invalid"],
+        ["retry-after", "2m", "http/retry-after/invalid"],
+        ["alt-svc", "h3=:443", "http/alt-svc/invalid"],
+        ["link", "<https://site.test/a.css>", "http/link/invalid"],
     ];
     for (const [name, value, id] of cases) {
         it(`${name}: ${value} is one syntax finding and no policy finding`, () => {
@@ -572,14 +570,14 @@ describe("header grammar", () => {
 describe("content security policy", () => {
     it("judges document headers on documents only, and on a type the owner adds", () => {
         const bare = { headers: { "content-security-policy": undefined as unknown as string } };
-        assert.equal(check("http/csp", { ...bare, contentType: "text/markdown" }).length, 0);
-        assert.equal(check("http/csp", { ...bare, contentType: "application/json" }).length, 0);
-        assert.equal(check("http/csp-base-uri", { headers: { "content-security-policy": "default-src 'self'" }, contentType: "application/json" }).length, 0);
-        assert.equal(check("http/csp", { ...bare, contentType: "application/pdf" }).length, 1);
-        assert.equal(check("http/csp", bare).length, 1);
+        assert.equal(check("http/csp/missing", { ...bare, contentType: "text/markdown" }).length, 0);
+        assert.equal(check("http/csp/missing", { ...bare, contentType: "application/json" }).length, 0);
+        assert.equal(check("http/csp-base-uri/missing", { headers: { "content-security-policy": "default-src 'self'" }, contentType: "application/json" }).length, 0);
+        assert.equal(check("http/csp/missing", { ...bare, contentType: "application/pdf" }).length, 1);
+        assert.equal(check("http/csp/missing", bare).length, 1);
         const markdown = page({ ...bare, contentType: "text/markdown" });
         documentFacts([markdown], ["Text/Markdown"]);
-        assert.equal((compileRule("http/csp", specs["http/csp"] ?? {}) as PageRule).check(markdown, { sitemaps: [], role: "production" })?.length, 1);
+        assert.equal((compileRule("http/csp/missing", specs["http/csp/missing"] ?? {}) as PageRule).check(markdown, { sitemaps: [], role: "production" })?.length, 1);
     });
     it("combines two headers and a meta as the browser enforces them", () => {
         const facts = page({ html: { "http-equiv": [{ name: "content-security-policy", content: "script-src 'self'; frame-ancestors 'none'" }] } });

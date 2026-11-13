@@ -96,17 +96,17 @@ describe("sshfp plugin", () => {
     it("reports records naming keys the server does not present, once per host", async () => {
         const facts = await extract("stale.fixture", client, SERVING);
         assert.equal((facts as { mismatched: unknown[] }).mismatched.length, 2);
-        assert.deepEqual(findings("stale.fixture", facts), ["sshfp/mismatch"]);
+        assert.deepEqual(findings("stale.fixture", facts), ["sshfp/record/mismatch"]);
     });
 
     it("gives an unauthenticated record no match verdict", async () => {
         const facts = await extract("unsigned.fixture", client, SERVING);
         assert.equal((facts as { mismatched?: unknown }).mismatched, undefined);
-        assert.deepEqual(findings("unsigned.fixture", facts), ["sshfp/deprecated", "sshfp/unsigned"]);
+        assert.deepEqual(findings("unsigned.fixture", facts), ["sshfp/algorithm/deprecated", "sshfp/zone/unsigned"]);
     });
 
     it("asks for a record where SSH answers and none is published", async () => {
-        assert.deepEqual(findings("other.fixture", await extract("other.fixture", client, SERVING)), ["sshfp/missing"]);
+        assert.deepEqual(findings("other.fixture", await extract("other.fixture", client, SERVING)), ["sshfp/record/missing"]);
     });
 
     it("says nothing about a host with no SSH server", async () => {

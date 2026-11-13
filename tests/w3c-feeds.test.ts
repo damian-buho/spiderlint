@@ -10,7 +10,7 @@ import { serveW3C, W3C_CASES } from "./fixtures/w3c-feeds.ts";
 // W3C messages no `feeds/*` rule judges, with why; every vendored case
 // without a rule must name one of these, so none is skipped silently.
 const UNCOVERED: Record<string, string> = {
-    "ContainsHTML{parent:channel,element:title}": "channel titles are not judged, only item titles carry feeds/title-markup",
+    "ContainsHTML{parent:channel,element:title}": "channel titles are not judged, only item titles carry feeds/item-title/invalid",
 };
 
 describe("w3c feedvalidator sample", () => {

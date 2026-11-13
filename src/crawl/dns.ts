@@ -181,10 +181,10 @@ async function isValidating(client: DnsClient, resolver: string): Promise<boolea
     try {
         const { ad } = await client.query(".", "SOA");
         log.debug({ resolver, validating: ad }, "resolver validation checked");
-        if (!ad) log.warn({ resolver }, `resolver ${resolver} does not validate DNSSEC; dns/dnssec-bogus skipped`);
+        if (!ad) log.warn({ resolver }, `resolver ${resolver} does not validate DNSSEC; dns/dnssec/broken skipped`);
         return ad;
     } catch (error) {
-        log.warn({ resolver, error: reason(error) }, `resolver ${resolver} unreachable, dns/dnssec-bogus skipped:`);
+        log.warn({ resolver, error: reason(error) }, `resolver ${resolver} unreachable, dns/dnssec/broken skipped:`);
         return false;
     }
 }

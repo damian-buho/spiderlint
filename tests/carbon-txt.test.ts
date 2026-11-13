@@ -83,7 +83,7 @@ describe("carbon.txt extractor", () => {
 
     it("faults the broken file under /.well-known/, expired and stale", async () => {
         const report = await audit({ seeds: [`${broken.origin}/`], rules: ["sustainability"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["well-known/carbon-txt-expired", "well-known/carbon-txt-stale", "well-known/carbon-txt-valid"]);
+        assert.deepEqual(rules(report), ["well-known/carbon-txt-disclosure/expired", "well-known/carbon-txt/invalid", "well-known/carbon-txt/stale"]);
         const facts = report.site.origins?.[broken.origin]?.["carbon-txt"] as { via: string; errors: string[] };
         assert.equal(facts.via, "well-known");
         assert.ok(

@@ -62,7 +62,7 @@ describe("formatCheckstyle and formatCsv", () => {
                 assert.equal(element.name, "error");
                 assert.equal(element.parent, "file");
                 assert.match(element.attributes.severity ?? "", /^(error|warning|info)$/);
-                assert.match(element.attributes.source ?? "", /^spiderlint\.[\w-]+\/[\w:-]+$/);
+                assert.match(element.attributes.source ?? "", /^spiderlint\.[\w-]+(\/[\w:-]+)+$/);
                 assert.ok(element.attributes.message);
             }
         }
@@ -143,9 +143,9 @@ describe("formatHtml", () => {
     });
 
     it("names the resource, trims same-origin URLs beside a foreign one and shows the rule’s fix", () => {
-        const resource: Finding = { rule: "resources/status", severity: "warning", scope: "site", url: "https://other.test/pixel.php?id=3", message: "image answers 400; used by 2 pages", urls: [`${site.origin}/a`, `${site.origin}/b`] };
+        const resource: Finding = { rule: "resources/resource/unreachable", severity: "warning", scope: "site", url: "https://other.test/pixel.php?id=3", message: "image answers 400; used by 2 pages", urls: [`${site.origin}/a`, `${site.origin}/b`] };
         const own: Finding = { rule: "seo/title", severity: "warning", scope: "page", group: "default", url: `${site.origin}/c`, message: "title is missing" };
-        const rules = { "resources/status": { facts: ["resources"], fix: "Serve the image.", docs: "https://example.test/status" } };
+        const rules = { "resources/resource/unreachable": { facts: ["resources"], fix: "Serve the image.", docs: "https://example.test/status" } };
         const input = { ...report, findings: [resource, own], rules };
         const html = formatHtml(input, undefined, false, "en");
         assert.ok(html.includes("https://other.test/pixel.php?id=3"), "resource named");

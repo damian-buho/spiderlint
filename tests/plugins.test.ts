@@ -63,14 +63,14 @@ describe("html-validate extractor", () => {
     });
 });
 
-// The rules the `live/webmcp` ruleset reports over a browser page carrying `live`.
+// The rules the `live/webmcp/missing` ruleset reports over a browser page carrying `live`.
 function judged(live: object): string[] {
-    return runRules([{ ...stubPage(true), live } as unknown as Facts], new Map([["default", compileRulesets(["live/webmcp"], {})]]), {} as never).findings.map((finding) => finding.rule);
+    return runRules([{ ...stubPage(true), live } as unknown as Facts], new Map([["default", compileRulesets(["live/webmcp/missing"], {})]]), {} as never).findings.map((finding) => finding.rule);
 }
 
-describe("live/webmcp", () => {
+describe("live/webmcp/missing", () => {
     it("flags a WebMCP-capable browser that gets no tools, and skips one without WebMCP or with tools", () => {
-        assert.deepEqual(judged({ webmcp: { tools: [] } }), ["live/webmcp"]);
+        assert.deepEqual(judged({ webmcp: { tools: [] } }), ["live/webmcp/missing"]);
         assert.deepEqual(judged({ webmcp: { tools: ["search"] } }), []);
         assert.deepEqual(judged({}), []);
     });
@@ -97,18 +97,18 @@ describe("rulesets", () => {
         const bare = listRules({ ...defaults(), rules: ["all"] }, ["all"])
             .filter((rule) => !rule.docs)
             .map((rule) => rule.id);
-        assert.deepEqual(bare, ["http/consistent-origin", "insight/minority-value"]);
+        assert.deepEqual(bare, ["http/host/inconsistent", "insight/value/inconsistent"]);
     });
 
     it("merges an overriding expect into the extended one, keyword by keyword", () => {
-        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": { expect: { minLength: 25 } } } } })["html/title-length"];
+        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title/length": { expect: { minLength: 25 } } } } })["html/title/length"];
         assert.deepEqual(title?.expect, { type: "string", minLength: 25, maxLength: 60 });
         assert.equal(title?.fact, "html.title");
         assert.equal(title?.message, undefined);
     });
 
     it("keeps the extended message when an override leaves expect alone", () => {
-        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title-length": "error" } } })["html/title-length"];
+        const title = resolveRuleset("site", { site: { extends: ["seo"], rules: { "html/title/length": "error" } } })["html/title/length"];
         assert.match(title?.message ?? "", /30–60 characters/);
     });
 });
@@ -184,8 +184,8 @@ describe("plugins", () => {
 
     it("refuses a plugin redefining a rule, and one that cannot be imported", async () => {
         const clash = path.join(directory, "clash.mjs");
-        await writeFile(clash, 'export default { name: "clash", rules: { "links/broken-internal": () => ({}) } };');
-        await assert.rejects(loadPlugins([clash]), (error: Error) => error instanceof ConfigError && error.message.includes("links/broken-internal"));
+        await writeFile(clash, 'export default { name: "clash", rules: { "links/internal/unreachable": () => ({}) } };');
+        await assert.rejects(loadPlugins([clash]), (error: Error) => error instanceof ConfigError && error.message.includes("links/internal/unreachable"));
         await assert.rejects(loadPlugins(["./tests/fixtures/absent.ts"]), ConfigError);
     });
 

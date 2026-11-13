@@ -65,7 +65,7 @@ const crawlers: SiteExtractor = {
 
 // Every crawler refused `/` that spiderlint was served, where its signal says yes; an edge’s refusal may be its check on look-alike crawlers.
 const blocked: Make = (severity) => ({
-    meta: { id: "crawlers/blocked", severity, scope: "site", facts: ["site.origins.*.crawlers.poses", "site.content-signals"], docs: "https://contentsignals.org/", fix: "Let the crawler through at the origin and the edge: allow verified bots in the firewall and drop any rule matching its User-Agent." },
+    meta: { id: "crawlers/crawler/blocked", severity, scope: "site", facts: ["site.origins.*.crawlers.poses", "site.content-signals"], docs: "https://contentsignals.org/", fix: "Let the crawler through at the origin and the edge: allow verified bots in the firewall and drop any rule matching its User-Agent." },
     check(_pages, _group, site) {
         const stance = { search: "yes", ...site?.["content-signals"] } as Partial<Record<ContentSignal, "yes" | "no">>;
         return Object.entries(site?.origins ?? {}).flatMap(([subject, facts]): Finding[] => {
@@ -74,26 +74,26 @@ const blocked: Make = (severity) => ({
                 const purpose = CRAWLERS[agent];
                 const signal = purpose && SIGNAL_OF[purpose];
                 const isWanted = signal !== undefined && stance[signal] === "yes";
-                log.debug({ rule: "crawlers/blocked", subject, agent, status, signal, isWanted }, "crawler pose judged");
+                log.debug({ rule: "crawlers/crawler/blocked", subject, agent, status, signal, isWanted }, "crawler pose judged");
                 return isWanted && status !== 0 && !isServed(status);
             });
             if (refused.length === 0) return [];
             const locations = refused.map(({ agent, status, edge }) => `${agent} (${status}${edge ? `, ${edge}` : ""})`);
             const isEdgeOnly = refused.every(({ edge }) => edge !== undefined);
             const message = said(isEdgeOnly ? "the edge refuses crawlers the content signals welcome; it may only refuse look-alikes" : "the site refuses crawlers the content signals welcome");
-            return [{ rule: "crawlers/blocked", severity, scope: "site", url: subject, ...message, locations, value: refused }];
+            return [{ rule: "crawlers/crawler/blocked", severity, scope: "site", url: subject, ...message, locations, value: refused }];
         });
     },
 });
 
 export default {
     name: "crawlers",
-    rules: { "crawlers/blocked": blocked },
+    rules: { "crawlers/crawler/blocked": blocked },
     sites: [crawlers],
     presets: {
         crawlers: {
             description: "Once per origin: fetches / as search engines and AI crawlers and holds their answers to the content signals",
-            rules: { "crawlers/blocked": { severity: "warning", score: 5.1 } },
+            rules: { "crawlers/crawler/blocked": { severity: "warning", score: 5.1 } },
         },
     },
 } satisfies Plugin;

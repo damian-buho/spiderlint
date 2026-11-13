@@ -38,22 +38,22 @@ function slugOf(page: Facts): string {
 
 // A slug that is an identifier or shares no word with the page’s title or first heading.
 const readableSlug: Make = (severity) => ({
-    meta: { id: "url/readable-slug", severity, scope: "page", facts: ["url.pathname", "html.title", "html.h1"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”." },
+    meta: { id: "url/slug/unreadable", severity, scope: "page", facts: ["url.pathname", "html.title", "html.h1"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”." },
     check(page: Facts) {
         const slug = slugOf(page);
         const heading = [page.html?.title ?? "", ...(page.html?.h1 ?? [])].join(" ");
         if (!slug || !heading.trim()) return;
         if (page.html?.rels.prev) {
-            log.debug({ rule: "url/readable-slug", url: page.url.href, slug }, "paginated page skipped");
+            log.debug({ rule: "url/slug/unreadable", url: page.url.href, slug }, "paginated page skipped");
             return;
         }
         const isId = ID_ONLY.test(slug);
         const shared = tokens(slug).intersection(tokens(heading)).size;
-        log.debug({ rule: "url/readable-slug", url: page.url.href, slug, isId, shared }, "slug read against the title");
+        log.debug({ rule: "url/slug/unreadable", url: page.url.href, slug, isId, shared }, "slug read against the title");
         if (!isId && shared > 0) return [];
         const title = `“${page.html?.title ?? page.html?.h1[0]}”`;
         const sentence = said(isId ? "the slug is an identifier, not words" : "the slug shares no word with the page title");
-        return [{ rule: "url/readable-slug", severity, scope: "page" as const, url: page.url.href, group: page.group, ...sentence, ...(!isId && { data: { [page.url.href]: { title } } }), value: slug }];
+        return [{ rule: "url/slug/unreadable", severity, scope: "page" as const, url: page.url.href, group: page.group, ...sentence, ...(!isId && { data: { [page.url.href]: { title } } }), value: slug }];
     },
 });
 
@@ -72,7 +72,7 @@ function minority(id: string, severity: Finding["severity"], text: string, varia
 
 // Pages whose words join with the separator fewer pages of the site use.
 const separators: Make = (severity) => ({
-    meta: { id: "url/separators", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Join the words of every URL with hyphens, and redirect the others to them." },
+    meta: { id: "url/separator/inconsistent", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Join the words of every URL with hyphens, and redirect the others to them." },
     check(pages: Facts[]) {
         const forms = new Map<string, Facts[]>();
         for (const page of pages) {
@@ -80,21 +80,21 @@ const separators: Make = (severity) => ({
             const form = /\w_\w/.test(path) ? (/\w-\w/.test(path) ? "mix both" : "use _") : /\w-\w/.test(path) ? "use -" : undefined;
             if (form) forms.set(form, [...(forms.get(form) ?? []), page]);
         }
-        const finding = minority("url/separators", severity, "word separators differ: {count} of {total} pages {major}; the others differ", {}, forms);
+        const finding = minority("url/separator/inconsistent", severity, "word separators differ: {count} of {total} pages {major}; the others differ", {}, forms);
         return finding ? [finding] : [];
     },
 });
 
 // Per group, pages whose trailing slash differs from the group’s usual form; the root, file names and well-known URIs are left out.
 const trailingSlash: Make = (severity) => ({
-    meta: { id: "url/trailing-slash", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash", fix: "Pick one form, with or without the trailing slash, and redirect the other to it." },
+    meta: { id: "url/trailing-slash/inconsistent", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash", fix: "Pick one form, with or without the trailing slash, and redirect the other to it." },
     check(pages: Facts[]) {
         const judged = pages.filter((page) => page.url.pathname !== "/" && !FILE.test(page.url.pathname) && !WELL_KNOWN.test(page.url.pathname));
         return Map.groupBy(judged, (page) => page.group)
             .entries()
             .map(([group, members]) =>
                 minority(
-                    "url/trailing-slash",
+                    "url/trailing-slash/inconsistent",
                     severity,
                     "trailing slashes differ in group {group}: {count} of {total} pages {major}; the others differ",
                     { group },
@@ -107,7 +107,7 @@ const trailingSlash: Make = (severity) => ({
 });
 
 export const urlRules: Record<string, Make> = {
-    "url/readable-slug": readableSlug,
-    "url/separators": separators,
-    "url/trailing-slash": trailingSlash,
+    "url/slug/unreadable": readableSlug,
+    "url/separator/inconsistent": separators,
+    "url/trailing-slash/inconsistent": trailingSlash,
 };

@@ -45,7 +45,7 @@ b19-log info "SPIDERLINT" "$(_p "pages crawled: %s" "${PAGES}")"
 
 BROKEN_LINK="$(node -e '
 const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-const finding = report.findings.find((entry) => entry.rule === "links/broken-internal" && entry.url.endsWith("/missing"));
+const finding = report.findings.find((entry) => entry.rule === "links/internal/unreachable" && entry.url.endsWith("/missing"));
 console.log(finding ? finding.message : "");
 ' "${REPORT_FILE}")"
 b19-log info "SPIDERLINT" "$(_p "known dead-link finding: %s" "${BROKEN_LINK}")"
@@ -64,7 +64,7 @@ b19-log info "SPIDERLINT" "$(_p "config read through pf-cli from: %s" "${CONFIG_
 
 CONSOLE_ERROR="$(node -e '
 const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-const finding = report.findings.find((entry) => entry.rule === "browser/console-errors" && entry.url.endsWith("/app/"));
+const finding = report.findings.find((entry) => entry.rule === "browser/script/broken" && entry.url.endsWith("/app/"));
 console.log(finding ? finding.message : "");
 ' "${REPORT_FILE}")"
 b19-log info "SPIDERLINT" "$(_p "known console-error finding in chromium: %s" "${CONSOLE_ERROR}")"
@@ -74,7 +74,7 @@ spiderlint audit "${ORIGIN}/live-skip" --rules keyboard --max-pages 1 --format j
 
 TAB_WALK="$(node -e '
 const report = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
-const finding = report.findings.find((entry) => entry.rule === "keyboard/tab-walk" && entry.url.endsWith("/live-skip"));
+const finding = report.findings.find((entry) => entry.rule === "keyboard/tab-order/inaccessible" && entry.url.endsWith("/live-skip"));
 console.log(finding ? finding.locations.join(", ") : "");
 ' "${REPORT_FILE}")"
 b19-log info "SPIDERLINT" "$(_p "known Tab walk finding in chromium: %s" "${TAB_WALK}")"

@@ -29,39 +29,39 @@ describe("page plugins", () => {
 
     before(async () => {
         site = await serveSpec();
-        report = await audit({ seeds: [`${site.origin}/good`], rules: ["feeds/well-formed", "feeds/self", "feeds/item-id", "feeds/websub", "structured-data", "manifest", "link-text", "markup"], sitemap: false, robots: false, cacheMode: "off" });
+        report = await audit({ seeds: [`${site.origin}/good`], rules: ["feeds/document/invalid", "feeds/self-link/missing", "feeds/item-id/missing", "feeds/websub-self/missing", "structured-data", "manifest", "link-text", "markup"], sitemap: false, robots: false, cacheMode: "off" });
     });
 
     after(() => site.close());
 
     it("fails each check on its failing page and passes the rest", () => {
         assert.deepEqual(found(report, site.origin), [
-            "feeds/item-id /noid.xml",
-            "feeds/self /elsewhere.xml",
-            "feeds/self /hub.json",
-            "feeds/self /noid.xml",
-            "feeds/websub /hub.json",
-            "feeds/well-formed /bad.xml",
-            "link-text/generic /bad",
-            "link-text/generic /es/",
-            "manifest/discovery /de",
-            "manifest/fields /bad.webmanifest",
-            "manifest/icons /bad.webmanifest",
-            "manifest/parse /broken.webmanifest",
-            "manifest/served /bad.webmanifest",
-            "markup/captions /bad",
-            "markup/input-type /bad",
-            "markup/lang-switcher /bad",
-            "structured-data/breadcrumbs /gone",
-            "structured-data/breadcrumbs /moved",
-            "structured-data/consistent /bad",
-            "structured-data/dates /bad",
-            "structured-data/deprecated /bad",
-            "structured-data/entities /#me",
-            "structured-data/entities /#org",
-            "structured-data/parse /bad",
-            "structured-data/references /bad#nobody",
-            "structured-data/required /bad",
+            "feeds/document/invalid /bad.xml",
+            "feeds/item-id/missing /noid.xml",
+            "feeds/self-link/missing /elsewhere.xml",
+            "feeds/self-link/missing /hub.json",
+            "feeds/self-link/missing /noid.xml",
+            "feeds/websub-self/missing /hub.json",
+            "link-text/label/inaccessible /bad",
+            "link-text/label/inaccessible /es/",
+            "manifest/document/invalid /broken.webmanifest",
+            "manifest/fields/missing /bad.webmanifest",
+            "manifest/icons/missing /bad.webmanifest",
+            "manifest/link/missing /de",
+            "manifest/serving/invalid /bad.webmanifest",
+            "markup/captions/missing /bad",
+            "markup/input-type/mismatch /bad",
+            "markup/lang-switcher/mismatch /bad",
+            "structured-data/breadcrumb/unreachable /gone",
+            "structured-data/breadcrumb/unreachable /moved",
+            "structured-data/date/invalid /bad",
+            "structured-data/entity/inconsistent /#me",
+            "structured-data/entity/inconsistent /#org",
+            "structured-data/json-ld/invalid /bad",
+            "structured-data/property/missing /bad",
+            "structured-data/reference/broken /bad#nobody",
+            "structured-data/term/deprecated /bad",
+            "structured-data/url/mismatch /bad",
         ]);
     });
 
@@ -82,22 +82,22 @@ describe("page plugins", () => {
 
     it("names the missing properties and the offending links", () => {
         const locations = (rule: string) => report.findings.find((finding) => finding.rule === rule)?.locations;
-        assert.deepEqual(locations("structured-data/required"), ["Event without startDate, location", "Recipe without image"]);
-        assert.deepEqual(locations("markup/lang-switcher"), [`${site.origin}/es/ declares no lang for es`]);
-        assert.deepEqual(locations("markup/input-type"), ["autocomplete=email on type=text"]);
+        assert.deepEqual(locations("structured-data/property/missing"), ["Event without startDate, location", "Recipe without image"]);
+        assert.deepEqual(locations("markup/lang-switcher/mismatch"), [`${site.origin}/es/ declares no lang for es`]);
+        assert.deepEqual(locations("markup/input-type/mismatch"), ["autocomplete=email on type=text"]);
         const dataOf = (rule: string) => Object.values(report.findings.find((finding) => finding.rule === rule)?.data ?? {})[0];
-        assert.match(String(dataOf("manifest/fields")?.missing), /^start_url, display(?:, icons)?$/);
-        assert.match(String(dataOf("manifest/served")?.problems), /served as application\/json, not application\/manifest\+json; no id; https:\/\/elsewhere\.example\/ is on another origin; start_url \S+\/bad\.webmanifest is outside scope/);
-        assert.match(report.findings.find((finding) => finding.rule === "manifest/discovery")?.message ?? "", /^1 of \d+ pages link no manifest/);
+        assert.match(String(dataOf("manifest/fields/missing")?.missing), /^start_url, display(?:, icons)?$/);
+        assert.match(String(dataOf("manifest/serving/invalid")?.problems), /served as application\/json, not application\/manifest\+json; no id; https:\/\/elsewhere\.example\/ is on another origin; start_url \S+\/bad\.webmanifest is outside scope/);
+        assert.match(report.findings.find((finding) => finding.rule === "manifest/link/missing")?.message ?? "", /^1 of \d+ pages link no manifest/);
     });
 
     it("judges structured data against the page, the vocabulary and the rest of the site", () => {
-        assert.deepEqual(everyLocation(report, "structured-data/consistent"), [`WebPage names ${site.origin}/elsewhere, the canonical is ${site.origin}/bad`, "WebPage “Something else” appears in neither the title nor og:title"]);
-        assert.deepEqual(report.findings.find((finding) => finding.rule === "structured-data/references")?.urls, [`${site.origin}/bad`]);
-        assert.deepEqual(everyLocation(report, "structured-data/deprecated"), ["property ingredients → recipeIngredient", "type Taxi → TaxiService"]);
-        assert.deepEqual(everyLocation(report, "structured-data/dates"), ["Article dateCreated “yesterday” is not ISO 8601", "Article dateModified 2026-09-01 is before datePublished 2026-09-02"]);
+        assert.deepEqual(everyLocation(report, "structured-data/url/mismatch"), [`WebPage names ${site.origin}/elsewhere, the canonical is ${site.origin}/bad`, "WebPage “Something else” appears in neither the title nor og:title"]);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "structured-data/reference/broken")?.urls, [`${site.origin}/bad`]);
+        assert.deepEqual(everyLocation(report, "structured-data/term/deprecated"), ["property ingredients → recipeIngredient", "type Taxi → TaxiService"]);
+        assert.deepEqual(everyLocation(report, "structured-data/date/invalid"), ["Article dateCreated “yesterday” is not ISO 8601", "Article dateModified 2026-09-01 is before datePublished 2026-09-02"]);
         assert.deepEqual(
-            everyLocation(report, "structured-data/entities").toSorted((a, b) => a.localeCompare(b)),
+            everyLocation(report, "structured-data/entity/inconsistent").toSorted((a, b) => a.localeCompare(b)),
             ["Corporation on 1 page", `${site.origin}/#me on 1 page`, `${site.origin}/bad#me on 1 page`, "Organization on 1 page"],
         );
     });
@@ -117,8 +117,8 @@ describe("page plugins", () => {
     });
 });
 
-describe("markup/lang-switcher", () => {
-    const rule = markup.rules?.["markup/lang-switcher"]?.("warning") as PageRule;
+describe("markup/lang-switcher/mismatch", () => {
+    const rule = markup.rules?.["markup/lang-switcher/mismatch"]?.("warning") as PageRule;
 
     it("ignores same-language navigation and still judges cross-language links", () => {
         const monolingual = switcherPage(
@@ -143,8 +143,8 @@ const switcherPage = (lang: string | undefined, hreflang: { lang: string; href: 
 // A page loading scripts from `urls`.
 const page = (href: string, urls: string[]) => ({ url: { href }, resources: urls.map((url) => ({ url, kind: "script", origin: "cross" })) }) as unknown as Facts;
 
-describe("trackers/inventory", () => {
-    const rule = trackers.rules?.["trackers/inventory"]?.("info") as AggregateRule;
+describe("trackers/vendor/present", () => {
+    const rule = trackers.rules?.["trackers/vendor/present"]?.("info") as AggregateRule;
 
     it("lists each vendor once with its hosts and pages, and ignores other hosts", () => {
         const findings = rule.check([page("https://a.test/", ["https://www.googletagmanager.com/gtag.js", "https://cdn.a.test/app.js"]), page("https://a.test/b", ["https://www.google-analytics.com/g.js", "https://notclarity.ms/x.js"])]) ?? [];

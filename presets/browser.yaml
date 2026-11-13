@@ -8,7 +8,7 @@ extends:
 when:
   http.status: {minimum: 200, maximum: 299}
 rules:
-  browser/console-errors:
+  browser/script/broken:
     fact: browser.console.errors
     expect: {maxItems: 0}
     severity: warning
@@ -16,7 +16,7 @@ rules:
     message: "the browser console logged errors"
     docs: https://developer.mozilla.org/docs/Web/API/console/error_static
     fix: "Fix the JavaScript error logged to the console."
-  browser/unused-preload:
+  browser/preload/unused:
     fact: browser.console.warnings
     expect: {not: {contains: {type: string, pattern: "preloaded using link preload but not used"}}}
     severity: info

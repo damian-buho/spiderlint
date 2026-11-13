@@ -42,49 +42,49 @@ describe("robots.txt", () => {
     });
 
     it("reports a blanket Disallow: / for *, and passes one with an Allow back", () => {
-        assert.equal(judge("robots/disallow-all", "User-agent: *\nDisallow: /\n").length, 1);
-        assert.equal(judge("robots/disallow-all", "User-agent: *\nDisallow: /\nAllow: /public/\n").length, 0);
-        assert.equal(judge("robots/disallow-all", "User-agent: GPTBot\nDisallow: /\n").length, 0);
+        assert.equal(judge("robots/root/blocked", "User-agent: *\nDisallow: /\n").length, 1);
+        assert.equal(judge("robots/root/blocked", "User-agent: *\nDisallow: /\nAllow: /public/\n").length, 0);
+        assert.equal(judge("robots/root/blocked", "User-agent: GPTBot\nDisallow: /\n").length, 0);
     });
 
     it("lists the AI crawlers a file names, with purpose and verdict", () => {
-        const [finding] = judge("robots/ai-crawlers", "User-agent: GPTBot\nUser-agent: claude-web\nDisallow: /\nUser-agent: OAI-SearchBot\nAllow: /\n");
+        const [finding] = judge("robots/ai-crawlers/present", "User-agent: GPTBot\nUser-agent: claude-web\nDisallow: /\nUser-agent: OAI-SearchBot\nAllow: /\n");
         assert.equal(finding?.message, "the file names AI crawlers");
         assert.deepEqual(finding?.locations, ["gptbot (training, disallowed)", "claude-web (retired, disallowed)", "oai-searchbot (search)"]);
-        assert.equal(judge("robots/ai-crawlers", "User-agent: *\nDisallow: /private/\n").length, 0);
+        assert.equal(judge("robots/ai-crawlers/present", "User-agent: *\nDisallow: /private/\n").length, 0);
     });
 
     it("reports a Content-Signal outside the vocabulary, and passes a well-formed one", () => {
-        const [finding] = judge("robots/content-signal", "User-agent: *\nContent-Signal: search=maybe, ai-train=no\nContent-Signal: search=yes, ai-input=yes, ai-train=no\n");
+        const [finding] = judge("robots/content-signal/invalid", "User-agent: *\nContent-Signal: search=maybe, ai-train=no\nContent-Signal: search=yes, ai-input=yes, ai-train=no\n");
         assert.deepEqual(finding?.value, ["search=maybe, ai-train=no"]);
-        assert.equal(judge("robots/content-signal", "User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=no\n").length, 0);
-        assert.equal(judge("robots/content-signal", "Content-Signal: training\n").length, 1);
+        assert.equal(judge("robots/content-signal/invalid", "User-agent: *\nContent-Signal: search=yes, ai-input=yes, ai-train=no\n").length, 0);
+        assert.equal(judge("robots/content-signal/invalid", "Content-Signal: training\n").length, 1);
     });
 
     it("reports a search engine shut out even with no stance, and nothing else", () => {
-        const [finding] = judge("robots/crawler-access", "User-agent: Googlebot\nUser-agent: GPTBot\nDisallow: /\n");
+        const [finding] = judge("robots/crawler-access/mismatch", "User-agent: Googlebot\nUser-agent: GPTBot\nDisallow: /\n");
         assert.deepEqual(finding?.locations, ["googlebot (search=yes, disallowed)"]);
-        assert.equal(judge("robots/crawler-access", "User-agent: Googlebot\nDisallow: /\nAllow: /public/\n").length, 0);
+        assert.equal(judge("robots/crawler-access/mismatch", "User-agent: Googlebot\nDisallow: /\nAllow: /public/\n").length, 0);
     });
 
     it("holds a served stance to what it says yes to, and lets its no stand", () => {
-        const [finding] = judge("robots/crawler-access", "User-agent: *\nDisallow: /\nContent-Signal: search=yes, ai-input=no, ai-train=no\n");
+        const [finding] = judge("robots/crawler-access/mismatch", "User-agent: *\nDisallow: /\nContent-Signal: search=yes, ai-input=no, ai-train=no\n");
         assert.deepEqual(finding?.locations, ["googlebot (search=yes, disallowed)", "bingbot (search=yes, disallowed)", "applebot (search=yes, disallowed)", "duckduckbot (search=yes, disallowed)", "yandexbot (search=yes, disallowed)", "baiduspider (search=yes, disallowed)"]);
-        assert.equal(judge("robots/crawler-access", "User-agent: *\nAllow: /\nContent-Signal: search=yes, ai-train=no\n").length, 0);
+        assert.equal(judge("robots/crawler-access/mismatch", "User-agent: *\nAllow: /\nContent-Signal: search=yes, ai-train=no\n").length, 0);
     });
 
     it("holds a declared stance both ways, and wins over the served one", () => {
         const body = "User-agent: *\nAllow: /\nUser-agent: GPTBot\nUser-agent: CCBot\nDisallow: /\nContent-Signal: ai-train=yes\n";
-        const [finding] = judge("robots/crawler-access", body, { search: "yes", "ai-input": "yes", "ai-train": "no" });
+        const [finding] = judge("robots/crawler-access/mismatch", body, { search: "yes", "ai-input": "yes", "ai-train": "no" });
         assert.equal(finding?.locations?.length, 7);
         assert.ok(finding?.locations?.includes("claudebot (ai-train=no, allowed)"));
         assert.ok(!finding?.locations?.some((location) => location.startsWith("gptbot")));
-        assert.equal(judge("robots/crawler-access", "User-agent: *\nAllow: /\n", { "ai-input": "yes" }).length, 0);
+        assert.equal(judge("robots/crawler-access/mismatch", "User-agent: *\nAllow: /\n", { "ai-input": "yes" }).length, 0);
     });
 
     it("judges no file the origin failed to serve", () => {
-        assert.equal(judge("robots/crawler-access", "", { "ai-train": "no" }, 503).length, 0);
-        assert.equal(judge("robots/crawler-access", "", { "ai-train": "no" }, 404).length, 1);
+        assert.equal(judge("robots/crawler-access/mismatch", "", { "ai-train": "no" }, 503).length, 0);
+        assert.equal(judge("robots/crawler-access/mismatch", "", { "ai-train": "no" }, 404).length, 1);
     });
 
     it("reads a granted list as a stance on every known signal", () => {

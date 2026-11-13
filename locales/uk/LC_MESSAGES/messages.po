@@ -1242,8 +1242,8 @@ msgstr "відсутня сторінка відповідає {got}, а не 40
 msgid "the not-found page is not plain HTML free of stack traces and server versions (got {got})"
 msgstr "сторінка «не знайдено» не є чистим HTML без трас стека й версій сервера ({got})"
 
-msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/host-canonical"
-msgstr "звичайний http не переспрямовує на https одним постійним переходом ({got}); застаріло, див. origin/host-canonical"
+msgid "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/canonical-host/mismatch"
+msgstr "звичайний http не переспрямовує на https одним постійним переходом ({got}); застаріло, див. origin/canonical-host/mismatch"
 
 msgid "entry variants take more than one hop, or two not starting http to https on the same host: {got}"
 msgstr "варіанти входу потребують більше одного переходу або двох, що не починаються з http на https на тому самому хості: {got}"

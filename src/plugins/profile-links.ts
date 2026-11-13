@@ -101,7 +101,7 @@ const extract = async (page: Facts, _body: string, live?: Page, context?: PageCo
 };
 
 const rendered = pageRule(
-    "links/rel-me-rendered",
+    "links/rel-me-rendered/missing",
     [`${ID}.profiles`],
     (page) => {
         if (page[ID] === undefined) return;
@@ -120,11 +120,11 @@ const rendered = pageRule(
 export default {
     name: "rel-me",
     extractors: [{ id: ID, mode: "browser", cost: "expensive", cached: false, extract }],
-    rules: { "links/rel-me-rendered": rendered },
+    rules: { "links/rel-me-rendered/missing": rendered },
     presets: {
         "rel-me": {
             description: "Each rel=me profile a page names, loaded in a browser so a link its scripts add counts, and whether it names the page back",
-            rules: { "links/rel-me-rendered": { severity: "info", score: 2.2 } },
+            rules: { "links/rel-me-rendered/missing": { severity: "info", score: 2.2 } },
         },
     },
 } satisfies Plugin;

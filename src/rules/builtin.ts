@@ -24,14 +24,14 @@ import type { Finding, Make, RuleMeta, Severity } from "./types.ts";
 
 // Every in-scope page answering 4xx, 5xx or nothing, with the pages that link to it.
 const brokenInternal: Make = (severity) => ({
-    meta: { id: "links/broken-internal", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors", fix: "Fix the page at the link target so it answers 2xx, or point the links to a working URL." },
+    meta: { id: "links/internal/unreachable", severity, scope: "site", facts: ["http.status", "crawl.referrers"], docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors", fix: "Fix the page at the link target so it answers 2xx, or point the links to a working URL." },
     check(pages: Facts[]) {
         const findings: Finding[] = [];
         for (const page of pages) {
             if (page.http.status > 0 && page.http.status < 400) continue;
             log.debug({ url: page.url.href, status: page.http.status, referrers: page.crawl.referrers.length }, "broken link");
             findings.push({
-                rule: "links/broken-internal",
+                rule: "links/internal/unreachable",
                 severity,
                 scope: "site",
                 url: page.url.href,
@@ -50,9 +50,9 @@ function unreached(severity: Finding["severity"], links: [href: string, urls: st
     const byPage = new Map<string, string[]>();
     for (const [href, urls] of links) for (const url of urls) byPage.set(url, [...(byPage.get(url) ?? []), href]);
     const url = new URL(first).origin;
-    log.debug({ rule: "links/broken-external", url, error, links: links.length, pages: byPage.size }, "unreached links merged");
+    log.debug({ rule: "links/external/unreachable", url, error, links: links.length, pages: byPage.size }, "unreached links merged");
     return {
-        rule: "links/broken-external",
+        rule: "links/external/unreachable",
         severity,
         scope: "site",
         url,
@@ -66,7 +66,7 @@ function unreached(severity: Finding["severity"], links: [href: string, urls: st
 
 // Every probed external link answering 4xx or 5xx once per target, and those answering nothing once per origin and error, with the pages linking to them; a 429, a bot wall, an excluded host or a refused address is not judged.
 const brokenExternal: Make = (severity) => ({
-    meta: { id: "links/broken-external", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404", fix: "Remove or repoint each broken external link." },
+    meta: { id: "links/external/unreachable", severity, scope: "site", facts: ["site.links", "html.links.external"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404", fix: "Remove or repoint each broken external link." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const answers = site?.links ?? {};
         const linking = new Map<string, string[]>();
@@ -79,14 +79,14 @@ const brokenExternal: Make = (severity) => ({
         for (const [href, urls] of linking) {
             const answer = answers[href];
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
-            log.debug({ rule: "links/broken-external", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
+            log.debug({ rule: "links/external/unreachable", url: href, status: answer?.status, excluded: answer?.excluded, refused: answer?.refused, walled: answer?.walled, isBroken }, "external link judged");
             if (!isBroken) continue;
             if (answer.status === 0) {
                 const key = `${new URL(href).origin}\t${answer.error}`;
                 silent.set(key, [...(silent.get(key) ?? []), [href, urls, answer]]);
                 continue;
             }
-            findings.push({ rule: "links/broken-external", severity, scope: "site", url: href, ...said("the link answers {status}; linked from these pages", { status: String(answer.status) }), evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
+            findings.push({ rule: "links/external/unreachable", severity, scope: "site", url: href, ...said("the link answers {status}; linked from these pages", { status: String(answer.status) }), evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
         }
         return [...findings, ...silent.values().map((links) => unreached(severity, links))];
     },
@@ -94,7 +94,7 @@ const brokenExternal: Make = (severity) => ({
 
 // Every sitemap image or video answering 4xx or 5xx, or nothing, once per file, with the pages listing it.
 const sitemapMedia: Make = (severity) => ({
-    meta: { id: "sitemap/media", severity, scope: "site", facts: ["sitemap.images", "sitemap.videos", "site.links"], docs: "https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps", fix: "Remove or repoint each sitemap image and video entry that no longer answers 200." },
+    meta: { id: "sitemap/media/unreachable", severity, scope: "site", facts: ["sitemap.images", "sitemap.videos", "site.links"], docs: "https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps", fix: "Remove or repoint each sitemap image and video entry that no longer answers 200." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const listing = new Map<string, string[]>();
         for (const page of pages) for (const href of mediaOf(page)) listing.set(href, [...(listing.get(href) ?? []), page.url.href]);
@@ -102,10 +102,10 @@ const sitemapMedia: Make = (severity) => ({
         for (const [href, urls] of listing) {
             const answer = site?.links?.[href];
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
-            log.debug({ rule: "sitemap/media", url: href, status: answer?.status, isBroken }, "sitemap media judged");
+            log.debug({ rule: "sitemap/media/unreachable", url: href, status: answer?.status, isBroken }, "sitemap media judged");
             if (!isBroken) continue;
             const verdict = answer.status === 0 ? said("the sitemap media could not be reached: {error}; listed by these pages", { error: answer.error ?? "" }) : said("the sitemap media answers {status}; listed by these pages", { status: String(answer.status) });
-            findings.push({ rule: "sitemap/media", severity, scope: "site", url: href, ...verdict, value: answer.status, urls });
+            findings.push({ rule: "sitemap/media/unreachable", severity, scope: "site", url: href, ...verdict, value: answer.status, urls });
         }
         return findings;
     },
@@ -113,7 +113,7 @@ const sitemapMedia: Make = (severity) => ({
 
 // Every internal link answering with a redirect, once per target, with the pages linking to it.
 const redirectedInternal: Make = (severity) => ({
-    meta: { id: "links/redirected-internal", severity, scope: "site", facts: ["site.redirects", "html.links.internal"], docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects", fix: "Make the link target point at the final URL, or serve the content directly." },
+    meta: { id: "links/internal/redirected", severity, scope: "site", facts: ["site.redirects", "html.links.internal"], docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects", fix: "Make the link target point at the final URL, or serve the content directly." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const landing = new Map(Object.entries(site?.redirects ?? {}));
         const linking = new Map<string, string[]>();
@@ -121,21 +121,21 @@ const redirectedInternal: Make = (severity) => ({
             const hrefs = new Set(page.html?.links.internal);
             for (const href of hrefs) if (landing.has(href)) linking.set(href, [...(linking.get(href) ?? []), page.url.href]);
         }
-        log.debug({ rule: "links/redirected-internal", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
+        log.debug({ rule: "links/internal/redirected", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
         return linking
             .entries()
-            .map(([href, urls]) => ({ rule: "links/redirected-internal", severity, scope: "site" as const, url: href, ...said("the link redirects elsewhere; linked from these pages"), data: { [href]: { landing: landing.get(href) as string } }, value: landing.get(href), urls }))
+            .map(([href, urls]) => ({ rule: "links/internal/redirected", severity, scope: "site" as const, url: href, ...said("the link redirects elsewhere; linked from these pages"), data: { [href]: { landing: landing.get(href) as string } }, value: landing.get(href), urls }))
             .toArray();
     },
 });
 
 // Every sitemap file that failed to fetch, failed to parse, or named no URL.
 const sitemapUnreadable: Make = (severity) => ({
-    meta: { id: "sitemap/unreadable", severity, scope: "site", facts: ["site.sitemaps"], docs: "https://www.sitemaps.org/protocol.html", fix: "Serve the sitemap at its listed URL and make sure it parses as XML or plain text with one URL per line." },
+    meta: { id: "sitemap/document/unreadable", severity, scope: "site", facts: ["site.sitemaps"], docs: "https://www.sitemaps.org/protocol.html", fix: "Serve the sitemap at its listed URL and make sure it parses as XML or plain text with one URL per line." },
     check(_pages: Facts[], _group?: string, site?: SiteFacts) {
         const files = site?.sitemaps ?? [];
-        log.debug({ rule: "sitemap/unreadable", files: files.length }, "sitemap files judged");
-        return files.filter((file) => file.error).map((file) => ({ rule: "sitemap/unreadable", severity, scope: "site" as const, url: file.url, ...said("the sitemap could not be read"), data: { [file.url]: { error: file.error as string } }, value: file.status }));
+        log.debug({ rule: "sitemap/document/unreadable", files: files.length }, "sitemap files judged");
+        return files.filter((file) => file.error).map((file) => ({ rule: "sitemap/document/unreadable", severity, scope: "site" as const, url: file.url, ...said("the sitemap could not be read"), data: { [file.url]: { error: file.error as string } }, value: file.status }));
     },
 });
 
@@ -148,7 +148,7 @@ export function header(page: Facts, name: string): string {
 // Framing refused by CSP `frame-ancestors` or by `X-Frame-Options` DENY or SAMEORIGIN.
 const frameOptions: Make = (severity) => ({
     meta: {
-        id: "http/frame-options",
+        id: "http/frame-options/missing",
         severity,
         scope: "page",
         facts: ["http.csp.directives", "http.headers.x-frame-options"],
@@ -159,12 +159,12 @@ const frameOptions: Make = (severity) => ({
         const hasAncestors = page.http.csp?.directives?.["frame-ancestors"] !== undefined;
         const options = header(page, "x-frame-options").trim();
         const isDenied = hasAncestors || /^(?:deny|sameorigin)$/i.test(options);
-        log.debug({ rule: "http/frame-options", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
+        log.debug({ rule: "http/frame-options/missing", url: page.url.href, hasAncestors, options, isDenied }, "framing checked");
         return isDenied
             ? []
             : [
                   {
-                      rule: "http/frame-options",
+                      rule: "http/frame-options/missing",
                       severity,
                       scope: "page" as const,
                       url: page.url.href,
@@ -192,15 +192,15 @@ export function linkTargets(raw: string, relation: string, base: string): string
 
 // A preload a 103 hinted that the final response’s `Link` no longer carries.
 const earlyHintsPreload: Make = (severity) => ({
-    meta: { id: "http/early-hints-preload", severity, scope: "page", facts: ["http.early-hints", "http.parsed.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103", fix: "Remove the preload from the 103 Early Hints, or add it to the final Link header." },
+    meta: { id: "http/early-hints-preload/mismatch", severity, scope: "page", facts: ["http.early-hints", "http.parsed.link"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Status/103", fix: "Remove the preload from the 103 Early Hints, or add it to the final Link header." },
     check(page: Facts) {
         const hints = page.http["early-hints"];
         const parsed = page.http.parsed?.link;
         if (!hints || (parsed?.errors.length ?? 0) > 0) return;
         const final = new Set(targets(linksOf(parsed), "preload", page.url.href));
         const dropped = [...new Set(hints.flatMap((hint) => linkTargets(hint.link ?? "", "preload", page.url.href))).difference(final)];
-        log.debug({ rule: "http/early-hints-preload", url: page.url.href, hints: hints.length, final: final.size, dropped: dropped.length }, "early hints compared");
-        return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("a 103 Early Hints preload is missing from the final Link header"), data: { [page.url.href]: { preloads: dropped.join(", ") } }, value: dropped }];
+        log.debug({ rule: "http/early-hints-preload/mismatch", url: page.url.href, hints: hints.length, final: final.size, dropped: dropped.length }, "early hints compared");
+        return dropped.length === 0 ? [] : [{ rule: "http/early-hints-preload/mismatch", severity, scope: "page" as const, url: page.url.href, group: page.group, ...said("a 103 Early Hints preload is missing from the final Link header"), data: { [page.url.href]: { preloads: dropped.join(", ") } }, value: dropped }];
     },
 });
 
@@ -231,7 +231,7 @@ function hintedOrigins(page: Facts): Map<string, string> {
 
 // A hinted origin no resource of the rendered page loads; a static parse misses what CSS and scripts load, so only a browser census is judged.
 const preconnectUnused = pageRule(
-    "html/preconnect-unused",
+    "html/preconnect/unused",
     ["html.head.links", "http.parsed.link", "resources"],
     (page) => {
         if (!page.browser || !page.html) return;
@@ -240,7 +240,7 @@ const preconnectUnused = pageRule(
             .entries()
             .filter(([origin]) => !used.has(origin))
             .toArray();
-        log.debug({ rule: "html/preconnect-unused", url: page.url.href, used: used.size, unused: unused.length }, "resource hints matched");
+        log.debug({ rule: "html/preconnect/unused", url: page.url.href, used: used.size, unused: unused.length }, "resource hints matched");
         return unused.map(([origin, relation]) => ({ ...said("rel={relation} warms an origin that no resource of the page loads", { relation }), data: { [page.url.href]: { origin } }, value: origin }));
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Remove the preconnect or dns-prefetch link to an origin the page no longer loads from." },
@@ -260,7 +260,7 @@ const VIEWPORT: Record<string, RegExp> = {
 
 // Each viewport entry a browser drops: an unknown key, a value it cannot read, or a key without `=`.
 const viewportSyntax = pageRule(
-    "html/viewport-syntax",
+    "html/viewport/invalid",
     ["html.meta.viewport"],
     (page) => {
         const content = page.html?.meta.viewport;
@@ -273,7 +273,7 @@ const viewportSyntax = pageRule(
             const [key = "", value] = entry.split("=", 2);
             return value === undefined || !VIEWPORT[key.toLowerCase()]?.test(value);
         });
-        log.debug({ rule: "html/viewport-syntax", url: page.url.href, entries: entries.length, dropped: dropped.length }, "viewport entries read");
+        log.debug({ rule: "html/viewport/invalid", url: page.url.href, entries: entries.length, dropped: dropped.length }, "viewport entries read");
         return dropped.map((entry) => ({ ...said("a meta viewport entry is not a key and value browsers read, so they ignore it"), data: { [page.url.href]: { entry } }, value: entry }));
     },
     { docs: "https://drafts.csswg.org/css-viewport/#viewport-meta", fix: "Keep meta viewport to known keys, as in width=device-width, initial-scale=1." },
@@ -281,14 +281,14 @@ const viewportSyntax = pageRule(
 
 // Each meta theme-color whose content is no CSS <color>, which browsers then ignore; css-tree loads on first use.
 const themeColorSyntax = pageRule(
-    "html/theme-color-syntax",
+    "html/theme-color/invalid",
     ["html.metas"],
     (page) => {
         const colors = page.html?.metas.filter((meta) => meta.name.toLowerCase() === "theme-color");
         if (!colors?.length) return;
         const { lexer } = createRequire(import.meta.url)("css-tree") as typeof import("css-tree");
         const invalid = colors.filter((meta) => !lexer.match("<color>", meta.content.trim()).matched);
-        log.debug({ rule: "html/theme-color-syntax", url: page.url.href, colors: colors.length, invalid: invalid.length }, "theme colors read");
+        log.debug({ rule: "html/theme-color/invalid", url: page.url.href, colors: colors.length, invalid: invalid.length }, "theme colors read");
         return invalid.map((meta) => ({ ...(meta.content.trim() === "" ? said("meta theme-color is empty, so browsers ignore it") : { ...said("meta theme-color is not a CSS color, so browsers ignore it"), data: { [page.url.href]: { content: meta.content } } }), value: meta.content }));
     },
     { docs: "https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color", fix: "Set <meta name=theme-color> content to a CSS color, as in #1a73e8." },
@@ -305,7 +305,7 @@ function blockingOrigins(page: Facts): Map<string, string> {
 
 // A cross origin serving a render-blocking resource with no `preconnect`, `dns-prefetch` or `preload` towards it.
 const preconnectMissing = pageRule(
-    "html/preconnect-missing",
+    "html/preconnect/missing",
     ["html.head.links", "http.parsed.link", "html.scripts"],
     (page) => {
         if (!page.html) return;
@@ -314,7 +314,7 @@ const preconnectMissing = pageRule(
             .entries()
             .filter(([origin]) => !warmed.has(origin))
             .toArray();
-        log.debug({ rule: "html/preconnect-missing", url: page.url.href, warmed: warmed.size, cold: cold.length }, "render-blocking origins matched");
+        log.debug({ rule: "html/preconnect/missing", url: page.url.href, warmed: warmed.size, cold: cold.length }, "render-blocking origins matched");
         return cold.map(([origin, kind]) => ({ ...said("an origin serves a render-blocking {kind} and nothing preconnects to it", { kind }), data: { [page.url.href]: { origin } }, value: origin }));
     },
     { docs: "https://web.dev/articles/preconnect-and-dns-prefetch", fix: 'Add <link rel="preconnect" href="https://origin.example"> for each cross origin a render-blocking script or style sheet comes from.' },
@@ -322,7 +322,7 @@ const preconnectMissing = pageRule(
 
 // A `preconnect` to an origin serving fonts that lacks `crossorigin`, so the font fetch opens a second connection.
 const preconnectCrossorigin = pageRule(
-    "html/preconnect-crossorigin",
+    "html/preconnect-crossorigin/missing",
     ["html.head.links", "http.parsed.link", "resources"],
     (page) => {
         if (!page.html) return;
@@ -335,7 +335,7 @@ const preconnectCrossorigin = pageRule(
         const preconnects = withRelation(page, ["preconnect"]).filter((link) => originOf(link.href) !== undefined && fonts.has(originOf(link.href)));
         const anonymous = new Set(preconnects.filter((link) => link.crossorigin !== undefined).map((link) => originOf(link.href)));
         const bare = [...new Set(preconnects.map((link) => originOf(link.href))).difference(anonymous)];
-        log.debug({ rule: "html/preconnect-crossorigin", url: page.url.href, fonts: fonts.size, preconnects: preconnects.length, bare: bare.length }, "font preconnects matched");
+        log.debug({ rule: "html/preconnect-crossorigin/missing", url: page.url.href, fonts: fonts.size, preconnects: preconnects.length, bare: bare.length }, "font preconnects matched");
         return bare.map((origin) => ({ ...said("the preconnect to a font origin lacks crossorigin, so fonts open a second connection"), data: { [page.url.href]: { origin: String(origin) } }, value: origin }));
     },
     { docs: "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel/preconnect", fix: "Add the crossorigin attribute to the preconnect link towards the origin fonts load from." },
@@ -376,24 +376,24 @@ const ORIGIN: [string, string, (page: Facts) => string | undefined][] = [
 // The finding for one host and fact when its value varies across the host's pages.
 function varies(severity: Exclude<Severity, "off">, host: string, members: Facts[], fact: string, label: string, read: (page: Facts) => string | undefined): Finding | undefined {
     const byValue = partition(members, read);
-    log.debug({ rule: "http/consistent-origin", host, fact, values: byValue.size }, "origin fact compared");
+    log.debug({ rule: "http/host/inconsistent", host, fact, values: byValue.size }, "origin fact compared");
     if (byValue.size < 2) return undefined;
     const entries = byValue.entries().toArray();
     const urls = entries.flatMap(([, group]) => group.map((page) => page.url.href));
     const data = Object.fromEntries(entries.flatMap(([value, group]) => group.map((page) => [page.url.href, { value }])));
-    return { rule: "http/consistent-origin", severity, scope: "site", url: urls[0] as string, ...said("{label} varies across {host}", { label, host }), data, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
+    return { rule: "http/host/inconsistent", severity, scope: "site", url: urls[0] as string, ...said("{label} varies across {host}", { label, host }), data, value: Object.fromEntries(entries.map(([value, group]) => [value, group.length])), urls };
 }
 
 // One finding per host and fact whose value varies across its pages, with the URL count per value.
 const consistentOrigin: Make = (severity) => ({
-    meta: { id: "http/consistent-origin", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact), fix: "Make every page of the host serve the same certificate, TLS protocol and Server header." },
+    meta: { id: "http/host/inconsistent", severity, scope: "site", facts: ORIGIN.map(([fact]) => fact), fix: "Make every page of the host serve the same certificate, TLS protocol and Server header." },
     check(pages: Facts[]) {
         const hosts = Map.groupBy(pages, (page) => page.url.host)
             .entries()
             .toArray();
         return hosts.flatMap(([host, members]) => {
             const isEdge = members.some((page) => UNREMOVABLE.has(header(page, "server").toLowerCase()));
-            log.debug({ rule: "http/consistent-origin", host, isEdge }, "address comparison decided");
+            log.debug({ rule: "http/host/inconsistent", host, isEdge }, "address comparison decided");
             return ORIGIN.filter(([fact]) => !(isEdge && fact === "http.remote.address"))
                 .map(([fact, label, read]) => varies(severity, host, members, fact, label, read))
                 .filter((finding) => finding !== undefined);
@@ -481,7 +481,7 @@ const resourceCacheControl: Verdict = (resource) => {
     const directives = (value ?? {}) as Record<string, unknown>;
     const maxAge = Number(directives["max-age"] ?? 0);
     const isLong = maxAge >= YEAR && !directives["no-cache"] && !directives["no-store"];
-    log.debug({ rule: "resources/cache-control", resource: resource.url, isImmutable, isHashed, maxAge, isLong, errors }, "resource cache policy judged");
+    log.debug({ rule: "resources/cache-control/weak", resource: resource.url, isImmutable, isHashed, maxAge, isLong, errors }, "resource cache policy judged");
     const variables = { kind: resource.kind };
     if (errors.length > 0) return { ...said(isHashed ? "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111; used by these pages" : "immutable {kind} sends a Cache-Control that breaks RFC 9111; used by these pages", variables), data: { [resource.url]: { errors: errors.join("; ") } } };
     return isLong ? undefined : { ...said(isHashed ? "fingerprinted {kind} is cached for less than a year; used by these pages" : "immutable {kind} is cached for less than a year; used by these pages", variables), data: { [resource.url]: { "max-age": maxAge, ...(policy && { "cache-control": policy }) } } };
@@ -496,7 +496,7 @@ const resourceCompression: Verdict = (resource) => {
     const coding = resourceHeader(resource, "content-encoding");
     const isText = TEXT.test(type) && (resource.http?.size.body ?? 0) >= 1024;
     const isCompressed = /\b(?:br|gzip|zstd)\b/i.test(coding);
-    log.debug({ rule: "resources/compression", resource: resource.url, type, coding, isText, isCompressed }, "resource compression judged");
+    log.debug({ rule: "resources/compression/missing", resource: resource.url, type, coding, isText, isCompressed }, "resource compression judged");
     return isText && !isCompressed && isServed(resource) ? { ...said("a text {kind} is not served with br, gzip or zstd; used by these pages", { kind: resource.kind }), data: { [resource.url]: { type, ...(coding && { "content-encoding": coding }) } } } : undefined;
 };
 
@@ -505,7 +505,7 @@ const quoted = (values: string[]): string => (values.length === 0 ? "none" : val
 
 // Served declarations a script changed once the page rendered, each as its tag, served value and rendered value; an unrendered page is skipped.
 const declarationRewritten = pageRule(
-    "html/declaration-rewritten",
+    "html/declaration/mismatch",
     ["html.rewritten"],
     (page) => {
         if (!page.parity) return;
@@ -519,20 +519,20 @@ const declarationRewritten = pageRule(
 
 // TypeScript rules a preset enables by ID alone.
 export const builtin: Record<string, Make> = {
-    "links/broken-internal": brokenInternal,
-    "links/redirected-internal": redirectedInternal,
-    "links/broken-external": brokenExternal,
-    "http/frame-options": frameOptions,
-    "html/declaration-rewritten": declarationRewritten,
-    "http/early-hints-preload": earlyHintsPreload,
-    "html/preconnect-unused": preconnectUnused,
-    "html/preconnect-missing": preconnectMissing,
-    "html/preconnect-crossorigin": preconnectCrossorigin,
-    "html/viewport-syntax": viewportSyntax,
-    "html/theme-color-syntax": themeColorSyntax,
-    "http/consistent-origin": consistentOrigin,
-    "sitemap/unreadable": sitemapUnreadable,
-    "sitemap/media": sitemapMedia,
+    "links/internal/unreachable": brokenInternal,
+    "links/internal/redirected": redirectedInternal,
+    "links/external/unreachable": brokenExternal,
+    "http/frame-options/missing": frameOptions,
+    "html/declaration/mismatch": declarationRewritten,
+    "http/early-hints-preload/mismatch": earlyHintsPreload,
+    "html/preconnect/unused": preconnectUnused,
+    "html/preconnect/missing": preconnectMissing,
+    "html/preconnect-crossorigin/missing": preconnectCrossorigin,
+    "html/viewport/invalid": viewportSyntax,
+    "html/theme-color/invalid": themeColorSyntax,
+    "http/host/inconsistent": consistentOrigin,
+    "sitemap/document/unreadable": sitemapUnreadable,
+    "sitemap/media/unreachable": sitemapMedia,
     ...robotsRules,
     ...i18nRules,
     ...disclosureRules,
@@ -543,38 +543,38 @@ export const builtin: Record<string, Make> = {
     ...cachingRules,
     ...lengthRules,
     ...relationRules,
-    "resources/status": resourceRule(
-        "resources/status",
+    "resources/resource/unreachable": resourceRule(
+        "resources/resource/unreachable",
         (_page, resource) => resource.kind !== "enclosure",
         resourceStatus,
         undefined,
         (resource) => resource.http?.status ?? 0,
         { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." },
     ),
-    "resources/mixed-content": resourceRule(
-        "resources/mixed-content",
+    "resources/protocol/insecure": resourceRule(
+        "resources/protocol/insecure",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
         (resource) => said("{kind} loads over http: on the https: pages that use it", { kind: resource.kind }),
         undefined,
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content", fix: "Load the resource over https instead of http." },
     ),
-    "resources/sri": resourceRule(
-        "resources/sri",
+    "resources/integrity/missing": resourceRule(
+        "resources/integrity/missing",
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
         (resource) => (resource.integrity ? undefined : said("cross-origin {kind} without integrity; used by these pages", { kind: resource.kind })),
         undefined,
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." },
     ),
-    "resources/cache-control": resourceRule("resources/cache-control", isAnyUse, resourceCacheControl, undefined, (resource) => resource.http?.headers["cache-control"], {
+    "resources/cache-control/weak": resourceRule("resources/cache-control/weak", isAnyUse, resourceCacheControl, undefined, (resource) => resource.http?.headers["cache-control"], {
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Caching#cache_busting",
         fix: "Send Cache-Control: public, max-age=31536000, immutable with every fingerprinted asset.",
     }),
-    "resources/compression": resourceRule("resources/compression", isAnyUse, resourceCompression, undefined, (resource) => resource.http?.headers["content-encoding"], {
+    "resources/compression/missing": resourceRule("resources/compression/missing", isAnyUse, resourceCompression, undefined, (resource) => resource.http?.headers["content-encoding"], {
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Compression",
         fix: "Serve text assets br, zstd or gzip to every client whose Accept-Encoding offers one.",
     }),
-    "html/canonical-self": pointsHere("html/canonical-self", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Point <link rel=canonical> at this page’s own URL." }),
-    "html/og-url-self": pointsHere("html/og-url-self", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata", fix: "Point <meta property=og:url> at this page’s own URL." }),
+    "html/canonical/mismatch": pointsHere("html/canonical/mismatch", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Point <link rel=canonical> at this page’s own URL." }),
+    "html/og-url/mismatch": pointsHere("html/og-url/mismatch", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata", fix: "Point <meta property=og:url> at this page’s own URL." }),
 };

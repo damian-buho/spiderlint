@@ -62,7 +62,7 @@ describe("link graph", () => {
         const found = rules.flatMap((rule) => pages.flatMap((facts) => rule.check(facts) ?? []).map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`));
         assert.deepEqual(
             found.toSorted((a, b) => a.localeCompare(b)),
-            ["links/click-depth /e", "links/dead-end /e", "links/weakly-linked /d", "links/weakly-linked /e"],
+            ["links/click-depth/excessive /e", "links/incoming/weak /d", "links/incoming/weak /e", "links/outgoing/missing /e"],
         );
     });
 
@@ -70,7 +70,7 @@ describe("link graph", () => {
         const report = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off" });
         assert.deepEqual(
             report.findings.map((finding) => `${finding.rule} ${new URL(finding.url).pathname}`),
-            ["links/weakly-linked /duplicate"],
+            ["links/incoming/weak /duplicate"],
         );
         const capped = await audit({ seeds: [`${site.origin}/`], rules: ["graph"], cacheMode: "off", maxPages: 3 });
         assert.equal(capped.site.crawl?.complete, false);

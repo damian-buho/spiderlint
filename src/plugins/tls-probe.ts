@@ -162,7 +162,7 @@ const probe: SiteExtractor = {
 const NOT_CLOUDFLARE = { not: { const: "cloudflare" } };
 
 const RULES: Record<string, RuleSpec> = {
-    "tls-probe/legacy-protocols": {
+    "tls-probe/protocol/deprecated": {
         fact: "site.origins.*.tls-probe.legacy",
         expect: { maxItems: 0 },
         message: "the server still accepts {got}, which RFC 6176, RFC 7568 and RFC 8996 retire",
@@ -172,7 +172,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Disable SSLv3, TLS 1.0 and TLS 1.1; keep only TLS 1.2 and 1.3.",
         hints: { cloudflare: "Raise Minimum TLS Version to 1.2 under SSL/TLS, Edge Certificates in the Cloudflare dashboard: https://developers.cloudflare.com/ssl/edge-certificates/additional-options/minimum-tls/" },
     },
-    "tls-probe/insecure-ciphers": {
+    "tls-probe/cipher/insecure": {
         fact: "site.origins.*.tls-probe.insecure-ciphers",
         expect: { maxItems: 0 },
         when: { "site.origins.*.tls-probe.insecure-ciphers": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
@@ -182,7 +182,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.1",
         fix: "Remove NULL, RC4, 3DES and other broken cipher suites from the server config.",
     },
-    "tls-probe/vulnerabilities": {
+    "tls-probe/vulnerability/insecure": {
         fact: "site.origins.*.tls-probe.vulnerabilities",
         expect: { maxItems: 0 },
         when: { "site.origins.*.tls-probe.vulnerabilities": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
@@ -192,7 +192,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7457",
         fix: "Update the TLS library, and disable the protocol, suite or extension each named attack needs.",
     },
-    "tls-probe/weak-ciphers": {
+    "tls-probe/cipher/weak": {
         fact: "site.origins.*.tls-probe.weak-ciphers",
         expect: { maxItems: 0 },
         when: { "site.origins.*.tls-probe.weak-ciphers": { type: "array" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
@@ -202,7 +202,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2",
         fix: "Keep only AEAD suites that offer forward secrecy (ECDHE).",
     },
-    "tls-probe/forward-secrecy": {
+    "tls-probe/forward-secrecy/missing": {
         fact: "site.origins.*.tls-probe.forward-secrecy",
         expect: { const: "all" },
         when: { "site.origins.*.tls-probe.forward-secrecy": { type: "string" }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
@@ -212,7 +212,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-7.3",
         fix: "Configure only ECDHE suites so every handshake offers forward secrecy.",
     },
-    "tls-probe/weak-dh": {
+    "tls-probe/dh/weak": {
         fact: "site.origins.*.tls-probe.dh-bits",
         expect: { minimum: 2048 },
         when: { "site.origins.*.tls-probe.dh-bits": { type: "number" } },
@@ -226,7 +226,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.5",
         fix: "Use a DH group of at least 2048 bits, or drop the DHE suites for ECDHE.",
     },
-    "tls-probe/compression": {
+    "tls-probe/compression/insecure": {
         fact: "site.origins.*.tls-probe.compression",
         expect: { const: false },
         when: { "site.origins.*.tls-probe.compression": { type: "boolean" } },
@@ -236,7 +236,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.3",
         fix: "Disable TLS compression.",
     },
-    "tls-probe/secure-renegotiation": {
+    "tls-probe/secure-renegotiation/missing": {
         fact: "site.origins.*.tls-probe.secure-renegotiation",
         expect: { const: true },
         when: { "site.origins.*.tls-probe.secure-renegotiation": { type: "boolean" } },
@@ -246,7 +246,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc5746",
         fix: "Enable secure renegotiation in the TLS library.",
     },
-    "tls-probe/server-cipher-order": {
+    "tls-probe/cipher-order/missing": {
         fact: "site.origins.*.tls-probe.server-order",
         expect: { const: true },
         when: { "site.origins.*.tls-probe.weak-ciphers": { minItems: 1 }, "site.origins.*.stack.edge.name": NOT_CLOUDFLARE },
@@ -256,7 +256,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-4.2.1",
         fix: "Set the server to prefer its own strong suites over the client’s list.",
     },
-    "tls-probe/fallback-scsv": {
+    "tls-probe/fallback-scsv/missing": {
         fact: "site.origins.*.tls-probe.fallback-scsv",
         expect: { const: true },
         when: { "site.origins.*.tls-probe.fallback-scsv": { type: "boolean" } },
@@ -266,7 +266,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7507",
         fix: "Enable TLS_FALLBACK_SCSV in the TLS library.",
     },
-    "tls-probe/tls13-missing": {
+    "tls-probe/tls13/missing": {
         fact: "site.origins.*.tls-probe.protocols",
         expect: { contains: { const: "TLSv1.3" } },
         message: "the server offers {got} and no TLS 1.3",
@@ -275,7 +275,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9325#section-3.1.1",
         fix: "Enable TLS 1.3 in the server configuration.",
     },
-    "tls-probe/chain-complete": {
+    "tls-probe/intermediate/missing": {
         fact: "site.origins.*.tls-probe.chain.complete",
         expect: { const: true },
         when: { "site.origins.*.tls-probe.chain": { type: "object" } },
@@ -285,7 +285,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8446#section-4.4.2",
         fix: "Configure the server to serve the full certificate chain, including intermediates.",
     },
-    "tls-probe/ocsp-stapling": {
+    "tls-probe/ocsp-stapling/missing": {
         fact: "site.origins.*.tls-probe.ocsp.stapled",
         expect: { const: true },
         when: { "site.origins.*.tls-probe.ocsp.responder": true },
@@ -295,7 +295,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6066#section-8",
         fix: "Enable OCSP stapling so the server attaches the CA’s response to handshakes.",
     },
-    "tls-probe/early-data": {
+    "tls-probe/early-data/insecure": {
         fact: "site.origins.*.tls-probe.early-data",
         expect: { const: false },
         when: { "site.origins.*.tls-probe.early-data": { type: "boolean" } },

@@ -196,7 +196,7 @@ const FACTS = [`resources.${ID}`];
 // A JPEG, PNG or GIF that WebP or AVIF would shrink.
 const modernFormat: Make = (severity, settings) =>
     resourceRule(
-        "images/modern-format",
+        "images/format/outdated",
         isImage,
         (resource) => {
             const image = imageOf(resource) as ImageFacts;
@@ -215,7 +215,7 @@ const modernFormat: Make = (severity, settings) =>
 // An image its own format, or SVGO, re-encodes much smaller.
 const recompress: Make = (severity, settings) =>
     resourceRule(
-        "images/recompress",
+        "images/compression/weak",
         isImage,
         (resource) => {
             const image = imageOf(resource) as ImageFacts;
@@ -230,7 +230,7 @@ const recompress: Make = (severity, settings) =>
 // An image heavier than `weight`.
 const weight: Make = (severity, settings) =>
     resourceRule(
-        "images/weight",
+        "images/weight/large",
         isImage,
         (resource) => {
             const image = imageOf(resource) as ImageFacts;
@@ -245,7 +245,7 @@ const weight: Make = (severity, settings) =>
 // A stylesheet or script minification shrinks by both `saving` bounds.
 const minify: Make = (severity, settings) =>
     resourceRule(
-        "images/minify",
+        "images/minification/missing",
         (_page, resource) => textOf(resource) !== undefined,
         (resource) => {
             const text = textOf(resource) as TextFacts;
@@ -259,7 +259,7 @@ const minify: Make = (severity, settings) =>
 
 // A font served in any format but WOFF2.
 const fontFormat = resourceRule(
-    "images/font-format",
+    "images/font-format/outdated",
     (_page, resource) => fontOf(resource) !== undefined,
     (resource) => {
         const font = fontOf(resource) as { format: string; bytes: number };
@@ -272,7 +272,7 @@ const fontFormat = resourceRule(
 
 // A stylesheet whose `@font-face` rules hide text while their font loads.
 const fontDisplay = resourceRule(
-    "images/font-display",
+    "images/font-display/missing",
     (_page, resource) => textOf(resource)?.["font-faces"] !== undefined,
     (resource) => {
         const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
@@ -327,7 +327,7 @@ function loaded(page: Facts, source: string): ImageFacts | undefined {
 }
 
 const dimensions = imgRule(
-    "images/dimensions",
+    "images/dimensions/missing",
     ["html.images"],
     "https://web.dev/articles/optimize-cls#images-without-dimensions",
     said("an <img> without width and height shifts the layout as it loads"),
@@ -338,7 +338,7 @@ const dimensions = imgRule(
 const oversized: Make = (severity, settings) => {
     const { oversize } = settings as ImagesSettings;
     return imgRule(
-        "images/oversized",
+        "images/srcset/large",
         ["html.images", `resources.${ID}`],
         "https://web.dev/articles/serve-responsive-images",
         said("an <img> without srcset ships over {oversize} the width it displays", { oversize: { ratio: oversize } }),
@@ -352,7 +352,7 @@ const oversized: Make = (severity, settings) => {
 };
 
 const lazyBelow = layoutRule(
-    "images/lazy-below-fold",
+    "images/lazy-loading/missing",
     "https://web.dev/articles/browser-level-image-lazy-loading",
     said("an <img> below the fold without loading=lazy loads before the reader scrolls"),
     (layout, box) => (box.top >= layout.viewport.height && box.loading !== "lazy" ? `${box.src} at ${box.top} px` : undefined),
@@ -360,7 +360,7 @@ const lazyBelow = layoutRule(
 );
 
 const lazyAbove = layoutRule(
-    "images/lazy-above-fold",
+    "images/lazy-loading/slow",
     "https://web.dev/articles/lcp-lazy-loading",
     said("an <img> in the first viewport with loading=lazy waits for layout before loading"),
     (layout, box) => (box.top < layout.viewport.height && box.loading === "lazy" ? `${box.src} at ${box.top} px` : undefined),
@@ -368,7 +368,7 @@ const lazyAbove = layoutRule(
 );
 
 const renderedOversize = layoutRule(
-    "images/rendered-oversize",
+    "images/rendered-size/large",
     "https://web.dev/articles/serve-responsive-images",
     said("an <img> ships far more pixels than the page renders"),
     // A vector image scales for free, so its natural width costs nothing.
@@ -387,30 +387,36 @@ export default {
         { id: FONTS, types: ["font/", "application/font-", "application/x-font-", "application/vnd.ms-fontobject"], extract: extractFont },
     ],
     rules: {
-        "images/modern-format": modernFormat,
-        "images/recompress": recompress,
-        "images/weight": weight,
-        "images/dimensions": dimensions,
-        "images/oversized": oversized,
-        "images/minify": minify,
-        "images/font-format": fontFormat,
-        "images/font-display": fontDisplay,
-        "images/lazy-below-fold": lazyBelow,
-        "images/lazy-above-fold": lazyAbove,
-        "images/rendered-oversize": renderedOversize,
+        "images/format/outdated": modernFormat,
+        "images/compression/weak": recompress,
+        "images/weight/large": weight,
+        "images/dimensions/missing": dimensions,
+        "images/srcset/large": oversized,
+        "images/minification/missing": minify,
+        "images/font-format/outdated": fontFormat,
+        "images/font-display/missing": fontDisplay,
+        "images/lazy-loading/missing": lazyBelow,
+        "images/lazy-loading/slow": lazyAbove,
+        "images/rendered-size/large": renderedOversize,
     },
     presets: {
         images: {
             description: "Image weight and markup: bytes a modern format or a re-encode saves, heavy and oversized images, layout shift",
-            rules: { "images/modern-format": { severity: "warning", score: 5.2 }, "images/recompress": { severity: "warning", score: 4.8 }, "images/weight": { severity: "warning", score: 5.6 }, "images/dimensions": { severity: "warning", score: 5.4 }, "images/oversized": { severity: "warning", score: 4.6 } },
+            rules: {
+                "images/format/outdated": { severity: "warning", score: 5.2 },
+                "images/compression/weak": { severity: "warning", score: 4.8 },
+                "images/weight/large": { severity: "warning", score: 5.6 },
+                "images/dimensions/missing": { severity: "warning", score: 5.4 },
+                "images/srcset/large": { severity: "warning", score: 4.6 },
+            },
         },
         "images:assets": {
             description: "Fonts and text assets: WOFF2, font-display, and bytes minification saves",
-            rules: { "images/font-format": { severity: "warning", score: 4.4 }, "images/font-display": { severity: "warning", score: 5 }, "images/minify": { severity: "warning", score: 4.2 } },
+            rules: { "images/font-format/outdated": { severity: "warning", score: 4.4 }, "images/font-display/missing": { severity: "warning", score: 5 }, "images/minification/missing": { severity: "warning", score: 4.2 } },
         },
         "images:live": {
             description: "Images as the browser lays them out, on sampled pages: lazy loading against the fold, pixels shipped against pixels shown",
-            rules: { "images/lazy-below-fold": { severity: "warning", score: 4.8 }, "images/lazy-above-fold": { severity: "warning", score: 5.8 }, "images/rendered-oversize": { severity: "warning", score: 4.4 } },
+            rules: { "images/lazy-loading/missing": { severity: "warning", score: 4.8 }, "images/lazy-loading/slow": { severity: "warning", score: 5.8 }, "images/rendered-size/large": { severity: "warning", score: 4.4 } },
         },
     },
 } satisfies Plugin;

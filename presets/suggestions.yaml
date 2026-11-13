@@ -7,7 +7,7 @@ when:
   http.status: {minimum: 200, maximum: 299}
   http.content-type: {pattern: "^text/html"}
 rules:
-  http/coep:
+  http/coep/weak:
     fact: http.parsed.cross-origin-embedder-policy.value
     expect: {enum: [require-corp, credentialless]}
     when: {http.parsed.cross-origin-embedder-policy.errors: {maxItems: 0}}
@@ -16,7 +16,7 @@ rules:
     message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless"
     fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
-  http/digest:
+  http/digest/missing:
     fact: http.headers
     expect: {anyOf: [{required: [content-digest]}, {required: [repr-digest]}]}
     severity: hint
@@ -24,7 +24,7 @@ rules:
     message: "no Content-Digest or Repr-Digest lets a client check the body"
     fix: "Send Repr-Digest: sha-256=:<base64 digest>: with each response."
     docs: https://www.rfc-editor.org/rfc/rfc9530
-  http/server-timing:
+  http/server-timing/missing:
     fact: http.headers.server-timing
     expect: {type: string, minLength: 1}
     when: {site.role: {enum: [development, staging]}}
@@ -33,7 +33,7 @@ rules:
     message: "no Server-Timing header shows where the server spent its time"
     fix: "Send Server-Timing: app;dur=<milliseconds> with durations that name no internals."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Server-Timing
-  http/no-vary-search:
+  http/no-vary-search/missing:
     fact: http.headers.no-vary-search
     expect: {type: string, minLength: 1}
     when: {url.search: {minLength: 1}}
@@ -42,7 +42,7 @@ rules:
     message: "a URL with a query has no No-Vary-Search to say which parameters change the page"
     fix: "Send No-Vary-Search: params=(\"utm_source\" \"utm_medium\") naming the parameters that do not change the page."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/No-Vary-Search
-  html/speculation-rules:
+  html/speculation-rules/missing:
     fact: html.scripts
     expect: {contains: {required: [type], properties: {type: {pattern: "^(?i:speculationrules)$"}}}}
     when: {http.headers.speculation-rules: {not: {type: string}}}
@@ -51,7 +51,7 @@ rules:
     message: "no Speculation Rules script or header prefetches likely next pages"
     fix: "Add <script type=speculationrules> with a prefetch rule for same-origin links."
     docs: https://developer.mozilla.org/docs/Web/API/Speculation_Rules_API
-  html/feed-discovery:
+  html/feed-link/missing:
     fact: html.head.links
     expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {pattern: "^(?i:application/(rss\\+xml|atom\\+xml|feed\\+json))"}}}}
     when: {url.pathname: "/"}
@@ -60,7 +60,7 @@ rules:
     message: "the home page links no RSS, Atom or JSON feed"
     fix: "Add <link rel=alternate type=application/atom+xml href=/feed.xml> to the head."
     docs: https://www.rssboard.org/rss-autodiscovery
-  html/alternate-formats:
+  html/alternate-format/missing:
     fact: html.head.links
     expect: {contains: {required: [rel, type], properties: {rel: {pattern: "(?i:(^|\\s)alternate(\\s|$))"}, type: {not: {pattern: "^(?i:text/html)"}}}}}
     when: {url.pathname: "/"}
@@ -69,7 +69,7 @@ rules:
     message: "the home page links no machine-readable alternate (feed, JSON, Markdown)"
     fix: "Add <link rel=alternate type=text/markdown href=/index.md> or a feed to the head."
     docs: https://html.spec.whatwg.org/multipage/links.html#rel-alternate
-  html/nlweb:
+  html/nlweb/missing:
     fact: html.rels.nlweb
     expect: {type: array, minItems: 1}
     when: {url.pathname: "/"}
@@ -78,7 +78,7 @@ rules:
     message: "the home page links no NLWeb endpoint with rel=nlweb"
     fix: "Add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint."
     docs: https://github.com/nlweb-ai/NLWeb
-  html/fediverse-creator:
+  html/fediverse-creator/invalid:
     fact: html.meta.fediverse:creator
     expect: {type: string, pattern: "^@?[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"}
     when: {html.property.og:type: article}
@@ -87,7 +87,7 @@ rules:
     message: "an article names no fediverse:creator account for Mastodon previews"
     fix: "Add <meta name=fediverse:creator content=\"@user@instance.example\"> to the article head."
     docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
-  redirects/by:
+  redirects/redirect-by/missing:
     fact: http.redirects
     expect: {type: array, items: {required: [by]}}
     severity: hint

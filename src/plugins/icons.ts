@@ -146,7 +146,7 @@ function linkedIcons(pages: readonly Facts[]): DeclaredIcon[] {
     return found.values().toArray();
 }
 
-// The icons each linked manifest lists; a manifest that does not answer or parse lists none, `manifest/parse` reports it.
+// The icons each linked manifest lists; a manifest that does not answer or parse lists none, `manifest/document/invalid` reports it.
 async function manifestIcons(pages: readonly Facts[], origin: string, context: SiteContext): Promise<DeclaredIcon[]> {
     const urls = new Set(pages.flatMap((page) => (page.html?.head.links ?? []).filter((link) => tokens(link.rel).includes("manifest") && link.href).map((link) => link.href as string)));
     const icons: DeclaredIcon[] = [];
@@ -320,9 +320,9 @@ export default {
         icons: {
             description: "Favicons and platform icons fetched and measured: the favicon, SVG, Apple touch, Safari pinned tab and Windows tile icons, and every declared size",
             rules: {
-                "icons/favicon": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
-                "icons/svg": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
-                "icons/apple-touch": problemRule(
+                "icons/favicon/missing": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
+                "icons/svg/invalid": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
+                "icons/apple-touch/missing": problemRule(
                     "apple-touch",
                     "warning",
                     3.8,
@@ -330,7 +330,7 @@ export default {
                     "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html",
                     "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>.",
                 ),
-                "icons/mask-icon": problemRule(
+                "icons/mask-icon/invalid": problemRule(
                     "mask-icon",
                     "hint",
                     0.4,
@@ -338,7 +338,7 @@ export default {
                     "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html",
                     "Link a single-colour SVG with a color attribute, or drop rel=mask-icon.",
                 ),
-                "icons/ms-tile": problemRule(
+                "icons/ms-tile/unreachable": problemRule(
                     "ms-tile",
                     "info",
                     1.4,
@@ -346,7 +346,7 @@ export default {
                     "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)",
                     "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them.",
                 ),
-                "icons/declared-size": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
+                "icons/declared-size/mismatch": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
             },
         },
     },

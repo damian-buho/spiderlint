@@ -578,8 +578,8 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors, overdue);
     await store?.saveResources(results);
-    const isProbed = rules.some((rule) => rule.meta.id === "links/broken-external");
-    const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media");
+    const isProbed = rules.some((rule) => rule.meta.id === "links/external/unreachable");
+    const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media/unreachable");
     log.debug({ isProbed, isMediaProbed }, "external link probes decided");
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);

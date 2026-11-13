@@ -46,20 +46,20 @@ describe("vendor paths", () => {
     });
 
     it("reports the email obfuscation once, with the dashboard switch as its fix", () => {
-        const found = on.findings.filter((finding) => finding.rule === "vendor/cloudflare-email-obfuscation");
+        const found = on.findings.filter((finding) => finding.rule === "vendor/cloudflare-email-obfuscation/present");
         assert.equal(found.length, 1);
         assert.equal(found[0]?.severity, "info");
-        assert.match(explainRule(defaults(), "vendor/cloudflare-email-obfuscation").fix ?? "", /Email Address Obfuscation.*Security › Settings/);
+        assert.match(explainRule(defaults(), "vendor/cloudflare-email-obfuscation/present").fix ?? "", /Email Address Obfuscation.*Security › Settings/);
     });
 
     it("judges the decode script and lists its findings under the vendor", () => {
-        const decode = on.findings.find((finding) => finding.rule === "resources/status");
+        const decode = on.findings.find((finding) => finding.rule === "resources/resource/unreachable");
         assert.equal(decode?.vendor, "Cloudflare");
-        assert.match(formatHuman(on), /^Cloudflare \(vendor\)\n {2}error {3}7\.6 resources\/status/m);
+        assert.match(formatHuman(on), /^Cloudflare \(vendor\)\n {2}error {3}7\.6 resources\/resource\/unreachable/m);
     });
 
     it("lints the page as the site’s own with vendor-paths false", () => {
         for (const rule of DEFECTS) assert.ok(at(off).includes(rule), rule);
-        assert.ok(off.findings.every((finding) => finding.rule !== "vendor/cloudflare-email-obfuscation" && !finding.vendor));
+        assert.ok(off.findings.every((finding) => finding.rule !== "vendor/cloudflare-email-obfuscation/present" && !finding.vendor));
     });
 });

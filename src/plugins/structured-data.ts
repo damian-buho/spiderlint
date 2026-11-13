@@ -154,7 +154,7 @@ const allNodes = (page: Facts) => nodesOf(page).flatMap((top) => everyNode(top).
 const isDefinition = (node: Node) => typeof node["@id"] === "string" && Object.keys(node).some((key) => key !== "@id" && key !== "@context");
 
 const parse = pageRule(
-    "structured-data/parse",
+    "structured-data/json-ld/invalid",
     ["html.jsonld"],
     (page) => {
         if (!page.html) return;
@@ -165,7 +165,7 @@ const parse = pageRule(
 );
 
 const required = pageRule(
-    "structured-data/required",
+    "structured-data/property/missing",
     ["html.jsonld", ID],
     (page) => {
         if (!page.html) return;
@@ -193,7 +193,7 @@ const folded = (text: string) => text.toLowerCase().replaceAll(/\s+/g, " ").trim
 
 // Page and article nodes whose `url` or `mainEntityOfPage` is not the canonical, or whose name appears in neither `<title>` nor `og:title`.
 const consistent = pageRule(
-    "structured-data/consistent",
+    "structured-data/url/mismatch",
     ["html.jsonld", ID, "html.canonical", "html.title", "html.property"],
     (page) => {
         if (!page.html) return;
@@ -224,7 +224,14 @@ const documentOf = (id: string) => id.split("#", 1)[0] ?? id;
 
 // Each bare `{ "@id" }` reference to a blank node or fragment that the crawled page it points into never defines, once per `@id`, with the pages naming it.
 const references: Make = (severity) => ({
-    meta: { id: "structured-data/references", severity, scope: "site", facts: ["html.jsonld", ID], docs: "https://www.w3.org/TR/json-ld11/#node-identifiers", fix: "Define each referenced `@id` on the page it points into, or on the referring page itself; a reference into a page that never defines it names nothing." },
+    meta: {
+        id: "structured-data/reference/broken",
+        severity,
+        scope: "site",
+        facts: ["html.jsonld", ID],
+        docs: "https://www.w3.org/TR/json-ld11/#node-identifiers",
+        fix: "Define each referenced `@id` on the page it points into, or on the referring page itself; a reference into a page that never defines it names nothing.",
+    },
     check(pages: Facts[]) {
         const defined = new Map<string, Set<string>>();
         for (const page of pages) {
@@ -246,14 +253,14 @@ const references: Make = (severity) => ({
             for (const id of ids) {
                 const target = id.startsWith("_:") ? own : id.includes("#") ? defined.get(documentOf(id)) : undefined;
                 const isDangling = target !== undefined && !target.has(id) && !own.has(id);
-                log.debug({ rule: "structured-data/references", url: page.url.href, id, crawled: target !== undefined, isDangling }, "reference judged");
+                log.debug({ rule: "structured-data/reference/broken", url: page.url.href, id, crawled: target !== undefined, isDangling }, "reference judged");
                 if (isDangling) naming.set(id, [...(naming.get(id) ?? []), page.url.href]);
             }
         }
         return naming
             .entries()
             .map(([id, urls]): Finding => ({
-                rule: "structured-data/references",
+                rule: "structured-data/reference/broken",
                 severity,
                 scope: "site",
                 url: id,
@@ -274,7 +281,7 @@ function crumbsOf(page: Facts): string[] {
 
 // Every breadcrumb target the crawl found answering outside 2xx or redirecting, once per target, with the pages naming it.
 const breadcrumbs: Make = (severity) => ({
-    meta: { id: "structured-data/breadcrumbs", severity, scope: "site", facts: ["html.jsonld", ID, "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/appearance/structured-data/breadcrumb", fix: "Point each breadcrumb `item` at the final URL of a page that answers 200." },
+    meta: { id: "structured-data/breadcrumb/unreachable", severity, scope: "site", facts: ["html.jsonld", ID, "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/appearance/structured-data/breadcrumb", fix: "Point each breadcrumb `item` at the final URL of a page that answers 200." },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const status = new Map(pages.map((page) => [page.url.href, page.http.status]));
         const redirects = site?.redirects ?? {};
@@ -283,9 +290,9 @@ const breadcrumbs: Make = (severity) => ({
         const findings: Finding[] = [];
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), redirects[url]];
-            log.debug({ rule: "structured-data/breadcrumbs", url, status: answer, landing, pages: urls.length }, "breadcrumb judged");
+            log.debug({ rule: "structured-data/breadcrumb/unreachable", url, status: answer, landing, pages: urls.length }, "breadcrumb judged");
             const verdict = landing ? { ...said("the breadcrumb item redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the breadcrumb item answers {status}; named by these pages", { status: String(answer) }) : undefined;
-            if (verdict) findings.push({ rule: "structured-data/breadcrumbs", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
+            if (verdict) findings.push({ rule: "structured-data/breadcrumb/unreachable", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;
     },
@@ -307,12 +314,12 @@ function conflict(url: string, values: Map<string, Set<string>>, sentence: Retur
         .entries()
         .map(([value, urls]) => `${value} on ${urls.size} page${urls.size === 1 ? "" : "s"}`)
         .toArray();
-    return { rule: "structured-data/entities", severity, scope: "site", url, ...sentence, value: values.keys().toArray(), locations, urls: [...new Set(values.values().flatMap((urls) => urls.values()))] };
+    return { rule: "structured-data/entity/inconsistent", severity, scope: "site", url, ...sentence, value: values.keys().toArray(), locations, urls: [...new Set(values.values().flatMap((urls) => urls.values()))] };
 }
 
 // One `@id` typed differently on different pages, and one named site-wide entity carried under several `@id`s.
 const entities: Make = (severity) => ({
-    meta: { id: "structured-data/entities", severity, scope: "site", facts: ["html.jsonld", ID], docs: "https://www.w3.org/TR/json-ld11/#node-identifiers", fix: "Give each real-world entity one absolute `@id` and the same `@type` on every page that describes it." },
+    meta: { id: "structured-data/entity/inconsistent", severity, scope: "site", facts: ["html.jsonld", ID], docs: "https://www.w3.org/TR/json-ld11/#node-identifiers", fix: "Give each real-world entity one absolute `@id` and the same `@type` on every page that describes it." },
     check(pages: Facts[]) {
         const typings: Sightings = new Map();
         const identities: Sightings = new Map();
@@ -327,11 +334,11 @@ const entities: Make = (severity) => ({
         }
         const findings: Finding[] = [];
         for (const [id, values] of typings) {
-            log.debug({ rule: "structured-data/entities", id, typings: values.size }, "identity typing judged");
+            log.debug({ rule: "structured-data/entity/inconsistent", id, typings: values.size }, "identity typing judged");
             if (values.size > 1) findings.push(conflict(id, values, said("one @id is typed {count} ways across the site", { count: values.size }), severity));
         }
         for (const [entity, values] of identities) {
-            log.debug({ rule: "structured-data/entities", entity, ids: values.size }, "entity identity judged");
+            log.debug({ rule: "structured-data/entity/inconsistent", entity, ids: values.size }, "entity identity judged");
             if (values.size > 1)
                 findings.push(
                     conflict(
@@ -354,7 +361,7 @@ const successor = (term: string): string | undefined => (Object.hasOwn(SUPERSEDE
 
 // Types, properties and schema.org enumeration values that schema.org marks `supersededBy`.
 const deprecated = pageRule(
-    "structured-data/deprecated",
+    "structured-data/term/deprecated",
     ["html.jsonld", ID],
     (page) => {
         if (!page.html) return;
@@ -382,7 +389,7 @@ const time = (value: unknown) => (typeof value === "string" ? Date.parse(value) 
 
 // Dates that are not ISO 8601, a modification before publication, and a publication date disagreeing with `article:published_time`.
 const dates = pageRule(
-    "structured-data/dates",
+    "structured-data/date/invalid",
     ["html.jsonld", ID, "html.property"],
     (page) => {
         if (!page.html) return;
@@ -409,27 +416,27 @@ export default {
     name: "structured-data",
     extractors: [{ id: ID, extract }],
     rules: {
-        "structured-data/parse": parse,
-        "structured-data/required": required,
-        "structured-data/breadcrumbs": breadcrumbs,
-        "structured-data/consistent": consistent,
-        "structured-data/references": references,
-        "structured-data/entities": entities,
-        "structured-data/deprecated": deprecated,
-        "structured-data/dates": dates,
+        "structured-data/json-ld/invalid": parse,
+        "structured-data/property/missing": required,
+        "structured-data/breadcrumb/unreachable": breadcrumbs,
+        "structured-data/url/mismatch": consistent,
+        "structured-data/reference/broken": references,
+        "structured-data/entity/inconsistent": entities,
+        "structured-data/term/deprecated": deprecated,
+        "structured-data/date/invalid": dates,
     },
     presets: {
         "structured-data": {
             description: "JSON-LD, Microdata and RDFa that parse, carry what their rich result requires, agree with the page and each other, use current schema.org terms and valid dates, and whose breadcrumbs lead to live pages",
             rules: {
-                "structured-data/parse": { severity: "error", score: 7.8 },
-                "structured-data/required": { severity: "warning", score: 5.8 },
-                "structured-data/breadcrumbs": { severity: "warning", score: 5.2 },
-                "structured-data/consistent": { severity: "warning", score: 5.4 },
-                "structured-data/references": { severity: "warning", score: 4.8 },
-                "structured-data/entities": { severity: "warning", score: 5 },
-                "structured-data/deprecated": { severity: "warning", score: 4 },
-                "structured-data/dates": { severity: "warning", score: 4.6 },
+                "structured-data/json-ld/invalid": { severity: "error", score: 7.8 },
+                "structured-data/property/missing": { severity: "warning", score: 5.8 },
+                "structured-data/breadcrumb/unreachable": { severity: "warning", score: 5.2 },
+                "structured-data/url/mismatch": { severity: "warning", score: 5.4 },
+                "structured-data/reference/broken": { severity: "warning", score: 4.8 },
+                "structured-data/entity/inconsistent": { severity: "warning", score: 5 },
+                "structured-data/term/deprecated": { severity: "warning", score: 4 },
+                "structured-data/date/invalid": { severity: "warning", score: 4.6 },
             },
         },
     },

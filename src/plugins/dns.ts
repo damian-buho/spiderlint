@@ -150,7 +150,7 @@ function issuer(host: string, found: NonNullable<Awaited<ReturnType<typeof caa>>
     if (!name) return;
     const domains = ISSUERS.find(([pattern]) => pattern.test(name))?.[1];
     if (!domains) {
-        log.debug({ host, issuer: name }, "certificate issuer has no known CAA domain; dns/caa-issuer skipped");
+        log.debug({ host, issuer: name }, "certificate issuer has no known CAA domain; dns/caa-issuer/mismatch skipped");
         return;
     }
     const wildcard = cert.san.some((entry) => entry.startsWith("*.")) && found.records.some((record) => record.tag === "issuewild");
@@ -479,7 +479,7 @@ const SILENT = { "site.hosts.*.mail.mode": "none" };
 const ACTIVE = { "site.hosts.*.mail.mode": "mail" };
 
 export const MAIL_RULES: Record<string, RuleSpec> = {
-    "dns/null-mx": {
+    "dns/null-mx/missing": {
         fact: "site.hosts.*.mail.mx",
         when: SILENT,
         expect: { minItems: 1, maxItems: 1, items: { properties: { preference: { const: 0 }, exchange: { const: "." } } } },
@@ -489,7 +489,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7505",
         fix: "Add one MX record — Name `{host}`, Mail server `.`, Priority `0`, in a zone file `{host}. MX 0 .` — and delete every other MX of the name.",
     },
-    "dns/spf-none": {
+    "dns/spf-null/missing": {
         fact: "site.hosts.*.mail.spf",
         when: SILENT,
         expect: { minItems: 1, maxItems: 1, items: { pattern: String.raw`^[vV]=[sS][pP][fF]1\s+-[aA][lL][lL]\s*$` } },
@@ -499,7 +499,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
         fix: "Add one TXT record — Name `{host}`, Content `v=spf1 -all` — and delete every other `v=spf1` record of the name, since SPF is not inherited by subdomains.",
     },
-    "dns/dmarc-reject": {
+    "dns/dmarc-reject/missing": {
         fact: "site.hosts.*.mail.dmarc",
         when: SILENT,
         expect: { type: "object", required: ["policy"], properties: { policy: { const: "reject" } } },
@@ -509,7 +509,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
         fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s` — which covers `{domain}` and every name under it.",
     },
-    "dns/null-mx-mixed": {
+    "dns/null-mx/invalid": {
         fact: "site.hosts.*.mail.mx",
         when: ACTIVE,
         expect: { items: { properties: { exchange: { not: { const: "." } } } } },
@@ -519,7 +519,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7505#section-4",
         fix: "Delete the MX record with Mail server `.` from `{host}`, and keep the MX records of its real mail servers.",
     },
-    "dns/spf-record": {
+    "dns/spf/duplicate": {
         fact: "site.hosts.*.mail.spf",
         when: ACTIVE,
         expect: { minItems: 1, maxItems: 1 },
@@ -529,7 +529,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.5",
         fix: "Keep one TXT record at Name `{host}` naming every server that sends its mail, such as Content `v=spf1 mx -all`, and merge or delete every other `v=spf1` record.",
     },
-    "dns/spf-all": {
+    "dns/spf-all/weak": {
         fact: "site.hosts.*.mail.spf",
         when: ACTIVE,
         expect: { items: { pattern: String.raw`\s([-~][aA][lL][lL]|[rR][eE][dD][iI][rR][eE][cC][tT]=\S+)(\s|$)` } },
@@ -539,7 +539,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
         fix: "End the `v=spf1` TXT record of `{host}` in `-all`, such as Content `v=spf1 mx -all`, or in `~all` while its senders are still being listed.",
     },
-    "dns/dmarc-policy": {
+    "dns/dmarc-policy/weak": {
         fact: "site.hosts.*.mail.dmarc",
         when: ACTIVE,
         expect: { type: "object", required: ["policy"], properties: { policy: { enum: ["quarantine", "reject"] } } },
@@ -552,7 +552,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
 };
 
 const RULES: Record<string, RuleSpec> = {
-    "dns/https-record": {
+    "dns/https-record/missing": {
         fact: "site.hosts.*.dns.https",
         expect: { minItems: 1 },
         message: "no HTTPS record, so a first visit learns h3 and ECH only from Alt-Svc, one connection late",
@@ -561,7 +561,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9460",
         fix: "Publish an HTTPS record (TYPE 65) naming your ALPNs and addresses.",
     },
-    "dns/https-alpn": {
+    "dns/https-alpn/mismatch": {
         fact: "site.hosts.*.dns.h3",
         expect: { anyOf: [{ properties: { record: { const: true }, "alt-svc": { const: true } } }, { properties: { record: { const: false }, "alt-svc": { const: false } } }] },
         message: "the HTTPS record and Alt-Svc disagree about h3 (got {got})",
@@ -570,7 +570,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.1",
         fix: "Keep the HTTPS record’s h3 flag and the Alt-Svc h3 advertisement in agreement.",
     },
-    "dns/https-hints": {
+    "dns/https-hints/mismatch": {
         fact: "site.hosts.*.dns.https",
         expect: { items: { properties: { "hints-match": { const: true } } } },
         message: "ipv4hint or ipv6hint does not match the A and AAAA records",
@@ -579,7 +579,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9460#section-7.3",
         fix: "Update the IPv4 and IPv6 hints in the HTTPS record to match the current A and AAAA sets.",
     },
-    "dns/caa": {
+    "dns/caa/missing": {
         fact: "site.hosts.*.dns.caa",
         expect: { type: "object", properties: { records: { contains: { properties: { tag: { enum: ["issue", "issuewild"] } } } } } },
         message: "no CAA issue or issuewild record on the host or any parent, so any CA may issue for it",
@@ -588,7 +588,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8659",
         fix: "Add one CAA record per CA you use — Name `{domain}`, Flags `0`, Tag `issue`, CA domain `letsencrypt.org` — which covers every name under it.",
     },
-    "dns/caa-issuer": {
+    "dns/caa-issuer/mismatch": {
         fact: "site.hosts.*.dns.caa.issuer",
         expect: { properties: { allowed: { const: true } } },
         when: { "site.hosts.*.dns.caa.issuer": { type: "object" } },
@@ -598,7 +598,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.2",
         fix: "Add an issue or issuewild tag to CAA for the CA that holds the certificate.",
     },
-    "dns/caa-iodef": {
+    "dns/caa-iodef/missing": {
         fact: "site.hosts.*.dns.caa.records",
         expect: { contains: { properties: { tag: { const: "iodef" } } } },
         when: { "site.hosts.*.dns.caa": { type: "object" } },
@@ -609,7 +609,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Add a CAA iodef tag pointing at a contact URI or email for issuance incident reports.",
         extra: ["Report Relay https://dbuho.me/project/report-relay/ collects these reports and sends them to your Grafana: open source, self-hosted, free."],
     },
-    "dns/caa-critical": {
+    "dns/caa-flags/invalid": {
         fact: "site.hosts.*.dns.caa.records",
         expect: { not: { contains: { properties: { flags: { minimum: 128 }, tag: { not: { enum: ["issue", "issuewild", "iodef"] } } } } } },
         when: { "site.hosts.*.dns.caa": { type: "object" } },
@@ -619,7 +619,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8659#section-4.5",
         fix: "Set the CAA flags to `0` on the unknown tag, or remove the record.",
     },
-    "dns/aaaa": {
+    "dns/aaaa/missing": {
         fact: "site.hosts.*.dns.aaaa",
         expect: { minItems: 1 },
         message: "no AAAA record, so the host is unreachable over IPv6",
@@ -628,7 +628,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc3596",
         fix: "Publish an AAAA record with the host’s IPv6 address.",
     },
-    "dns/cname-chain": {
+    "dns/cname-chain/excessive": {
         fact: "site.hosts.*.dns.cname",
         expect: { maxItems: 2 },
         message: "the name resolves through {got} of CNAME hops",
@@ -637,7 +637,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
         fix: "Cut the CNAME chain at one hop by pointing the alias directly at the target’s A or AAAA.",
     },
-    "dns/dangling-cname": {
+    "dns/cname/insecure": {
         fact: "site.hosts.*.dns.dangling",
         expect: { const: false },
         linked: true,
@@ -647,7 +647,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeovers",
         fix: "Delete the dangling CNAME, or claim the delegated name before a third party can.",
     },
-    "dns/dnssec": {
+    "dns/dnssec/missing": {
         fact: "site.hosts.*.dnssec.signed",
         expect: { const: true },
         message: "the zone is not signed with DNSSEC",
@@ -656,7 +656,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9364",
         fix: "Enable DNSSEC signing on the zone and publish a DS record at the parent.",
     },
-    "dns/dnssec-bogus": {
+    "dns/dnssec/broken": {
         fact: "site.hosts.*.dnssec.bogus",
         expect: { const: false },
         when: { "site.hosts.*.dnssec.bogus": { type: "boolean" } },
@@ -666,7 +666,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-5.5",
         fix: "Fix the broken DS or DNSKEY at the parent or the zone so the chain of trust validates.",
     },
-    "dns/dnssec-algorithm": {
+    "dns/dnssec-algorithm/deprecated": {
         fact: "site.hosts.*.dnssec",
         expect: { properties: { ds: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } }, "digest-type": { not: { enum: WEAK_DIGESTS } } } } }, dnskey: { items: { properties: { algorithm: { not: { enum: WEAK_ALGORITHMS } } } } } } },
         when: { "site.hosts.*.dnssec.signed": true },
@@ -676,7 +676,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc8624#section-3.1",
         fix: "Re-sign the zone and republish its DS with a non-deprecated algorithm.",
     },
-    "dns/rrsig-expiry": {
+    "dns/rrsig/expiring": {
         fact: "site.hosts.*.dnssec.rrsig",
         expect: { properties: { left: { minimum: 0.25 } } },
         when: { "site.hosts.*.dnssec.rrsig": { type: "object" } },
@@ -686,7 +686,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc6781#section-4.4.2",
         fix: "Re-sign the zone and fix the process that stopped refreshing RRSIGs.",
     },
-    "dns/nsec3-iterations": {
+    "dns/nsec3-iterations/excessive": {
         fact: "site.hosts.*.dnssec.nsec3",
         expect: { properties: { iterations: { const: 0 }, "salt-length": { const: 0 } } },
         when: { "site.hosts.*.dnssec.nsec3": { type: "object" } },
@@ -696,7 +696,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9276#section-3.1",
         fix: "Disable NSEC3 iterations and salt, or migrate to NSEC by removing the NSEC3PARAM records.",
     },
-    "dns/ns-count": {
+    "dns/ns/single": {
         fact: "site.hosts.*.nameservers.servers",
         expect: { minItems: 2 },
         message: "the zone has {got} name servers, fewer than 2",
@@ -705,7 +705,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.1",
         fix: "Add a second name server at a different network from the first.",
     },
-    "dns/ns-consistent": {
+    "dns/ns-serial/mismatch": {
         fact: "site.hosts.*.nameservers",
         expect: { properties: { serials: { maxItems: 1 } } },
         when: { "site.hosts.*.nameservers.serials": { type: "array" } },
@@ -715,7 +715,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
         fix: "Sync the zone to every name server and bump the SOA serial.",
     },
-    "dns/ns-lame": {
+    "dns/ns-delegation/broken": {
         fact: "site.hosts.*.nameservers.lame",
         expect: { maxItems: 0 },
         when: { "site.hosts.*.nameservers.lame": { type: "array" } },
@@ -725,7 +725,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.8",
         fix: "Delete the NS records of `{domain}` that name these servers, at the DNS provider and at the registrar, or load the zone on them.",
     },
-    "dns/ns-answers": {
+    "dns/ns-answers/mismatch": {
         fact: "site.hosts.*.nameservers.differing",
         expect: { maxItems: 0 },
         when: { "site.hosts.*.nameservers.differing": { type: "array" } },
@@ -735,7 +735,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Sync the zone on every name server and bump its SOA serial.",
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.3.5",
     },
-    "dns/ns-resolver": {
+    "dns/ns-resolver/mismatch": {
         fact: "site.hosts.*.nameservers.resolver-agrees",
         expect: { const: true },
         when: { "site.hosts.*.nameservers.resolver-agrees": { type: "boolean" } },
@@ -745,7 +745,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Wait out the old record’s TTL, or check which view the resolver serves.",
         docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
     },
-    "dns/resolver-rcode": {
+    "dns/resolver-rcode/broken": {
         fact: "site.hosts.*.resolvers.rcodes",
         expect: { maxItems: 1 },
         message: "the compared resolvers disagree on whether the host resolves (got {got}); a SERVFAIL on a validating resolver alone points at DNSSEC",
@@ -754,7 +754,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Query each resolver named in the finding and fix what the failing one reports, a broken DNSSEC chain first.",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-5.5",
     },
-    "dns/resolver-answers": {
+    "dns/resolver-answers/mismatch": {
         fact: "site.hosts.*.resolvers.answer-sets",
         expect: { maximum: 1 },
         when: { "site.hosts.*.resolvers.answer-sets": { type: "integer" } },
@@ -763,7 +763,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "If the answers should match, wait out the old TTL or fix the view that differs.",
         docs: "https://www.rfc-editor.org/rfc/rfc2181#section-5.4.1",
     },
-    "dns/resolver-validation": {
+    "dns/resolver-validation/broken": {
         fact: "site.hosts.*.resolvers.validated",
         expect: { maxItems: 1 },
         when: { "site.hosts.*.dnssec.signed": true },
@@ -773,7 +773,7 @@ const RULES: Record<string, RuleSpec> = {
         fix: "Check the DS at the parent and the DNSKEY set against each resolver’s trust anchors.",
         docs: "https://www.rfc-editor.org/rfc/rfc4035#section-4.3",
     },
-    "dns/ns-delegation": {
+    "dns/ns-delegation/mismatch": {
         fact: "site.hosts.*.nameservers.delegation.differs",
         expect: { maxItems: 0 },
         when: { "site.hosts.*.nameservers.delegation.differs": { type: "array" } },
@@ -783,7 +783,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
         fix: "Make the NS records at Name `{domain}` and the name servers set at the registrar name the same servers.",
     },
-    "dns/agents": {
+    "dns/agents/missing": {
         fact: "site.hosts.*.dns.agents",
         expect: { type: "array", minItems: 1 },
         message: "no DNS-AID entry point at _index._agents, so an agent cannot find the zone’s agent services through DNS",
@@ -792,7 +792,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://specification.website/spec/agent-readiness/dns-aid/",
         fix: "Publish an HTTPS record — Name `_index._agents.{domain}`, Priority `1`, Target the host that serves the site, alpn `h3,h2`, port `443` — and add `_mcp._agents` or `_a2a._agents` records for each agent service.",
     },
-    "dns/apex-cname": {
+    "dns/apex-cname/present": {
         fact: "site.hosts.*.dns.apex-cname",
         expect: { const: false },
         when: { "site.hosts.*.dns.apex-cname": { type: ["string", "boolean"] } },
@@ -802,7 +802,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
         fix: "Replace the CNAME at Name `{domain}` with A and AAAA records, or with the provider’s ALIAS or flattened CNAME.",
     },
-    "dns/soa-timers": {
+    "dns/soa-timers/range": {
         fact: "site.hosts.*.nameservers.soa",
         expect: { properties: { refresh: { minimum: 1200, maximum: 43_200 }, expire: { minimum: 1_209_600, maximum: 2_419_200 }, minimum: { minimum: 300, maximum: 86_400 }, "retry-below-refresh": { const: true }, "mname-listed": { const: true } } },
         when: { "site.hosts.*.nameservers.soa": { type: "object" }, "site.hosts.*.nameservers.provider.soa-editable": { not: { const: false } } },
@@ -812,7 +812,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.2",
         fix: "Set the SOA of `{domain}` to refresh 7200, retry 3600, expire 1209600 and minimum 3600, with one of its name servers as the primary.",
     },
-    "dns/ttl": {
+    "dns/ttl/range": {
         fact: "site.hosts.*.nameservers.ttl",
         expect: { properties: { a: { minimum: 300, maximum: 86_400 }, aaaa: { minimum: 300, maximum: 86_400 }, mx: { minimum: 300, maximum: 86_400 }, ns: { minimum: 300, maximum: 172_800 } } },
         when: { "site.hosts.*.nameservers.ttl": { type: "object" } },
@@ -822,7 +822,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.2",
         fix: "Set the TTL of the A, AAAA and MX records of `{host}` between 300 and 86400 seconds, and of its NS records up to 172800.",
     },
-    "dns/open-recursion": {
+    "dns/recursion/insecure": {
         fact: "site.hosts.*.nameservers.servers",
         expect: { items: { properties: { recursive: { not: { const: true } } } } },
         message: "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning",
@@ -831,32 +831,21 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc5358",
         fix: "Turn recursion off on the authoritative name servers of `{domain}`, or allow it to your own networks only.",
     },
-    "domain/expiry": {
+    "domain/registration/expiring": {
         fact: "site.hosts.*.rdap.days-left",
         expect: { type: "integer", minimum: 30 },
-        when: { "site.hosts.*.rdap.days-left": { minimum: 7 } },
-        message: "the domain registration expires in {got} days",
-        severity: "warning",
+        message: "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses",
+        severity: "error",
         score: [
+            [0, 9.6],
+            [6, 7],
             [7, 6.5],
             [30, 3.5],
         ],
         docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
         fix: "Renew `{domain}` at its registrar and turn on automatic renewal.",
     },
-    "domain/expiring": {
-        fact: "site.hosts.*.rdap.days-left",
-        expect: { type: "integer", minimum: 7 },
-        message: "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses",
-        severity: "error",
-        score: [
-            [0, 9.6],
-            [7, 6.6],
-        ],
-        docs: "https://www.rfc-editor.org/rfc/rfc9083#section-4.5",
-        fix: "Renew `{domain}` at its registrar now and find out why automatic renewal did not run.",
-    },
-    "domain/lock": {
+    "domain/transfer-lock/missing": {
         fact: "site.hosts.*.rdap.status",
         expect: { type: "array", contains: { enum: ["client transfer prohibited", "server transfer prohibited"] } },
         message: "the registration carries no transfer lock, so whoever takes over the registrar account can move the domain away (status {got})",
@@ -865,7 +854,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.icann.org/resources/pages/epp-status-codes-2014-06-16-en",
         fix: "Turn on the transfer lock (clientTransferProhibited) for `{domain}` at its registrar.",
     },
-    "domain/ns-registry": {
+    "domain/ns-registry/mismatch": {
         fact: "site.hosts.*.rdap.ns-differs",
         expect: { maxItems: 0 },
         when: { "site.hosts.*.rdap.ns-differs": { type: "array" } },
@@ -875,7 +864,7 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
         fix: "Make the name servers set at the registrar and the NS records at Name `{domain}` name the same servers.",
     },
-    "dns/ns-diversity": {
+    "dns/ns-network/single": {
         fact: "site.hosts.*.nameservers.networks",
         expect: { minimum: 2 },
         message: "every name server address sits in one /24 or /48",
@@ -886,8 +875,8 @@ const RULES: Record<string, RuleSpec> = {
     },
 };
 
-const CORE = ["dns/https-record", "dns/caa", "dns/caa-issuer", "dns/caa-iodef", "dns/caa-critical", "dns/dangling-cname", "dns/dnssec", "dns/dnssec-bogus"];
-const RECOMMENDED = [...CORE, "domain/expiry", "domain/expiring", "domain/lock", "dns/open-recursion"];
+const CORE = ["dns/https-record/missing", "dns/caa/missing", "dns/caa-issuer/mismatch", "dns/caa-iodef/missing", "dns/caa-flags/invalid", "dns/cname/insecure", "dns/dnssec/missing", "dns/dnssec/broken"];
+const RECOMMENDED = [...CORE, "domain/registration/expiring", "domain/transfer-lock/missing", "dns/recursion/insecure"];
 
 // The `RULES` entries named by `ids`.
 const pick = (ids: string[]): Record<string, RuleSpec> => Object.fromEntries(ids.map((id) => [id, RULES[id] as RuleSpec]));

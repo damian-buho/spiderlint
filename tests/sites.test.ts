@@ -54,35 +54,35 @@ describe("origin preset", () => {
 
     it("finds a soft 404, a language redirect, gzip alone, a favicon that is a page, an ignored ETag and an open cross-domain policy", async () => {
         const report = await audit({ seeds: [`${soft.origin}/`], rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(report.findings.find((finding) => finding.rule === "origin/cross-domain-policy")?.value, ["/crossdomain.xml"]);
-        assert.deepEqual(rules(report), ["origin/compression", "origin/cross-domain-policy", "origin/favicon", "origin/locale-redirect", "origin/revalidation", "origin/soft-404"]);
-        assert.match(report.findings.find((finding) => finding.rule === "origin/compression")?.message ?? "", /only with “gzip”; offer br, zstd and gzip/);
-        assert.equal(report.findings.find((finding) => finding.rule === "origin/compression")?.data?.[soft.origin]?.missing, "br, zstd");
-        assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404")?.message ?? "", /answers 200/);
+        assert.deepEqual(report.findings.find((finding) => finding.rule === "origin/cross-domain-policy/insecure")?.value, ["/crossdomain.xml"]);
+        assert.deepEqual(rules(report), ["origin/compression/missing", "origin/cross-domain-policy/insecure", "origin/favicon/invalid", "origin/locale-redirect/present", "origin/revalidation/broken", "origin/soft-404/present"]);
+        assert.match(report.findings.find((finding) => finding.rule === "origin/compression/missing")?.message ?? "", /only with “gzip”; offer br, zstd and gzip/);
+        assert.equal(report.findings.find((finding) => finding.rule === "origin/compression/missing")?.data?.[soft.origin]?.missing, "br, zstd");
+        assert.match(report.findings.find((finding) => finding.rule === "origin/soft-404/present")?.message ?? "", /answers 200/);
     });
 
     it("finds a stack trace on the not-found page and an entry that leaves the crawled origin", async () => {
         const report = await audit({ seeds: [`${trace.origin}/page`], rules: ["origin"], cacheMode: "off" });
-        assert.deepEqual(rules(report), ["origin/error-page", "origin/favicon", "origin/host-canonical"]);
+        assert.deepEqual(rules(report), ["origin/canonical-host/mismatch", "origin/error-page/disclosing", "origin/favicon/invalid"]);
     });
 
     it("faults a www host that 302s to the apex root, dropping the path", async () => {
-        assert.deepEqual(await entryRules("drop.test"), ["origin/entry-path", "origin/entry-permanent"]);
+        assert.deepEqual(await entryRules("drop.test"), ["origin/entry-redirect-path/missing", "origin/entry-redirect/temporary"]);
     });
 
     it("faults a www host that reaches the apex in two hops through another host", async () => {
-        assert.deepEqual(await entryRules("hops.test"), ["origin/entry-hops"]);
+        assert.deepEqual(await entryRules("hops.test"), ["origin/entry-redirect/excessive"]);
     });
 
     it("faults variants that land off the canonical origin", async () => {
         const port = new URL(entry.origin).port;
         const report = await audit({ seeds: [`http://www.hops.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), canonicalOrigin: `http://www.hops.test:${port}`, rules: ["origin"], maxPages: 1, cacheMode: "off" });
-        assert.ok(rules(report).includes("origin/host-canonical"));
+        assert.ok(rules(report).includes("origin/canonical-host/mismatch"));
     });
 
     it("faults a page served under both trailing-slash forms and spares one whose twin redirects", async () => {
         const report = await audit({ seeds: [`${twin.origin}/`], rules: ["origin"], cacheMode: "off" });
-        const finding = report.findings.find((candidate) => candidate.rule === "origin/slash-twin");
+        const finding = report.findings.find((candidate) => candidate.rule === "origin/slash-redirect/missing");
         assert.deepEqual(finding?.value, [`${twin.origin}/posts/2 ↔ ${twin.origin}/posts/2/`]);
         assert.ok(!JSON.stringify(finding?.value).includes("/posts/3"));
     });
@@ -118,10 +118,10 @@ describe("rel=me", () => {
     after(() => Promise.all([profiles, home].map((server) => new Promise((resolve) => server.close(resolve)))));
 
     it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
-        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode: "off" });
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me-backlink/missing"], cacheMode: "off" });
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.value]),
-            [["links/rel-me", `${profile}/@other`]],
+            [["links/rel-me-backlink/missing", `${profile}/@other`]],
         );
         const { fetched, ...facts } = report.site.origins?.[origin]?.["rel-me"] as { fetched: Record<string, { status: number; at: string; cached?: true }> };
         assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), { [`${profile}/@other`]: [200, false, undefined], [`${profile}/@me`]: [200, false, undefined], [`${profile}/@gone`]: [404, false, undefined] });
@@ -171,7 +171,7 @@ describe("rel=me profile cache", () => {
     });
 
     const seen = async (cacheMode: "use" | "refresh") => {
-        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me"], cacheMode, sitemap: false });
+        const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me-backlink/missing"], cacheMode, sitemap: false });
         const facts = report.site.origins?.[origin]?.["rel-me"] as { unverified: string[]; fetched: Record<string, { cached?: true }> };
         return [facts.unverified.length, facts.fetched[`${profile}/@me`]?.cached];
     };

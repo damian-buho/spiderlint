@@ -6,7 +6,7 @@ description: Certificate validity, protocol version and expiry
 when:
   url.protocol: "https:"
 rules:
-  tls/authorized:
+  tls/certificate/invalid:
     fact: tls.authorized
     expect: {const: true}
     severity: error
@@ -14,7 +14,7 @@ rules:
     message: "certificate is not trusted"
     fix: "Install the CA bundle the server needs, or request a certificate from a trusted CA."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
-  tls/protocol:
+  tls/protocol/deprecated:
     fact: tls.protocol
     expect: {enum: [TLSv1.2, TLSv1.3]}
     severity: warning
@@ -22,25 +22,16 @@ rules:
     message: "TLS should be 1.2 or 1.3"
     fix: "Disable TLS 1.0 and 1.1 in the server configuration; keep only TLS 1.2 and 1.3."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
-  tls/cert-expiry:
+  tls/certificate/expiring:
     fact: tls.cert.days-left
     expect: {type: integer, minimum: 14}
-    when: {tls.cert.days-left: {minimum: 2}}
-    severity: info
-    score: [[2, 3.2], [14, 1.0]]
-    message: "certificate expires within 14 days"
-    fix: "Check that certificate renewal is scheduled and has succeeded before."
-    docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
-  tls/cert-expiring:
-    fact: tls.cert.days-left
-    expect: {type: integer, minimum: 2}
     when: {tls.cert.days-left: {minimum: 0}}
     severity: warning
-    score: [[0, 6.8], [2, 5.2]]
-    message: "certificate expires within 2 days"
-    fix: "Renew the certificate now and find out why automatic renewal did not run."
+    score: [[0, 6.8], [1, 6.0], [2, 3.2], [14, 1.0]]
+    message: "certificate expires within 14 days"
+    fix: "Renew the certificate before it lapses, and check that automatic renewal is scheduled and succeeds."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
-  tls/cert-expired:
+  tls/certificate/expired:
     fact: tls.cert.days-left
     expect: {type: integer, minimum: 0}
     severity: error
@@ -48,7 +39,7 @@ rules:
     message: "certificate has expired"
     fix: "Renew the certificate and reload the server that serves it."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
-  tls/key-strength:
+  tls/key/weak:
     fact: tls.cert.key
     expect:
       anyOf:
@@ -61,7 +52,7 @@ rules:
     message: "certificate key is weaker than RSA 2048 or EC P-256"
     fix: "Issue the certificate for a new EC P-256 key, or an RSA key of at least 2048 bits."
     docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
-  tls/signature:
+  tls/signature/weak:
     fact: tls.cert.signatures
     expect: {items: {not: {pattern: "[Ss][Hh][Aa]1|[Mm][Dd][245]"}}}
     when: {tls.cert.signatures: {type: array}}

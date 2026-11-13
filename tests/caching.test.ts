@@ -22,14 +22,14 @@ function served(path: string, policy: string, type = "application/pdf", resource
 
 // The rule as `performance` ships it, or with `expect` as a projectfile sets it.
 function judge(pages: Facts[], expect?: Record<string, unknown>) {
-    const rulesets: Record<string, RulesetConfig> = expect ? { custom: { extends: ["spiderlint:performance"], rules: { "caching/long-without-hash": { expect } } } } : {};
-    const rule = compileRulesets([expect ? "custom" : "performance"], rulesets).find((entry) => entry.meta.id === "caching/long-without-hash") as AggregateRule;
+    const rulesets: Record<string, RulesetConfig> = expect ? { custom: { extends: ["spiderlint:performance"], rules: { "caching/cache-control/excessive": { expect } } } } : {};
+    const rule = compileRulesets([expect ? "custom" : "performance"], rulesets).find((entry) => entry.meta.id === "caching/cache-control/excessive") as AggregateRule;
     return rule.check(pages) ?? [];
 }
 
 const YEAR = "public, max-age=31536000, immutable";
 
-describe("caching/long-without-hash", () => {
+describe("caching/cache-control/excessive", () => {
     it("reports an immutable file at a fixed URL as an error, and passes it once the URL carries a version or hash", () => {
         const [finding, ...rest] = judge([served("/cv.pdf", YEAR)]);
         assert.deepEqual(rest, []);

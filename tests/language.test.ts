@@ -31,7 +31,7 @@ describe("localised metadata", () => {
         });
         await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
         origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-        report = await audit({ seeds: [`${origin}/en`], sitemap: false, rules: ["i18n/metadata-language"], cacheMode: "off", fold: false });
+        report = await audit({ seeds: [`${origin}/en`], sitemap: false, rules: ["i18n/metadata-language/mismatch"], cacheMode: "off", fold: false });
     });
     after(() => server.close());
 
@@ -41,7 +41,7 @@ describe("localised metadata", () => {
     it("fails an es page with an English title and passes matching en, es and uk pages", () => {
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.url.slice(origin.length), finding.message, finding.data?.[finding.url]?.lang, finding.locations]),
-            [["i18n/metadata-language", "/es-mixed", "the title or description reads as another language than lang declares", "es", ["title reads as en (0.81)"]]],
+            [["i18n/metadata-language/mismatch", "/es-mixed", "the title or description reads as another language than lang declares", "es", ["title reads as en (0.81)"]]],
         );
     });
 

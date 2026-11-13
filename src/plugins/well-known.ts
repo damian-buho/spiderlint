@@ -564,7 +564,7 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
             const at = `site.origins.*.${extractor}.${spec.key}`;
             return [
                 [
-                    `well-known/${spec.rule.id}`,
+                    `well-known/${spec.rule.id}/invalid`,
                     {
                         fact: `${at}.errors`,
                         expect: { maxItems: 0 },
@@ -582,7 +582,7 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
 }
 
 const SECURITY: Record<string, RuleSpec> = {
-    "well-known/security-txt": {
+    "well-known/security-txt/missing": {
         fact: "site.origins.*.well-known.security-txt.present",
         expect: { const: true },
         message: "no /.well-known/security.txt tells researchers how to report a vulnerability",
@@ -591,7 +591,7 @@ const SECURITY: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-3",
         fix: "Publish /.well-known/security.txt with a Contact field and an Expires.",
     },
-    "well-known/security-txt-valid": {
+    "well-known/security-txt/invalid": {
         fact: "site.origins.*.well-known.security-txt.errors",
         expect: { maxItems: 0 },
         when: { "site.origins.*.well-known.security-txt.present": true },
@@ -601,7 +601,7 @@ const SECURITY: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5",
         fix: "Rewrite security.txt so each field is on its own line with `Field: value`.",
     },
-    "well-known/security-txt-expires": {
+    "well-known/security-txt-expires/invalid": {
         fact: "site.origins.*.well-known.security-txt.days-left",
         expect: { minimum: 0, maximum: 366 },
         when: { "site.origins.*.well-known.security-txt.days-left": { type: "number" } },
@@ -616,7 +616,7 @@ const SECURITY: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
         fix: "Set Expires in security.txt to a date less than a year away.",
     },
-    "well-known/change-password": {
+    "well-known/change-password/missing": {
         fact: "site.origins.*.well-known.change-password.present",
         expect: { const: true },
         when: { "site.origins.*.well-known.change-password.required": true },
@@ -631,7 +631,7 @@ const SECURITY: Record<string, RuleSpec> = {
 const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
     ...SECURITY,
     ...validity("well-known", WELL_KNOWN, "warning"),
-    "well-known/registered": {
+    "well-known/suffix/unknown": {
         fact: "site.origins.*.well-known.unregistered",
         expect: { maxItems: 0 },
         message: "the crawl links /.well-known/ suffixes IANA has not registered: {got}",
@@ -643,7 +643,7 @@ const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
 };
 
 const AGENT_RULES: Record<string, RuleSpec> = {
-    "well-known/llms-txt": {
+    "well-known/llms-txt/missing": {
         fact: "site.origins.*.agents.llms-txt.present",
         expect: { const: true },
         message: "no /llms.txt summarises the site for language models",
@@ -652,7 +652,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://llmstxt.org/",
         fix: "Add /llms.txt with an H1, a one-line description, and links to the site’s resources.",
     },
-    "well-known/llms-txt-valid": {
+    "well-known/llms-txt/invalid": {
         fact: "site.origins.*.agents.llms-txt.errors",
         expect: { maxItems: 0 },
         when: { "site.origins.*.agents.llms-txt.present": true },
@@ -662,7 +662,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://llmstxt.org/#format",
         fix: "Rewrite /llms.txt as Markdown that opens with one H1 followed by its sections.",
     },
-    "well-known/llms-full-txt": {
+    "well-known/llms-full-txt/missing": {
         fact: "site.origins.*.agents.llms-full-txt.present",
         expect: { const: true },
         when: { "site.origins.*.agents.llms-txt.present": true },
@@ -672,7 +672,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://llmstxt.org/",
         fix: "Publish /llms-full.txt beside /llms.txt with the full text of the pages it lists.",
     },
-    "well-known/llms-full-txt-valid": {
+    "well-known/llms-full-txt/invalid": {
         fact: "site.origins.*.agents.llms-full-txt.errors",
         expect: { maxItems: 0 },
         when: { "site.origins.*.agents.llms-full-txt.present": true },
@@ -682,7 +682,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://llmstxt.org/#format",
         fix: "Open /llms-full.txt with its one H1, serve it as text/markdown, and repair or drop every link that does not answer 200.",
     },
-    "well-known/llms-txt-markdown": {
+    "well-known/llms-txt-markdown/invalid": {
         fact: "site.origins.*.agents.llms-txt.markdownlint",
         expect: { maxItems: 0 },
         when: { "site.origins.*.agents.llms-txt.present": true },
@@ -692,7 +692,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         docs: "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md",
         fix: "Repair each Markdown defect listed in /llms.txt at the line and column the finding names.",
     },
-    "well-known/llms-full-txt-markdown": {
+    "well-known/llms-full-txt-markdown/invalid": {
         fact: "site.origins.*.agents.llms-full-txt.markdownlint",
         expect: { maxItems: 0 },
         when: { "site.origins.*.agents.llms-full-txt.present": true },
@@ -703,7 +703,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         fix: "Repair each Markdown defect listed in /llms-full.txt at the line and column the finding names.",
     },
     ...validity("agents", AGENTS, "hint"),
-    "well-known/markdown-source": {
+    "well-known/markdown-source/missing": {
         fact: "markdown.present",
         expect: { const: true },
         when: { "markdown.present": { type: "boolean" }, "robots.noindex": { not: { const: true } } },
@@ -716,7 +716,7 @@ const AGENT_RULES: Record<string, RuleSpec> = {
 };
 
 const CARBON_RULES: Record<string, RuleSpec> = {
-    "well-known/carbon-txt": {
+    "well-known/carbon-txt/missing": {
         fact: "site.origins.*.carbon-txt.present",
         expect: { const: true },
         message: "no carbon.txt discloses the site’s sustainability documents and providers",
@@ -725,7 +725,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         fix: "Publish /carbon.txt naming your sustainability disclosures and upstream providers.",
         docs: "https://carbontxt.org/",
     },
-    "well-known/carbon-txt-valid": {
+    "well-known/carbon-txt/invalid": {
         fact: "site.origins.*.carbon-txt.errors",
         expect: { maxItems: 0 },
         when: { "site.origins.*.carbon-txt.present": true },
@@ -735,7 +735,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         fix: "Correct carbon.txt against syntax 0.5.",
         docs: "https://carbontxt.org/syntax",
     },
-    "well-known/carbon-txt-expired": {
+    "well-known/carbon-txt-disclosure/expired": {
         fact: "site.origins.*.carbon-txt.expired",
         expect: { maxItems: 0 },
         when: { "site.origins.*.carbon-txt.present": true },
@@ -745,7 +745,7 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         fix: "Replace each expired disclosure with its current document and valid_until.",
         docs: "https://carbontxt.org/syntax",
     },
-    "well-known/carbon-txt-stale": {
+    "well-known/carbon-txt/stale": {
         fact: "site.origins.*.carbon-txt.age-days",
         expect: { maximum: 365 },
         when: { "site.origins.*.carbon-txt.age-days": { type: "number" } },

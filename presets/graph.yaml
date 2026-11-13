@@ -7,7 +7,7 @@ when:
   http.status: {minimum: 200, maximum: 299}
   http.content-type: {pattern: "^text/html"}
 rules:
-  links/click-depth:
+  links/click-depth/excessive:
     fact: graph.depth
     expect: {maximum: 3}
     when: {graph.depth: {type: integer}}
@@ -16,7 +16,7 @@ rules:
     message: "a page is more than 3 links away from the start page"
     fix: "Link the page from a hub, a section index or the navigation."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
-  links/dead-end:
+  links/outgoing/missing:
     fact: graph.out-degree
     expect: {minimum: 1}
     severity: info
@@ -24,7 +24,7 @@ rules:
     message: "a page links to no other page of the site"
     fix: "Add navigation or related links back into the site."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
-  links/weakly-linked:
+  links/incoming/weak:
     fact: graph.in-degree
     expect: {minimum: 2}
     when: {graph.in-degree: {minimum: 1}, crawl.discovered-via: {not: {const: seed}}, html.rels.prev: {not: {type: array}}}

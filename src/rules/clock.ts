@@ -27,7 +27,7 @@ export function isOwnClock(skews: number[]): boolean {
 
 // One finding per host whose `Date` runs off our clock, an error past an hour; none, and one warning, when every host is off alike.
 const clockSkew: Make = (severity) => ({
-    meta: { id: "http/clock-skew", severity, scope: "site", facts: ["http.date-skew"], docs: "https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1", fix: "Synchronise the server clock with NTP (chrony or systemd-timesyncd)." },
+    meta: { id: "http/date/mismatch", severity, scope: "site", facts: ["http.date-skew"], docs: "https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1", fix: "Synchronise the server clock with NTP (chrony or systemd-timesyncd)." },
     check(pages: Facts[]) {
         const measured = pages.filter((page) => page.http["date-skew"] !== undefined);
         const hosts = Map.groupBy(measured, (page) => page.url.host)
@@ -35,7 +35,7 @@ const clockSkew: Make = (severity) => ({
             .map(([host, members]) => ({ host, skew: median(members.map((page) => page.http["date-skew"] as number)), urls: members.map((page) => page.url.href) }))
             .toArray();
         const skews = hosts.map((entry) => entry.skew);
-        log.debug({ rule: "http/clock-skew", hosts: hosts.length, skews }, "host clocks compared");
+        log.debug({ rule: "http/date/mismatch", hosts: hosts.length, skews }, "host clocks compared");
         if (isOwnClock(skews)) {
             log.warn({ offset: -(skews[0] as number), hosts: hosts.length }, `the local clock is off by ${-(skews[0] as number)} s; clock skew findings suppressed`);
             return [];
@@ -44,12 +44,12 @@ const clockSkew: Make = (severity) => ({
         for (const { host, skew, urls } of hosts) {
             if (Math.abs(skew) <= TOLERATED) continue;
             const level = Math.abs(skew) > BROKEN ? "error" : severity;
-            findings.push({ rule: "http/clock-skew", severity: level, scope: "site", url: host, ...said(skew > 0 ? "the host’s clock runs ahead of ours" : "the host’s clock runs behind ours"), data: { [host]: { skew: { fact: "http.date-skew", value: Math.abs(skew) } } }, value: skew, urls });
+            findings.push({ rule: "http/date/mismatch", severity: level, scope: "site", url: host, ...said(skew > 0 ? "the host’s clock runs ahead of ours" : "the host’s clock runs behind ours"), data: { [host]: { skew: { fact: "http.date-skew", value: Math.abs(skew) } } }, value: skew, urls });
         }
         return findings;
     },
 });
 
 export const clockRules: Record<string, Make> = {
-    "http/clock-skew": clockSkew,
+    "http/date/mismatch": clockSkew,
 };

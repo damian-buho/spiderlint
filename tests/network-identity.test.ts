@@ -121,10 +121,10 @@ describe("network plugin", () => {
         const client = dnsClient(fixture.server, off(), false);
         const hosts = { "ok.fixture": await extract("ok.fixture", client), "net.fixture": await extract("net.fixture", client), "far.fixture": await extract("far.fixture", client) };
         assert.deepEqual(findings(hosts), [
-            ["network/mail-fcrdns", "far.fixture"],
-            ["network/mail-fcrdns", "net.fixture"],
-            ["network/rpki-invalid", "net.fixture"],
-            ["network/single-asn", "net.fixture"],
+            ["network/asn/single", "net.fixture"],
+            ["network/mail-fcrdns/mismatch", "far.fixture"],
+            ["network/mail-fcrdns/mismatch", "net.fixture"],
+            ["network/rpki/invalid", "net.fixture"],
         ]);
     });
 
@@ -146,7 +146,7 @@ describe("network plugin", () => {
         assert.equal(warn.mock.callCount(), 1);
         assert.equal("asns" in (hosts["ok.fixture"] ?? {}), false);
         assert.equal("asn" in ((hosts["ok.fixture"]?.web as object[])[0] ?? {}), false);
-        assert.deepEqual(findings(hosts), [["network/mail-fcrdns", "far.fixture"]]);
+        assert.deepEqual(findings(hosts), [["network/mail-fcrdns/mismatch", "far.fixture"]]);
     });
 
     it("never queries a special-use name", async () => {

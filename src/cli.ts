@@ -191,7 +191,7 @@ const VERBS: Verb[] = [
             ["Audit a site with the recommended rules", "spiderlint audit example.com"],
             ["Write a SARIF report for code scanning", "spiderlint audit example.com --format sarif > report.sarif"],
             ["Run every rule except Lighthouse’s", "spiderlint audit example.com --rules all --exclude-rules 'lighthouse/*'"],
-            ["Check a single rule", "spiderlint audit example.com --rules http/alt-svc-h3"],
+            ["Check a single rule", "spiderlint audit example.com --rules http/alt-svc-h3/missing"],
             ["Audit only the URLs listed in a file", "spiderlint audit --source list:urls.txt"],
         ],
     },
@@ -286,7 +286,7 @@ const VERBS: Verb[] = [
         summary: "show a rule’s facts, expectation and fix",
         about: [],
         options: listingOptions,
-        examples: [["Explain a rule before turning it on", "spiderlint explain-rule html/theme-color-schemes"]],
+        examples: [["Explain a rule before turning it on", "spiderlint explain-rule html/theme-color-dark/missing"]],
     },
     {
         name: "show-cache",

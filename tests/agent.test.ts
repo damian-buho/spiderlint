@@ -38,12 +38,12 @@ describe("agent format", () => {
         assert.equal(output, saved.slice(header.length));
     });
 
-    it("folds html/one-h1 into one block naming its samples and lists links/broken-internal referrers", () => {
+    it("folds html/h1/duplicate into one block naming its samples and lists links/internal/unreachable referrers", () => {
         const blocks = output.split(/^## /m).slice(1);
-        const oneH1 = blocks.filter((block) => block.startsWith("html/one-h1 "));
+        const oneH1 = blocks.filter((block) => block.startsWith("html/h1/duplicate "));
         assert.equal(oneH1.length, 1);
         assert.match(oneH1[0] as string, /5 pages of group posts[^\n]*\n- \/posts\/1: none\n- \/posts\/2: none\n- \/posts\/3: none\n/);
-        assert.match(blocks.find((block) => block.startsWith("links/broken-internal ")) ?? "", /Where: \/missing, used by or shared with:\n- \/\n- \/about\n/);
+        assert.match(blocks.find((block) => block.startsWith("links/internal/unreachable ")) ?? "", /Where: \/missing, used by or shared with:\n- \/\n- \/about\n/);
         for (const block of blocks) {
             assert.match(block, /^Fix: /m, block);
             assert.match(block, /^Done when: `spiderlint audit ORIGIN\/ --rules [^`]+` reports no /m, block);
@@ -62,14 +62,14 @@ describe("agent format", () => {
     });
 
     it("puts the most important rule first, the score beside its level", () => {
-        assert.match(output, /^# spiderlint findings for ORIGIN\n\n# Summary\n\n- Rating: \S+ \([^)]+\)\n- Pages: \d+\n- Findings: \d+ \([^)]+\)\n- Checks passed: [^\n]+\n\n## links\/broken-internal \(error 7\.4\)/);
+        assert.match(output, /^# spiderlint findings for ORIGIN\n\n# Summary\n\n- Rating: \S+ \([^)]+\)\n- Pages: \d+\n- Findings: \d+ \([^)]+\)\n- Checks passed: [^\n]+\n\n## links\/internal\/unreachable \(error 7\.4\)/);
     });
 
     it("writes one file per rule and rewrites the same bytes", async () => {
         const directory = await mkdtemp(path.join(tmpdir(), "spiderlint-agent-"));
         try {
             await writeAgentFiles(directory, report);
-            const first = await readFile(path.join(directory, "html-one-h1.md"), "utf8");
+            const first = await readFile(path.join(directory, "html-h1-duplicate.md"), "utf8");
             await writeAgentFiles(directory, report);
             const written = await readdir(directory);
             assert.deepEqual(
@@ -79,8 +79,8 @@ describe("agent format", () => {
                     .toArray()
                     .toSorted((a, b) => a.localeCompare(b)),
             );
-            assert.equal(await readFile(path.join(directory, "html-one-h1.md"), "utf8"), first);
-            assert.match(first, /^# spiderlint: html\/one-h1 on http:\/\/127\.0\.0\.1:\d+\n\n## html\/one-h1 \(error 7\.4\)\n/);
+            assert.equal(await readFile(path.join(directory, "html-h1-duplicate.md"), "utf8"), first);
+            assert.match(first, /^# spiderlint: html\/h1\/duplicate on http:\/\/127\.0\.0\.1:\d+\n\n## html\/h1\/duplicate \(error 7\.4\)\n/);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }
