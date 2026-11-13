@@ -15,7 +15,9 @@ import type { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { ConfigError } from "../src/config/index.ts";
 import { negotiate, readerLocale, translator } from "../src/i18n.ts";
+import { SORT_SCRIPT } from "../src/report/html.ts";
 import { api } from "../src/server/api.ts";
+import { pageCsp } from "../src/server/web.ts";
 import { Buckets, clientOf } from "../src/server/clients.ts";
 import { admit, policyFor, presetSettings, presetsOffered, Refusal, grantedSignals, resolveRules } from "../src/server/policy.ts";
 import { addRanges } from "../src/server/providers.ts";
@@ -192,6 +194,12 @@ describe("server pages without Redis", () => {
         const script = /<script>([^]*?)<\/script\b[^>]*>/i.exec(html)?.[1] ?? "";
         assert.doesNotThrow(() => new Function(script), "inline script parses");
         assert.ok(response.headers.get("content-security-policy")?.includes("script-src 'sha256-"));
+    });
+
+    it("allows the report’s sort script by its hash and no inline style attribute", () => {
+        const csp = pageCsp();
+        assert.match(csp, new RegExp(`script-src [^;]*${sha(SORT_SCRIPT).replaceAll("+", String.raw`\+`)}`), csp);
+        assert.ok(!csp.includes("unsafe-inline") && !csp.includes("unsafe-hashes"), csp);
     });
 
     it("offers the web presets as radios, the default first and checked, in the reader’s language", async () => {

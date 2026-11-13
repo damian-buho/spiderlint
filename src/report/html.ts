@@ -67,8 +67,7 @@ main { padding-block: 2.5rem; }
 .rule-head .rule-message { overflow-wrap: anywhere; }
 .rule-head .rule-meta { flex: none; display: flex; gap: .75rem; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rule-head .rule-subject { color: var(--muted); overflow-wrap: anywhere; }
-.rule-list { display: flex; flex-direction: column; gap: 1rem; margin-block: 1rem; } .rule-list .rule-card { margin-block: 0; order: var(--by-severity); }
-body:has(#sort-impact:checked) .rule-list .rule-card { order: var(--by-impact); } body:has(#sort-score:checked) .rule-list .rule-card { order: var(--by-score); } body:has(#sort-scope:checked) .rule-list .rule-card { order: var(--by-scope); }
+.rule-list { display: flex; flex-direction: column; gap: 1rem; margin-block: 1rem; } .rule-list .rule-card { margin-block: 0; }
 .sort { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; margin-block-end: 1rem; color: var(--muted); font-size: .9rem; } .sort label { display: inline-flex; align-items: center; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
 .rule-findings { padding: 0 1.25rem .5rem; } .rule-findings .data { color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-start: .75em; } .rule-findings p { margin-block: .5rem 0; }
@@ -109,6 +108,9 @@ progress { inline-size: 100%; block-size: .75rem; accent-color: var(--accent); }
 export function escape(value: unknown): string {
     return String(value).replaceAll(/[&<>"']/g, (character) => ENTITIES[character] as string);
 }
+
+// The sort control’s script: a chosen radio sets each card’s flex order to its rank, through CSSOM so a strict style policy allows it.
+export const SORT_SCRIPT = `for (const radio of document.querySelectorAll(".sort input[name=sort]")) radio.addEventListener("change", () => { for (const card of document.querySelectorAll(".rule-list .rule-card")) card.style.order = card.dataset[radio.id.slice(5)]; });`;
 
 // A whole page in the translator’s language and direction.
 export function page(t: Translator, title: string, body: string, head = ""): string {
@@ -200,7 +202,7 @@ function bundlePages(same: Finding[], total: number): number {
 }
 
 // One card per bundle: severity, message, impact, scope and subject on its head; expanded, the pages, locations, fix and docs; the rule on its foot.
-function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number, order: string): string {
+function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number, ranks: string): string {
     const [first] = same as [Finding];
     const { subject, isWhole, pages } = reach(t, same, origin, total);
     const said = sentence(first, t);
@@ -215,21 +217,22 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
     const pageCount = bundlePages(same, total);
     const scope = isWhole || (total > 0 && pageCount >= total) ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
     const meta = `<span class="rule-meta"><span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span></span>`;
-    return `<article class="rule-card ${first.severity}" style="${order}"><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span>${meta}<span class="rule-message">${escape(message)}</span>${subject ? `<span class="rule-subject">${subjectText(subject, origin)}</span>` : ""}<span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${cached(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot"><code>${escape(first.rule)}</code></footer></article>`;
+    return `<article class="rule-card ${first.severity}" ${ranks}><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span>${meta}<span class="rule-message">${escape(message)}</span>${subject ? `<span class="rule-subject">${subjectText(subject, origin)}</span>` : ""}<span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${cached(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot"><code>${escape(first.rule)}</code></footer></article>`;
 }
 
-// One flat card per bundle in the chosen order, level then impact unless `sort` is impact; each card carries its rank by severity, impact, score and scope for the sort control.
+// One flat card per bundle in the chosen order, level then score then impact unless `sort` is impact; each card carries its rank by severity, impact, score and scope for the sort script.
 function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number, sort: Sort): string {
     const level = (same: Finding[]) => ORDER[(same[0] as Finding).severity];
+    const top = (same: Finding[]) => Math.max(...same.map((finding) => scoreOf(finding)));
     const bundles = bundle(ordered(findings, total, sort).flat());
     const rank = (compare: (a: Finding[], b: Finding[]) => number) => new Map(bundles.toSorted(compare).map((same, index) => [same, index]));
     const byMeasure = (measure: (same: Finding[]) => number) => (a: Finding[], b: Finding[]) => measure(b) - measure(a);
     const byImpact = rank(byMeasure((same) => bundleImpact(same, total)));
-    const bySeverity = rank((a, b) => level(a) - level(b) || bundleImpact(b, total) - bundleImpact(a, total));
-    const byScore = rank(byMeasure((same) => Math.max(...same.map((finding) => scoreOf(finding)))));
+    const bySeverity = rank((a, b) => level(a) - level(b) || top(b) - top(a) || bundleImpact(b, total) - bundleImpact(a, total));
+    const byScore = rank(byMeasure(top));
     const byScope = rank(byMeasure((same) => bundlePages(same, total)));
     const shown = sort === "impact" ? byImpact : bySeverity;
-    const cards = [...shown].toSorted(([, a], [, b]) => a - b).map(([same]) => entry(t, same, origin, guides, total, `--by-severity: ${bySeverity.get(same)}; --by-impact: ${byImpact.get(same)}; --by-score: ${byScore.get(same)}; --by-scope: ${byScope.get(same)}`));
+    const cards = [...shown].toSorted(([, a], [, b]) => a - b).map(([same]) => entry(t, same, origin, guides, total, `data-severity="${bySeverity.get(same)}" data-impact="${byImpact.get(same)}" data-score="${byScore.get(same)}" data-scope="${byScope.get(same)}"`));
     return `<div class="rule-list">${cards.join("")}</div>`;
 }
 
@@ -322,7 +325,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
         ["score", t._("Score")],
         ["scope", t._("Scope")],
     ].map(([id, name]) => `<label><input type="radio" name="sort" id="sort-${id}"${id === sort ? " checked" : ""}>${escape(name)}</label>`);
-    const control = parts.length > 0 ? `<div class="sort" role="radiogroup" aria-label="${escape(t._("Sort by"))}"><span>${escape(t._("Sort by"))}</span>${sorts.join("")}</div>` : "";
+    const control = parts.length > 0 ? `<div class="sort" role="radiogroup" aria-label="${escape(t._("Sort by"))}"><span>${escape(t._("Sort by"))}</span>${sorts.join("")}</div><script>${SORT_SCRIPT}</script>` : "";
     const found = `<section><h2>${escape(t._("Findings"))}</h2>${control}${parts.length > 0 ? parts.join("") : `<p>${escape(t._("No findings."))}</p>`}</section>`;
     return `${head}${cut}${totals}${found}${passed(t, report)}${statistics(t, summary.stats)}${untested(t, summary.untested)}`;
 }

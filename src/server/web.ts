@@ -16,7 +16,7 @@ import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
 import type { Phase, Progress } from "../progress.ts";
 import type { Grade } from "../report/rating.ts";
-import { escape, page, reportBody, STYLE } from "../report/html.ts";
+import { escape, page, reportBody, SORT_SCRIPT, STYLE } from "../report/html.ts";
 import { track } from "./analytics.ts";
 import { compress } from "./compress.ts";
 import { jobOf, submit, type Jobs } from "./jobs.ts";
@@ -84,8 +84,8 @@ const hash = (source: string) => `'sha256-${createHash("sha256").update(source).
 
 // The policy of a page: its own stylesheet and script by hash, what the owner’s fragments ask for, same-origin images, events and forms, nothing else; `self` joins scripts and styles only while the owner serves assets.
 export function pageCsp(sources?: Sources, hasAssets = false): string {
-    const list = (own: string, asked: string[]) => [...new Set([own, ...(hasAssets ? ["'self'"] : []), ...asked])].join(" ");
-    return `default-src 'none'; style-src ${list(hash(STYLE), sources?.style ?? [])}; script-src ${list(hash(SCRIPT), sources?.script ?? [])}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'`;
+    const list = (own: string, asked: string[], also?: string) => [...new Set([own, ...(also ? [also] : []), ...(hasAssets ? ["'self'"] : []), ...asked])].join(" ");
+    return `default-src 'none'; style-src ${list(hash(STYLE), sources?.style ?? [])}; script-src ${list(hash(SCRIPT), sources?.script ?? [], hash(SORT_SCRIPT))}; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'`;
 }
 
 // The policy of every page without fragments.

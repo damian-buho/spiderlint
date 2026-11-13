@@ -169,7 +169,7 @@ describe("formatHtml", () => {
         const some: Finding = { rule: "seo/h1", severity: "error", scope: "group", group: "default", url: `${site.origin}/p0`, message: "h1 is missing", occurrences: 40, coverage: 0.4, samples: pages.slice(0, 2) };
         const input = { ...report, pages: report.pages, findings: [fold, some], summary: { ...report.summary, pages: 100, groups: { default: 100 } } };
         const html = formatHtml(input, undefined, false, "en");
-        assert.equal(html.match(/<article class="rule-card (error|warning|info|hint)" style=/g)?.length, 2);
+        assert.equal(html.match(/<article class="rule-card (error|warning|info|hint)" data-severity=/g)?.length, 2);
         assert.ok(
             html
                 .split("<article")
@@ -187,13 +187,23 @@ describe("formatHtml", () => {
         const byImpact = formatHtml(input, undefined, false, "en", false, false, false, "impact");
         assert.ok(byImpact.indexOf("title is missing") < byImpact.indexOf("h1 is missing"), "highest impact first when sorting by impact");
         assert.ok(byImpact.includes('id="sort-impact" checked'), "the chosen sort is the one checked");
-        assert.ok(wholeSite?.includes("--by-severity: 1; --by-impact: 0; --by-score: 1; --by-scope: 0"), "each card carries its rank by severity, impact, score and scope");
+        assert.ok(wholeSite?.includes('data-severity="1" data-impact="0" data-score="1" data-scope="0"'), "each card carries its rank by severity, impact, score and scope");
         assert.ok(html.includes('<input type="radio" name="sort" id="sort-severity" checked>') && html.includes('id="sort-impact"') && html.includes('id="sort-score"') && html.includes('id="sort-scope"'), "sort control offers severity, impact, score and scope");
         assert.match(wholeSite?.split("</summary>", 1)[0] ?? "", /Impact: 500<.*Scope: Whole site<.*rule-message/, "impact and scope sit in the head, before the message");
         assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
         assert.ok(wholeSite?.includes('<footer class="rule-foot"><code>seo/title</code>') && !wholeSite.split("</summary>", 1)[0]?.includes("seo/title"), "rule named in the footer, not the head");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
+    });
+
+    it("opens the report with the higher score first within a level, impact breaking a tie, and no inline style attribute on a card", () => {
+        const wide: Finding = { rule: "seo/wide", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "wide is low", score: 3.8, occurrences: 100, coverage: 1 };
+        const narrow: Finding = { rule: "seo/narrow", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "narrow is high", score: 5.9, occurrences: 3, coverage: 0.03 };
+        const html = formatHtml({ ...report, findings: [wide, narrow], summary: { ...report.summary, pages: 100, groups: { default: 100 } } }, undefined, false, "en");
+        assert.ok(html.indexOf("narrow is high") < html.indexOf("wide is low"), "5.9 on three pages leads 3.8 on a hundred");
+        const byImpact = formatHtml({ ...report, findings: [wide, narrow], summary: { ...report.summary, pages: 100, groups: { default: 100 } } }, undefined, false, "en", false, false, false, "impact");
+        assert.ok(byImpact.indexOf("wide is low") < byImpact.indexOf("narrow is high"), "impact alone still puts the wider one first");
+        assert.ok(!/<article[^>]* style=/.test(html), "a strict style policy would drop it");
     });
 
     it("lists an error above a warning on more pages in human and agent output, impact alone with sort, and the rating before the findings", () => {
