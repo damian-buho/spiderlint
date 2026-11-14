@@ -111,28 +111,38 @@ describe("rel=me", () => {
     }
 
     before(async () => {
-        [profiles, profile] = await serve(() => ({ "/@me": `<link rel="me" href="${origin}/">`, "/@other": `<a href="${origin}/">Home</a>` }));
-        [home, origin] = await serve(() => ({ "/": `<html><head><link rel="me" href="${profile}/@other"></head><body><a rel="me noopener" href="${profile}/@me">Me</a><a rel="me" href="${profile}/@gone">Gone</a></body></html>` }));
+        [profiles, profile] = await serve(() => ({ "/@me": `<link rel="me" href="${origin}/">`, "/@other": `<a href="${origin}/">Home</a>`, "/@quiet": "<p>quiet</p>", "/@silent": "<p>silent</p>" }));
+        [home, origin] = await serve(() => ({
+            "/": `<html><head><link rel="me" href="${profile}/@other"></head><body><a rel="me noopener" href="${profile}/@me">Me</a><a rel="me" href="${profile}/@gone">Gone</a><a rel="me" href="${profile}/@quiet">Quiet</a><a rel="me" href="${profile}/@silent">Silent</a></body></html>`,
+        }));
     });
 
     after(() => Promise.all([profiles, home].map((server) => new Promise((resolve) => server.close(resolve)))));
 
-    it("flags a profile that does not link back with rel=me, and leaves an unreachable one unjudged", async () => {
+    it("flags every profile that does not link back with rel=me in one finding, and leaves an unreachable one unjudged", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me-backlink/missing"], cacheMode: "off" });
+        const unverified = [`${profile}/@other`, `${profile}/@quiet`, `${profile}/@silent`];
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.value]),
-            [["links/rel-me-backlink/missing", `${profile}/@other`]],
+            [["links/rel-me-backlink/missing", unverified]],
         );
         const { fetched, ...facts } = report.site.origins?.[origin]?.["rel-me"] as { fetched: Record<string, { status: number; at: string; cached?: true }> };
-        assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), { [`${profile}/@other`]: [200, false, undefined], [`${profile}/@me`]: [200, false, undefined], [`${profile}/@gone`]: [404, false, undefined] });
-        assert.equal(report.findings[0]?.message, "rel=me profile does not link back to the site");
-        assert.equal(Object.values(report.findings[0]?.data ?? {})[0]?.site, origin);
+        assert.deepEqual(Object.fromEntries(Object.entries(fetched).map(([target, seen]) => [target, [seen.status, Number.isNaN(Date.parse(seen.at)), seen.cached]])), {
+            [`${profile}/@other`]: [200, false, undefined],
+            [`${profile}/@me`]: [200, false, undefined],
+            [`${profile}/@gone`]: [404, false, undefined],
+            [`${profile}/@quiet`]: [200, false, undefined],
+            [`${profile}/@silent`]: [200, false, undefined],
+        });
+        assert.equal(report.findings[0]?.message, "Not every rel=me profile links back to the site");
+        assert.deepEqual(report.findings[0]?.data, { [origin]: { profiles: unverified.join(", ") } });
         assert.deepEqual(
             report.findings[0]?.evidence?.map((read) => [read.bucket, read.key, read.via, read.mode, Number.isNaN(Date.parse(read.at ?? ""))]),
-            [["profiles", `${profile}/@other`, "network", "http", false]],
+            unverified.map((target) => ["profiles", target, "network", "http", false]),
         );
-        assert.deepEqual(facts, { targets: [`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`], unverified: [`${profile}/@other`], unreachable: [`${profile}/@gone`], declared: { [`${profile}/@other`]: [`${origin}/`], [`${profile}/@me`]: [`${origin}/`], [`${profile}/@gone`]: [`${origin}/`] } });
-        assert.equal(report.findings[0]?.url, `${profile}/@other`);
+        const declared = Object.fromEntries([`${profile}/@other`, `${profile}/@me`, `${profile}/@gone`, `${profile}/@quiet`, `${profile}/@silent`].map((target) => [target, [`${origin}/`]]));
+        assert.deepEqual(facts, { targets: Object.keys(declared), unverified, unreachable: [`${profile}/@gone`], declared });
+        assert.equal(report.findings[0]?.url, origin);
         assert.deepEqual(report.findings[0]?.urls, [`${origin}/`]);
     });
 });

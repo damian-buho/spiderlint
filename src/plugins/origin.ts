@@ -419,7 +419,7 @@ const meProfiles: SiteExtractor = {
     },
 };
 
-// One finding per `rel=me` profile whose page does not link back, filed on the page that declares it.
+// One finding per origin naming every `rel=me` profile whose page does not link back, filed on the pages that declare them.
 const meBackLink: Make = (severity) => ({
     meta: { id: "links/rel-me-backlink/missing", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
     check(pages, _group, site) {
@@ -429,13 +429,14 @@ const meBackLink: Make = (severity) => ({
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { unverified, declared, fetched } = facts["rel-me"] as { unverified: string[]; declared?: Record<string, string[]>; fetched?: Record<string, { at: string; cached?: true; revalidated?: true }> };
             log.debug({ rule: "links/rel-me-backlink/missing", subject, unverified: unverified.length }, "rel=me profiles judged");
-            return unverified
-                .filter((profile) => !verdicts.has(bare(profile)))
-                .map((profile) => {
-                    const pages = declared?.[profile] ?? [subject];
-                    const seen = fetched?.[profile];
-                    return { rule: "links/rel-me-backlink/missing", severity, scope: "site", url: profile, ...said("rel=me profile does not link back to the site"), data: { [profile]: { site: subject } }, ...(seen && { evidence: [evidence("profiles", profile, seen, "http")] }), value: profile, urls: pages };
-                });
+            const profiles = unverified.filter((profile) => !verdicts.has(bare(profile)));
+            if (profiles.length === 0) return [];
+            const pages = [...new Set(profiles.flatMap((profile) => declared?.[profile] ?? [subject]))];
+            const reads = profiles.flatMap((profile) => {
+                const seen = fetched?.[profile];
+                return seen ? [evidence("profiles", profile, seen, "http")] : [];
+            });
+            return [{ rule: "links/rel-me-backlink/missing", severity, scope: "site", url: subject, ...said("Not every rel=me profile links back to the site"), data: { [subject]: { profiles: profiles.join(", ") } }, ...(reads.length > 0 && { evidence: reads }), value: profiles, urls: pages }];
         });
     },
 });

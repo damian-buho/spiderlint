@@ -410,8 +410,14 @@ describe("rel=me in a browser", { skip }, () => {
     }
 
     before(async () => {
-        profile = await serve(() => ({ "/@script": `<html><body><script>document.body.innerHTML = '<a rel="me" href="${origin}/">Home</a>'</script></body></html>`, "/@none": "<html><body>nothing</body></html>", "/@blocked": "<html><body>nothing</body></html>", "/robots.txt": "User-agent: *\nDisallow: /@blocked\n" }));
-        origin = await serve(() => ({ "/": `<html><body><a rel="me" href="${profile}/@script">Script</a><a rel="me" href="${profile}/@none">None</a><a rel="me" href="${profile}/@blocked">Blocked</a></body></html>` }));
+        profile = await serve(() => ({
+            "/@script": `<html><body><script>document.body.innerHTML = '<a rel="me" href="${origin}/">Home</a>'</script></body></html>`,
+            "/@none": "<html><body>nothing</body></html>",
+            "/@empty": "<html><body>empty</body></html>",
+            "/@blocked": "<html><body>nothing</body></html>",
+            "/robots.txt": "User-agent: *\nDisallow: /@blocked\n",
+        }));
+        origin = await serve(() => ({ "/": `<html><body><a rel="me" href="${profile}/@script">Script</a><a rel="me" href="${profile}/@none">None</a><a rel="me" href="${profile}/@empty">Empty</a><a rel="me" href="${profile}/@blocked">Blocked</a></body></html>` }));
     });
 
     after(() => Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve)))));
@@ -428,10 +434,13 @@ describe("rel=me in a browser", { skip }, () => {
             assert.equal(first.findings.length, 1);
             const second = await run("use");
             assert.equal(loads(), base, "a fresh verdict is reused without opening the profile");
-            assert.match(second.findings[0]?.message ?? "", /^rel=me profile does not link back to /);
+            assert.match(second.findings[0]?.message ?? "", /^Not every rel=me profile links back to /);
             assert.deepEqual(
                 second.findings[0]?.evidence?.filter((read) => read.bucket === "profiles").map((read) => [read.via, read.mode]),
-                [["cache", "browser"]],
+                [
+                    ["cache", "browser"],
+                    ["cache", "browser"],
+                ],
             );
             await run("refresh");
             assert.equal(loads(), base + 1, "--refresh loads it again");
@@ -442,11 +451,11 @@ describe("rel=me in a browser", { skip }, () => {
         }
     });
 
-    it("counts a back-link a profile’s script adds, and flags once, as rendered, the profile that never links back", async () => {
+    it("counts a back-link a profile’s script adds, and flags once, as rendered, every profile that never links back", async () => {
         const report = await audit({ seeds: [`${origin}/`], rules: ["links/rel-me-backlink/missing", "links/rel-me-rendered/missing"], cacheMode: "off", sitemap: false, groups: { default: { rules: ["links/rel-me-backlink/missing", "links/rel-me-rendered/missing"], sample: "all" } } });
         assert.deepEqual(
             report.findings.map((finding) => [finding.rule, finding.value]),
-            [["links/rel-me-rendered/missing", `${profile}/@none`]],
+            [["links/rel-me-rendered/missing", [`${profile}/@none`, `${profile}/@empty`]]],
         );
         assert.ok(!requested.includes("/@blocked"), "robots.txt keeps the browser off a disallowed profile");
         const live = report.pages[0]?.["rel-me-live"] as { profiles: { url: string; error?: string }[] };

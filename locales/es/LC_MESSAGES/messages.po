@@ -468,8 +468,8 @@ msgstr "{label} está muy por encima de la mediana {median} de {count} páginas;
 msgid "{label} is {common} on {count} of {total} pages, but not on these"
 msgstr "{label} es {common} en {count} de {total} páginas, pero no en estas"
 
-msgid "rel=me profile does not link back to the site"
-msgstr "el perfil rel=me no enlaza de vuelta al sitio"
+msgid "Not every rel=me profile links back to the site"
+msgstr "No todos los perfiles rel=me enlazan de vuelta al sitio"
 
 msgid "{label} varies across {host}"
 msgstr "{label} varía en {host}"

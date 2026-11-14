@@ -468,8 +468,8 @@ msgstr "{label} значно перевищує медіану {median} для {
 msgid "{label} is {common} on {count} of {total} pages, but not on these"
 msgstr "{label}: {common} на {count} з {total} сторінок, але не на цих"
 
-msgid "rel=me profile does not link back to the site"
-msgstr "профіль rel=me не посилається назад на сайт"
+msgid "Not every rel=me profile links back to the site"
+msgstr "Не всі профілі rel=me посилаються назад на сайт"
 
 msgid "{label} varies across {host}"
 msgstr "{label} відрізняється в межах {host}"
