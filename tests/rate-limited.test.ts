@@ -7,9 +7,23 @@ import { once } from "node:events";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
+import { chromium } from "playwright";
 import { audit, type Report } from "../src/index.ts";
 
 const PAGE = '<!doctype html><html lang="en"><title>p</title><h1>p</h1>';
+
+// Why Chromium cannot run here, else false.
+async function launchFailure(): Promise<string | false> {
+    try {
+        const browser = await chromium.launch();
+        await browser.close();
+        return false;
+    } catch (error) {
+        return `chromium does not launch: ${String(error).split("\n", 1)[0]}`;
+    }
+}
+
+const SKIP: Record<"http" | "browser", string | false> = { http: false, browser: await launchFailure() };
 
 // A site whose `/` answers 429 with `Retry-After: 0` for its first `limited` requests, then 200 with nosniff; returns it and its `/` request count.
 async function serve(limited: number): Promise<{ server: Server; origin: string; hits: () => number }> {
@@ -29,22 +43,24 @@ function rules(report: Report): string[] {
     return report.findings.map((finding) => finding.rule).toSorted((a, b) => a.localeCompare(b));
 }
 
-describe("rate-limited pages", () => {
-    it("retries a 429 and judges the 200 that follows", async () => {
-        const site = await serve(1);
-        const report = await audit({ seeds: [`${site.origin}/`], rules: ["security-headers", "links"], cacheMode: "off", fetchResources: false, robots: false, sitemap: false });
-        site.server.close();
-        assert.equal(site.hits(), 2);
-        assert.ok(!rules(report).includes("http/content-type-options/missing"), rules(report).join(", "));
-        assert.ok(!rules(report).includes("links/internal/unreachable"), rules(report).join(", "));
-    });
+for (const fetch of ["http", "browser"] as const) {
+    describe(`rate-limited pages, ${fetch} mode`, { skip: SKIP[fetch] }, () => {
+        it("retries a 429 and judges the 200 that follows", async () => {
+            const site = await serve(1);
+            const report = await audit({ seeds: [`${site.origin}/`], fetch, rules: ["security-headers", "links"], cacheMode: "off", fetchResources: false, robots: false, sitemap: false });
+            site.server.close();
+            assert.equal(site.hits(), 2);
+            assert.ok(!rules(report).includes("http/content-type-options/missing"), rules(report).join(", "));
+            assert.ok(!rules(report).includes("links/internal/unreachable"), rules(report).join(", "));
+        });
 
-    it("reports a page that keeps answering 429 once, as unreachable, and judges none of its headers", async () => {
-        const site = await serve(Infinity);
-        const report = await audit({ seeds: [`${site.origin}/`], rules: ["security-headers", "links"], cacheMode: "off", fetchResources: false, robots: false, sitemap: false });
-        site.server.close();
-        assert.equal(site.hits(), 4);
-        assert.deepEqual(rules(report), ["links/internal/unreachable"]);
-        assert.equal(report.findings[0]?.value, 429);
+        it("reports a page that keeps answering 429 once, as unreachable, and judges none of its headers", async () => {
+            const site = await serve(Infinity);
+            const report = await audit({ seeds: [`${site.origin}/`], fetch, rules: ["security-headers", "links"], cacheMode: "off", fetchResources: false, robots: false, sitemap: false });
+            site.server.close();
+            assert.equal(site.hits(), 4);
+            assert.deepEqual(rules(report), ["links/internal/unreachable"]);
+            assert.equal(report.findings[0]?.value, 429);
+        });
     });
-});
+}

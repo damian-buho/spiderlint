@@ -29,6 +29,14 @@ export function delay(attempt: number, retryAfter?: string): number {
     return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, TIMEOUT_MS) : 500 * 2 ** attempt + Math.random() * 250;
 }
 
+// Waits out a crawled page’s 429 or 503 before Crawlee retries it; any other failure retries at once.
+export async function awaitRetry(url: string, status: number, retryAfter: string | undefined, attempt: number): Promise<void> {
+    if (!RETRY_STATUS.has(status)) return log.debug({ url, status, attempt }, "page retried at once");
+    const wait = delay(attempt, retryAfter);
+    log.info({ url, status, attempt: attempt + 1, wait }, "page answered a retry status, waiting before the next attempt");
+    await sleep(wait);
+}
+
 // The error undici raises for a short body, a duplicate Content-Length, or one beside chunked.
 export const MISMATCH = "Response body length does not match content-length header";
 

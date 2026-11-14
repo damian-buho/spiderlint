@@ -23,7 +23,7 @@ import { cookieFacts, dateSkew, redactHeaders } from "../facts/transport.ts";
 import type { BrowserFacts, Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { isParsed } from "./body.ts";
-import { reason } from "./fetch.ts";
+import { awaitRetry, reason, RETRY_STATUS } from "./fetch.ts";
 import { width } from "./resources.ts";
 import type { CrawlStorage, Frontier, Logged, OnPage } from "./frontier.ts";
 import type { Router } from "./route.ts";
@@ -482,6 +482,7 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                 const observation = observations.get(request);
                 const response = observation?.document;
                 if (!observation || !response) return log.warn({ url: request.url }, "page rendered without a document response");
+                if (RETRY_STATUS.has(response.status())) throw new Error(`${response.status()} - retry status`);
                 const url = new URL(response.url());
                 if (!frontier.admit(request, url)) return;
                 const { headers } = await (observation.transport as Promise<Transport>);
@@ -519,8 +520,13 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                 if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
             },
+            async errorHandler({ request }) {
+                const document = observations.get(request)?.document;
+                await awaitRetry(request.url, document?.status() ?? 0, document?.headers()["retry-after"], request.retryCount);
+            },
             async failedRequestHandler({ request }, error) {
-                const facts = frontier.failed(request, reason(error));
+                const status = observations.get(request)?.document?.status() ?? 0;
+                const facts = frontier.failed(request, reason(error), status >= 400 ? status : 0);
                 if (facts) await onPage(facts, "");
             },
         },

@@ -312,7 +312,7 @@ export class Frontier {
         return {
             ...(storage && { requestQueue: storage.queues[mode] }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
-            // A 401, 403 or 429 never retires a session; the http adapter retries a 429 or 503 itself.
+            // A 401, 403 or 429 never retires a session; each adapter retries a 429 or 503 itself.
             sessionPoolOptions: { blockedStatusCodes: [] },
             requestHandlerTimeoutSecs: this.#config.timeout,
             navigationTimeoutSecs: Math.ceil(this.#config.timeout / 2),
