@@ -7,7 +7,7 @@ import { environmentLocale } from "../i18n.ts";
 import { bytes as sized, isLabelled, label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor, fixesOf, plainFix } from "../rules/fix.ts";
-import { cachedReads, valuesAt } from "../rules/message.ts";
+import { cachedReads, namedAt } from "../rules/message.ts";
 import { byUrgency, scoreOf, type Sort } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import { plain, type Paint, type Style } from "../color.ts";
@@ -56,9 +56,9 @@ function list(urls: string[], origin: string, limit: number): string {
     return urls.length > limit ? `${shown} … and ${urls.length - limit} more` : shown;
 }
 
-// A URL, then what was measured there, each relative to the origin.
+// A URL, then what was measured there by name, each relative to the origin.
 function shown(finding: Finding, url: string, origin: string): string {
-    return [url, ...valuesAt(finding, url, number)].map((text) => relative(text, origin)).join("  ");
+    return [relative(url, origin), ...namedAt(finding, url, number, (text) => relative(text, origin))].join("  ");
 }
 
 // At most `limit` URLs one per line with their values at `indent`, the rest as a count.

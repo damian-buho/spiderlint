@@ -6,7 +6,7 @@ import { Marked } from "marked";
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { shippedRules } from "../rules/catalog.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
-import { cachedReads, sentence, valuesAt } from "../rules/message.ts";
+import { cachedReads, namedAt, sentence } from "../rules/message.ts";
 import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
 import { utc } from "../facts/read-note.ts";
 import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
@@ -166,10 +166,10 @@ function locations(t: Translator, found: string[] | undefined): string {
     );
 }
 
-// What was measured at `url`, after it.
+// What was measured at `url` by name, after it.
 function measured(t: Translator, finding: Finding, url: string): string {
-    const values = valuesAt(finding, url, t.number);
-    return values.length === 0 ? "" : `<span class="data">${escape(values.join("  "))}</span>`;
+    const values = namedAt(finding, url, t.number);
+    return values.length === 0 ? "" : `<span class="data">${escape(values.join(" · "))}</span>`;
 }
 
 // What a bundle names, how many pages it spans and those pages, each with its values and locations.

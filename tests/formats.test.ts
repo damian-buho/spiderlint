@@ -181,6 +181,14 @@ describe("formatHtml", () => {
         }
     });
 
+    it("names each value measured at a resource beside it, in html and human", () => {
+        const image = "https://cdn.test/hero.webp";
+        const heavy: Finding = { rule: "images/weight/large", severity: "warning", scope: "site", url: image, message: "a webp image is above the weight limit", data: { [image]: { size: { fact: "http.size.body", value: 912_000 }, limit: { fact: "http.size.body", value: 200_000 } } }, urls: [`${site.origin}/a`] };
+        const input = { ...report, findings: [heavy] };
+        assert.ok(formatHtml(input, undefined, false, "en").includes(`>https://cdn.test/hero.webp</a><span class="data">size: 912 kB · limit: 200 kB</span>`), "html names size and limit");
+        assert.ok(formatHuman(input, undefined, false, "en").split("\n").includes("          https://cdn.test/hero.webp  size: 912 kB  limit: 200 kB"), "human names size and limit");
+    });
+
     it("lists one flat card per finding, errors first and the highest impact first within a level, whole-site scope without a page list, and no group heading for default alone", () => {
         const pages = Array.from({ length: 100 }, (_unused, index) => `${site.origin}/p${index}`);
         const fold: Finding = { rule: "seo/title", severity: "warning", scope: "group", group: "default", url: `${site.origin}/p0`, message: "title is missing", occurrences: 100, coverage: 1, samples: pages.slice(0, 3) };

@@ -46,6 +46,11 @@ export function valuesAt(finding: Pick<Finding, "data">, url: string, format: Nu
     return Object.values(writtenAll(finding.data?.[url], format));
 }
 
+// The values measured at `url` as `key: value`, each value through `shown`, in the order the rule wrote them.
+export function namedAt(finding: Pick<Finding, "data">, url: string, format: NumberFormat, shown = (text: string) => text): string[] {
+    return Object.entries(writtenAll(finding.data?.[url], format)).map(([key, value]) => `${key}: ${shown(value)}`);
+}
+
 // Observations the findings rest on that this run took from a cache rather than the origin, once each.
 export function cachedReads(findings: Pick<Finding, "evidence">[]): Evidence[] {
     return new Map(
