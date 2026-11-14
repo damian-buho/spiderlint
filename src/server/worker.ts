@@ -10,6 +10,7 @@ import { createInterface } from "node:readline";
 import { Job, Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { log } from "../logger.ts";
+import type { Plan } from "../run.ts";
 import { inSpan, recordScan, traceCarrier, withTraceCarrier } from "../telemetry.ts";
 import { PREVIEW_FILE } from "./preview.ts";
 import { PREFIX, previewKey, PROGRESS_FD, QUEUE, recordExample, recordLatest, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
@@ -80,6 +81,17 @@ async function storePreview(redis: Redis, job: ScanJob, cwd: string, retention: 
     }
 }
 
+// Stores the plan line a runner wrote once into the job’s data, beside its progress.
+async function storePlan(job: ScanJob, line: string): Promise<void> {
+    try {
+        const { plan } = JSON.parse(line) as { plan: Plan };
+        await job.updateData({ ...job.data, plan });
+        log.debug({ job: job.id, groups: Object.keys(plan.groups).length, rules: Object.keys(plan.rules).length }, "plan stored");
+    } catch (error) {
+        log.warn({ job: job.id, error: String(error) }, "plan not stored");
+    }
+}
+
 // One scan in a runner child under a temporary working directory, its progress relayed at most once per second.
 async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Promise<ScanResult> {
     const { url, settings, scanTimeout, deny, via, "content-signals": signals } = job.data;
@@ -108,6 +120,7 @@ async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Prom
     const progress = { sent: 0, held: "" };
     const store = (line: string) => void job.updateProgress(JSON.parse(line) as object).catch((error: unknown) => log.warn({ job: job.id, error: String(error) }, "progress not stored"));
     lines(child.stdio[PROGRESS_FD] as NodeJS.ReadableStream, (line) => {
+        if (line.startsWith('{"plan":')) return void storePlan(job, line);
         const now = Date.now();
         // A line inside the interval is held, so the last one is stored once the runner exits.
         progress.held = now - progress.sent < PROGRESS_MS ? line : "";

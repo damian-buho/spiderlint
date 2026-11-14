@@ -13,6 +13,24 @@ const COUNT_MS = 250;
 export const PHASES = ["crawl", "resources", "probes", "site", "lint"] as const;
 export type Phase = (typeof PHASES)[number];
 
+// The phase that completes each fact family, matched by prefix; any other fact is complete with the crawl.
+const FACT_PHASES: [prefix: string, phase: Phase][] = [
+    ["resources", "resources"],
+    ["site.links", "probes"],
+    ["site.origins", "site"],
+    ["site.hosts", "site"],
+    ["site.linked", "site"],
+    ["site.graph", "lint"],
+    ["graph", "lint"],
+];
+
+// What a run will check: its rulesets, each group’s rule IDs and the phases each rule reads facts from.
+export interface Plan {
+    rulesets: string[];
+    groups: Record<string, string[]>;
+    rules: Record<string, Phase[]>;
+}
+
 // A time left as whole numbers in one unit `Intl` names.
 export interface EtaSpan {
     low: number;
@@ -34,6 +52,7 @@ export type Outcome = { status: "running" } | { status: "finished" } | { status:
 
 // Everything a front end reads about a run, as plain JSON.
 export interface RunState {
+    plan?: Plan;
     phase: Phase;
     phases: Record<Phase, PhaseState>;
     pages: { done: number; known: number; eta?: EtaSpan; samples: number[]; last: number; origin: string };
@@ -43,6 +62,7 @@ export interface RunState {
 
 // The only ways a run changes its state, each stamped `at` in epoch ms.
 export type RunEvent =
+    | { type: "run.planned"; at: number; plan: Plan }
     | { type: "phase.started"; at: number; phase: Phase; total?: number; origin?: string }
     | { type: "phase.counted"; at: number; phase: Phase; done: number }
     | { type: "phase.ended"; at: number; phase: Phase; status?: "done" | "skipped" | "cut" }
@@ -53,6 +73,17 @@ export type RunEvent =
 
 // An event before the run stamps its time.
 export type Unstamped = RunEvent extends infer E ? (E extends RunEvent ? Omit<E, "at"> : never) : never;
+
+// The phases that complete `facts`, in run order.
+export function phasesOf(facts: readonly string[]): Phase[] {
+    const read = new Set(facts.map((fact) => FACT_PHASES.find(([prefix]) => fact === prefix || fact.startsWith(`${prefix}.`))?.[1] ?? "crawl"));
+    return PHASES.filter((phase) => read.has(phase));
+}
+
+// The phase after which a rule reading from `phases` has all its facts: the last one.
+export function waitsFor(phases: readonly Phase[]): Phase {
+    return phases.at(-1) ?? "crawl";
+}
 
 // Done and known pages, the phase with its own count where it has one, and the ETA, as the scan runner writes them.
 export interface Progress {
@@ -94,6 +125,9 @@ function timed(pages: RunState["pages"]): RunState["pages"] {
 // The state after `event`; never mutates `state`.
 export function reduce(state: RunState, event: RunEvent): RunState {
     switch (event.type) {
+        case "run.planned": {
+            return { ...state, plan: event.plan };
+        }
         case "phase.started": {
             const phases = { ...state.phases, [event.phase]: { status: "running", started: event.at, ...(event.total !== undefined && { done: 0, total: event.total }) } };
             const isCrawl = event.phase === "crawl";
@@ -165,11 +199,15 @@ export function isRedrawn(event: RunEvent): boolean {
     return event.type !== "page.extracting" && !(event.type === "phase.started" && event.phase === "crawl");
 }
 
-// Writes `progressOf` on every change but a step, counts inside a phase at most four times a second and the last one always.
-export function progressWriter(write: (progress: Progress) => void): RunObserver {
+// One line a scan runner writes: the plan once, then progress.
+export type RunLine = Progress | { plan: Plan };
+
+// Writes the plan once, then `progressOf` on every change but a step, counts inside a phase at most four times a second and the last one always.
+export function progressWriter(write: (line: RunLine) => void): RunObserver {
     const sent = { at: -Infinity };
     return {
         update(state, event) {
+            if (event.type === "run.planned") return write({ plan: event.plan });
             if (!isRedrawn(event) || event.type === "phase.ended" || event.type === "run.ended") return;
             const total = event.type === "phase.counted" ? state.phases[event.phase].total : 0;
             if (total === undefined || (event.type === "phase.counted" && event.done < total && event.at - sent.at < COUNT_MS)) return;

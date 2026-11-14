@@ -35,7 +35,7 @@ import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { Run, type RunObserver } from "./run.ts";
+import { phasesOf, Run, type Plan, type RunObserver } from "./run.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, pageReader, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, resolveRuleset, ruleIds } from "./rules/rulesets.ts";
@@ -430,8 +430,8 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
     site.graph = linkGraph(pages, site.redirects);
 }
 
-// Compiles groups and rules up front, so a config error fails before the first request.
-function linter(config: Config): Lint {
+// Compiles groups and rules up front, so a config error fails before the first request, with the plan they make.
+function linter(config: Config): { plan: Plan; lint: Lint } {
     const groups = groupsOf(config);
     const matchers = compileGroups(groups);
     const rulesByGroup = rulesOf(config);
@@ -448,7 +448,10 @@ function linter(config: Config): Lint {
     refuseUnknown(config, groups);
     const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
-    return ({ pages, site, cost, fetch }, started, ongoing) => {
+    const flat = rulesByGroup.values().toArray().flat();
+    const plan: Plan = { rulesets, groups: Object.fromEntries([...rulesByGroup].map(([group, list]) => [group, list.map((rule) => rule.meta.id)])), rules: Object.fromEntries(flat.map((rule) => [rule.meta.id, phasesOf(rule.meta.facts)])) };
+    log.debug({ rulesets, groups: Object.keys(plan.groups).length, rules: Object.keys(plan.rules).length }, "run planned");
+    const lint: Lint = ({ pages, site, cost, fetch }, started, ongoing) => {
         stopIfInterrupted("lint");
         ongoing.emit({ type: "phase.started", phase: "lint" });
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
@@ -466,6 +469,7 @@ function linter(config: Config): Lint {
         ongoing.emit({ type: "phase.ended", phase: "lint" });
         return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
     };
+    return { plan, lint };
 }
 
 export interface Crawled {
@@ -646,9 +650,10 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     const config = layered([overrides]);
     setVia(config.via);
     await loadPlugins(config.plugins, config.pluginSettings);
-    const lint = linter(config);
+    const { plan, lint } = linter(config);
     await prepareLint(config);
     const run = new Run(options.observer);
+    run.emit({ type: "run.planned", plan });
     const persist = async (store: DiskStore) => {
         const report = withPrevious(lint(await crawlPages(config, run, store), started, run), store);
         await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
@@ -681,9 +686,10 @@ export async function lintStore(overrides: Partial<Config>, directory: string, o
     const started = new Date();
     const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
-    const lint = linter(config);
+    const { plan, lint } = linter(config);
     await prepareLint(config);
     const run = new Run(observer);
+    run.emit({ type: "run.planned", plan });
     return ended(
         run,
         async () =>

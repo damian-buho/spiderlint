@@ -8,6 +8,7 @@ import { Redis } from "ioredis";
 import type { Report, Summary } from "../index.ts";
 import { log } from "../logger.ts";
 import type { Grade } from "../report/rating.ts";
+import type { Plan } from "../run.ts";
 import type { Finding } from "../rules/types.ts";
 import { Refusal, type Admitted } from "./policy.ts";
 
@@ -37,6 +38,8 @@ export interface ScanData {
     "content-signals"?: string[];
     // The submitting request’s trace context as W3C headers, empty when telemetry is off.
     trace?: Record<string, string>;
+    // What the run checks, stored once by the worker when the runner plans it.
+    plan?: Plan;
 }
 
 // What `--format json` prints: the summary, the findings and the guides of the rules that found something.

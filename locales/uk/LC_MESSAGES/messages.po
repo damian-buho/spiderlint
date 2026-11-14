@@ -409,6 +409,21 @@ msgstr "Постачальник: {name}"
 msgid "Waiting in the queue…"
 msgstr "Очікує в черзі…"
 
+msgid "Waits for domain, mail and certificates"
+msgstr "Чекає на домен, пошту та сертифікати"
+
+msgid "Waits for external links"
+msgstr "Чекає на зовнішні посилання"
+
+msgid "Waits for linked resources"
+msgstr "Чекає на підключені ресурси"
+
+msgid "Waits for the pages"
+msgstr "Чекає на сторінки"
+
+msgid "Waits for the whole site"
+msgstr "Чекає на весь сайт"
+
 msgid "Warning"
 msgstr "Попередження"
 

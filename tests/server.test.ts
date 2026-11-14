@@ -456,6 +456,30 @@ describe("server pages without Redis", () => {
         assert.equal(unknown.status, 400);
     });
 
+    it("lists every planned rule grey with the phase it waits for, and reloads once the plan arrives", async () => {
+        const plan = { rulesets: ["links"], groups: { default: ["seo/title/missing", "links/external/unreachable"] }, rules: { "links/external/unreachable": ["crawl", "probes"], "seo/title/missing": ["crawl"] } };
+        const job = { id: "j5", data: { url: "https://a.test/", host: "a.test", plan }, progress: { done: 1, total: 2, phase: "crawl" }, getState: async () => "active" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j5", { headers: { "accept-language": "es" } });
+        const html = await response.text();
+        const cards = html
+            .matchAll(/<li class="rule-card waiting"><code>([^<]+)<\/code><small>([^<]+)<\/small><\/li>/g)
+            .map((match) => [match[1], match[2]])
+            .toArray();
+        assert.deepEqual(cards, [
+            ["links/external/unreachable", "Espera a los enlaces externos"],
+            ["seo/title/missing", "Espera a las páginas"],
+        ]);
+        assert.ok(!html.includes("<h3>default</h3>"), "one group needs no heading");
+        assert.match(html, /job\.plan && !document\.querySelector\("\.board"\)/);
+    });
+
+    it("leaves the board out until the runner plans the scan", async () => {
+        const job = { id: "j6", data: { url: "https://a.test/", host: "a.test" }, progress: {}, getState: async () => "waiting" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j6");
+        const html = await response.text();
+        assert.ok(!html.includes('class="board"'));
+    });
+
     it("shows the rulesets a running scan was queued with", async () => {
         const job = { id: "j3", data: { url: "https://a.test/", host: "a.test", settings: { rules: ["web-quick"] } }, progress: { done: 1, total: 2, phase: "crawl" }, getState: async () => "active" };
         const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j3");
@@ -955,7 +979,7 @@ describe("server over Redis", { skip: process.env.SPIDERLINT_TEST_REDIS === unde
         assert.equal(created.status, 202);
         const { id } = (await created.json()) as { id: string };
         first = id;
-        let job: { status: string; progress?: { done: number }; summary?: { pages: number } } = { status: "queued" };
+        let job: { status: string; progress?: { done: number }; plan?: { rules: Record<string, string[]> }; summary?: { pages: number } } = { status: "queued" };
         for (let tries = 0; tries < 120 && !["done", "failed"].includes(job.status); tries += 1) {
             await sleep(500);
             const response = await app.request(`/v1/jobs/${id}`);
@@ -964,6 +988,7 @@ describe("server over Redis", { skip: process.env.SPIDERLINT_TEST_REDIS === unde
         assert.equal(job.status, "done");
         assert.equal(job.summary?.pages, 3);
         assert.equal(job.progress?.done, 3);
+        assert.deepEqual(job.plan?.rules["html/lang/missing"], ["crawl"]);
         const sarif = await app.request(`/v1/jobs/${id}/report/sarif`);
         assert.equal(sarif.headers.get("content-type"), "application/sarif+json; charset=utf-8");
         const document = (await sarif.json()) as { version: string };

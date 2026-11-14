@@ -181,6 +181,10 @@ The job reports `hidden`, its page asks search engines to skip it, and it has a 
 window of its own, so a public request for the same site never receives it. Anyone
 holding the report’s address can still open it.
 
+A job, with `plan` once its runner has planned it: the rulesets, each group’s rules, and
+the phases each rule reads facts from (`crawl`, `resources`, `probes`, `site`, `lint`).
+The job page lists every planned rule, labelled with the last of its phases.
+
 A job:
 
 ```json
@@ -189,7 +193,12 @@ A job:
   "url": "https://example.ua/",
   "policy": "ua",
   "status": "running",
-  "progress": { "done": 12, "total": 40, "eta": [20, 45] },
+  "progress": { "done": 12, "total": 40, "phase": "crawl", "eta": { "low": 1, "high": 3, "unit": "minute" } },
+  "plan": {
+    "rulesets": ["recommended"],
+    "groups": { "default": ["html/lang/missing", "links/external/unreachable"] },
+    "rules": { "html/lang/missing": ["crawl"], "links/external/unreachable": ["crawl", "probes"] }
+  },
   "created": "2026-09-27T09:00:00.000Z",
   "started": "2026-09-27T09:00:01.000Z",
   "links": {

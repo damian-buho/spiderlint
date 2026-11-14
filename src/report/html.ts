@@ -68,6 +68,7 @@ main { padding-block: 2.5rem; }
 .rule-head .rule-message { flex: 1 1 12rem; overflow-wrap: anywhere; }
 .rule-head .rule-meta { flex: none; display: flex; gap: .75rem; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rule-list { display: flex; flex-direction: column; gap: 1rem; margin-block: 1rem; } .rule-list .rule-card { margin-block: 0; }
+.rule-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: .5rem; margin-block: 1rem; padding: 0; list-style: none; } .rule-grid .rule-card { display: flex; flex-direction: column; gap: .125rem; margin: 0; padding: .5rem .75rem; } .rule-grid code { overflow-wrap: anywhere; }
 .sort { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; margin-block-end: 1rem; color: var(--muted); font-size: .9rem; } .sort label { display: inline-flex; align-items: center; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
 .rule-findings { padding: 0 1.25rem .5rem; } .rule-findings .data { color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-start: .75em; } .rule-findings p { margin-block: .5rem 0; }

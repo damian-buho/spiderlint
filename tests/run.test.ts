@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { eta, etaSpan, initialState, PHASES, progressWriter, reduce, Run, type Progress, type RunEvent, type RunObserver, type RunState } from "../src/run.ts";
+import { eta, etaSpan, initialState, PHASES, phasesOf, progressWriter, reduce, Run, waitsFor, type Plan, type RunEvent, type RunLine, type RunObserver, type RunState } from "../src/run.ts";
 import { etaText, line } from "../src/status-line.ts";
 
 // The state after `events`, applied in order to a fresh run.
@@ -61,6 +61,31 @@ describe("run ETA", () => {
             const { low, high } = etaSpan(range);
             assert.ok(Number.isSafeInteger(low) && Number.isSafeInteger(high), String(range));
         }
+    });
+});
+
+const PLAN: Plan = { rulesets: ["links"], groups: { default: ["links/external/unreachable", "seo/title/missing"] }, rules: { "links/external/unreachable": ["crawl", "probes"], "seo/title/missing": ["crawl"] } };
+
+describe("run plan", () => {
+    it("waits for the later phase of a rule reading facts from two", () => {
+        const phases = phasesOf(["site.links", "html.links.external"]);
+        assert.deepEqual(phases, ["crawl", "probes"]);
+        assert.equal(waitsFor(phases), "probes");
+    });
+
+    it("matches a fact family on a whole path segment, and reads no fact as the crawl", () => {
+        assert.deepEqual(phasesOf(["resources"]), ["resources"]);
+        assert.deepEqual(phasesOf(["resources.length"]), ["resources"]);
+        assert.deepEqual(phasesOf(["resourcesx"]), ["crawl"]);
+        assert.deepEqual(phasesOf(["site.origins.dns.mx"]), ["site"]);
+        assert.deepEqual(phasesOf(["site.redirects"]), ["crawl"]);
+        assert.deepEqual(phasesOf(["graph.prev", "site.hosts"]), ["site", "lint"]);
+        assert.equal(waitsFor(phasesOf([])), "crawl");
+    });
+
+    it("keeps the plan a run starts with", () => {
+        assert.equal(initialState().plan, undefined);
+        assert.deepEqual(after([{ type: "run.planned", at: 0, plan: PLAN }]).plan, PLAN);
     });
 });
 
@@ -187,8 +212,8 @@ describe("run observer", () => {
 });
 
 // Every progress the writer sends for `events`, through a run whose clock reads each event’s own `at`.
-function written(events: (RunEvent extends infer E ? (E extends RunEvent ? Omit<E, "at"> & { at: number } : never) : never)[]): Progress[] {
-    const sent: Progress[] = [];
+function written(events: (RunEvent extends infer E ? (E extends RunEvent ? Omit<E, "at"> & { at: number } : never) : never)[]): RunLine[] {
+    const sent: RunLine[] = [];
     const clock = { at: 0 };
     const run = new Run(
         progressWriter((progress) => {
@@ -203,9 +228,21 @@ function written(events: (RunEvent extends infer E ? (E extends RunEvent ? Omit<
     return sent;
 }
 
+// The progress lines among `lines`, without the plan.
+function progressOnly(lines: RunLine[]) {
+    return lines.flatMap((line) => ("plan" in line ? [] : [line]));
+}
+
 describe("progress writer", () => {
+    it("writes the plan once as its own line, before any progress", () => {
+        const sent = written([{ type: "run.planned", at: 0, plan: PLAN }, { type: "phase.started", at: 0, phase: "crawl" }, ...pagesDone(1)]);
+        assert.deepEqual(sent[0], { plan: PLAN });
+        assert.equal(sent.filter((line) => "plan" in line).length, 1);
+        assert.equal(sent.length, 2);
+    });
+
     it("writes every finished page but not the crawl’s start, with the ETA once enough are sampled", () => {
-        const sent = written([{ type: "phase.started", at: 0, phase: "crawl" }, ...pagesDone(4)]);
+        const sent = progressOnly(written([{ type: "phase.started", at: 0, phase: "crawl" }, ...pagesDone(4)]));
         assert.deepEqual(
             sent.map((progress) => progress.done),
             [1, 2, 3, 4],
@@ -215,13 +252,15 @@ describe("progress writer", () => {
     });
 
     it("writes each phase as it starts with its count, and never a step, a phase end or the run end", () => {
-        const sent = written([
-            { type: "page.done", at: 0, done: 10 },
-            ...PHASES.slice(1).map((phase, index) => ({ type: "phase.started" as const, at: index + 1, phase, ...(phase !== "lint" && { total: 2 }) })),
-            { type: "page.extracting", at: 10, page: "https://a.test/", extractor: "html" },
-            { type: "phase.ended", at: 11, phase: "lint" },
-            { type: "run.ended", at: 12, outcome: { status: "finished" } },
-        ]);
+        const sent = progressOnly(
+            written([
+                { type: "page.done", at: 0, done: 10 },
+                ...PHASES.slice(1).map((phase, index) => ({ type: "phase.started" as const, at: index + 1, phase, ...(phase !== "lint" && { total: 2 }) })),
+                { type: "page.extracting", at: 10, page: "https://a.test/", extractor: "html" },
+                { type: "phase.ended", at: 11, phase: "lint" },
+                { type: "run.ended", at: 12, outcome: { status: "finished" } },
+            ]),
+        );
         assert.deepEqual(
             sent.map((progress) => progress.phase),
             ["crawl", "resources", "probes", "site", "lint"],
@@ -231,12 +270,14 @@ describe("progress writer", () => {
     });
 
     it("writes a count 250 ms after the last write but not at 249 ms, and the last count always", () => {
-        const sent = written([
-            { type: "phase.started", at: 0, phase: "resources", total: 3 },
-            { type: "phase.counted", at: 249, phase: "resources", done: 1 },
-            { type: "phase.counted", at: 250, phase: "resources", done: 2 },
-            { type: "phase.counted", at: 251, phase: "resources", done: 3 },
-        ]);
+        const sent = progressOnly(
+            written([
+                { type: "phase.started", at: 0, phase: "resources", total: 3 },
+                { type: "phase.counted", at: 249, phase: "resources", done: 1 },
+                { type: "phase.counted", at: 250, phase: "resources", done: 2 },
+                { type: "phase.counted", at: 251, phase: "resources", done: 3 },
+            ]),
+        );
         assert.deepEqual(
             sent.map((progress) => progress.step?.done),
             [0, 2, 3],
@@ -244,10 +285,12 @@ describe("progress writer", () => {
     });
 
     it("writes no count for a phase without a total", () => {
-        const sent = written([
-            { type: "phase.started", at: 0, phase: "lint" },
-            { type: "phase.counted", at: 1000, phase: "lint", done: 1 },
-        ]);
+        const sent = progressOnly(
+            written([
+                { type: "phase.started", at: 0, phase: "lint" },
+                { type: "phase.counted", at: 1000, phase: "lint", done: 1 },
+            ]),
+        );
         assert.equal(sent.length, 1);
     });
 });

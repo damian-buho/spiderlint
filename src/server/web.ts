@@ -14,7 +14,7 @@ import { LICENSE } from "../agent.ts";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
-import type { Phase, Progress } from "../run.ts";
+import { waitsFor, type Phase, type Plan, type Progress } from "../run.ts";
 import type { Grade } from "../report/rating.ts";
 import { escape, page, reportBody, SORT_SCRIPT, STYLE } from "../report/html.ts";
 import { track } from "./analytics.ts";
@@ -68,6 +68,7 @@ if (status && "EventSource" in window) {
     const events = new EventSource(status.dataset.events);
     events.addEventListener("progress", (event) => {
         const job = JSON.parse(event.data);
+        if (job.plan && !document.querySelector(".board")) location.reload();
         if (job.status === "running") status.querySelector("[data-state]").textContent = status.dataset.running;
         if (!job.progress) return;
         const { done, total, eta, phase, step } = job.progress;
@@ -261,6 +262,22 @@ function phaseNames(t: Translator): Partial<Record<Phase, string>> {
     return { resources: t._("Checking linked resources"), probes: t._("Checking external links"), site: t._("Checking domain, mail and certificates"), lint: t._("Evaluating the rules") };
 }
 
+// What a rule waiting for each phase is labelled, in the reader’s language.
+function waitNames(t: Translator): Record<Phase, string> {
+    return { crawl: t._("Waits for the pages"), resources: t._("Waits for linked resources"), probes: t._("Waits for external links"), site: t._("Waits for domain, mail and certificates"), lint: t._("Waits for the whole site") };
+}
+
+// Every rule the run checks as a grey card per group, labelled with the phase it waits for.
+function board(t: Translator, plan: Plan): string {
+    const names = waitNames(t);
+    const entries = Object.entries(plan.groups);
+    const sections = entries.map(([group, ids]) => {
+        const cards = ids.toSorted((a, b) => a.localeCompare(b)).map((id) => `<li class="rule-card waiting"><code>${escape(id)}</code><small>${escape(names[waitsFor(plan.rules[id] ?? [])])}</small></li>`);
+        return `${entries.length > 1 ? `<h3>${escape(group)}</h3>` : ""}<ul class="rule-grid">${cards.join("")}</ul>`;
+    });
+    return `<section class="board"><h2>${escape(t._("Checks"))}</h2>${sections.join("")}</section>`;
+}
+
 // Where a queued or running scan stands, updated by events or, without scripts, by a refresh.
 function progressBody(t: Translator, job: ScanJob, status: string): string {
     const progress = typeof job.progress === "object" ? job.progress : {};
@@ -285,7 +302,7 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
         .map(([name, value]) => `data-${name}="${escape(value as string)}"`)
         .join(" ");
     const rulesets = (job.data.settings?.rules as string[] | undefined)?.join(", ");
-    return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>`;
+    return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>${job.data.plan ? board(t, job.data.plan) : ""}`;
 }
 
 // When a fresh scan of the site may start, and the way to it; `isRepeat` adds why the reader sees an earlier scan.

@@ -46,6 +46,7 @@ export async function view(job: ScanJob): Promise<Record<string, unknown> & { st
         ...(job.data.hidden && { hidden: true }),
         status,
         ...(typeof job.progress === "object" && { progress: job.progress }),
+        ...(job.data.plan && { plan: job.data.plan }),
         created: iso(job.timestamp),
         started: iso(job.processedOn),
         finished: iso(job.finishedOn),

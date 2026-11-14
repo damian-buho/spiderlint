@@ -412,6 +412,21 @@ msgstr "Proveedor: {name}"
 msgid "Waiting in the queue…"
 msgstr "Esperando en la cola…"
 
+msgid "Waits for domain, mail and certificates"
+msgstr "Espera al dominio, el correo y los certificados"
+
+msgid "Waits for external links"
+msgstr "Espera a los enlaces externos"
+
+msgid "Waits for linked resources"
+msgstr "Espera a los recursos enlazados"
+
+msgid "Waits for the pages"
+msgstr "Espera a las páginas"
+
+msgid "Waits for the whole site"
+msgstr "Espera al sitio completo"
+
 msgid "Warning"
 msgstr "Advertencia"
 
