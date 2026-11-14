@@ -14,7 +14,7 @@ import { LICENSE } from "../agent.ts";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
-import type { Phase, Progress } from "../progress.ts";
+import type { Phase, Progress } from "../run.ts";
 import type { Grade } from "../report/rating.ts";
 import { escape, page, reportBody, SORT_SCRIPT, STYLE } from "../report/html.ts";
 import { track } from "./analytics.ts";

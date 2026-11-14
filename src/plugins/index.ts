@@ -14,7 +14,7 @@ import { CORE_KEYS, describe } from "../config/schema.ts";
 import { subjectPath } from "../facts/sites.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { progressStep } from "../progress.ts";
+import type { Run } from "../run.ts";
 import { inSpan, recordExtractor } from "../telemetry.ts";
 import { builtin } from "../rules/builtin.ts";
 import report from "../report/index.ts";
@@ -283,7 +283,7 @@ function inputsOf(extractor: Extractor, page: Facts, live?: Page): string | unde
 }
 
 // Each extractor’s facts under its ID, through `cache`, returning the IDs that added some; one that throws, or needs a `live` page it lacks, adds nothing.
-export async function extract(page: Facts, body: string, active: Extractor[], cache: ExtractorCache, live?: Page, context?: PageContext): Promise<string[]> {
+export async function extract(page: Facts, body: string, active: Extractor[], cache: ExtractorCache, live?: Page, context?: PageContext, run?: Run): Promise<string[]> {
     const kind = `${page.http["content-type"]}${page.http.size.truncated ? " truncated" : ""}`;
     const added: string[] = [];
     for (const extractor of active) {
@@ -292,7 +292,7 @@ export async function extract(page: Facts, body: string, active: Extractor[], ca
             continue;
         }
         try {
-            progressStep(page.url.href, extractor.id);
+            run?.emit({ type: "page.extracting", page: page.url.href, extractor: extractor.id });
             const running = performance.now();
             const inputs = inputsOf(extractor, page, live);
             if (inputs === undefined) log.debug({ url: page.url.href, extractor: extractor.id, inputs: extractor.inputs }, "extractor inputs unknown, run uncached");

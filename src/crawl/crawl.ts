@@ -13,10 +13,22 @@ import { wallOf } from "./probe.ts";
 import { bridgeCrawleeLog } from "./log.ts";
 import type { CrawlerMode, Router } from "./route.ts";
 import { singleOrigin } from "./scope.ts";
-import { trackProgress } from "../progress.ts";
+import { Run } from "../run.ts";
+
+const POLL_MS = 1000;
+
+// Tells `run` how many pages the frontier knows, the last count again when it cannot answer.
+async function known(frontier: Frontier, run: Run): Promise<void> {
+    try {
+        run.emit({ type: "pages.known", known: await frontier.known() });
+    } catch (error) {
+        log.debug({ error: String(error), known: run.state.pages.known }, "known pages unreadable; last kept");
+        run.emit({ type: "pages.known", known: run.state.pages.known });
+    }
+}
 
 // Crawls with every crawler some group needs, side by side over one frontier that routes each URL to its group’s.
-export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCache, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType?: (contentType: string) => boolean, isDebugged?: boolean, isExpensive?: boolean): Promise<CrawlResult> {
+export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCache, router: Router, storage?: CrawlStorage, proxy?: string, isKeptType?: (contentType: string) => boolean, isDebugged?: boolean, isExpensive?: boolean, run = new Run()): Promise<CrawlResult> {
     bridgeCrawleeLog();
     const modes = router.crawlers;
     if (modes.includes("browser") && !config.allowPrivate) throw new ConfigError("fetch browser: the address guard cannot check what the browser connects to");
@@ -34,7 +46,9 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     const browser = modes.includes("browser") ? await browserCrawler(config, walling, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
-    const stop = trackProgress(() => frontier.known(), singleOrigin(config.seeds));
+    run.emit({ type: "phase.started", phase: "crawl", origin: singleOrigin(config.seeds) });
+    const poll = setInterval(() => void known(frontier, run), POLL_MS);
+    poll.unref();
     const halt = (reason: CrawlEnd, why: string) => {
         frontier.cut(reason);
         for (const crawler of [http?.crawler, browser?.crawler]) crawler?.stop(why);
@@ -53,7 +67,8 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
     } finally {
         clearTimeout(deadline);
         interrupted.removeEventListener("abort", interrupt);
-        stop();
+        clearInterval(poll);
+        run.emit({ type: "phase.ended", phase: "crawl", status: frontier.site().crawl?.complete === false ? "cut" : "done" });
     }
     const [fetched, rendered] = [http?.stats(), browser?.stats()];
     if (fetched?.revalidated) log.debug({ revalidated: fetched.revalidated }, "pages revalidated");

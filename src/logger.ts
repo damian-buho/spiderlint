@@ -8,7 +8,6 @@ import pretty from "pino-pretty";
 import { Writable } from "node:stream";
 import { painter, type Style } from "./color.ts";
 import { relative, singleOrigin } from "./crawl/scope.ts";
-import { progressPrint } from "./progress.ts";
 import { isTelemetryConfigured } from "./telemetry-environment.ts";
 
 const level = process.env.SPIDERLINT_LOG_LEVEL ?? "warn";
@@ -58,10 +57,19 @@ export function oneLine(entry: Record<string, unknown>, messageKey: string): str
     return [message, entry.url !== undefined && paint("cyan", text(entry.url)), entry.error !== undefined && text(entry.error), (isVerbose || !hasSubject) && fields.length > 0 && paint("dim", fields.map(([key, value]) => `${key}=${text(value)}`).join(" "))].filter(Boolean).join(" ");
 }
 
+// Where each readable entry goes: straight to stderr, or above a status line that set itself here.
+const toStderr = (text: string): void => void process.stderr.write(text);
+const output: { print: (text: string) => void } = { print: toStderr };
+
+// Prints entries through `print` while a status line draws; undefined writes them straight to stderr again.
+export function printAbove(print: ((text: string) => void) | undefined): void {
+    output.print = print ?? toStderr;
+}
+
 // Stderr under the status line, which each entry prints above.
 const stderr = new Writable({
     write(chunk: Buffer, _encoding, done) {
-        progressPrint(chunk.toString("utf8"));
+        output.print(chunk.toString("utf8"));
         done();
     },
 });

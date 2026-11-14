@@ -26,7 +26,8 @@ import { scoreOf, SORTS } from "./rules/score.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
 import { handleInterrupts, Interrupted } from "./interrupt.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
-import { enableProgress } from "./progress.ts";
+import type { RunObserver } from "./run.ts";
+import { statusLine } from "./status-line.ts";
 import { inSpan, nameSpan, startTelemetry } from "./telemetry.ts";
 
 type Severity = "error" | "warning" | "info" | "hint";
@@ -517,7 +518,7 @@ async function execute(verb: Command): Promise<number> {
     if (values["log-level"] !== undefined) log.level = values["log-level"];
     logColor(values.color);
     const isProgress = values.progress ?? (process.stderr.isTTY && process.stderr.columns > 0 && process.env.SPIDERLINT_LOG_FORMAT !== "json" && log.level !== "silent");
-    enableProgress(isProgress);
+    const observer = isProgress ? statusLine() : undefined;
     log.debug({ isProgress, flag: values.progress, isTTY: process.stderr.isTTY, columns: process.stderr.columns }, "status line chosen");
     const command = verb.name();
     const seeds = verb.args;
@@ -555,7 +556,7 @@ async function execute(verb: Command): Promise<number> {
         for (const [name, site] of chosen) {
             if (name) log.debug({ site: name }, "site selected");
             if (name && chosen.length > 1) console.log(`\n${name}`);
-            worst = Math.max(worst, await run(verb, targets, bucket, configFor(site), values));
+            worst = Math.max(worst, await run(verb, targets, bucket, configFor(site), values, observer));
         }
         return worst;
     } catch (error) {
@@ -571,7 +572,7 @@ async function execute(verb: Command): Promise<number> {
 }
 
 // One command over one site’s config; the exit code as main documents it.
-async function run(verb: Command, targets: string[], bucket: string | undefined, config: Config, values: Flags): Promise<number> {
+async function run(verb: Command, targets: string[], bucket: string | undefined, config: Config, values: Flags, observer?: RunObserver): Promise<number> {
     const command = verb.name();
     const isStored = ["crawl", "lint", "show-report"].includes(command);
     {
@@ -584,7 +585,7 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
         // An explicit --store, else the seeds’ directory in the user cache; `--no-cache` keeps an audit in memory.
         const store = values.store ?? (command === "audit" && config.cacheMode === "off" ? undefined : siteDirectory(config.seeds));
         log.debug({ command, store, seeds: config.seeds.length, cache: config.cacheMode }, "store chosen");
-        if (command === "show-facts" || command === "export-facts") return await facts(command, config, store, values);
+        if (command === "show-facts" || command === "export-facts") return await facts(command, config, store, values, observer);
         const formatName = pick("--format", config.format, formatNames());
         const format = formatter(formatName);
         const failOn = typeof config.failOn === "number" ? config.failOn : RANK[config.failOn];
@@ -612,7 +613,7 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
             return 0;
         }
         if (command === "crawl") {
-            const pages = await crawl(config, store as string, values.resume === true);
+            const pages = await crawl(config, store as string, values.resume === true, observer);
             console.log(`${pages.length} pages stored in ${store}`);
             return pages.length === 0 ? 3 : 0;
         }
@@ -621,11 +622,11 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
         const emit = async (report: Report) =>
             values.output === undefined ? console.log(format(report, painter(process.stdout, values.color), config.fold === false, undefined, values["show-hints"] === true, values.explain === true, values.stats === true, sort)) : writeAgentFiles(values.output, report, values["show-hints"] === true, sort);
         if (command === "lint" || command === "show-report") {
-            const stored = command === "lint" ? await lintStore(config, store as string) : await reportStore(store as string);
+            const stored = command === "lint" ? await lintStore(config, store as string, observer) : await reportStore(store as string);
             await emit(stored);
             return exitCode(stored, config.failOn);
         }
-        const options = command === "audit" ? { store, resume: values.resume === true } : {};
+        const options = command === "audit" ? { store, resume: values.resume === true, observer } : { observer };
         const report = await audit(config, options);
         if (command === "list-groups") console.log(groupsOf(report));
         else await emit(report);
@@ -634,12 +635,12 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
 }
 
 // Every stored page with export-facts, else the first seed crawled alone, in human, json, yaml or csv; 3 when there is no page.
-async function facts(command: string, config: Config, store: string | undefined, values: Flags): Promise<number> {
+async function facts(command: string, config: Config, store: string | undefined, values: Flags, observer?: RunObserver): Promise<number> {
     const format = pick("--format", values.format ?? "human", FACT_FORMATS);
     const isAll = command === "export-facts";
     log.debug({ format, isAll, store, picks: values.facts }, "facts export chosen");
     if (config.seeds.length === 0) throw new ConfigError(`${command}: no domain, and org.spiderlint names no targets`);
-    const { pages, site } = isAll ? await factsStore(config, store as string) : await audit({ ...config, maxPages: 1, groups: { default: { rules: [] } } });
+    const { pages, site } = isAll ? await factsStore(config, store as string) : await audit({ ...config, maxPages: 1, groups: { default: { rules: [] } } }, { observer });
     console.log(formatFacts(pages, site, format, values.facts ?? [], !isAll, painter(process.stdout, values.color)));
     return pages.length === 0 ? 3 : 0;
 }

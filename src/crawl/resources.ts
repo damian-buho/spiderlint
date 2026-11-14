@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { progressCount, progressPhase } from "../progress.ts";
+import { Run } from "../run.ts";
 import { availableParallelism } from "node:os";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { Bucket, OfflineMiss } from "../cache/index.ts";
@@ -243,7 +243,7 @@ export function attachResources(pages: Facts[], results: ResourceResults): void 
 }
 
 // GETs every distinct resource URL the pages name that `logged` lacks, once each and at most `maxResources` of them, images last, with `extractors` reading the bodies of their types through `cache`, until `overdue` aborts.
-export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined), overdue = new AbortController().signal): Promise<ResourceResults> {
+export async function fetchResources(pages: Facts[], config: Config, bucket: ResourceBucket, extractors: ResourceExtractor[] = [], logged = new Map<string, Logged>(), cache = new ExtractorCache(undefined), overdue = new AbortController().signal, run = new Run()): Promise<ResourceResults> {
     const entries = pages.flatMap((page) => page.resources ?? []);
     const named = [...new Set(entries.map((entry) => entry.url))];
     const gotten = new Set(entries.filter((entry) => entry.kind !== "enclosure").map((entry) => entry.url));
@@ -252,8 +252,11 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
     const urls = config.maxResources > 0 ? [...named.filter((url) => !images.has(url)), ...named.filter((url) => images.has(url))].slice(0, config.maxResources) : named;
     if (urls.length < named.length) log.info({ named: named.length, fetched: urls.length, maxResources: config.maxResources }, "resources cut at max-resources");
     log.debug({ resources: urls.length, references: entries.length, images: images.size, headed: headed.size, fetch: config.fetchResources }, "resources found");
-    if (!config.fetchResources || urls.length === 0) return {};
-    progressPhase("resources", urls.length);
+    if (!config.fetchResources || urls.length === 0) {
+        run.emit({ type: "phase.ended", phase: "resources", status: "skipped" });
+        return {};
+    }
+    run.emit({ type: "phase.started", phase: "resources", total: urls.length });
     const results = new Map<string, ResourceResults[string]>();
     const failures = new Bucket<Failure>(bucket.name, bucket.directory, bucket.ttlSeconds, bucket.mode);
     const queue = urls.values();
@@ -269,11 +272,12 @@ export async function fetchResources(pages: Facts[], config: Config, bucket: Res
                       ? await fromLog(url, answer, config.maxBodySize, extractors, cache)
                       : await fetchRemembered(url, config, bucket, failures, extractors, cache, { ...ACCEPT_ENCODING, ...(images.has(url) && IMAGE_ACCEPT) }),
             );
-            progressCount(results.size);
+            run.emit({ type: "phase.counted", phase: "resources", done: results.size });
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), urls.length) }, worker);
     await until(Promise.all(workers), overdue);
+    run.emit({ type: "phase.ended", phase: "resources", status: overdue.aborted ? "cut" : "done" });
     if (overdue.aborted) log.warn({ fetched: results.size, resources: urls.length }, "analysis deadline reached, resources left unfetched");
     const all = results.values().toArray();
     const [failed, cached, revalidated, fromBrowser] = [all.filter((result) => result.status === 0).length, all.filter((result) => result.cached).length, all.filter((result) => result.revalidated).length, all.filter((result) => result.logged).length];

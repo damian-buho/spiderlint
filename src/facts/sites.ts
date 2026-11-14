@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { progressCount, progressPhase } from "../progress.ts";
+import { Run } from "../run.ts";
 import { getDomain } from "tldts";
 import { Bucket } from "../cache/index.ts";
 import { defaults, type Config } from "../config/index.ts";
@@ -111,6 +111,7 @@ export async function extractSites(
     profiles: ProfileBucket = new Bucket("profiles", undefined, 0, "off"),
     lists: ProfileBucket = new Bucket("lists", undefined, 0, "off"),
     overdue = new AbortController().signal,
+    run = new Run(),
 ): Promise<string[]> {
     const extra = active.some((extractor) => extractor.per === "host" && linked.has(extractor.id)) ? linkedHosts(pages) : new Map<string, Facts[]>();
     const jobs = active.flatMap((extractor) => [
@@ -121,7 +122,7 @@ export async function extractSites(
     log.debug({ extractors: active.map((extractor) => extractor.id), jobs: jobs.length, linked: extra.size }, "site extractors start");
     const ran: string[] = [];
     let finished = 0;
-    progressPhase("site", jobs.length);
+    run.emit({ type: "phase.started", phase: "site", total: jobs.length });
     const queue = jobs.values();
     const worker = async () => {
         for (const { extractor, subject, members, isLinked } of queue) {
@@ -140,7 +141,7 @@ export async function extractSites(
                     else log.warn({ extractor: extractor.id, subject, error: reason(error) }, `${extractor.id} checks of ${subject} skipped:`);
                 }
             }
-            progressCount((finished += 1));
+            run.emit({ type: "phase.counted", phase: "site", done: (finished += 1) });
             if (value === undefined) continue;
             const facts = (site[KIND[extractor.per]] ??= {});
             (facts[subject] ??= {})[extractor.id] = value;
@@ -148,6 +149,7 @@ export async function extractSites(
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), jobs.length) }, worker);
     await until(Promise.all(workers), overdue);
+    run.emit({ type: "phase.ended", phase: "site", status: overdue.aborted ? "cut" : "done" });
     if (overdue.aborted) log.warn({ finished, jobs: jobs.length }, "analysis deadline reached, site extractors skipped");
     log.debug({ runs: ran.length, jobs: jobs.length }, "site extractors done");
     return ran;

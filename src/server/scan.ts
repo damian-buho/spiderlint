@@ -12,8 +12,8 @@ import { fromSubtree, stanceOf } from "../config/policy.ts";
 import { validateSubtree } from "../config/schema.ts";
 import { audit } from "../index.ts";
 import { log } from "../logger.ts";
-import { onProgress } from "../progress.ts";
 import { formatJson } from "../report/json.ts";
+import { progressWriter } from "../run.ts";
 import { inSpan, startTelemetry, withTraceCarrier } from "../telemetry.ts";
 import { PREVIEW_FILE, preview } from "./preview.ts";
 import { PROGRESS_FD } from "./queue.ts";
@@ -42,11 +42,11 @@ async function main(): Promise<number> {
         previewBy,
         trace,
     } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[]; via?: string; "content-signals"?: string[]; crawlDeadline: number; analysisDeadline: number; previewBy?: number; trace?: Record<string, string> };
-    onProgress((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
+    const observer = progressWriter((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
     const telemetry = await startTelemetry("spiderlint");
     try {
         const report = await withTraceCarrier(trace, async () =>
-            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, analysisDeadline, cacheMode: "off", denyRules: deny })),
+            inSpan("scan", { "url.full": url }, async () => audit({ ...fromSubtree(validateSubtree(settings, "settings")), ...(via && { via }), ...(signals && { contentSignals: stanceOf(signals) }), seeds: [url], crawlDeadline, analysisDeadline, cacheMode: "off", denyRules: deny }, { observer })),
         );
         log.info({ url, pages: report.pages.length, findings: report.findings.length }, "scan finished");
         if (report.pages.length === 0) return 3;

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { progressCount, progressPhase } from "../progress.ts";
+import { Run } from "../run.ts";
 import type { Bucket } from "../cache/index.ts";
 import type { Config } from "../config/index.ts";
 import type { LinkFacts } from "../facts/types.ts";
@@ -76,7 +76,7 @@ export async function answerOf(href: string, config: Pick<Config, "allowPrivate"
 }
 
 // Probes every distinct http(s) link once, at most `maxLinks` of them unless 0, one request at a time per host, hosts in parallel, until `overdue` aborts; a link left unanswered is left out.
-export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths"> & Partial<Pick<Config, "maxLinks" | "darknets" | "proxy">>, bucket: ProbeBucket, overdue = new AbortController().signal): Promise<Record<string, LinkFacts>> {
+export async function probeLinks(links: string[], config: Pick<Config, "allowPrivate" | "concurrency" | "linkExclude" | "vendorPaths"> & Partial<Pick<Config, "maxLinks" | "darknets" | "proxy">>, bucket: ProbeBucket, overdue = new AbortController().signal, run = new Run()): Promise<Record<string, LinkFacts>> {
     const named = [...new Set(links)].filter((href) => URL.canParse(href) && /^https?:$/.test(new URL(href).protocol));
     const hrefs = config.maxLinks ? named.slice(0, config.maxLinks) : named;
     if (hrefs.length < named.length) log.info({ named: named.length, probed: hrefs.length, maxLinks: config.maxLinks }, "external links cut at max-links");
@@ -85,7 +85,7 @@ export async function probeLinks(links: string[], config: Pick<Config, "allowPri
     const answers: Record<string, LinkFacts> = {};
     let cached = 0;
     let probed = 0;
-    progressPhase("probes", hrefs.length);
+    run.emit({ type: "phase.started", phase: "probes", total: hrefs.length });
     const worker = async () => {
         for (const group of hosts) {
             let silent: (LinkFacts & { cached?: true }) | undefined;
@@ -98,12 +98,13 @@ export async function probeLinks(links: string[], config: Pick<Config, "allowPri
                 const isSilent = silent === undefined && answer.error !== undefined && darknetOf(new URL(href).hostname) !== undefined;
                 if (isSilent) log.debug({ url: href, links: group.length, error: answer.error }, "darknet host silent, its other links reuse the answer");
                 if (isSilent) silent = answer;
-                progressCount((probed += 1));
+                run.emit({ type: "phase.counted", phase: "probes", done: (probed += 1) });
             }
         }
     };
     const workers = Array.from({ length: Math.min(width(config.concurrency), hrefs.length) }, worker);
     await until(Promise.all(workers), overdue);
+    run.emit({ type: "phase.ended", phase: "probes", status: overdue.aborted ? "cut" : "done" });
     if (overdue.aborted) log.warn({ probed, links: hrefs.length }, "analysis deadline reached, external links left unprobed");
     const all = Object.values(answers);
     const skipped = all.filter((answer) => !isJudged(answer)).length;

@@ -35,7 +35,7 @@ import { fold, HETEROGENEOUS_GUIDE } from "./fold/index.ts";
 import { assignGroup, compileGroups } from "./groups/assign.ts";
 import { Sampler } from "./groups/sample.ts";
 import { log, logRelativeTo } from "./logger.ts";
-import { isProgressOn, progressDone, progressEnd, progressPhase } from "./progress.ts";
+import { Run, type RunObserver } from "./run.ts";
 import { extract, extractorsFor, isBrowserFact, isSampledFact, linkedSiteExtractors, loadPlugins, pageReader, resourceExtractorsFor, siteExtractorsFor } from "./plugins/index.ts";
 import type { Extractor, SiteExtractor } from "./plugins/types.ts";
 import { compileRulesets, isRuleMatch, resolveRuleset, ruleIds } from "./rules/rulesets.ts";
@@ -387,7 +387,7 @@ function sampledCells(pages: Facts[], rulesByGroup: Map<string, Rule[]>, groups:
     return new Set(cells);
 }
 
-type Lint = (crawled: Crawled, started: Date) => Report;
+type Lint = (crawled: Crawled, started: Date, run: Run) => Report;
 
 // Findings of rules reading the link graph say it is partial.
 function partial(run: RuleRun, rulesByGroup: Map<string, Rule[]>, reason: string): void {
@@ -448,9 +448,9 @@ function linter(config: Config): Lint {
     refuseUnknown(config, groups);
     const isDetected = requiresDetector(rulesByGroup.values().toArray().flat());
     const parity = rules.filter((id) => rulesByGroup.values().some((group) => group.some((rule) => rule.meta.id === id && rule.meta.facts.some((fact) => fact === "parity" || fact.startsWith("parity.")))));
-    return ({ pages, site, cost, fetch }, started) => {
+    return ({ pages, site, cost, fetch }, started, ongoing) => {
         stopIfInterrupted("lint");
-        progressPhase("lint");
+        ongoing.emit({ type: "phase.started", phase: "lint" });
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
         if (unrendered > 0) log.info({ rules: parity, pages: unrendered }, `${parity.join(", ")} skipped on ${unrendered} pages crawled over http; --fetch browser renders them`);
         derive(pages, site, config, matchers, isDetected);
@@ -463,7 +463,7 @@ function linter(config: Config): Lint {
         const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }), ...(isOutOfTime && { incomplete: site.crawl?.reason as NonNullable<Summary["incomplete"]> }) };
         log.debug(summary, "lint summary");
         log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
-        progressEnd();
+        ongoing.emit({ type: "phase.ended", phase: "lint" });
         return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
     };
 }
@@ -495,13 +495,12 @@ async function servedOffline(pages: Facts[], store: DiskStore | undefined, activ
 }
 
 // Fetches with the run’s network open: paced, and proxied when configured.
-async function crawlPages(config: Config, store?: DiskStore): Promise<Crawled> {
+async function crawlPages(config: Config, run: Run, store?: DiskStore): Promise<Crawled> {
     useScratchStorage();
     const network = await openNetwork(config);
     try {
-        return await crawlOpen(config, store, network.proxy);
+        return await crawlOpen(config, run, store, network.proxy);
     } finally {
-        progressEnd();
         await network.close();
     }
 }
@@ -514,7 +513,7 @@ function proxied(active: SiteExtractor[], config: Config): SiteExtractor[] {
 }
 
 // Fetches pages and their resources; a store also keeps facts, bodies, resource results, site facts and the frontier.
-async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
+async function crawlOpen(given: Config, run: Run, store: DiskStore | undefined, proxy: string | undefined): Promise<Crawled> {
     const memory = new MemoryStore();
     const overdue = given.analysisDeadline > 0 ? AbortSignal.timeout(given.analysisDeadline * 1000) : new AbortController().signal;
     const earlier = store ? await store.pages() : [];
@@ -557,11 +556,11 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
                     fetch: (url: string, init = {}) => probe(url, init, { host: new URL(facts.url.href).hostname, allowPrivate: config.allowPrivate, signal, robots }),
                 };
                 const extracting = performance.now();
-                const added = await extract(facts, body, chosen, extractors, live, context);
+                const added = await extract(facts, body, chosen, extractors, live, context, run);
                 sample.release(facts, chosen, added);
                 if (memory.add(facts)) await store?.add(facts, body);
-                progressDone(memory.pages.length);
-                log[isProgressOn() ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
+                run.emit({ type: "page.done", done: memory.pages.length });
+                log[run.observer?.isDrawing ? "debug" : "info"]({ page: facts.url.href, status: facts.http.status, pages: memory.pages.length, extractors: added, extractMs: Math.round(performance.now() - extracting) }, "page done");
             }),
         cache,
         router,
@@ -570,13 +569,14 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
         isKeptType,
         active.some((extractor) => extractor.debugging),
         active.some((extractor) => extractor.mode === "browser" && extractor.cost === "expensive"),
+        run,
     );
     if (interrupted.aborted) await store?.saveSite(site);
     stopIfInterrupted("resources");
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
     await store?.pruneBodies(memory.pages);
-    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors, overdue);
+    const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors, overdue, run);
     await store?.saveResources(results);
     const isProbed = rules.some((rule) => rule.meta.id === "links/external/unreachable");
     const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media/unreachable");
@@ -584,10 +584,10 @@ async function crawlOpen(given: Config, store: DiskStore | undefined, proxy: str
     const probes = openBucket<LinkFacts>("probes", config, store?.directory);
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
     stopIfInterrupted("link probes");
-    if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes, overdue);
+    if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes, overdue, run);
     stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
-    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory), overdue));
+    counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory), overdue, run));
     if (overdue.aborted) site.crawl = { complete: false, reason: "analysis-timeout" };
     log.debug({ pages: memory.pages.length, isOverdue: overdue.aborted, crawl: site.crawl }, "network phases ended");
     await store?.saveSite(site);
@@ -624,6 +624,20 @@ export async function validateRules(overrides: Partial<Config>): Promise<void> {
 export interface StoreOptions {
     store?: string;
     resume?: boolean;
+    observer?: RunObserver;
+}
+
+// Runs `work` under `run` and ends it: finished, incomplete for the reason `incomplete` names, or failed with the error, which is thrown on.
+async function ended<T>(run: Run, work: () => Promise<T>, incomplete?: (result: T) => string | undefined): Promise<T> {
+    try {
+        const result = await work();
+        const reason = incomplete?.(result);
+        run.emit({ type: "run.ended", outcome: reason ? { status: "incomplete", reason } : { status: "finished" } });
+        return result;
+    } catch (error) {
+        run.emit({ type: "run.ended", outcome: { status: "failed", error: error instanceof Error ? error.message : String(error) } });
+        throw error;
+    }
 }
 
 // crawl → facts → group → rules → fold; `store` keeps everything on disk for `lint` and `show-report`.
@@ -634,45 +648,59 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     await prepareLint(config);
+    const run = new Run(options.observer);
     const persist = async (store: DiskStore) => {
-        const report = withPrevious(lint(await crawlPages(config, store), started), store);
+        const report = withPrevious(lint(await crawlPages(config, run, store), started, run), store);
         await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
         return report;
     };
     const isFresh = !options.resume && config.cacheMode !== "offline";
-    return options.store ? withStore(options.store, { fresh: isFresh, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config), started);
+    return ended(
+        run,
+        async () => (options.store ? withStore(options.store, { fresh: isFresh, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config, run), started, run)),
+        (report) => report.summary.incomplete,
+    );
 }
 
 // Accumulate only: fetch into `directory` and lint nothing.
-export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false): Promise<Facts[]> {
+export async function crawl(overrides: Partial<Config>, directory: string, isResumed = false, observer?: RunObserver): Promise<Facts[]> {
     const config = layered([overrides]);
     setVia(config.via);
     await loadPlugins(config.plugins, config.pluginSettings);
-    return withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
-        const { pages } = await crawlPages(config, store);
-        return pages;
-    });
+    const run = new Run(observer);
+    return ended(run, async () =>
+        withStore(directory, { fresh: !isResumed && config.cacheMode !== "offline", seeds: config.seeds, configHash: crawlHash(config) }, async (store) => {
+            const { pages } = await crawlPages(config, run, store);
+            return pages;
+        }),
+    );
 }
 
 // Rules over stored facts with no network; the report is stored for `show-report`.
-export async function lintStore(overrides: Partial<Config>, directory: string): Promise<Report> {
+export async function lintStore(overrides: Partial<Config>, directory: string, observer?: RunObserver): Promise<Report> {
     const started = new Date();
     const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
     const lint = linter(config);
     await prepareLint(config);
-    return withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
-        const pages = await store.pages();
-        const cost: Cost = { extractors: {} };
-        const rules = enabledRules(config);
-        await backfill(pages, store, extractorsFor(rules), extractorCache(config, store, cost), samplerOf(config));
-        attachResources(pages, await store.resources());
-        const site = await store.site();
-        warnUnserved(site, siteExtractorsFor(rules));
-        const report = withPrevious(lint({ pages, site, cost }, started), store);
-        await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
-        return report;
-    });
+    const run = new Run(observer);
+    return ended(
+        run,
+        async () =>
+            withStore(directory, { fresh: false, existing: true, configHash: crawlHash(config) }, async (store) => {
+                const pages = await store.pages();
+                const cost: Cost = { extractors: {} };
+                const rules = enabledRules(config);
+                await backfill(pages, store, extractorsFor(rules), extractorCache(config, store, cost), samplerOf(config));
+                attachResources(pages, await store.resources());
+                const site = await store.site();
+                warnUnserved(site, siteExtractorsFor(rules));
+                const report = withPrevious(lint({ pages, site, cost }, started, run), store);
+                await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
+                return report;
+            }),
+        (report) => report.summary.incomplete,
+    );
 }
 
 // Every stored page’s facts and the site document, derived as a lint derives them, with no network and no rule run.
