@@ -47,7 +47,7 @@ const contentLength: Make = (severity) => ({
         const findings: Finding[] = [];
         for (const [key, { subject, kind, fault, urls }] of byFault) {
             const listed = [...urls].toSorted((a, b) => a.localeCompare(b));
-            const sentence = kind === undefined ? said(`${fault.text}; on these pages`) : said(`${SUBJECT} ${fault.text}; used by these pages`, { kind });
+            const sentence = kind === undefined ? said(fault.text) : said(`${SUBJECT} ${fault.text}`, { kind });
             log.debug({ rule: "http/content-length/invalid", subject, key, pages: listed.length }, "framing fault grouped");
             findings.push({ rule: "http/content-length/invalid", severity, scope: "site", url: subject, ...sentence, ...(fault.detail && { data: { [subject]: { detail: fault.detail } } }), urls: listed });
         }

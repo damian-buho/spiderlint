@@ -857,9 +857,7 @@ const discoveryType: Make = (severity) => ({
             log.debug({ rule: "feeds/discovery-link/mismatch", url: href, format: feed?.format, links: links.length, wrong: wrong.length }, "feed discovery judged");
             if (wrong.length === 0) continue;
             const urls = [...new Set(wrong.map(({ page }) => page.url.href))];
-            const sentence = feed
-                ? said("head links announce this URL as {announced}, it is {format}; linked from these pages", { announced: wrong[0]?.type ?? "", format: feed.format })
-                : said("head links announce this URL as a feed, it is {type}; linked from these pages", { type: linked.http["content-type"] || "no type" });
+            const sentence = feed ? said("head links announce this URL as {announced}, it is {format}", { announced: wrong[0]?.type ?? "", format: feed.format }) : said("head links announce this URL as a feed, it is {type}", { type: linked.http["content-type"] || "no type" });
             findings.push({ rule: "feeds/discovery-link/mismatch", severity, scope: "site", url: href, ...sentence, urls });
         }
         return findings;

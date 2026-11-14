@@ -164,14 +164,17 @@ describe("formatHtml", () => {
         const input = { ...report, findings: [resource, own], rules };
         const html = formatHtml(input, undefined, false, "en");
         assert.ok(html.includes("https://other.test/pixel.php?id=3"), "resource named");
-        assert.ok(html.includes(">/a</a>") && html.includes('<span class="rule-subject">/c</span>'), "same-origin URLs trimmed");
+        assert.ok(html.includes(">/a</a>") && html.includes(`<p><a href="${site.origin}/c" rel="nofollow noopener noreferrer">/c</a></p>`), "same-origin URLs trimmed");
         const heads = html.split('<summary class="rule-head">').slice(1);
         for (const part of heads) {
             const head = part.split("</summary>", 1)[0] ?? "";
-            assert.ok(!head.includes("<a"), "no nested link in a card head");
+            assert.ok(!head.includes("<a") && !head.includes("pixel.php"), "no link and no subject URL in a card head");
         }
-        assert.ok(html.includes('<span class="rule-subject">https://other.test/pixel.php?id=3</span>'), "subject still named as text");
+        assert.ok(html.includes('<div class="rule-findings"><p><a href="https://other.test/pixel.php?id=3" rel="nofollow noopener noreferrer">https://other.test/pixel.php?id=3</a></p><ul>'), "subject named above its pages in the card body");
         assert.ok(html.includes("Fix: Serve the image.") && html.includes('href="https://example.test/status"'), "fix and docs");
+        const human = formatHuman(input).split("\n");
+        const head = human.findIndex((line) => line.includes("resources/resource/unreachable"));
+        assert.deepEqual(human.slice(head, head + 3), ["  warning 5.0 resources/resource/unreachable — image answers 400; used by 2 pages", "          https://other.test/pixel.php?id=3", "            /a, /b"], "the resource under its message, its pages nested under it");
         for (const text of [formatHuman(input), formatAgent(input)]) {
             assert.ok(text.includes("https://other.test/pixel.php?id=3"), text);
             assert.ok(text.includes("/c") && !text.includes(`${site.origin}/c`), text);
@@ -196,7 +199,7 @@ describe("formatHtml", () => {
         assert.ok(!html.includes("<table><thead><tr><th>Severity"), "no findings table");
         assert.ok(!html.includes("Group:"), "default alone has no heading");
         const wholeSite = html.split('<article class="rule-card ').find((part) => part.includes("title is missing"));
-        assert.ok(wholeSite?.includes("Whole site") && !wholeSite.includes("<ul>"), "whole-site finding lists no pages");
+        assert.ok(!wholeSite?.includes("<ul>"), "whole-site finding lists no pages");
         assert.ok(wholeSite?.includes("Impact: 500<"), "impact is score times pages");
         assert.ok(html.indexOf("h1 is missing") < html.indexOf("title is missing"), "an error comes before a warning touching more pages");
         const byImpact = formatHtml(input, undefined, false, "en", false, false, false, "impact");
@@ -204,11 +207,20 @@ describe("formatHtml", () => {
         assert.ok(byImpact.includes('id="sort-impact" checked'), "the chosen sort is the one checked");
         assert.ok(wholeSite?.includes('data-severity="1" data-impact="0" data-score="1" data-scope="0"'), "each card carries its rank by severity, impact, score and scope");
         assert.ok(html.includes('<input type="radio" name="sort" id="sort-severity" checked>') && html.includes('id="sort-impact"') && html.includes('id="sort-score"') && html.includes('id="sort-scope"'), "sort control offers severity, impact, score and scope");
-        assert.match(wholeSite?.split("</summary>", 1)[0] ?? "", /Impact: 500<.*Scope: Whole site<.*rule-message/, "impact and scope sit in the head, before the message");
+        assert.match(wholeSite?.split("</summary>", 1)[0] ?? "", /Impact: 500<.*rule-message/, "impact sits in the head, before the message");
+        assert.ok(!wholeSite?.split("</article>", 1)[0]?.includes("Scope:"), "a scope equal to its section is left out");
         assert.ok(wholeSite?.includes("rule-arrow"), "collapsible arrow ends the header");
         assert.ok(wholeSite?.includes('<footer class="rule-foot"><code>seo/title</code>') && !wholeSite.split("</summary>", 1)[0]?.includes("seo/title"), "rule named in the footer, not the head");
         const grouped = formatHtml({ ...input, summary: { ...input.summary, groups: { default: 60, posts: 40 } } }, undefined, false, "en");
         assert.ok(grouped.includes("Group: default · Pages: 60"));
+        assert.match(
+            grouped
+                .split('<article class="rule-card ')
+                .find((part) => part.includes("title is missing"))
+                ?.split("</summary>", 1)[0] ?? "",
+            /Scope: Whole site</,
+            "a scope wider than its group is shown",
+        );
     });
 
     it("opens the report with the higher score first within a level, impact breaking a tie, and no inline style attribute on a card", () => {

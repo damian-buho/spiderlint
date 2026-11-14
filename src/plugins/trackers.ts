@@ -41,7 +41,7 @@ const inventory: Make = (severity) => ({
                 severity,
                 scope: "site",
                 url: `https://${hosts.values().next().value}/`,
-                ...said("{vendor} loads from these hosts on these pages", { vendor }),
+                ...said("{vendor} loads from its hosts", { vendor }),
                 data: { [`https://${hosts.values().next().value}/`]: { hosts: hosts.values().toArray().join(", ") } },
                 value: hosts.values().toArray(),
                 urls: urls.values().toArray(),

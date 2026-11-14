@@ -61,13 +61,12 @@ main { padding-block: 2.5rem; }
 .rule-card { margin-block: 1rem; background: var(--surface); border: 1px solid var(--line); border-inline-start: .25rem solid var(--muted); }
 .rule-card.error { border-inline-start-color: var(--error); } .rule-card.warning { border-inline-start-color: var(--warning); } .rule-card.info { border-inline-start-color: var(--info); }
 .rule-card.passed { border-inline-start-color: var(--good); } .rule-card.untested { border-inline-start-color: var(--line); }
-.rule-head { display: flex; align-items: baseline; gap: .75rem; padding: 1rem 1.25rem; list-style: none; }
+.rule-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .75rem; padding: 1rem 1.25rem; list-style: none; }
 .rule-card summary::marker { content: ""; } .rule-card summary::-webkit-details-marker { display: none; }
 .rule-head .badge { flex: none; font-weight: 700; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .rule-head code { flex: none; }
-.rule-head .rule-message { overflow-wrap: anywhere; }
+.rule-head .rule-message { flex: 1 1 12rem; overflow-wrap: anywhere; }
 .rule-head .rule-meta { flex: none; display: flex; gap: .75rem; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.rule-head .rule-subject { color: var(--muted); overflow-wrap: anywhere; }
 .rule-list { display: flex; flex-direction: column; gap: 1rem; margin-block: 1rem; } .rule-list .rule-card { margin-block: 0; }
 .sort { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center; margin-block-end: 1rem; color: var(--muted); font-size: .9rem; } .sort label { display: inline-flex; align-items: center; }
 .rule-head .rule-arrow { margin-inline-start: auto; flex: none; color: var(--muted); }
@@ -138,14 +137,9 @@ function severityName(t: Translator, severity: Finding["severity"]): string {
     return { error: t._("Error"), warning: t._("Warning"), info: t._("Info"), hint: t._("Hint") }[severity];
 }
 
-// A URL as text, shown relative to the shared origin; a summary stays link-free, since an anchor inside one nests interactive controls.
-function subjectText(url: string, origin: string): string {
-    return escape(relative(url, origin) || url);
-}
-
 // A link to a crawled http(s) URL, shown relative to the shared origin; anything else is plain text.
 function link(url: string, origin: string): string {
-    const text = subjectText(url, origin);
+    const text = escape(relative(url, origin) || url);
     return /^https?:\/\//i.test(url) ? `<a href="${escape(url)}" rel="nofollow noopener noreferrer">${text}</a>` : text;
 }
 
@@ -217,8 +211,8 @@ function bundlePages(same: Finding[], total: number): number {
     return same.reduce((sum, finding) => sum + pagesOf(finding, total), 0);
 }
 
-// One card per bundle: severity, message, impact, scope and subject on its head; expanded, the pages, locations, fix and docs; the rule on its foot.
-function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number, ranks: string): string {
+// One card per bundle: severity, message, impact, and scope unless it spans its whole section of `span` pages; expanded, the subject, pages, locations, fix and docs; the rule on its foot.
+function entry(t: Translator, same: Finding[], origin: string, guides: Report["rules"], total: number, ranks: string, span?: number): string {
     const [first] = same as [Finding];
     const { subject, isWhole, pages } = reach(t, same, origin, total);
     const said = sentence(first, t);
@@ -228,16 +222,19 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
         first.occurrences === undefined
             ? ""
             : `<p class="muted">${escape(first.sampled === undefined ? t._("Pages: {count} ({share})", { count: t.number(first.occurrences), share: t.number(first.coverage ?? 0, { style: "percent" }) }) : t._("Sampled pages: {count} of {sampled} ({share})", { count: t.number(first.occurrences), sampled: t.number(first.sampled), share: t.number(first.coverage ?? 0, { style: "percent" }) }))}${first.groups ? ` ${escape(t._("Groups: {groups}", { groups: first.groups.join(", ") }))}` : ""}</p>`;
-    const own = same.length === 1 && first.occurrences === undefined && !first.urls ? `${measured(t, first, first.url)}${locations(t, first.locations)}` : "";
+    const own = same.length === 1 && first.occurrences === undefined && !first.urls ? locations(t, first.locations) : "";
+    const named = subject ? `<p>${link(subject, origin)}${measured(t, first, subject)}</p>` : "";
     const listed = isWhole && !hasLocations ? "" : items(t, pages);
     const pageCount = bundlePages(same, total);
-    const scope = isWhole || (total > 0 && pageCount >= total) ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
-    const meta = `<span class="rule-meta"><span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span><span>${escape(t._("Scope"))}: ${escape(scope)}</span></span>`;
-    return `<article class="rule-card ${first.severity}" ${ranks}><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span>${meta}<span class="rule-message">${escape(message)}</span>${subject ? `<span class="rule-subject">${subjectText(subject, origin)}</span>` : ""}<span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${listed}${own}${cached(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot"><code>${escape(first.rule)}</code></footer></article>`;
+    const isSiteWide = isWhole || (total > 0 && pageCount >= total);
+    const scope = isSiteWide ? t._("Whole site") : t._("Pages: {count}", { count: t.number(pageCount) });
+    const isSection = span !== undefined && (isSiteWide ? span >= total : pageCount >= span);
+    const meta = `<span class="rule-meta"><span>${escape(t._("Impact"))}: ${escape(t.number(bundleImpact(same, total), { maximumFractionDigits: 1 }))}</span>${isSection ? "" : `<span>${escape(t._("Scope"))}: ${escape(scope)}</span>`}</span>`;
+    return `<article class="rule-card ${first.severity}" ${ranks}><details><summary class="rule-head"><span class="badge ${first.severity}">${escape(severityName(t, first.severity))} ${scoreOf(first).toFixed(1)}</span>${meta}<span class="rule-message">${escape(message)}</span><span class="rule-arrow" aria-hidden="true">▾</span></summary><div class="rule-findings">${share}${named}${listed}${own}${cached(t, same, origin)}${remedy(t, guides?.[first.rule], first)}</div></details><footer class="rule-foot"><code>${escape(first.rule)}</code></footer></article>`;
 }
 
-// One flat card per bundle in the chosen order, level then score then impact unless `sort` is impact; each card carries its rank by severity, impact, score and scope for the sort script.
-function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number, sort: Sort): string {
+// One flat card per bundle in the chosen order, level then score then impact unless `sort` is impact; each card carries its rank by severity, impact, score and scope for the sort script, and its section’s `span` in pages.
+function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number, sort: Sort, span?: number): string {
     const level = (same: Finding[]) => ORDER[(same[0] as Finding).severity];
     const top = (same: Finding[]) => Math.max(...same.map((finding) => scoreOf(finding)));
     const bundles = bundle(ordered(findings, total, sort).flat());
@@ -248,7 +245,7 @@ function rules(t: Translator, findings: Finding[], origin: string, guides: Repor
     const byScore = rank(byMeasure(top));
     const byScope = rank(byMeasure((same) => bundlePages(same, total)));
     const shown = sort === "impact" ? byImpact : bySeverity;
-    const cards = [...shown].toSorted(([, a], [, b]) => a - b).map(([same]) => entry(t, same, origin, guides, total, `data-severity="${bySeverity.get(same)}" data-impact="${byImpact.get(same)}" data-score="${byScore.get(same)}" data-scope="${byScope.get(same)}"`));
+    const cards = [...shown].toSorted(([, a], [, b]) => a - b).map(([same]) => entry(t, same, origin, guides, total, `data-severity="${bySeverity.get(same)}" data-impact="${byImpact.get(same)}" data-score="${byScore.get(same)}" data-scope="${byScope.get(same)}"`, span));
     return `<div class="rule-list">${cards.join("")}</div>`;
 }
 
@@ -324,13 +321,13 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
         const [sections, key] = finding.vendor ? [vendors, finding.vendor] : [groups, finding.scope === "site" ? "" : (finding.group as string)];
         sections.set(key, [...(sections.get(key) ?? []), finding]);
     }
-    const cards = (findings: Finding[]) => rules(t, findings, origin, report.rules, summary.pages, sort);
+    const cards = (findings: Finding[], span?: number) => rules(t, findings, origin, report.rules, summary.pages, sort, span);
     const site = groups.get("") ?? [];
     groups.delete("");
     const isOnlyDefault = groups.keys().every((group) => group === "default") && Object.keys(summary.groups).length <= 1;
-    const byGroup = [...groups].map(([group, findings]) => `${isOnlyDefault ? "" : `<h4>${escape(t._("Group: {name} · Pages: {count}", { name: group, count: t.number(summary.groups[group] ?? 0) }))}</h4>`}${cards(findings)}`);
+    const byGroup = [...groups].map(([group, findings]) => `${isOnlyDefault ? "" : `<h4>${escape(t._("Group: {name} · Pages: {count}", { name: group, count: t.number(summary.groups[group] ?? 0) }))}</h4>`}${cards(findings, summary.groups[group])}`);
     const parts = [
-        site.length > 0 ? `<h3>${escape(t._("Whole site"))}</h3>${cards(site)}` : "",
+        site.length > 0 ? `<h3>${escape(t._("Whole site"))}</h3>${cards(site, summary.pages)}` : "",
         byGroup.length > 0 ? `<h3>${escape(t._("Pages"))}</h3>${byGroup.join("")}` : "",
         ...[...vendors].map(([vendor, findings]) => `<h3>${escape(t._("Vendor: {name}", { name: vendor }))}</h3>${cards(findings)}`),
         hints.length > 0 ? `<details><summary><h3>${escape(t._("Hints: {count}", { count: t.number(hints.length) }))}</h3></summary>${cards(hints)}</details>` : "",

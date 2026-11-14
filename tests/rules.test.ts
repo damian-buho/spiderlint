@@ -130,9 +130,9 @@ describe("resource rules", () => {
             findings.map((finding) => finding.url),
             resources.slice(0, 4).map((resource) => resource.url),
         );
-        assert.equal(findings[1]?.message, "fingerprinted script is cached for less than a year; used by these pages");
+        assert.equal(findings[1]?.message, "fingerprinted script is cached for less than a year");
         assert.deepEqual(findings[1]?.data, { [findings[1]?.url as string]: { "max-age": 0 } });
-        assert.equal(findings[3]?.message, "fingerprinted script sends a Cache-Control that breaks RFC 9111; used by these pages");
+        assert.equal(findings[3]?.message, "fingerprinted script sends a Cache-Control that breaks RFC 9111");
         assert.deepEqual(findings[3]?.data, { [findings[3]?.url as string]: { errors: "“max-age=31536000; immutable” is not a directive" } });
     });
 
@@ -149,8 +149,8 @@ describe("resource rules", () => {
         assert.deepEqual(
             findings.map((finding) => [finding.url, finding.message, finding.data?.[finding.url]]),
             [
-                ["https://site.test/a.css", "a text style is not served with br, gzip or zstd; used by these pages", { type: "text/css" }],
-                ["https://site.test/f.ttf", "a text style is not served with br, gzip or zstd; used by these pages", { type: "font/ttf", "content-encoding": "identity" }],
+                ["https://site.test/a.css", "a text style is not served with br, gzip or zstd", { type: "text/css" }],
+                ["https://site.test/f.ttf", "a text style is not served with br, gzip or zstd", { type: "font/ttf", "content-encoding": "identity" }],
             ],
         );
     });

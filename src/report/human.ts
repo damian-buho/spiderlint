@@ -61,10 +61,10 @@ function shown(finding: Finding, url: string, origin: string): string {
     return [url, ...valuesAt(finding, url, number)].map((text) => relative(text, origin)).join("  ");
 }
 
-// At most `limit` URLs one per line with their values, the rest as a count.
-function measured(finding: Finding, urls: string[], origin: string, paint: Paint, limit: number): string[] {
-    const lines = urls.slice(0, limit).map((url) => paint("dim", `${DETAIL}${shown(finding, url, origin)}`));
-    return urls.length > limit ? [...lines, paint("dim", `${DETAIL}… and ${urls.length - limit} more`)] : lines;
+// At most `limit` URLs one per line with their values at `indent`, the rest as a count.
+function measured(finding: Finding, urls: string[], origin: string, paint: Paint, limit: number, indent = DETAIL): string[] {
+    const lines = urls.slice(0, limit).map((url) => paint("dim", `${indent}${shown(finding, url, origin)}`));
+    return urls.length > limit ? [...lines, paint("dim", `${indent}… and ${urls.length - limit} more`)] : lines;
 }
 
 // At most `limit` locations, each on its own line under what it locates, the rest as a count.
@@ -107,19 +107,20 @@ function bundled(same: Finding[], origin: string, paint: Paint, limit: number): 
     return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `${DETAIL}${shown(finding, finding.url, origin)}`), ...located(finding.locations, NESTED, paint, limit)])];
 }
 
-// A fold shows its samples; an aggregate its URL list, and its own URL when that is not one of them.
+// A fold shows its samples; a finding its URL under the message; an aggregate its URL list, nested under its own URL when that is not one of them.
 function line(finding: Finding, origin: string, paint: Paint, limit: number): string[] {
-    const url = relative(finding.url, origin);
     const message = shortMessage(finding, origin);
     const head = heading(finding, paint);
     if (finding.occurrences !== undefined) {
         const pages = `${finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`}${finding.groups ? ` in ${finding.groups.join(", ")}` : ""}`;
         return [`${head} — ${pages} (${Math.round((finding.coverage ?? 0) * 100)}%): ${message}`, ...sampled(finding, origin, paint, limit)];
     }
-    if (!finding.urls) return [`${head} ${url}: ${message}`, ...measured(finding, Object.hasOwn(finding.data ?? {}, finding.url) ? [finding.url] : [], origin, paint, limit), ...located(finding.locations, DETAIL, paint, limit)];
-    const subject = finding.urls.includes(finding.url) ? "—" : `${url}:`;
-    const urls = finding.data ? measured(finding, finding.urls, origin, paint, limit) : [paint("dim", `${DETAIL}${list(finding.urls, origin, limit)}`)];
-    return [`${head} ${subject} ${message}`, ...urls, ...located(finding.locations, DETAIL, paint, limit)];
+    const subject = [paint("dim", `${DETAIL}${shown(finding, finding.url, origin)}`)];
+    if (!finding.urls) return [`${head} — ${message}`, ...subject, ...located(finding.locations, NESTED, paint, limit)];
+    const isOwn = finding.urls.includes(finding.url);
+    const indent = isOwn ? DETAIL : NESTED;
+    const urls = finding.data ? measured(finding, finding.urls, origin, paint, limit, indent) : [paint("dim", `${indent}${list(finding.urls, origin, limit)}`)];
+    return [`${head} — ${message}`, ...(isOwn ? [] : subject), ...urls, ...located(finding.locations, DETAIL, paint, limit)];
 }
 
 // The grade and the rulesets it was earned under; a dash when nothing was judged.

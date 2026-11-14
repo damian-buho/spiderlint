@@ -257,19 +257,19 @@ const KINDS: Record<Kind, { name: string; inline?: string; says: Record<"sheet" 
     parse: {
         name: "stylesheet/invalid",
         inline: "style/invalid",
-        says: { sheet: "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages", inline: "inline CSS has syntax errors, so browsers drop the rule or block each sits in" },
+        says: { sheet: "the style sheet has syntax errors, so browsers drop the rule or block each sits in", inline: "inline CSS has syntax errors, so browsers drop the rule or block each sits in" },
         docs: "https://www.w3.org/TR/css-syntax-3/#error-handling",
         fix: 'Close every block and string, and write selectors browsers accept, as in a::before { content: "" }.',
     },
     property: {
         name: "property/unknown",
-        says: { sheet: "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages", inline: "inline CSS names properties browsers do not know, so they drop those declarations" },
+        says: { sheet: "the style sheet names properties browsers do not know, so they drop those declarations", inline: "inline CSS names properties browsers do not know, so they drop those declarations" },
         docs: "https://developer.mozilla.org/docs/Web/CSS/Reference",
         fix: "Correct the property name, as in color: red for colr: red, or remove the declaration.",
     },
     value: {
         name: "value/invalid",
-        says: { sheet: "the style sheet carries values outside a property’s grammar, so browsers drop those declarations; used by these pages", inline: "inline CSS carries values outside a property’s grammar, so browsers drop those declarations" },
+        says: { sheet: "the style sheet carries values outside a property’s grammar, so browsers drop those declarations", inline: "inline CSS carries values outside a property’s grammar, so browsers drop those declarations" },
         docs: "https://developer.mozilla.org/docs/Web/CSS/CSS_values_and_units/Value_definition_syntax",
         fix: "Give the property a value its grammar accepts, as in margin: calc(-1 * var(--gap)) for margin: -var(--gap).",
     },
@@ -377,7 +377,7 @@ const unsupported: Make = (severity, settings) =>
             (resource) => {
                 const targets = targetsOf(settings as CssSettings) as Targets;
                 const judged = unsupportedIn(cssOf(resource) as CssFacts, targets);
-                return judged && { ...said("the style sheet uses features the browser targets “{query}” lack; used by these pages", { query: targets.query }), data: { [resource.url]: { features: judged.features } }, locations: judged.locations };
+                return judged && { ...said("the style sheet uses features the browser targets “{query}” lack", { query: targets.query }), data: { [resource.url]: { features: judged.features } }, locations: judged.locations };
             },
             [`resources.${ID}`],
             (resource) => cssOf(resource)?.features,

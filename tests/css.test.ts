@@ -38,14 +38,14 @@ describe("css plugin", () => {
             "css/value/invalid /broken.css 8:17 Invalid value for `font-size` property — font-size: 12",
         ]);
         const unknown = report.findings.find((finding) => finding.rule === "css/property/unknown");
-        assert.equal(unknown?.message, "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages");
+        assert.equal(unknown?.message, "the style sheet names properties browsers do not know, so they drop those declarations");
         assert.deepEqual(unknown?.data, { [unknown?.url as string]: { messages: 1 } });
     });
 
     it("judges features against the declared browser targets", async () => {
         const report = await audit({ seeds: [`${site.origin}/about`], maxPages: 1, rules: ["css/feature/unsupported"], pluginSettings: { css: { targets: "ie 11" } }, sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(found(report, site.origin), ["css/feature/unsupported /broken.css 7:31 CSS Variables (Custom Properties) — IE 11"]);
-        assert.equal(report.findings[0]?.message, "the style sheet uses features the browser targets “ie 11” lack; used by these pages");
+        assert.equal(report.findings[0]?.message, "the style sheet uses features the browser targets “ie 11” lack");
         assert.deepEqual(report.findings[0]?.variables, { query: "ie 11" });
     });
 

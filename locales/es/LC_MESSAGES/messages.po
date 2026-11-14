@@ -474,11 +474,11 @@ msgstr "el perfil rel=me no enlaza de vuelta al sitio"
 msgid "{label} varies across {host}"
 msgstr "{label} varía en {host}"
 
-msgid "the link could not be reached: {error}; linked from these pages"
-msgstr "no se pudo acceder al enlace: {error}; enlazado desde estas páginas"
+msgid "the link could not be reached: {error}"
+msgstr "no se pudo acceder al enlace: {error}"
 
-msgid "the link answers {status}; linked from these pages"
-msgstr "el enlace responde {status}; enlazado desde estas páginas"
+msgid "the link answers {status}"
+msgstr "el enlace responde {status}"
 
 msgid "<html lang> should be a BCP 47 language tag"
 msgstr "<html lang> debe ser una etiqueta de idioma BCP 47"
@@ -1382,11 +1382,11 @@ msgstr "el rastreo enlaza sufijos de /.well-known/ que IANA no ha registrado: {g
 msgid "declared WebSub hub does not answer: {got}"
 msgstr "el hub WebSub declarado no responde: {got}"
 
-msgid "head links announce this URL as a feed, it is {type}; linked from these pages"
-msgstr "los enlaces del head anuncian esta URL como un feed, pero es {type}; enlazada desde estas páginas"
+msgid "head links announce this URL as a feed, it is {type}"
+msgstr "los enlaces del head anuncian esta URL como un feed, pero es {type}"
 
-msgid "head links announce this URL as {announced}, it is {format}; linked from these pages"
-msgstr "los enlaces del head anuncian esta URL como {announced}, pero es {format}; enlazada desde estas páginas"
+msgid "head links announce this URL as {announced}, it is {format}"
+msgstr "los enlaces del head anuncian esta URL como {announced}, pero es {format}"
 
 msgid "{count} of {total} pages advertise no feed while the rest do"
 msgstr "{count} de {total} páginas no anuncian ningún feed mientras las demás sí"
@@ -1523,8 +1523,8 @@ msgstr "el feed de pódcast {format} se bloquea con un valor que no es yes ni no
 msgid "{format} podcast feed sets no podcast:locked, so any platform may import it"
 msgstr "el feed de pódcast {format} no fija podcast:locked, así que cualquier plataforma puede importarlo"
 
-msgid "@font-face rules without font-display: swap, fallback or optional; used by these pages"
-msgstr "reglas @font-face sin font-display: swap, fallback u optional; usadas por estas páginas"
+msgid "@font-face rules without font-display: swap, fallback or optional"
+msgstr "reglas @font-face sin font-display: swap, fallback u optional"
 
 msgid "a 103 Early Hints preload is missing from the final Link header"
 msgstr "una precarga de 103 Early Hints falta en la cabecera Link final"
@@ -1532,23 +1532,23 @@ msgstr "una precarga de 103 Early Hints falta en la cabecera Link final"
 msgid "a meta viewport entry is not a key and value browsers read, so they ignore it"
 msgstr "una entrada de meta viewport no es una clave y valor que los navegadores lean, así que la ignoran"
 
-msgid "a text {kind} is not served with br, gzip or zstd; used by these pages"
-msgstr "un {kind} de texto no se sirve con br, gzip ni zstd; usado por estas páginas"
+msgid "a text {kind} is not served with br, gzip or zstd"
+msgstr "un {kind} de texto no se sirve con br, gzip ni zstd"
 
-msgid "a {format} font is not WOFF2; used by these pages"
-msgstr "una fuente {format} no es WOFF2; usada por estas páginas"
+msgid "a {format} font is not WOFF2"
+msgstr "una fuente {format} no es WOFF2"
 
-msgid "a {format} image is above the weight limit; used by these pages"
-msgstr "una imagen {format} supera el límite de peso; usada por estas páginas"
+msgid "a {format} image is above the weight limit"
+msgstr "una imagen {format} supera el límite de peso"
 
-msgid "a {format} image is smaller as {target}; used by these pages"
-msgstr "una imagen {format} pesa menos como {target}; usada por estas páginas"
+msgid "a {format} image is smaller as {target}"
+msgstr "una imagen {format} pesa menos como {target}"
 
-msgid "a {format} image re-encodes smaller; used by these pages"
-msgstr "una imagen {format} se recodifica más pequeña; usada por estas páginas"
+msgid "a {format} image re-encodes smaller"
+msgstr "una imagen {format} se recodifica más pequeña"
 
-msgid "a {kind} minifies smaller; used by these pages"
-msgstr "un {kind} se minifica a menos tamaño; usado por estas páginas"
+msgid "a {kind} minifies smaller"
+msgstr "un {kind} se minifica a menos tamaño"
 
 msgid "an <img> below the fold without loading=lazy loads before the reader scrolls"
 msgstr "un <img> bajo el pliegue sin loading=lazy carga antes de que el lector se desplace"
@@ -1568,8 +1568,8 @@ msgstr "un <img> sin width y height desplaza el diseño al cargar"
 msgid "an origin serves a render-blocking {kind} and nothing preconnects to it"
 msgstr "un origen sirve un {kind} que bloquea el renderizado y nada se preconecta a él"
 
-msgid "cross-origin {kind} without integrity; used by these pages"
-msgstr "{kind} de otro origen sin integrity; usado por estas páginas"
+msgid "cross-origin {kind} without integrity"
+msgstr "{kind} de otro origen sin integrity"
 
 msgid "inline CSS uses features the browser targets “{query}” lack"
 msgstr "el CSS en línea usa funciones que los navegadores objetivo “{query}” no tienen"
@@ -1586,26 +1586,26 @@ msgstr "ni frame-ancestors de content-security-policy ni x-frame-options rechaza
 msgid "rel={relation} warms an origin that no resource of the page loads"
 msgstr "rel={relation} calienta un origen que ningún recurso de la página carga"
 
-msgid "the link redirects elsewhere; linked from these pages"
-msgstr "el enlace redirige a otra parte; enlazado desde estas páginas"
+msgid "the link redirects elsewhere"
+msgstr "el enlace redirige a otra parte"
 
-msgid "the manifest does not parse; linked from these pages"
-msgstr "el manifiesto no se puede interpretar; enlazado desde estas páginas"
+msgid "the manifest does not parse"
+msgstr "el manifiesto no se puede interpretar"
 
-msgid "the manifest icons lack sizes or a maskable icon; linked from these pages"
-msgstr "a los iconos del manifiesto les faltan tamaños o un icono maskable; enlazado desde estas páginas"
+msgid "the manifest icons lack sizes or a maskable icon"
+msgstr "a los iconos del manifiesto les faltan tamaños o un icono maskable"
 
-msgid "the manifest is served or declared wrongly; linked from these pages"
-msgstr "el manifiesto se sirve o declara mal; enlazado desde estas páginas"
+msgid "the manifest is served or declared wrongly"
+msgstr "el manifiesto se sirve o declara mal"
 
-msgid "the manifest lacks members, so browsers will not offer to install the site; linked from these pages"
-msgstr "al manifiesto le faltan miembros, así que los navegadores no ofrecerán instalar el sitio; enlazado desde estas páginas"
+msgid "the manifest lacks members, so browsers will not offer to install the site"
+msgstr "al manifiesto le faltan miembros, así que los navegadores no ofrecerán instalar el sitio"
 
-msgid "the page answers {status}; linked from these pages"
-msgstr "la página responde {status}; enlazada desde estas páginas"
+msgid "the page answers {status}"
+msgstr "la página responde {status}"
 
-msgid "the page could not be fetched: {error}; linked from these pages"
-msgstr "no se pudo obtener la página: {error}; enlazada desde estas páginas"
+msgid "the page could not be fetched: {error}"
+msgstr "no se pudo obtener la página: {error}"
 
 msgid "the preconnect to a font origin lacks crossorigin, so fonts open a second connection"
 msgstr "al preconnect hacia un origen de fuentes le falta crossorigin, así que las fuentes abren una segunda conexión"
@@ -1613,23 +1613,23 @@ msgstr "al preconnect hacia un origen de fuentes le falta crossorigin, así que 
 msgid "the sitemap could not be read"
 msgstr "no se pudo leer el sitemap"
 
-msgid "the sitemap media answers {status}; listed by these pages"
-msgstr "el recurso multimedia del sitemap responde {status}; listado por estas páginas"
+msgid "the sitemap media answers {status}"
+msgstr "el recurso multimedia del sitemap responde {status}"
 
-msgid "the sitemap media could not be reached: {error}; listed by these pages"
-msgstr "no se pudo acceder al recurso multimedia del sitemap: {error}; listado por estas páginas"
+msgid "the sitemap media could not be reached: {error}"
+msgstr "no se pudo acceder al recurso multimedia del sitemap: {error}"
 
-msgid "the style sheet uses features the browser targets “{query}” lack; used by these pages"
-msgstr "la hoja de estilos usa funciones que los navegadores objetivo “{query}” no tienen; usada por estas páginas"
+msgid "the style sheet uses features the browser targets “{query}” lack"
+msgstr "la hoja de estilos usa funciones que los navegadores objetivo “{query}” no tienen"
 
 msgid "{count} of {total} pages link no manifest while the rest do"
 msgstr "{count} de {total} páginas no enlazan un manifiesto mientras las demás sí"
 
-msgid "{kind} answers {status}; used by these pages"
-msgstr "{kind} responde {status}; usado por estas páginas"
+msgid "{kind} answers {status}"
+msgstr "{kind} responde {status}"
 
-msgid "{kind} could not be fetched: {error}; used by these pages"
-msgstr "no se pudo obtener {kind}: {error}; usado por estas páginas"
+msgid "{kind} could not be fetched: {error}"
+msgstr "no se pudo obtener {kind}: {error}"
 
 msgid "{kind} loads over http: on the https: pages that use it"
 msgstr "{kind} se carga por http: en las páginas https: que lo usan"
@@ -1637,17 +1637,17 @@ msgstr "{kind} se carga por http: en las páginas https: que lo usan"
 msgid "{label} names another URL, not this page"
 msgstr "{label} nombra otra URL, no esta página"
 
-msgid "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111; used by these pages"
-msgstr "{kind} con huella envía un Cache-Control que incumple la RFC 9111; usado por estas páginas"
+msgid "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111"
+msgstr "{kind} con huella envía un Cache-Control que incumple la RFC 9111"
 
-msgid "immutable {kind} sends a Cache-Control that breaks RFC 9111; used by these pages"
-msgstr "{kind} inmutable envía un Cache-Control que incumple la RFC 9111; usado por estas páginas"
+msgid "immutable {kind} sends a Cache-Control that breaks RFC 9111"
+msgstr "{kind} inmutable envía un Cache-Control que incumple la RFC 9111"
 
-msgid "fingerprinted {kind} is cached for less than a year; used by these pages"
-msgstr "{kind} con huella se guarda en caché menos de un año; usado por estas páginas"
+msgid "fingerprinted {kind} is cached for less than a year"
+msgstr "{kind} con huella se guarda en caché menos de un año"
 
-msgid "immutable {kind} is cached for less than a year; used by these pages"
-msgstr "{kind} inmutable se guarda en caché menos de un año; usado por estas páginas"
+msgid "immutable {kind} is cached for less than a year"
+msgstr "{kind} inmutable se guarda en caché menos de un año"
 
 msgid "{type} files are sent immutable at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
 msgstr "los archivos {type} se envían immutable en URL sin hash ni versión, así que las cachés sirven una copia obsoleta tras la siguiente publicación"
@@ -1655,68 +1655,68 @@ msgstr "los archivos {type} se envían immutable en URL sin hash ni versión, as
 msgid "{type} files are cached long at URLs that carry no hash or version, so caches serve a stale copy after the next publish"
 msgstr "los archivos {type} se guardan en caché mucho tiempo en URL sin hash ni versión, así que las cachés sirven una copia obsoleta tras la siguiente publicación"
 
-msgid "the style sheet has syntax errors, so browsers drop the rule or block each sits in; used by these pages"
-msgstr "la hoja de estilos tiene errores de sintaxis, así que los navegadores descartan la regla o el bloque donde está cada uno; usada por estas páginas"
+msgid "the style sheet has syntax errors, so browsers drop the rule or block each sits in"
+msgstr "la hoja de estilos tiene errores de sintaxis, así que los navegadores descartan la regla o el bloque donde está cada uno"
 
 msgid "inline CSS has syntax errors, so browsers drop the rule or block each sits in"
 msgstr "el CSS en línea tiene errores de sintaxis, así que los navegadores descartan la regla o el bloque donde está cada uno"
 
-msgid "the style sheet names properties browsers do not know, so they drop those declarations; used by these pages"
-msgstr "la hoja de estilos nombra propiedades que los navegadores no conocen, así que descartan esas declaraciones; usada por estas páginas"
+msgid "the style sheet names properties browsers do not know, so they drop those declarations"
+msgstr "la hoja de estilos nombra propiedades que los navegadores no conocen, así que descartan esas declaraciones"
 
 msgid "inline CSS names properties browsers do not know, so they drop those declarations"
 msgstr "el CSS en línea nombra propiedades que los navegadores no conocen, así que descartan esas declaraciones"
 
-msgid "the style sheet carries values outside a property’s grammar, so browsers drop those declarations; used by these pages"
-msgstr "la hoja de estilos lleva valores fuera de la gramática de una propiedad, así que los navegadores descartan esas declaraciones; usada por estas páginas"
+msgid "the style sheet carries values outside a property’s grammar, so browsers drop those declarations"
+msgstr "la hoja de estilos lleva valores fuera de la gramática de una propiedad, así que los navegadores descartan esas declaraciones"
 
 msgid "inline CSS carries values outside a property’s grammar, so browsers drop those declarations"
 msgstr "el CSS en línea lleva valores fuera de la gramática de una propiedad, así que los navegadores descartan esas declaraciones"
 
-msgid "{kind}: a cookie is set without the Secure flag; used by these pages"
-msgstr "{kind}: una cookie se fija sin la marca Secure; usado por estas páginas"
+msgid "{kind}: a cookie is set without the Secure flag"
+msgstr "{kind}: una cookie se fija sin la marca Secure"
 
-msgid "{kind}: a cookie is set without the HttpOnly flag; used by these pages"
-msgstr "{kind}: una cookie se fija sin la marca HttpOnly; usado por estas páginas"
+msgid "{kind}: a cookie is set without the HttpOnly flag"
+msgstr "{kind}: una cookie se fija sin la marca HttpOnly"
 
-msgid "{kind}: a cookie is set without a SameSite attribute; used by these pages"
-msgstr "{kind}: una cookie se fija sin atributo SameSite; usado por estas páginas"
+msgid "{kind}: a cookie is set without a SameSite attribute"
+msgstr "{kind}: una cookie se fija sin atributo SameSite"
 
-msgid "{kind}: a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it; used by these pages"
-msgstr "{kind}: una cookie __Host- no tiene Secure ni Path=/, o fija Domain, así que los navegadores la rechazan; usado por estas páginas"
+msgid "{kind}: a __Host- cookie lacks Secure or Path=/, or sets Domain, so browsers reject it"
+msgstr "{kind}: una cookie __Host- no tiene Secure ni Path=/, o fija Domain, así que los navegadores la rechazan"
 
-msgid "{kind}: a __Secure- cookie lacks Secure, so browsers reject it; used by these pages"
-msgstr "{kind}: una cookie __Secure- no tiene Secure, así que los navegadores la rechazan; usado por estas páginas"
+msgid "{kind}: a __Secure- cookie lacks Secure, so browsers reject it"
+msgstr "{kind}: una cookie __Secure- no tiene Secure, así que los navegadores la rechazan"
 
-msgid "{kind}: a SameSite=None cookie lacks Secure, so browsers reject it; used by these pages"
-msgstr "{kind}: una cookie SameSite=None no tiene Secure, así que los navegadores la rechazan; usado por estas páginas"
+msgid "{kind}: a SameSite=None cookie lacks Secure, so browsers reject it"
+msgstr "{kind}: una cookie SameSite=None no tiene Secure, así que los navegadores la rechazan"
 
-msgid "{kind}: a cookie outlives 400 days, which browsers cap; used by these pages"
-msgstr "{kind}: una cookie dura más de 400 días, que es el tope de los navegadores; usado por estas páginas"
+msgid "{kind}: a cookie outlives 400 days, which browsers cap"
+msgstr "{kind}: una cookie dura más de 400 días, que es el tope de los navegadores"
 
-msgid "the response body ended short of the bytes Content-Length declares; on these pages"
-msgstr "el cuerpo de la respuesta terminó antes de los bytes que declara Content-Length; en estas páginas"
+msgid "the response body ended short of the bytes Content-Length declares"
+msgstr "el cuerpo de la respuesta terminó antes de los bytes que declara Content-Length"
 
-msgid "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; on these pages"
-msgstr "el cuerpo de la respuesta no coincide con Content-Length, o Content-Length se envía dos veces o junto a chunked; en estas páginas"
+msgid "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked"
+msgstr "el cuerpo de la respuesta no coincide con Content-Length, o Content-Length se envía dos veces o junto a chunked"
 
-msgid "the response sends Content-Length beside Transfer-Encoding; on these pages"
-msgstr "la respuesta envía Content-Length junto a Transfer-Encoding; en estas páginas"
+msgid "the response sends Content-Length beside Transfer-Encoding"
+msgstr "la respuesta envía Content-Length junto a Transfer-Encoding"
 
-msgid "a 204 response carries Content-Length; on these pages"
-msgstr "una respuesta 204 lleva Content-Length; en estas páginas"
+msgid "a 204 response carries Content-Length"
+msgstr "una respuesta 204 lleva Content-Length"
 
-msgid "{kind}: the response body ended short of the bytes Content-Length declares; used by these pages"
-msgstr "{kind}: el cuerpo de la respuesta terminó antes de los bytes que declara Content-Length; usado por estas páginas"
+msgid "{kind}: the response body ended short of the bytes Content-Length declares"
+msgstr "{kind}: el cuerpo de la respuesta terminó antes de los bytes que declara Content-Length"
 
-msgid "{kind}: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages"
-msgstr "{kind}: el cuerpo de la respuesta no coincide con Content-Length, o Content-Length se envía dos veces o junto a chunked; usado por estas páginas"
+msgid "{kind}: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked"
+msgstr "{kind}: el cuerpo de la respuesta no coincide con Content-Length, o Content-Length se envía dos veces o junto a chunked"
 
-msgid "{kind}: the response sends Content-Length beside Transfer-Encoding; used by these pages"
-msgstr "{kind}: la respuesta envía Content-Length junto a Transfer-Encoding; usado por estas páginas"
+msgid "{kind}: the response sends Content-Length beside Transfer-Encoding"
+msgstr "{kind}: la respuesta envía Content-Length junto a Transfer-Encoding"
 
-msgid "{kind}: a 204 response carries Content-Length; used by these pages"
-msgstr "{kind}: una respuesta 204 lleva Content-Length; usado por estas páginas"
+msgid "{kind}: a 204 response carries Content-Length"
+msgstr "{kind}: una respuesta 204 lleva Content-Length"
 
 msgid "Content-Signal should be search, ai-input or ai-train set to yes or no"
 msgstr "Content-Signal debe ser search, ai-input o ai-train con valor yes o no"
@@ -1745,11 +1745,11 @@ msgstr "un campo de formulario está por debajo de {limit} px, así que iOS Safa
 msgid "a link lacks the rel tokens declared for its host"
 msgstr "a un enlace le faltan los tokens rel declarados para su host"
 
-msgid "a reference names a node its document never defines; named by these pages"
-msgstr "una referencia nombra un nodo que su documento nunca define; nombrada por estas páginas"
+msgid "a reference names a node its document never defines"
+msgstr "una referencia nombra un nodo que su documento nunca define"
 
-msgid "a reference names a node its own page never defines; named by these pages"
-msgstr "una referencia nombra un nodo que su propia página nunca define; nombrada por estas páginas"
+msgid "a reference names a node its own page never defines"
+msgstr "una referencia nombra un nodo que su propia página nunca define"
 
 msgid "an <input> whose type does not match the autocomplete field, so phones show the wrong keyboard"
 msgstr "un <input> cuyo tipo no coincide con el campo de autocompletado, así que los móviles muestran el teclado equivocado"
@@ -1817,11 +1817,11 @@ msgstr "las fechas de los datos estructurados están mal formadas o se contradic
 msgid "structured data nodes lack properties their rich result requires"
 msgstr "a los nodos de datos estructurados les faltan propiedades que exige su resultado enriquecido"
 
-msgid "the breadcrumb item answers {status}; named by these pages"
-msgstr "el elemento de migas de pan responde {status}; nombrado por estas páginas"
+msgid "the breadcrumb item answers {status}"
+msgstr "el elemento de migas de pan responde {status}"
 
-msgid "the breadcrumb item redirects; named by these pages"
-msgstr "el elemento de migas de pan redirige; nombrado por estas páginas"
+msgid "the breadcrumb item redirects"
+msgstr "el elemento de migas de pan redirige"
 
 msgid "the file names AI crawlers"
 msgstr "el archivo nombra rastreadores de IA"
@@ -1844,11 +1844,11 @@ msgstr "la primera parada de Tab no es un enlace al contenido principal"
 msgid "the host names its software in {field}"
 msgstr "el host nombra su software en {field}"
 
-msgid "the hreflang target answers {status}; named by these pages"
-msgstr "el destino de hreflang responde {status}; nombrado por estas páginas"
+msgid "the hreflang target answers {status}"
+msgstr "el destino de hreflang responde {status}"
 
-msgid "the hreflang target redirects; named by these pages"
-msgstr "el destino de hreflang redirige; nombrado por estas páginas"
+msgid "the hreflang target redirects"
+msgstr "el destino de hreflang redirige"
 
 msgid "the page does not name back the pages listing it as an hreflang alternate"
 msgstr "la página no nombra de vuelta a las páginas que la listan como alternativa hreflang"
@@ -1868,8 +1868,8 @@ msgstr "{message}"
 msgid "{rule} fails on {count} of {total} pages; the group likely spans two templates"
 msgstr "{rule} falla en {count} de {total} páginas; el grupo probablemente abarca dos plantillas"
 
-msgid "{vendor} loads from these hosts on these pages"
-msgstr "{vendor} se carga desde estos hosts en estas páginas"
+msgid "{vendor} loads from its hosts"
+msgstr "{vendor} se carga desde sus hosts"
 
 msgid "the host’s clock runs ahead of ours"
 msgstr "el reloj del host va adelantado respecto al nuestro"

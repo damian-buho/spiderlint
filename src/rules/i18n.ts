@@ -69,7 +69,7 @@ const hreflangStatus: Make = (severity) => ({
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), site?.redirects?.[url]];
             log.debug({ rule: "i18n/hreflang/unreachable", url, status: answer, landing, pages: urls.length }, "hreflang target judged");
-            const verdict = landing ? { ...said("the hreflang target redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the hreflang target answers {status}; named by these pages", { status: String(answer) }) : undefined;
+            const verdict = landing ? { ...said("the hreflang target redirects"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the hreflang target answers {status}", { status: String(answer) }) : undefined;
             if (verdict) findings.push({ rule: "i18n/hreflang/unreachable", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;

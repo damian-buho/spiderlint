@@ -264,7 +264,7 @@ const references: Make = (severity) => ({
                 severity,
                 scope: "site",
                 url: id,
-                ...(id.startsWith("_:") ? said("a reference names a node its own page never defines; named by these pages") : { ...said("a reference names a node its document never defines; named by these pages"), data: { [id]: { document: documentOf(id) } } }),
+                ...(id.startsWith("_:") ? said("a reference names a node its own page never defines") : { ...said("a reference names a node its document never defines"), data: { [id]: { document: documentOf(id) } } }),
                 value: id,
                 urls,
             }))
@@ -291,7 +291,7 @@ const breadcrumbs: Make = (severity) => ({
         for (const [url, urls] of naming) {
             const [answer, landing] = [status.get(url), redirects[url]];
             log.debug({ rule: "structured-data/breadcrumb/unreachable", url, status: answer, landing, pages: urls.length }, "breadcrumb judged");
-            const verdict = landing ? { ...said("the breadcrumb item redirects; named by these pages"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the breadcrumb item answers {status}; named by these pages", { status: String(answer) }) : undefined;
+            const verdict = landing ? { ...said("the breadcrumb item redirects"), data: { [url]: { landing } } } : answer !== undefined && (answer < 200 || answer > 299) ? said("the breadcrumb item answers {status}", { status: String(answer) }) : undefined;
             if (verdict) findings.push({ rule: "structured-data/breadcrumb/unreachable", severity, scope: "site", url, ...verdict, value: landing ?? answer, urls });
         }
         return findings;

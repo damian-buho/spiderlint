@@ -114,7 +114,7 @@ function onResources(check: Check): Make {
         (_page, resource) => (resource.http?.cookies?.length ?? 0) > 0 && (!check.isHttpsOnly || resource.url.startsWith("https:")),
         (resource) => {
             const names = failing(resource.http?.cookies);
-            return names.length === 0 ? undefined : { ...said(`${SUBJECT} ${check.message}; used by these pages`, { kind: resource.kind }), data: { [resource.url]: { cookies: names.join(", ") } } };
+            return names.length === 0 ? undefined : { ...said(`${SUBJECT} ${check.message}`, { kind: resource.kind }), data: { [resource.url]: { cookies: names.join(", ") } } };
         },
         ["resources"],
         (resource) => failing(resource.http?.cookies),

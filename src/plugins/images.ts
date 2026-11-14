@@ -205,7 +205,7 @@ const modernFormat: Make = (severity, settings) =>
             const share = target && LEGACY.has(image.format) ? saved((settings as ImagesSettings).saving, image.bytes, encoded[target]) : undefined;
             return share === undefined
                 ? undefined
-                : { ...said("a {format} image is smaller as {target}; used by these pages", { format: image.format, target: target as Target }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: encoded[target as Target] as number } } } };
+                : { ...said("a {format} image is smaller as {target}", { format: image.format, target: target as Target }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: encoded[target as Target] as number } } } };
         },
         FACTS,
         valueOf,
@@ -220,7 +220,7 @@ const recompress: Make = (severity, settings) =>
         (resource) => {
             const image = imageOf(resource) as ImageFacts;
             const share = saved((settings as ImagesSettings).saving, image.bytes, image.encoded?.same);
-            return share === undefined ? undefined : { ...said("a {format} image re-encodes smaller; used by these pages", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: image.encoded?.same as number } } } };
+            return share === undefined ? undefined : { ...said("a {format} image re-encodes smaller", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: image.encoded?.same as number } } } };
         },
         FACTS,
         valueOf,
@@ -235,7 +235,7 @@ const weight: Make = (severity, settings) =>
         (resource) => {
             const image = imageOf(resource) as ImageFacts;
             const limit = (settings as ImagesSettings).weight;
-            return image.bytes > limit ? { ...said("a {format} image is above the weight limit; used by these pages", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, limit: { fact: "http.size.body", value: limit } } } } : undefined;
+            return image.bytes > limit ? { ...said("a {format} image is above the weight limit", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, limit: { fact: "http.size.body", value: limit } } } } : undefined;
         },
         FACTS,
         valueOf,
@@ -250,7 +250,7 @@ const minify: Make = (severity, settings) =>
         (resource) => {
             const text = textOf(resource) as TextFacts;
             const share = saved((settings as ImagesSettings).saving, text.bytes, text.minified);
-            return share === undefined ? undefined : { ...said("a {kind} minifies smaller; used by these pages", { kind: resource.kind }), data: { [resource.url]: { size: { fact: "http.size.body", value: text.bytes }, smaller: { fact: "http.size.body", value: text.minified } } } };
+            return share === undefined ? undefined : { ...said("a {kind} minifies smaller", { kind: resource.kind }), data: { [resource.url]: { size: { fact: "http.size.body", value: text.bytes }, smaller: { fact: "http.size.body", value: text.minified } } } };
         },
         [`resources.${TEXT}`],
         textOf,
@@ -263,7 +263,7 @@ const fontFormat = resourceRule(
     (_page, resource) => fontOf(resource) !== undefined,
     (resource) => {
         const font = fontOf(resource) as { format: string; bytes: number };
-        return font.format === "woff2" ? undefined : { ...said("a {format} font is not WOFF2; used by these pages", { format: font.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: font.bytes } } } };
+        return font.format === "woff2" ? undefined : { ...said("a {format} font is not WOFF2", { format: font.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: font.bytes } } } };
     },
     [`resources.${FONTS}`],
     fontOf,
@@ -276,7 +276,7 @@ const fontDisplay = resourceRule(
     (_page, resource) => textOf(resource)?.["font-faces"] !== undefined,
     (resource) => {
         const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
-        return invisible.length === 0 ? undefined : { ...said("@font-face rules without font-display: swap, fallback or optional; used by these pages"), data: { [resource.url]: { faces: invisible.length, families: [...new Set(invisible)].join(", ") } } };
+        return invisible.length === 0 ? undefined : { ...said("@font-face rules without font-display: swap, fallback or optional"), data: { [resource.url]: { faces: invisible.length, families: [...new Set(invisible)].join(", ") } } };
     },
     [`resources.${TEXT}`],
     (resource) => textOf(resource)?.["font-faces"],

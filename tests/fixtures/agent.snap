@@ -13,7 +13,7 @@
 
 ## links/internal/unreachable (error 7.4)
 
-the page answers 404; linked from these pages
+the page answers 404
 
 Where: /missing, used by or shared with:
 - /
@@ -234,7 +234,7 @@ Done when: `spiderlint audit ORIGIN/ --rules html/og-image/missing` reports no h
 
 ## links/external/unreachable (warning 4.6)
 
-the link answers 404; linked from these pages
+the link answers 404
 
 Where: EXTERNAL/gone, used by or shared with:
 - /about
@@ -245,7 +245,7 @@ Done when: `spiderlint audit ORIGIN/ --rules links/external/unreachable` reports
 
 ## links/internal/redirected (warning 4.6)
 
-the link redirects elsewhere; linked from these pages
+the link redirects elsewhere
 
 Where: /old-about: /about, used by or shared with:
 - /orphan

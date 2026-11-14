@@ -153,14 +153,14 @@ describe("audit", () => {
         assert.equal(dead?.url, `${site.origin}/missing`);
         assert.equal(dead?.severity, "error");
         assert.equal(dead?.urls?.length, 12);
-        assert.equal(dead?.message, "the page answers 404; linked from these pages");
+        assert.equal(dead?.message, "the page answers 404");
     });
 
     it("reports only the dead external link, and asks it again on the next run", async () => {
         const [dead, ...rest] = of("links/external/unreachable");
         assert.equal(rest.length, 0);
         assert.equal(dead?.url, `${cdn()}/gone`);
-        assert.equal(dead?.message, "the link answers 404; linked from these pages");
+        assert.equal(dead?.message, "the link answers 404");
         assert.deepEqual(
             dead?.evidence?.map((read) => [read.bucket, read.via, Number.isNaN(Date.parse(read.at ?? ""))]),
             [["probes", "network", false]],
@@ -207,10 +207,10 @@ describe("audit", () => {
         assert.deepEqual(
             found.map((finding) => [finding.url, finding.value, finding.urls?.length, finding.message]),
             [
-                ["http://mirror.onion", 0, 2, "the link could not be reached: getaddrinfo ENOTFOUND mirror.onion; linked from these pages"],
-                ["http://other.onion", 0, 1, "the link could not be reached: getaddrinfo ENOTFOUND other.onion; linked from these pages"],
-                ["http://slow.test", 0, 1, "the link could not be reached: timeout; linked from these pages"],
-                ["http://slow.test", 0, 1, "the link could not be reached: refused; linked from these pages"],
+                ["http://mirror.onion", 0, 2, "the link could not be reached: getaddrinfo ENOTFOUND mirror.onion"],
+                ["http://other.onion", 0, 1, "the link could not be reached: getaddrinfo ENOTFOUND other.onion"],
+                ["http://slow.test", 0, 1, "the link could not be reached: timeout"],
+                ["http://slow.test", 0, 1, "the link could not be reached: refused"],
             ],
         );
         assert.deepEqual(found[0]?.data, { "https://site.test/a/": { link: "http://mirror.onion/a/" }, "https://site.test/b/": { link: "http://mirror.onion/b/, http://mirror.onion/c/" } });
@@ -359,7 +359,7 @@ describe("audit", () => {
         const [redirected, ...rest] = of("links/internal/redirected");
         assert.equal(rest.length, 0);
         assert.equal(redirected?.url, `${site.origin}/old-about`);
-        assert.equal(redirected?.message, "the link redirects elsewhere; linked from these pages");
+        assert.equal(redirected?.message, "the link redirects elsewhere");
         assert.deepEqual(redirected?.data, { [`${site.origin}/old-about`]: { landing: `${site.origin}/about` } });
         assert.deepEqual(redirected?.urls, [`${site.origin}/orphan`]);
         assert.ok(report.pages.find((page) => page.url.pathname === "/about")?.crawl.referrers.includes(`${site.origin}/orphan`));
@@ -422,7 +422,7 @@ describe("audit", () => {
         } as unknown as Report;
         const lines = formatHuman(bundledReport, undefined, false, "en").split("\n");
         const start = lines.findIndex((line) => line.includes("http/csp/missing"));
-        assert.deepEqual(lines.slice(start - 1, start + 4), ["pages (3)", "  warning 5.0 http/csp/missing — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp/missing /z: csp is weak"]);
+        assert.deepEqual(lines.slice(start - 1, start + 5), ["pages (3)", "  warning 5.0 http/csp/missing — 2 pages: csp is absent", "          /x", "          /y", "  warning 5.0 http/csp/missing — csp is weak", "          /z"]);
         assert.deepEqual(lines.slice(1, 7), ["pages      3 (3 × 200)", "size       0 byte", "time       0 sec", "rules      1", "checks     0 of 0 passed", "findings   3 (0 errors, 3 warnings, 0 info)"]);
         assert.deepEqual(formatHuman(bundledReport, undefined, false, "es").split("\n").slice(2, 4), ["size       0 B", "time       0 s"]);
         const previous = { started: "2026-09-24T12:00:00Z", findings: { total: 5, error: 1, warning: 3, info: 1, hint: 0 } };
@@ -787,18 +787,18 @@ describe("audit options", () => {
         assert.deepEqual(
             statuses.map((finding) => [finding.message, finding.urls?.length]).toSorted(([a], [b]) => String(a).localeCompare(String(b))),
             [
-                ["image answers 404; used by these pages", 2],
-                ["script answers 404; used by these pages", 13],
+                ["image answers 404", 2],
+                ["script answers 404", 13],
             ],
         );
         const status = statuses.find((finding) => finding.url.endsWith("/cdn/lib.js"));
         assert.match(status?.url ?? "", /^http:\/\/localhost:\d+\/cdn\/lib\.js$/);
-        assert.equal(status?.message, "script answers 404; used by these pages");
+        assert.equal(status?.message, "script answers 404");
         assert.equal(status?.urls?.length, 13);
         const sri = report.findings.filter((finding) => finding.rule === "resources/integrity/missing");
         assert.deepEqual(
             sri.map((finding) => finding.message),
-            ["cross-origin script without integrity; used by these pages"],
+            ["cross-origin script without integrity"],
         );
     });
 
@@ -891,13 +891,13 @@ describe("content length", () => {
         assert.deepEqual(
             sorted(found),
             sorted([
-                ["HOST", "the response sends Content-Length beside Transfer-Encoding; on these pages", undefined],
-                ["HOST", "a 204 response carries Content-Length; on these pages", undefined],
-                ["HOST", "the response body ended short of the bytes Content-Length declares; on these pages", "body ended at 12 of the 400 bytes Content-Length declares"],
-                ["HOST", "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; on these pages", undefined],
-                ["HOST/chunked.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages", undefined],
-                ["HOST/short.js", "script: the response body ended short of the bytes Content-Length declares; used by these pages", "body ended at 7 of the 40 bytes Content-Length declares"],
-                ["HOST/twice.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked; used by these pages", undefined],
+                ["HOST", "the response sends Content-Length beside Transfer-Encoding", undefined],
+                ["HOST", "a 204 response carries Content-Length", undefined],
+                ["HOST", "the response body ended short of the bytes Content-Length declares", "body ended at 12 of the 400 bytes Content-Length declares"],
+                ["HOST", "the response body does not match Content-Length, or Content-Length is sent twice or beside chunked", undefined],
+                ["HOST/chunked.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked", undefined],
+                ["HOST/short.js", "script: the response body ended short of the bytes Content-Length declares", "body ended at 7 of the 40 bytes Content-Length declares"],
+                ["HOST/twice.js", "script: the response body does not match Content-Length, or Content-Length is sent twice or beside chunked", undefined],
             ]),
         );
         const broken = report.findings.filter((finding) => finding.rule === "links/internal/unreachable").map((finding) => [hosted(finding.url), finding.variables?.error]);

@@ -35,7 +35,7 @@ const brokenInternal: Make = (severity) => ({
                 severity,
                 scope: "site",
                 url: page.url.href,
-                ...(page.http.error ? said("the page could not be fetched: {error}; linked from these pages", { error: page.http.error }) : said("the page answers {status}; linked from these pages", { status: String(page.http.status) })),
+                ...(page.http.error ? said("the page could not be fetched: {error}", { error: page.http.error }) : said("the page answers {status}", { status: String(page.http.status) })),
                 value: page.http.status,
                 urls: page.crawl.referrers,
             });
@@ -56,7 +56,7 @@ function unreached(severity: Finding["severity"], links: [href: string, urls: st
         severity,
         scope: "site",
         url,
-        ...said("the link could not be reached: {error}; linked from these pages", { error }),
+        ...said("the link could not be reached: {error}", { error }),
         data: Object.fromEntries(byPage.entries().map(([page, hrefs]) => [page, { link: hrefs.join(", ") }])),
         evidence: links.map(([href, , answer]) => evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })),
         value: 0,
@@ -86,7 +86,7 @@ const brokenExternal: Make = (severity) => ({
                 silent.set(key, [...(silent.get(key) ?? []), [href, urls, answer]]);
                 continue;
             }
-            findings.push({ rule: "links/external/unreachable", severity, scope: "site", url: href, ...said("the link answers {status}; linked from these pages", { status: String(answer.status) }), evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
+            findings.push({ rule: "links/external/unreachable", severity, scope: "site", url: href, ...said("the link answers {status}", { status: String(answer.status) }), evidence: [evidence("probes", href, { ...(answer.checked && { at: answer.checked }) })], value: answer.status, urls });
         }
         return [...findings, ...silent.values().map((links) => unreached(severity, links))];
     },
@@ -104,7 +104,7 @@ const sitemapMedia: Make = (severity) => ({
             const isBroken = answer !== undefined && isJudged(answer) && (answer.status === 0 || answer.status >= 400);
             log.debug({ rule: "sitemap/media/unreachable", url: href, status: answer?.status, isBroken }, "sitemap media judged");
             if (!isBroken) continue;
-            const verdict = answer.status === 0 ? said("the sitemap media could not be reached: {error}; listed by these pages", { error: answer.error ?? "" }) : said("the sitemap media answers {status}; listed by these pages", { status: String(answer.status) });
+            const verdict = answer.status === 0 ? said("the sitemap media could not be reached: {error}", { error: answer.error ?? "" }) : said("the sitemap media answers {status}", { status: String(answer.status) });
             findings.push({ rule: "sitemap/media/unreachable", severity, scope: "site", url: href, ...verdict, value: answer.status, urls });
         }
         return findings;
@@ -124,7 +124,7 @@ const redirectedInternal: Make = (severity) => ({
         log.debug({ rule: "links/internal/redirected", redirecting: landing.size, linked: linking.size }, "internal redirects judged");
         return linking
             .entries()
-            .map(([href, urls]) => ({ rule: "links/internal/redirected", severity, scope: "site" as const, url: href, ...said("the link redirects elsewhere; linked from these pages"), data: { [href]: { landing: landing.get(href) as string } }, value: landing.get(href), urls }))
+            .map(([href, urls]) => ({ rule: "links/internal/redirected", severity, scope: "site" as const, url: href, ...said("the link redirects elsewhere"), data: { [href]: { landing: landing.get(href) as string } }, value: landing.get(href), urls }))
             .toArray();
     },
 });
@@ -451,7 +451,7 @@ const isAnyUse = () => true;
 const resourceStatus: Verdict = (resource) => {
     const http = resource.http;
     if (!http || (http.status >= 200 && http.status < 300)) return;
-    return http.status === 0 ? said("{kind} could not be fetched: {error}; used by these pages", { kind: resource.kind, error: http.error ?? "" }) : said("{kind} answers {status}; used by these pages", { kind: resource.kind, status: String(http.status) });
+    return http.status === 0 ? said("{kind} could not be fetched: {error}", { kind: resource.kind, error: http.error ?? "" }) : said("{kind} answers {status}", { kind: resource.kind, status: String(http.status) });
 };
 
 // A resource header's value, repeated fields joined; absent is empty.
@@ -483,8 +483,8 @@ const resourceCacheControl: Verdict = (resource) => {
     const isLong = maxAge >= YEAR && !directives["no-cache"] && !directives["no-store"];
     log.debug({ rule: "resources/cache-control/weak", resource: resource.url, isImmutable, isHashed, maxAge, isLong, errors }, "resource cache policy judged");
     const variables = { kind: resource.kind };
-    if (errors.length > 0) return { ...said(isHashed ? "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111; used by these pages" : "immutable {kind} sends a Cache-Control that breaks RFC 9111; used by these pages", variables), data: { [resource.url]: { errors: errors.join("; ") } } };
-    return isLong ? undefined : { ...said(isHashed ? "fingerprinted {kind} is cached for less than a year; used by these pages" : "immutable {kind} is cached for less than a year; used by these pages", variables), data: { [resource.url]: { "max-age": maxAge, ...(policy && { "cache-control": policy }) } } };
+    if (errors.length > 0) return { ...said(isHashed ? "fingerprinted {kind} sends a Cache-Control that breaks RFC 9111" : "immutable {kind} sends a Cache-Control that breaks RFC 9111", variables), data: { [resource.url]: { errors: errors.join("; ") } } };
+    return isLong ? undefined : { ...said(isHashed ? "fingerprinted {kind} is cached for less than a year" : "immutable {kind} is cached for less than a year", variables), data: { [resource.url]: { "max-age": maxAge, ...(policy && { "cache-control": policy }) } } };
 };
 
 // Text formats worth compressing, fonts other than WOFF and WOFF2 included.
@@ -497,7 +497,7 @@ const resourceCompression: Verdict = (resource) => {
     const isText = TEXT.test(type) && (resource.http?.size.body ?? 0) >= 1024;
     const isCompressed = /\b(?:br|gzip|zstd)\b/i.test(coding);
     log.debug({ rule: "resources/compression/missing", resource: resource.url, type, coding, isText, isCompressed }, "resource compression judged");
-    return isText && !isCompressed && isServed(resource) ? { ...said("a text {kind} is not served with br, gzip or zstd; used by these pages", { kind: resource.kind }), data: { [resource.url]: { type, ...(coding && { "content-encoding": coding }) } } } : undefined;
+    return isText && !isCompressed && isServed(resource) ? { ...said("a text {kind} is not served with br, gzip or zstd", { kind: resource.kind }), data: { [resource.url]: { type, ...(coding && { "content-encoding": coding }) } } } : undefined;
 };
 
 // Values in quotes, comma separated; none when empty.
@@ -562,7 +562,7 @@ export const builtin: Record<string, Make> = {
     "resources/integrity/missing": resourceRule(
         "resources/integrity/missing",
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
-        (resource) => (resource.integrity ? undefined : said("cross-origin {kind} without integrity; used by these pages", { kind: resource.kind })),
+        (resource) => (resource.integrity ? undefined : said("cross-origin {kind} without integrity", { kind: resource.kind })),
         undefined,
         undefined,
         { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." },

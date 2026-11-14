@@ -30,7 +30,7 @@ describe("images preset", () => {
         const report = await audit({ seeds: [`${gallery.origin}/`], rules: ["images"], sitemap: false, robots: false, cacheMode: "off" });
         assert.deepEqual(found(report, gallery.origin), ["images/compression/weak /heavy.png", "images/dimensions/missing /", "images/format/outdated /heavy.png", "images/srcset/large /", "images/weight/large /heavy.png"]);
         const modern = report.findings.find((finding) => finding.rule === "images/format/outdated");
-        assert.match(modern?.message ?? "", /^a png image is smaller as (avif|webp); used by these pages$/);
+        assert.match(modern?.message ?? "", /^a png image is smaller as (avif|webp)$/);
         const [measured] = Object.values(modern?.data ?? {});
         assert.ok((measured?.smaller as { value: number }).value < (measured?.size as { value: number }).value);
         assert.deepEqual(report.findings.find((finding) => finding.rule === "images/srcset/large")?.locations, ["/wide.jpg 400 px for width=100"]);
@@ -47,7 +47,7 @@ describe("images preset", () => {
             const report = await audit({ seeds: [`${gallery.origin}/assets`], maxPages: 1, rules: ["images", "images:assets"], sitemap: false, robots: false, cacheMode: "off" });
             assert.deepEqual(found(report, gallery.origin), ["images/compression/weak /bloated.svg", "images/font-display/missing /fonts.css", "images/font-format/outdated /heavy.ttf", "images/minification/missing /bloated.js"]);
             const display = report.findings.find((finding) => finding.rule === "images/font-display/missing");
-            assert.equal(display?.message, "@font-face rules without font-display: swap, fallback or optional; used by these pages");
+            assert.equal(display?.message, "@font-face rules without font-display: swap, fallback or optional");
             assert.deepEqual(Object.values(display?.data ?? {}), [{ faces: 1, families: "Heavy" }]);
             assert.equal(metadata.mock.callCount(), 1, "the twin JPEGs share a digest");
             const twins = report.pages[0]?.resources?.filter((resource) => /twin-[ab]\.jpg$/.test(resource.url)).map((resource) => resource.images);

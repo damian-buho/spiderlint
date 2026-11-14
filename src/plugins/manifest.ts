@@ -61,7 +61,7 @@ const parse = resourceRule(
     isManifest,
     (resource) => {
         const error = manifestOf(resource)?.error;
-        return error ? { ...said("the manifest does not parse; linked from these pages"), data: { [resource.url]: { error } } } : undefined;
+        return error ? { ...said("the manifest does not parse"), data: { [resource.url]: { error } } } : undefined;
     },
     FACTS,
     (resource) => manifestOf(resource)?.error,
@@ -74,7 +74,7 @@ const fields = resourceRule(
     (resource) => {
         const members = new Set(manifestOf(resource)?.members);
         const missing = FIELDS.filter((field) => !members.has(field));
-        return missing.length === 0 ? undefined : { ...said("the manifest lacks members, so browsers will not offer to install the site; linked from these pages"), data: { [resource.url]: { missing: missing.join(", ") } } };
+        return missing.length === 0 ? undefined : { ...said("the manifest lacks members, so browsers will not offer to install the site"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
     FACTS,
     (resource) => manifestOf(resource)?.members,
@@ -88,7 +88,7 @@ const icons = resourceRule(
         const all = manifestOf(resource)?.icons ?? [];
         const sizes = new Set(all.flatMap((icon) => icon.sizes));
         const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
-        return missing.length === 0 ? undefined : { ...said("the manifest icons lack sizes or a maskable icon; linked from these pages"), data: { [resource.url]: { missing: missing.join(", ") } } };
+        return missing.length === 0 ? undefined : { ...said("the manifest icons lack sizes or a maskable icon"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
     FACTS,
     (resource) => manifestOf(resource)?.icons,
@@ -112,7 +112,7 @@ const served = resourceRule(
             ...(facts?.start && facts.scope && !facts.start.startsWith(facts.scope) ? [`start_url ${facts.start} is outside scope ${facts.scope}`] : []),
         ];
         log.debug({ url: resource.url, type, problems: problems.length }, "manifest serving judged");
-        return problems.length === 0 ? undefined : { ...said("the manifest is served or declared wrongly; linked from these pages"), data: { [resource.url]: { problems: problems.join("; ") } } };
+        return problems.length === 0 ? undefined : { ...said("the manifest is served or declared wrongly"), data: { [resource.url]: { problems: problems.join("; ") } } };
     },
     FACTS,
     (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
