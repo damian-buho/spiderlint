@@ -19,7 +19,7 @@ function inline(group: string, path: string, locations = HAS): Finding {
 
 // A rule run over `findings`, each group judging `applicable` pages.
 function run(findings: Finding[], applicable: Record<string, number>): RuleRun {
-    return { findings, applicable: new Map(Object.entries(applicable).map(([group, pages]) => [cell(group, RULE), pages])), checks: { total: 0, failed: 0, errored: 0, cost: 0 }, perRule: new Map() };
+    return { findings, applicable: new Map(Object.entries(applicable).map(([group, pages]) => [cell(group, RULE), pages])), checks: { total: 0, failed: 0, errored: 0, cost: 0 }, perRule: new Map(), verdicts: new Map() };
 }
 
 const FOLD = { threshold: 0.8, min: 3 };

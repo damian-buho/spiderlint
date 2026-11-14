@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { log } from "./logger.ts";
+import type { Finding } from "./rules/types.ts";
 
 const ETA_WINDOW = 50;
 const ETA_MIN_SAMPLES = 3;
@@ -16,6 +17,7 @@ export type Phase = (typeof PHASES)[number];
 // The phase that completes each fact family, matched by prefix; any other fact is complete with the crawl.
 const FACT_PHASES: [prefix: string, phase: Phase][] = [
     ["resources", "resources"],
+    ["co2", "resources"],
     ["site.links", "probes"],
     ["site.origins", "site"],
     ["site.hosts", "site"],
@@ -57,6 +59,8 @@ export interface RunState {
     phases: Record<Phase, PhaseState>;
     pages: { done: number; known: number; eta?: EtaSpan; samples: number[]; last: number; origin: string };
     activity: { page: string; extractor: string; since: number };
+    // Each settled cell’s verdict and the phase that settled it; a cell absent here is waiting.
+    rules: Record<string, Record<string, Verdict & { phase: Phase }>>;
     outcome: Outcome;
 }
 
@@ -69,6 +73,7 @@ export type RunEvent =
     | { type: "pages.known"; at: number; known: number }
     | { type: "page.extracting"; at: number; page: string; extractor: string }
     | { type: "page.done"; at: number; done: number }
+    | { type: "rules.checked"; at: number; phase: Phase; cells: Cells }
     | { type: "run.ended"; at: number; outcome: Exclude<Outcome, { status: "running" }> };
 
 // An event before the run stamps its time.
@@ -85,6 +90,20 @@ export function waitsFor(phases: readonly Phase[]): Phase {
     return phases.at(-1) ?? "crawl";
 }
 
+// Whether a rule reading from `phases` has all its facts once `phase` ends.
+export function isSettledBy(phases: readonly Phase[], phase: Phase): boolean {
+    return PHASES.indexOf(waitsFor(phases)) <= PHASES.indexOf(phase);
+}
+
+// What one (group, rule) cell came to: passed, findings by severity, or nothing it applied to.
+export interface Verdict {
+    status: "passed" | "findings" | "untested";
+    findings?: Partial<Record<Finding["severity"], number>>;
+}
+
+// Verdicts by group, then rule ID.
+export type Cells = Record<string, Record<string, Verdict>>;
+
 // Done and known pages, the phase with its own count where it has one, and the ETA, as the scan runner writes them.
 export interface Progress {
     done: number;
@@ -92,11 +111,12 @@ export interface Progress {
     phase: Phase;
     step?: { done: number; total: number };
     eta?: EtaSpan;
+    rules?: RunState["rules"];
 }
 
 // A run with nothing done: every phase pending, the crawl first.
 export function initialState(): RunState {
-    return { phase: "crawl", phases: Object.fromEntries(PHASES.map((phase) => [phase, { status: "pending" }])) as Record<Phase, PhaseState>, pages: { done: 0, known: 0, samples: [], last: 0, origin: "" }, activity: { page: "", extractor: "", since: 0 }, outcome: { status: "running" } };
+    return { phase: "crawl", phases: Object.fromEntries(PHASES.map((phase) => [phase, { status: "pending" }])) as Record<Phase, PhaseState>, pages: { done: 0, known: 0, samples: [], last: 0, origin: "" }, activity: { page: "", extractor: "", since: 0 }, rules: {}, outcome: { status: "running" } };
 }
 
 // Seconds left as [low, high]: `remaining` gaps at the window’s mean, ± ETA_Z σ of their sum and of the mean itself.
@@ -152,17 +172,22 @@ export function reduce(state: RunState, event: RunEvent): RunState {
             const samples = isNext ? [...state.pages.samples, (event.at - state.pages.last) / 1000].slice(-ETA_WINDOW) : state.pages.samples;
             return { ...state, pages: timed({ ...state.pages, done: event.done, samples, last: event.at }), activity: { page: "", extractor: "", since: 0 } };
         }
+        case "rules.checked": {
+            const rules = { ...state.rules };
+            for (const [group, verdicts] of Object.entries(event.cells)) rules[group] = { ...rules[group], ...Object.fromEntries(Object.entries(verdicts).map(([id, verdict]) => [id, { ...verdict, phase: event.phase }])) };
+            return { ...state, rules };
+        }
         case "run.ended": {
             return { ...state, outcome: event.outcome };
         }
     }
 }
 
-// What the scan runner writes for `state`: the page counts, the phase with its count, the ETA.
+// What the scan runner writes for `state`: the page counts, the phase with its count, the ETA and the settled cells.
 export function progressOf(state: RunState): Progress {
     const { done, known, eta: left } = state.pages;
     const { done: stepDone = 0, total } = state.phases[state.phase];
-    return { done, total: Math.max(done, known), phase: state.phase, ...(total !== undefined && { step: { done: stepDone, total } }), ...(left && { eta: left }) };
+    return { done, total: Math.max(done, known), phase: state.phase, ...(total !== undefined && { step: { done: stepDone, total } }), ...(left && { eta: left }), ...(Object.keys(state.rules).length > 0 && { rules: state.rules }) };
 }
 
 // Hears every state change of a run it is handed to; `isDrawing` steps per-page logs down to debug.
@@ -194,21 +219,21 @@ export class Run {
     }
 }
 
-// Whether `event` changes what a progress view draws: a step waits for the next redraw, a crawl’s start for its first page.
+// Whether `event` changes what the status line draws: a step waits for the next redraw, a crawl’s start for its first page, settled rules are not drawn.
 export function isRedrawn(event: RunEvent): boolean {
-    return event.type !== "page.extracting" && !(event.type === "phase.started" && event.phase === "crawl");
+    return event.type !== "page.extracting" && event.type !== "rules.checked" && !(event.type === "phase.started" && event.phase === "crawl");
 }
 
 // One line a scan runner writes: the plan once, then progress.
 export type RunLine = Progress | { plan: Plan };
 
-// Writes the plan once, then `progressOf` on every change but a step, counts inside a phase at most four times a second and the last one always.
+// Writes the plan once, then `progressOf` on every redrawn change and every settling, counts inside a phase at most four times a second and the last one always.
 export function progressWriter(write: (line: RunLine) => void): RunObserver {
     const sent = { at: -Infinity };
     return {
         update(state, event) {
             if (event.type === "run.planned") return write({ plan: event.plan });
-            if (!isRedrawn(event) || event.type === "phase.ended" || event.type === "run.ended") return;
+            if (!(isRedrawn(event) || event.type === "rules.checked") || event.type === "phase.ended" || event.type === "run.ended") return;
             const total = event.type === "phase.counted" ? state.phases[event.phase].total : 0;
             if (total === undefined || (event.type === "phase.counted" && event.done < total && event.at - sent.at < COUNT_MS)) return;
             sent.at = event.at;

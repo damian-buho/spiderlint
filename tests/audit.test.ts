@@ -21,6 +21,7 @@ import { serveOrigin, type Origin } from "./fixtures/origin.ts";
 import { serveFraming, type Framing } from "./fixtures/framing.ts";
 import { log } from "../src/logger.ts";
 import { isOwnClock } from "../src/rules/clock.ts";
+import type { RunEvent, RunState } from "../src/run.ts";
 
 const GROUPS = {
     posts: { match: ["/posts/**"], rules: ["seo"] },
@@ -905,5 +906,64 @@ describe("content length", () => {
             ["HOST/short", "Response body length does not match content-length header: body ended at 12 of the 400 bytes Content-Length declares"],
             ["HOST/twice", "Response body length does not match content-length header"],
         ]);
+    });
+});
+
+describe("audit settling", () => {
+    let site: Fixture;
+    let report: Report;
+    const events: RunEvent[] = [];
+    let state: Readonly<RunState> | undefined;
+
+    before(async () => {
+        site = await serveFixture();
+        report = await audit(
+            { seeds: [`${site.origin}/`, `${site.origin}/preconnect-font`], groups: { ...GROUPS, default: { rules: ["seo", "links", "html/preconnect*"] } }, excludeUrls: ["/tmp/**"] },
+            {
+                observer: {
+                    update: (now, event) => {
+                        state = now;
+                        events.push(event);
+                    },
+                },
+            },
+        );
+    });
+
+    after(() => site.close());
+
+    const plan = () => (events.find((event) => event.type === "run.planned") as Extract<RunEvent, { type: "run.planned" }>).plan;
+    const settled = () => events.filter((event) => event.type === "rules.checked");
+    const cellsOf = (phases: string) => Object.entries(plan().groups).flatMap(([group, ids]) => ids.filter((id) => plan().rules[id]?.join(",") === phases).map((id) => [group, id] as const));
+
+    it("settles a rule reading crawl and resources facts only after the resources, never after the crawl", () => {
+        const cells = cellsOf("crawl,resources");
+        assert.ok(cells.length > 0, "the plan holds a rule reading both phases");
+        for (const [group, id] of cells) assert.equal(state?.rules[group]?.[id]?.phase, "resources", `${group} ${id}`);
+        const early = settled().filter((event) => event.phase === "crawl");
+        assert.ok(early.length > 0, "page rules settle after the crawl");
+        for (const [group, id] of cells) for (const event of early) assert.equal(event.cells[group]?.[id], undefined, `${group} ${id} settled after the crawl`);
+    });
+
+    it("settles every cell exactly once, every site and group rule in the final pass", () => {
+        const keys = settled().flatMap((event) => Object.entries(event.cells).flatMap(([group, verdicts]) => Object.keys(verdicts).map((id) => `${group} ${id}`)));
+        const planned = Object.entries(plan().groups).flatMap(([group, ids]) => ids.map((id) => `${group} ${id}`));
+        assert.deepEqual(
+            keys.toSorted((a, b) => a.localeCompare(b)),
+            planned.toSorted((a, b) => a.localeCompare(b)),
+        );
+        for (const [group, ids] of Object.entries(plan().groups)) for (const id of ids) if (plan().rules[id]?.at(-1) === "lint") assert.equal(state?.rules[group]?.[id]?.phase, "lint", `${group} ${id}`);
+    });
+
+    it("finds in some cell exactly the rules the report counts findings for, at the same total", () => {
+        const totals = new Map<string, number>();
+        const cells = Object.values(state?.rules ?? {}).flatMap((verdicts) => Object.entries(verdicts));
+        for (const [id, verdict] of cells) totals.set(id, (totals.get(id) ?? 0) + Object.values(verdict.findings ?? {}).reduce((sum, count) => sum + count, 0));
+        const site = new Set(Object.keys(plan().rules).filter((id) => plan().rules[id]?.at(-1) === "lint"));
+        for (const [id, counts] of Object.entries(report.summary.byRule)) {
+            const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+            if (site.has(id)) assert.equal((totals.get(id) ?? 0) > 0, total > 0, id);
+            else assert.equal(totals.get(id) ?? 0, total, id);
+        }
     });
 });

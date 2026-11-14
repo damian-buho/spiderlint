@@ -4,7 +4,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { eta, etaSpan, initialState, PHASES, phasesOf, progressWriter, reduce, Run, waitsFor, type Plan, type RunEvent, type RunLine, type RunObserver, type RunState } from "../src/run.ts";
+import { eta, etaSpan, initialState, isRedrawn, isSettledBy, PHASES, phasesOf, progressWriter, reduce, Run, waitsFor, type Plan, type RunEvent, type RunLine, type RunObserver, type RunState } from "../src/run.ts";
+import { runRules, type PageResults } from "../src/rules/run.ts";
+import type { AggregateRule, PageRule } from "../src/rules/types.ts";
+import type { Facts, SiteFacts } from "../src/facts/types.ts";
 import { etaText, line } from "../src/status-line.ts";
 
 // The state after `events`, applied in order to a fresh run.
@@ -81,6 +84,18 @@ describe("run plan", () => {
         assert.deepEqual(phasesOf(["site.redirects"]), ["crawl"]);
         assert.deepEqual(phasesOf(["graph.prev", "site.hosts"]), ["site", "lint"]);
         assert.equal(waitsFor(phasesOf([])), "crawl");
+    });
+
+    it("completes CO2 with the resources, whose sizes it adds", () => {
+        assert.deepEqual(phasesOf(["co2.grams"]), ["resources"]);
+    });
+
+    it("settles a rule once its last phase ends, not one phase before", () => {
+        assert.equal(isSettledBy(["crawl", "resources"], "crawl"), false);
+        assert.equal(isSettledBy(["crawl", "resources"], "resources"), true);
+        assert.equal(isSettledBy(["crawl", "resources"], "probes"), true);
+        assert.equal(isSettledBy([], "crawl"), true);
+        assert.equal(isSettledBy(["lint"], "site"), false);
     });
 
     it("keeps the plan a run starts with", () => {
@@ -185,6 +200,96 @@ describe("run reducer", () => {
     });
 });
 
+describe("run rules", () => {
+    it("starts with no cell settled", () => {
+        assert.deepEqual(initialState().rules, {});
+    });
+
+    it("stamps each verdict with the phase that settled it and keeps the earlier ones", () => {
+        const state = after([
+            { type: "rules.checked", at: 0, phase: "crawl", cells: { default: { "seo/title/missing": { status: "passed" } } } },
+            { type: "rules.checked", at: 1, phase: "probes", cells: { default: { "links/external/unreachable": { status: "findings", findings: { error: 2 } } }, posts: { "seo/title/missing": { status: "untested" } } } },
+        ]);
+        assert.deepEqual(state.rules, {
+            default: { "seo/title/missing": { status: "passed", phase: "crawl" }, "links/external/unreachable": { status: "findings", findings: { error: 2 }, phase: "probes" } },
+            posts: { "seo/title/missing": { status: "untested", phase: "probes" } },
+        });
+    });
+
+    it("never changes the state it is given when a cell settles", () => {
+        const before = after([{ type: "rules.checked", at: 0, phase: "crawl", cells: { default: { a: { status: "passed" } } } }]);
+        const copy = structuredClone(before);
+        reduce(before, { type: "rules.checked", at: 1, phase: "lint", cells: { default: { b: { status: "passed" } } } });
+        assert.deepEqual(before, copy);
+    });
+
+    it("leaves the status line alone when a cell settles", () => {
+        assert.equal(isRedrawn({ type: "rules.checked", at: 0, phase: "crawl", cells: {} }), false);
+    });
+});
+
+// A page of `group` at `href`.
+function factsOf(href: string, group: string): Facts {
+    const url = new URL(href);
+    return {
+        url: { href, origin: url.origin, protocol: url.protocol, host: url.host, pathname: url.pathname, search: "" },
+        group,
+        crawl: { depth: 0, "discovered-via": "seed", referrers: [] },
+        http: { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "text/html" },
+    };
+}
+
+// A page rule that counts its checks, finding a warning on `/bad` and skipping `/skip`.
+function countingRule(calls: { count: number }): PageRule {
+    return {
+        meta: { id: "test/page", severity: "warning", scope: "page", facts: [] },
+        check(page) {
+            calls.count += 1;
+            if (page.url.pathname === "/skip") return;
+            return page.url.pathname === "/bad" ? [{ rule: "test/page", severity: "warning", scope: "page", url: page.url.href, message: "bad" }] : [];
+        },
+    };
+}
+
+describe("rule verdicts", () => {
+    const pages = [factsOf("https://a.test/", "default"), factsOf("https://a.test/bad", "default"), factsOf("https://a.test/skip", "quiet"), factsOf("https://a.test/ok", "clean")];
+    const site: AggregateRule = { meta: { id: "test/site", severity: "error", scope: "site", facts: [] }, check: () => [{ rule: "test/site", severity: "error", scope: "site", url: "https://a.test/", message: "site" }] };
+
+    it("passes a cell with no finding, counts findings by severity, and leaves untested a cell nothing applied to", () => {
+        const rule = countingRule({ count: 0 });
+        const run = runRules(
+            pages,
+            new Map([
+                ["default", [rule, site]],
+                ["quiet", [rule]],
+                ["clean", [rule, site]],
+            ]),
+            {} as SiteFacts,
+        );
+        assert.deepEqual(run.verdicts.get("default\ttest/page"), { status: "findings", findings: { warning: 1 } });
+        assert.deepEqual(run.verdicts.get("quiet\ttest/page"), { status: "untested" });
+        assert.deepEqual(run.verdicts.get("clean\ttest/page"), { status: "passed" });
+        assert.deepEqual(run.verdicts.get("clean\ttest/site"), { status: "findings", findings: { error: 1 } });
+        assert.equal(run.verdicts.get("default\ttest/site")?.status, "findings");
+    });
+
+    it("replays a page rule it already checked, to the same findings, checks and cost", () => {
+        const calls = { count: 0 };
+        const rule = countingRule(calls);
+        const groups = new Map([
+            ["default", [rule]],
+            ["quiet", [rule]],
+        ]);
+        const results: PageResults = new Map();
+        const first = runRules(pages, groups, {} as SiteFacts, results);
+        const checked = calls.count;
+        const again = runRules(pages, groups, {} as SiteFacts, results);
+        assert.equal(checked, 3);
+        assert.equal(calls.count, checked);
+        assert.deepEqual(again, first);
+    });
+});
+
 describe("run observer", () => {
     it("hands each stamped event and the state after it to the observer, one state per run", () => {
         const heard: [RunState, RunEvent][] = [];
@@ -282,6 +387,13 @@ describe("progress writer", () => {
             sent.map((progress) => progress.step?.done),
             [0, 2, 3],
         );
+    });
+
+    it("writes the settled cells with every progress after the first settles, and none before", () => {
+        const sent = progressOnly(written([{ type: "phase.started", at: 0, phase: "resources", total: 1 }, { type: "rules.checked", at: 1, phase: "crawl", cells: { default: { a: { status: "passed" } } } }, ...pagesDone(1)]));
+        assert.equal(sent[0]?.rules, undefined);
+        assert.deepEqual(sent[1]?.rules, { default: { a: { status: "passed", phase: "crawl" } } });
+        assert.deepEqual(sent[2]?.rules, sent[1]?.rules);
     });
 
     it("writes no count for a phase without a total", () => {
