@@ -424,6 +424,15 @@ msgstr "Чекає на сторінки"
 msgid "Waits for the whole site"
 msgstr "Чекає на весь сайт"
 
+msgid "Nothing to check"
+msgstr "Нічого перевіряти"
+
+msgid "Passed"
+msgstr "Пройдено"
+
+msgid "{severity}: {count}"
+msgstr "{severity}: {count}"
+
 msgid "Warning"
 msgstr "Попередження"
 

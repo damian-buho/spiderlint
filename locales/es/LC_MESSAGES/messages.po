@@ -427,6 +427,15 @@ msgstr "Espera a las páginas"
 msgid "Waits for the whole site"
 msgstr "Espera al sitio completo"
 
+msgid "Nothing to check"
+msgstr "Nada que comprobar"
+
+msgid "Passed"
+msgstr "Superada"
+
+msgid "{severity}: {count}"
+msgstr "{severity}: {count}"
+
 msgid "Warning"
 msgstr "Advertencia"
 

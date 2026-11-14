@@ -14,9 +14,10 @@ import { LICENSE } from "../agent.ts";
 import { negotiate, readerLocale, translator, type Translator } from "../i18n.ts";
 import { log } from "../logger.ts";
 import { formatNames } from "../plugins/index.ts";
-import { waitsFor, type Phase, type Plan, type Progress } from "../run.ts";
+import { waitsFor, type Phase, type Plan, type Progress, type RunState, type Verdict } from "../run.ts";
 import type { Grade } from "../report/rating.ts";
-import { escape, page, reportBody, SORT_SCRIPT, STYLE } from "../report/html.ts";
+import { escape, page, reportBody, severityName, SORT_SCRIPT, STYLE } from "../report/html.ts";
+import type { Finding } from "../rules/types.ts";
 import { track } from "./analytics.ts";
 import { compress } from "./compress.ts";
 import { jobOf, submit, type Jobs } from "./jobs.ts";
@@ -59,6 +60,8 @@ if (status && "EventSource" in window) {
     const lang = status.dataset.locale;
     const numbers = new Intl.NumberFormat(lang);
     const phases = JSON.parse(status.dataset.phases);
+    const board = document.querySelector(".board");
+    const severities = board ? JSON.parse(board.dataset.severities) : {};
     const fill = (template, values) => template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
     const left = (eta) => {
         const units = new Intl.NumberFormat(lang, { style: "unit", unit: eta.unit });
@@ -71,7 +74,14 @@ if (status && "EventSource" in window) {
         if (job.plan && !document.querySelector(".board")) location.reload();
         if (job.status === "running") status.querySelector("[data-state]").textContent = status.dataset.running;
         if (!job.progress) return;
-        const { done, total, eta, phase, step } = job.progress;
+        const { done, total, eta, phase, step, rules = {} } = job.progress;
+        for (const card of document.querySelectorAll(".board [data-rule]")) {
+            const verdict = rules[card.dataset.group]?.[card.dataset.rule];
+            if (!verdict) continue;
+            const counts = Object.keys(severities).filter((name) => verdict.findings?.[name]).map((name) => [name, verdict.findings[name]]);
+            card.className = "rule-card " + (verdict.status === "findings" ? severities[counts[0][0]].tone : verdict.status);
+            card.querySelector("small").textContent = verdict.status === "findings" ? counts.map(([name, count]) => fill(board.dataset.tally, { severity: severities[name].name, count: numbers.format(count) })).join(" · ") : board.dataset[verdict.status];
+        }
         Object.assign(status.querySelector("progress"), { max: total, value: done });
         status.querySelector("[data-count]").textContent = fill(status.dataset.count, { done: numbers.format(done), total: numbers.format(total) });
         status.querySelector("[data-eta]").textContent = eta ? left(eta) : "";
@@ -267,21 +277,44 @@ function waitNames(t: Translator): Record<Phase, string> {
     return { crawl: t._("Waits for the pages"), resources: t._("Waits for linked resources"), probes: t._("Waits for external links"), site: t._("Waits for domain, mail and certificates"), lint: t._("Waits for the whole site") };
 }
 
-// Every rule the run checks as a grey card per group, labelled with the phase it waits for.
-function board(t: Translator, plan: Plan): string {
+const SEVERITIES: Finding["severity"][] = ["error", "warning", "info", "hint"];
+
+// The card colour of each severity: a hint shows as info.
+const TONE: Record<Finding["severity"], string> = { error: "error", warning: "warning", info: "info", hint: "info" };
+
+// A settled card’s colour and label: green when passed, else its worst severity with every count.
+function verdictCard(t: Translator, verdict: Verdict): [tone: string, label: string] {
+    if (verdict.status === "passed") return ["passed", t._("Passed")];
+    if (verdict.status === "untested") return ["untested", t._("Nothing to check")];
+    const counts = SEVERITIES.flatMap((severity) => {
+        const count = verdict.findings?.[severity] ?? 0;
+        return count > 0 ? [[severity, count] as const] : [];
+    });
+    return [TONE[counts[0]?.[0] ?? "info"], counts.map(([severity, count]) => t._("{severity}: {count}", { severity: severityName(t, severity), count: t.number(count) })).join(" · ")];
+}
+
+// Every rule the run checks as a card per group: grey and labelled with the phase it waits for, then coloured by its verdict.
+function board(t: Translator, plan: Plan, rules: RunState["rules"] = {}): string {
     const names = waitNames(t);
     const entries = Object.entries(plan.groups);
     const sections = entries.map(([group, ids]) => {
-        const cards = ids.toSorted((a, b) => a.localeCompare(b)).map((id) => `<li class="rule-card waiting"><code>${escape(id)}</code><small>${escape(names[waitsFor(plan.rules[id] ?? [])])}</small></li>`);
+        const cards = ids
+            .toSorted((a, b) => a.localeCompare(b))
+            .map((id) => {
+                const verdict = rules[group]?.[id];
+                const [tone, label] = verdict ? verdictCard(t, verdict) : ["waiting", names[waitsFor(plan.rules[id] ?? [])]];
+                return `<li class="rule-card ${tone}" data-group="${escape(group)}" data-rule="${escape(id)}"><code>${escape(id)}</code><small>${escape(label)}</small></li>`;
+            });
         return `${entries.length > 1 ? `<h3>${escape(group)}</h3>` : ""}<ul class="rule-grid">${cards.join("")}</ul>`;
     });
-    return `<section class="board"><h2>${escape(t._("Checks"))}</h2>${sections.join("")}</section>`;
+    const severities = JSON.stringify(Object.fromEntries(SEVERITIES.map((severity) => [severity, { name: severityName(t, severity), tone: TONE[severity] }])));
+    return `<section class="board" data-passed="${escape(t._("Passed"))}" data-untested="${escape(t._("Nothing to check"))}" data-tally="${escape(t._("{severity}: {count}", { severity: "{severity}", count: "{count}" }))}" data-severities="${escape(severities)}"><h2>${escape(t._("Checks"))}</h2>${sections.join("")}</section>`;
 }
 
 // Where a queued or running scan stands, updated by events or, without scripts, by a refresh.
 function progressBody(t: Translator, job: ScanJob, status: string): string {
     const progress = typeof job.progress === "object" ? job.progress : {};
-    const { done = 0, total, eta, phase, step } = progress as Partial<Progress>;
+    const { done = 0, total, eta, phase, step, rules } = progress as Partial<Progress>;
     const count = t._("Pages: {done} of {total}", { done: "{done}", total: "{total}" });
     const stepText = t._("{phase}: {done} of {total}", { phase: "{phase}", done: "{done}", total: "{total}" });
     const names = phaseNames(t);
@@ -302,7 +335,7 @@ function progressBody(t: Translator, job: ScanJob, status: string): string {
         .map(([name, value]) => `data-${name}="${escape(value as string)}"`)
         .join(" ");
     const rulesets = (job.data.settings?.rules as string[] | undefined)?.join(", ");
-    return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>${job.data.plan ? board(t, job.data.plan) : ""}`;
+    return `<div ${attributes}><p data-state>${escape(state)}</p>${rulesets ? `<p class="muted">${escape(t._("Rulesets: {names}", { names: rulesets }))}</p>` : ""}<progress${values}></progress><p><span data-count>${total === undefined ? "" : escape(t._("Pages: {done} of {total}", { done: t.number(done), total: t.number(total) }))}</span> <span data-eta class="muted">${escape(etaLine(t, eta))}</span></p><p data-phase class="muted">${escape(phaseText)}</p></div>${job.data.plan ? board(t, job.data.plan, rules) : ""}`;
 }
 
 // When a fresh scan of the site may start, and the way to it; `isRepeat` adds why the reader sees an earlier scan.

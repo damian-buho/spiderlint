@@ -134,7 +134,7 @@ export function page(t: Translator, title: string, body: string, head = ""): str
 }
 
 // Translated severity names; the rule ID beside them is never translated.
-function severityName(t: Translator, severity: Finding["severity"]): string {
+export function severityName(t: Translator, severity: Finding["severity"]): string {
     return { error: t._("Error"), warning: t._("Warning"), info: t._("Info"), hint: t._("Hint") }[severity];
 }
 

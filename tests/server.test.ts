@@ -462,7 +462,7 @@ describe("server pages without Redis", () => {
         const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j5", { headers: { "accept-language": "es" } });
         const html = await response.text();
         const cards = html
-            .matchAll(/<li class="rule-card waiting"><code>([^<]+)<\/code><small>([^<]+)<\/small><\/li>/g)
+            .matchAll(/<li class="rule-card waiting" data-group="default" data-rule="[^"]+"><code>([^<]+)<\/code><small>([^<]+)<\/small><\/li>/g)
             .map((match) => [match[1], match[2]])
             .toArray();
         assert.deepEqual(cards, [
@@ -471,6 +471,24 @@ describe("server pages without Redis", () => {
         ]);
         assert.ok(!html.includes("<h3>default</h3>"), "one group needs no heading");
         assert.match(html, /job\.plan && !document\.querySelector\("\.board"\)/);
+    });
+
+    it("colours a settled rule by its verdict, its worst severity first, and keeps the rest grey", async () => {
+        const plan = { rulesets: ["seo"], groups: { default: ["a/passed", "b/found", "c/untested", "d/waiting"] }, rules: { "a/passed": ["crawl"], "b/found": ["crawl"], "c/untested": ["crawl"], "d/waiting": ["site"] } };
+        const rules = { default: { "a/passed": { status: "passed", phase: "crawl" }, "b/found": { status: "findings", findings: { warning: 2, error: 1 }, phase: "crawl" }, "c/untested": { status: "untested", phase: "crawl" } } };
+        const job = { id: "j7", data: { url: "https://a.test/", host: "a.test", plan }, progress: { done: 2, total: 2, phase: "site", rules }, getState: async () => "active" };
+        const response = await api({ getJob: async () => job } as unknown as Queue, {} as Redis, () => SETTINGS).request("/jobs/j7", { headers: { "accept-language": "es" } });
+        const html = await response.text();
+        const cards = html
+            .matchAll(/<li class="rule-card ([a-z]+)" data-group="default" data-rule="([^"]+)"><code>[^<]+<\/code><small>([^<]+)<\/small><\/li>/g)
+            .map((match) => [match[2], match[1], match[3]])
+            .toArray();
+        assert.deepEqual(cards, [
+            ["a/passed", "passed", "Superada"],
+            ["b/found", "error", "Error: 1 · Advertencia: 2"],
+            ["c/untested", "untested", "Nada que comprobar"],
+            ["d/waiting", "waiting", "Espera al dominio, el correo y los certificados"],
+        ]);
     });
 
     it("leaves the board out until the runner plans the scan", async () => {
