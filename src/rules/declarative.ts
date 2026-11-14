@@ -225,7 +225,7 @@ function guarded(rule: Rule, when: Record<string, unknown> | undefined): Rule {
     return { ...rule, check: (pages, group, site) => (isSkipped({}, "site", site) ? undefined : rule.check(pages, group, site)) };
 }
 
-// Gives every finding its score: the spec’s number, else the rule’s own or the scale’s over the finding’s value, else the level’s base; a hand-written level pins it inside its band.
+// Gives every finding its score: the spec’s number, else the rule’s own or the scale’s over the finding’s value, else the level’s base; a hand-written level, or one the rule chose for the finding, pins it inside its band.
 function scored(rule: Rule, spec: RuleSpec): Rule {
     const fixed = typeof spec.score === "number" ? (spec.pinned ? pin(spec.severity as Level, spec.score) : spec.score) : undefined;
     const scale = typeof spec.score === "object" ? spec.score : undefined;
@@ -234,8 +234,9 @@ function scored(rule: Rule, spec: RuleSpec): Rule {
     const grade = (finding: Finding): Finding => {
         const measured = scale && typeof finding.value === "number" ? interpolate(scale, finding.value) : finding.score;
         const raw = fixed ?? measured ?? scoreOf(finding);
-        const score = spec.pinned ? pin(level, raw) : raw;
-        log.debug({ rule: rule.meta.id, url: finding.url, score, pinned: spec.pinned === true }, "finding scored");
+        const chosen = finding.severity === rule.meta.severity ? undefined : (finding.severity as Level);
+        const score = chosen ? pin(chosen, raw) : spec.pinned ? pin(level, raw) : raw;
+        log.debug({ rule: rule.meta.id, url: finding.url, score, pinned: spec.pinned === true, chosen }, "finding scored");
         return { ...finding, score, severity: levelOf(score) };
     };
     const all = (found: Finding[] | undefined) => found?.map((finding) => grade(finding));

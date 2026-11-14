@@ -9,6 +9,7 @@ import { edgeOf, wallOf, type Probe, type ProbeInit } from "../src/crawl/probe.t
 import type { SiteFacts, Stance } from "../src/facts/types.ts";
 import crawlers, { crawlerName, POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
 import type { SiteContext } from "../src/plugins/types.ts";
+import { compileRule } from "../src/rules/declarative.ts";
 import { CRAWLERS } from "../src/rules/robots.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
 
@@ -106,6 +107,10 @@ describe("crawlers", () => {
         );
         assert.ok(edge[0]?.locations?.includes("GPTBot (OpenAI): 403, cloudflare"));
         assert.match(edge[0]?.message ?? "", /verified-bots setting/);
+        const scored = compileRule("crawlers/crawler/blocked", { severity: "warning", score: 5.1 }) as AggregateRule;
+        const site: SiteFacts = { sitemaps: [], origins: { [ORIGIN]: { crawlers: { url: `${ORIGIN}/`, status: 200, poses: everyPose } } }, "content-signals": { "ai-train": "yes" } };
+        const [graded] = scored.check([], undefined, site) ?? [];
+        assert.deepEqual([graded?.severity, (graded?.score ?? 99) < 1], ["hint", true]);
         assert.equal(judge(poses, { search: "no", "ai-train": "no" }).length, 0);
         assert.equal(judge([{ agent: "googlebot", status: 0, error: "timeout" }]).length, 0);
         assert.equal(
