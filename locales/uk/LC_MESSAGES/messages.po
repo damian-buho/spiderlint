@@ -4,6 +4,11 @@
 
 msgid ""
 msgstr ""
+"Project-Id-Version: spiderlint\n"
+"PO-Revision-Date: 2026-11-13 23:30+0000\n"
+"Last-Translator: Damián Búho <damian.buho@proton.me>\n"
+"Language-Team: Ukrainian\n"
+"MIME-Version: 1.0\n"
 "Language: uk_UA\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"

@@ -47,6 +47,14 @@ describe("rule sentences", () => {
         }
     });
 
+    it("carries every header field msgfmt --check asks for", () => {
+        for (const lang of ["es", "uk"]) {
+            const { headers } = po.parse(readFileSync(new URL(`../locales/${lang}/LC_MESSAGES/messages.po`, import.meta.url)));
+            const absent = ["Project-Id-Version", "PO-Revision-Date", "Last-Translator", "Language-Team", "MIME-Version", "Language", "Content-Type", "Content-Transfer-Encoding"].filter((field) => !Object.hasOwn(headers, field));
+            assert.deepEqual(absent, [], `${lang} catalog lacks these header fields`);
+        }
+    });
+
     it("defines each msgid once per catalog, since the parser keeps only the last copy", () => {
         for (const lang of ["es", "uk"]) {
             const ids: string[] = readFileSync(new URL(`../locales/${lang}/LC_MESSAGES/messages.po`, import.meta.url), "utf8").match(/^msgid ".+"$/gm) ?? [];
