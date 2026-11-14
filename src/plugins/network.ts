@@ -7,7 +7,9 @@ import type { MxData } from "dns-packet";
 import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
-import type { RuleSpec } from "../rules/types.ts";
+import { anycastProvider } from "../facts/vendors.ts";
+import { said } from "../rules/message.ts";
+import type { Finding, Make, RuleSpec } from "../rules/types.ts";
 import { isSpecialUse, once, records, texts, warnOnce, zoneOf } from "./dns.ts";
 import { type SiteContext, type SiteExtractor, type Plugin } from "./types.ts";
 
@@ -202,22 +204,29 @@ const RULES: Record<string, RuleSpec> = {
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.1",
         fix: "Set the PTR of each mail exchanger address to a name whose A or AAAA record is that address.",
     },
-    "network/asn/single": {
-        fact: "site.hosts.*.network.asns",
-        expect: { not: { minItems: 1, maxItems: 1 } },
-        when: { "site.hosts.*.network.asns": { type: "array" } },
-        message: "the host and every name server sit in one autonomous system, so one network outage takes the site and its DNS down together (got {got})",
-        severity: "hint",
-        score: 0.6,
-        docs: "https://www.rfc-editor.org/rfc/rfc2182#section-3.1",
-        fix: "Serve the zone from at least one name server in a second autonomous system.",
-    },
+    "network/asn/single": { severity: "hint", score: 0.6 },
 };
+
+// One finding per crawled host whose addresses and name servers sit in one autonomous system, unless an anycast DNS operator announces it.
+const asnSingle: Make = (severity) => ({
+    meta: { id: "network/asn/single", severity, scope: "site", facts: ["site.hosts.*.network.asns"], docs: "https://www.rfc-editor.org/rfc/rfc2182#section-3.1", fix: "Serve the zone from at least one name server in a second autonomous system." },
+    check(_pages, _group, site) {
+        const linked = new Set(site?.linked);
+        return Object.entries(site?.hosts ?? {}).flatMap(([host, facts]): Finding[] => {
+            const asns = (facts.network as { asns?: string[] } | undefined)?.asns;
+            if (asns?.length !== 1 || linked.has(host)) return [];
+            const provider = anycastProvider(asns[0] as string);
+            log.debug({ rule: "network/asn/single", host, asn: asns[0], anycast: provider?.provider }, provider ? "single autonomous system skipped, an anycast DNS operator" : "single autonomous system found");
+            return provider ? [] : [{ rule: "network/asn/single", severity, scope: "site", url: host, ...said("the host and every name server sit in one autonomous system, so one network outage takes the site and its DNS down together (got {got})", { got: `“${asns[0] as string}”` }), value: asns }];
+        });
+    },
+});
 
 // Who routes every crawled host’s addresses, through Team Cymru’s DNS interface and RIPEstat.
 export default {
     name: "network",
     settings: { type: "object", additionalProperties: false, properties: { rpki: { type: "boolean", default: true } } },
+    rules: { "network/asn/single": asnSingle },
     sites: [network],
     presets: { network: { description: "ASN, RPKI route validity and reverse DNS of every crawled host, its mail exchangers and name servers", rules: RULES } },
 } satisfies Plugin;

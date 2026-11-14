@@ -26,6 +26,7 @@ export interface DnsProvider {
     match: string[];
     docs: string;
     "soa-editable"?: boolean;
+    "anycast-asns"?: number[];
 }
 
 const FILE = new URL("../../vendors/paths.yaml", import.meta.url);
@@ -35,10 +36,21 @@ type Compiled = VendorPath & { isMatch: picomatch.Matcher };
 
 const cache: { paths?: Compiled[]; providers?: (DnsProvider & { isMatch: picomatch.Matcher })[] } = {};
 
+// The shipped DNS providers, read and compiled once.
+function providers(): (DnsProvider & { isMatch: picomatch.Matcher })[] {
+    cache.providers ??= (parse(readFileSync(PROVIDERS, "utf8")) as DnsProvider[]).map((entry) => ({ ...entry, isMatch: picomatch(entry.match) }));
+    return cache.providers;
+}
+
+// The provider that announces its name servers over anycast from `asn` (`AS13335` or `13335`), if one does.
+export function anycastProvider(asn: string | number): DnsProvider | undefined {
+    const number = Number(String(asn).replace(/^AS/i, ""));
+    return providers().find((entry) => entry["anycast-asns"]?.includes(number));
+}
+
 // The provider every one of `names` belongs to; none when they span providers, or one serves none of them.
 export function dnsProvider(names: string[]): DnsProvider | undefined {
-    cache.providers ??= (parse(readFileSync(PROVIDERS, "utf8")) as DnsProvider[]).map((entry) => ({ ...entry, isMatch: picomatch(entry.match) }));
-    const found = new Set(names.map((name) => cache.providers?.find((entry) => entry.isMatch(name.toLowerCase().replace(/\.$/, "")))));
+    const found = new Set(names.map((name) => providers().find((entry) => entry.isMatch(name.toLowerCase().replace(/\.$/, "")))));
     const [entry] = found;
     log.debug({ names, providers: [...found].map((candidate) => candidate?.provider) }, "dns provider matched");
     return found.size === 1 ? entry : undefined;

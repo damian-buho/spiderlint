@@ -128,6 +128,10 @@ describe("network plugin", () => {
         ]);
     });
 
+    it("spares one autonomous system an anycast DNS operator announces, and flags a hosting one", () => {
+        assert.deepEqual(findings({ "cf.fixture": { asns: ["AS13335"] }, "aws.fixture": { asns: ["AS16509"] }, "small.fixture": { asns: ["AS64502"] } }), [["network/asn/single", "small.fixture"]]);
+    });
+
     it("asks RIPEstat once per route, and never with rpki off", async () => {
         const asked: string[] = [];
         await extract("ok.fixture", dnsClient(fixture.server, off(), false), asked);

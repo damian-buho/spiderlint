@@ -2,20 +2,33 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
-# Managed DNS providers; a zone is theirs when every one of its name servers matches one entry’s globs.
+# Managed DNS providers; a zone is theirs when every one of its name servers matches one entry’s globs; `anycast-asns` announce its name servers over anycast.
 - provider: Cloudflare
   match: ["*.ns.cloudflare.com"]
+  # https://www.cloudflare.com/application-services/products/dns/ (“Global anycast network”)
+  anycast-asns: [13335]
   # SOA values are editable on Enterprise plans only.
   soa-editable: false
   docs: https://developers.cloudflare.com/dns/manage-dns-records/reference/dns-record-types/#soa
 - provider: Amazon Route 53
   match: ["ns-*.awsdns-*.{com,net,org,co.uk}"]
+  # https://aws.amazon.com/route53/faqs/ (“Does Amazon Route 53 use an anycast network?”)
+  anycast-asns: [16509]
   soa-editable: true
   docs: https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/SOA-NSrecords.html
 - provider: Azure DNS
   match: ["ns*-*.azure-dns.{com,net,org,info}"]
+  # https://learn.microsoft.com/en-us/azure/dns/public-dns-overview (“Azure Public DNS uses anycast networking”)
+  anycast-asns: [8075]
   soa-editable: true
   docs: https://learn.microsoft.com/en-us/azure/dns/dns-zones-records#soa-records
 - provider: Google Cloud DNS
   match: ["ns-cloud-*.googledomains.com"]
+  # https://docs.cloud.google.com/dns/docs/overview (“Cloud DNS uses anycast”)
+  anycast-asns: [15169]
   docs: https://docs.cloud.google.com/dns/docs/records
+- provider: IBM NS1 Connect
+  match: ["dns*.p*.nsone.net"]
+  # https://www.ibm.com/products/ns1-connect (“a global Anycast network”)
+  anycast-asns: [62597]
+  docs: https://www.ibm.com/products/ns1-connect
