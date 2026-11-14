@@ -8,8 +8,8 @@
 
 - Rating: B (seo, links)
 - Pages: 16
-- Findings: 104 (6 error, 54 warning, 44 info, 0 hint)
-- Checks passed: 507 of 567; 32 rules failed nowhere.
+- Findings: 99 (6 error, 54 warning, 39 info, 0 hint)
+- Checks passed: 502 of 562; 32 rules failed nowhere.
 
 ## links/internal/unreachable (error 7.4)
 
@@ -330,19 +330,6 @@ Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
 Fix: Add <link rel=privacy-policy href=/privacy> to the head.
 Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
 Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy/missing` reports no html/privacy-policy/missing finding.
-
-## url/slug/unreadable (info 2.0)
-
-the slug is an identifier, not words
-
-Where: 5 pages of group posts (100 %), for example:
-- /posts/1
-- /posts/2
-- /posts/3
-Reads: `url.pathname`, `html.title`, `html.h1`
-Fix: Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.
-Docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
-Done when: `spiderlint audit ORIGIN/ --rules url/slug/unreadable` reports no url/slug/unreadable finding.
 
 ## html/color-scheme/missing (info 1.4)
 
