@@ -96,8 +96,8 @@ describe("cli-store", () => {
         assert.match(refused.stderr, /--facts: picks human and csv columns only/);
         const table = await spiderlint(directory, "export-facts", seed);
         assert.equal(table.code, 0, table.stderr);
-        assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\nPage +Group +Status +CO₂e per view +Page size +Resources +Total time\n/ +default +200 +[\d.,]+ g +[\d.,]+ (?:k?B|byte) +\d+ +[\d.,]+ ms\n`));
-        assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nCO₂e per view +\d+ +[\d.,]+ g /);
+        assert.match(table.stdout, new RegExp(String.raw`^${site.origin}\nPage +Group +Status +CO₂e per view +Page size +Resources +Total time\n/ +default +200 +[\d.,]+\sg +[\d.,]+\s(?:k?B|byte) +\d+ +[\d.,]+\sms\n`));
+        assert.match(table.stdout, /\nstats +pages +min +median +p95 +max +total\nCO₂e per view +\d+ +[\d.,]+\sg /);
         const one = await spiderlint(directory, "show-facts", `${seed}about`);
         assert.equal(one.code, 0, one.stderr);
         assert.match(one.stdout, /^url\.href +http:\/\/127\.0\.0\.1:\d+\/about\n/);
