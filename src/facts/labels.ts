@@ -79,16 +79,21 @@ export function isLabelled(path: string): boolean {
     return Object.hasOwn(LABELS, path);
 }
 
+// A number written with its unit, the spaces no-break so a line never parts them.
+export function glued(text: string): string {
+    return text.replaceAll(" ", "\u{A0}");
+}
+
 // Seconds in the largest unit they reach, from days down.
 function duration(value: number, format: NumberFormat): string {
     const [scale, unit] = DURATION_UNITS.find(([floor]) => Math.abs(value) >= floor) ?? [1, "second"];
-    return format(value / scale, { style: "unit", unit });
+    return glued(format(value / scale, { style: "unit", unit }));
 }
 
 // Bytes in the largest unit they reach.
 export function bytes(value: number, format: NumberFormat): string {
     const [scale, unit] = BYTE_UNITS.find(([floor]) => value >= floor) ?? [1, "byte"];
-    return format(value / scale, { style: "unit", unit });
+    return glued(format(value / scale, { style: "unit", unit }));
 }
 
 // A value with its path’s unit: four decimals below 1, one above, never a signed zero; bytes scaled.
@@ -97,5 +102,5 @@ export function withUnit(path: string, value: number, format: NumberFormat): str
     if (unit === "byte") return bytes(value, format);
     if (unit === "second") return duration(value, format);
     const digits: Intl.NumberFormatOptions = { maximumFractionDigits: Math.abs(value) < 1 ? 4 : 1, signDisplay: "negative" };
-    return format(value, unit ? { ...digits, style: "unit", unit } : digits);
+    return unit ? glued(format(value, { ...digits, style: "unit", unit })) : format(value, digits);
 }

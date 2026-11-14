@@ -7,7 +7,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import { shippedRules } from "../rules/catalog.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
 import { cachedReads, namedAt, sentence } from "../rules/message.ts";
-import { bytes, isLabelled, label, withUnit } from "../facts/labels.ts";
+import { bytes, glued, isLabelled, label, withUnit } from "../facts/labels.ts";
 import { utc } from "../facts/read-note.ts";
 import { environmentLanguage, environmentLocale, translator, type Translator } from "../i18n.ts";
 import type { Report } from "../index.ts";
@@ -305,7 +305,7 @@ export function reportBody(report: Pick<Report, "summary" | "findings" | "rules"
     const measured = [
         kpi(t.number(summary.pages), t._("Pages")),
         kpi(bytes(summary.bytes, t.number), t._("Size")),
-        kpi(t.number(summary.durationMs / 1000, { style: "unit", unit: "second" }), t._("Time")),
+        kpi(glued(t.number(summary.durationMs / 1000, { style: "unit", unit: "second" })), t._("Time")),
         kpi(t._("{passed} of {total}", { passed: t.number(summary.checks.passed), total: t.number(summary.checks.total) }), t._("Checks passed"), "good"),
     ];
     const counted = (Object.keys(ORDER) as Finding["severity"][]).map((severity) => {

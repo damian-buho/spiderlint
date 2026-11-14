@@ -4,7 +4,7 @@
 
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { environmentLocale } from "../i18n.ts";
-import { bytes as sized, isLabelled, label, withUnit, type NumberFormat } from "../facts/labels.ts";
+import { bytes as sized, glued, isLabelled, label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
 import { fixFor, fixesOf, plainFix } from "../rules/fix.ts";
 import { cachedReads, namedAt } from "../rules/message.ts";
@@ -210,7 +210,7 @@ function totals({ pages, bytes, durationMs, statuses, rules, checks, findings, r
     return [
         row("pages", answers.length > 0 ? `${number(pages)} (${answers.join(", ")})` : number(pages)),
         row("size", sized(bytes, number)),
-        row("time", number(durationMs / 1000, { style: "unit", unit: "second" })),
+        row("time", glued(number(durationMs / 1000, { style: "unit", unit: "second" }))),
         row("rules", number(rules)),
         row("checks", `${number(checks.passed)} of ${number(checks.total)} passed`),
         row("findings", `${number(findings.total)}${change(findings.total, previous?.findings.total, paint, number)} (${severities.join(", ")})${since}`),

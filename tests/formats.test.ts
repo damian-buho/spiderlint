@@ -185,8 +185,8 @@ describe("formatHtml", () => {
         const image = "https://cdn.test/hero.webp";
         const heavy: Finding = { rule: "images/weight/large", severity: "warning", scope: "site", url: image, message: "a webp image is above the weight limit", data: { [image]: { size: { fact: "http.size.body", value: 912_000 }, limit: { fact: "http.size.body", value: 200_000 } } }, urls: [`${site.origin}/a`] };
         const input = { ...report, findings: [heavy] };
-        assert.ok(formatHtml(input, undefined, false, "en").includes(`>https://cdn.test/hero.webp</a><span class="data">size: 912 kB · limit: 200 kB</span>`), "html names size and limit");
-        assert.ok(formatHuman(input, undefined, false, "en").split("\n").includes("          https://cdn.test/hero.webp  size: 912 kB  limit: 200 kB"), "human names size and limit");
+        assert.ok(formatHtml(input, undefined, false, "en").includes(`>https://cdn.test/hero.webp</a><span class="data">size: 912\u{A0}kB · limit: 200\u{A0}kB</span>`), "html names size and limit");
+        assert.ok(formatHuman(input, undefined, false, "en").split("\n").includes("          https://cdn.test/hero.webp  size: 912\u{A0}kB  limit: 200\u{A0}kB"), "human names size and limit");
     });
 
     it("lists one flat card per finding, errors first and the highest impact first within a level, whole-site scope without a page list, and no group heading for default alone", () => {
@@ -304,7 +304,7 @@ describe("formatHtml", () => {
     it("names each labelled statistic by its translated label with the path on hover, leaves an unlabelled one out and shows a duration without a total", () => {
         const stats = { "http.size.body": { count: 2, min: 1500, median: 2000, p95: 2500, max: 2500, total: 4000 }, "html.text": { count: 2, min: 1, median: 2, p95: 3, max: 3, total: 4 }, "http.parsed.strict-transport-security.value.max-age": { count: 2, min: 300, median: 300, p95: 31_536_000, max: 31_536_000 } };
         const html = formatHtml({ ...report, summary: { ...report.summary, stats } }, undefined, false, "es");
-        assert.ok(html.includes('<td><span title="http.size.body">Tamaño de la página</span></td><td>2</td><td>1,5 kB</td>'), html);
+        assert.ok(html.includes('<td><span title="http.size.body">Tamaño de la página</span></td><td>2</td><td>1,5\u{A0}kB</td>'), html);
         assert.ok(!html.includes("html.text"));
         assert.ok(html.includes("max-age de HSTS") && html.includes("<td>–</td></tr>"), "no total for a configured limit");
     });

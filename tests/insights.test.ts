@@ -43,8 +43,8 @@ describe("insights", () => {
                 ["insight/value/inconsistent", "info", ["https://site.test/p/1"]],
             ],
         );
-        assert.equal(found[0]?.message, "Total time is far above the median 101 ms of 25 pages; the first alone outweighs the next 10 pages combined");
-        assert.deepEqual(valuesAt(found[0] as Finding, "https://site.test/p/2", inEnglish), ["2,000 ms", "19.8×"]);
+        assert.equal(found[0]?.message, "Total time is far above the median 101\u{A0}ms of 25 pages; the first alone outweighs the next 10 pages combined");
+        assert.deepEqual(valuesAt(found[0] as Finding, "https://site.test/p/2", inEnglish), ["2,000\u{A0}ms", "19.8×"]);
         assert.equal(found[1]?.message, "HTTP version is 3.0 on 24 of 25 pages, but not on these");
         assert.deepEqual(found[1]?.data, { "https://site.test/p/1": { value: "2.0" } });
     });
@@ -53,8 +53,8 @@ describe("insights", () => {
         const rule = compileRulesets(["custom"], { custom: { rules: { "insight/number/outlier": { expect: { facts: ["http.size.body"] } } } } })[0] as AggregateRule;
         const pages = Array.from({ length: 20 }, (_, index) => page(index, "3.0", 100, index === 0 ? 86_700 : 10_900 + index));
         const [finding] = rule.check(pages) ?? [];
-        assert.equal(finding?.message, "Page size is far above the median 10.9 kB of 20 pages");
-        assert.deepEqual(valuesAt(finding as Finding, "https://site.test/p/0", inEnglish), ["86.7 kB", "7.9×"]);
+        assert.equal(finding?.message, "Page size is far above the median 10.9\u{A0}kB of 20 pages");
+        assert.deepEqual(valuesAt(finding as Finding, "https://site.test/p/0", inEnglish), ["86.7\u{A0}kB", "7.9×"]);
         assert.equal((finding?.value as Record<string, number>)["https://site.test/p/0"], 86_700);
     });
 
