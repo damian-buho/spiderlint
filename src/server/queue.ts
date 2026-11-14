@@ -18,6 +18,9 @@ export const PREFIX = "spiderlint";
 // The descriptor a scan runner writes progress to, one JSON line per change.
 export const PROGRESS_FD = 3;
 
+// The file in its working directory where a scan runner keeps its newest partial report.
+export const PARTIAL_FILE = "partial.json";
+
 export interface ScanData {
     url: string;
     host: string;

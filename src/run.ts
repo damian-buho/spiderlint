@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type { Report } from "./index.ts";
 import { log } from "./logger.ts";
 import type { Finding } from "./rules/types.ts";
 
@@ -61,6 +62,8 @@ export interface RunState {
     activity: { page: string; extractor: string; since: number };
     // Each settled cell’s verdict and the phase that settled it; a cell absent here is waiting.
     rules: Record<string, Record<string, Verdict & { phase: Phase }>>;
+    // The newest report over the settled cells, when the observer keeps one.
+    partial?: Report;
     outcome: Outcome;
 }
 
@@ -73,7 +76,7 @@ export type RunEvent =
     | { type: "pages.known"; at: number; known: number }
     | { type: "page.extracting"; at: number; page: string; extractor: string }
     | { type: "page.done"; at: number; done: number }
-    | { type: "rules.checked"; at: number; phase: Phase; cells: Cells }
+    | { type: "rules.checked"; at: number; phase: Phase; cells: Cells; partial?: Report }
     | { type: "run.ended"; at: number; outcome: Exclude<Outcome, { status: "running" }> };
 
 // An event before the run stamps its time.
@@ -175,7 +178,7 @@ export function reduce(state: RunState, event: RunEvent): RunState {
         case "rules.checked": {
             const rules = { ...state.rules };
             for (const [group, verdicts] of Object.entries(event.cells)) rules[group] = { ...rules[group], ...Object.fromEntries(Object.entries(verdicts).map(([id, verdict]) => [id, { ...verdict, phase: event.phase }])) };
-            return { ...state, rules };
+            return { ...state, rules, ...(event.partial && { partial: event.partial }) };
         }
         case "run.ended": {
             return { ...state, outcome: event.outcome };
@@ -190,10 +193,11 @@ export function progressOf(state: RunState): Progress {
     return { done, total: Math.max(done, known), phase: state.phase, ...(total !== undefined && { step: { done: stepDone, total } }), ...(left && { eta: left }), ...(Object.keys(state.rules).length > 0 && { rules: state.rules }) };
 }
 
-// Hears every state change of a run it is handed to; `isDrawing` steps per-page logs down to debug.
+// Hears every state change of a run it is handed to; `isDrawing` steps per-page logs down to debug, `isKeepingPartial` asks for a partial report at each settling.
 export interface RunObserver {
     update(state: Readonly<RunState>, event: RunEvent): void;
     readonly isDrawing?: boolean;
+    readonly isKeepingPartial?: boolean;
 }
 
 // One run’s state, changed only by `emit`, which logs each event and hands the new state to the observer.
@@ -213,7 +217,8 @@ export class Run {
 
     emit(event: Unstamped): void {
         const stamped = { ...event, at: this.#clock() } as RunEvent;
-        log.debug(stamped, `run ${stamped.type}`);
+        const { partial, ...fields } = stamped as RunEvent & { partial?: Report };
+        log.debug(partial ? { ...fields, partial: { pages: partial.summary.pages, findings: partial.summary.findings.total } } : fields, `run ${stamped.type}`);
         this.#state = reduce(this.#state, stamped);
         this.observer?.update(this.#state, stamped);
     }

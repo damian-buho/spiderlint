@@ -76,8 +76,8 @@ export interface Summary {
     rating?: Rating;
     // The edge whose bot wall answered a page, which stopped the crawl.
     walled?: string;
-    // Why time ran out before the whole site was checked; the rating covers only what was gathered.
-    incomplete?: "timeout" | "analysis-timeout";
+    // Why the whole site was not checked: time ran out, or the report is a partial one; the rating covers only what was gathered.
+    incomplete?: "timeout" | "analysis-timeout" | "partial" | "hard-timeout";
     byRule: Record<string, Partial<Record<Finding["severity"], number>>>;
     previous?: { started: string; findings: Summary["findings"] };
     crawlHash?: string;
@@ -387,10 +387,10 @@ function sampledCells(pages: Facts[], rulesByGroup: Map<string, Rule[]>, groups:
     return new Set(cells);
 }
 
-type Lint = (crawled: Crawled, started: Date, run: Run) => Report;
+type Lint = (crawled: Crawled, run: Run) => Report;
 
 // Checks the rules whose facts are complete once `phase` ends, over what the run has gathered so far.
-type Settle = (phase: Phase, pages: Facts[], site: SiteFacts, run: Run) => void;
+type Settle = (phase: Phase, crawled: Crawled, run: Run) => void;
 
 // The cells of `run` as verdicts by group, leaving out those `before` holds.
 function cellsOf(run: RuleRun, before: ReadonlySet<string> = new Set()): Cells {
@@ -447,7 +447,7 @@ function derive(pages: Facts[], site: SiteFacts, config: Config, matchers: Retur
 }
 
 // Compiles groups and rules up front, so a config error fails before the first request, with the plan they make.
-function linter(config: Config): { plan: Plan; lint: Lint; settle: Settle } {
+function linter(config: Config, started: Date): { plan: Plan; lint: Lint; settle: Settle } {
     const groups = groupsOf(config);
     const matchers = compileGroups(groups);
     const rulesByGroup = rulesOf(config);
@@ -470,17 +470,30 @@ function linter(config: Config): { plan: Plan; lint: Lint; settle: Settle } {
     log.debug({ rulesets, groups: Object.keys(plan.groups).length, rules: Object.keys(plan.rules).length }, "run planned");
     const results: PageResults = new Map();
     const derived = new WeakSet<Facts>();
-    const settle: Settle = (phase, pages, site, ongoing) => {
+    // The report over `run`: its findings folded, its summary marked `incomplete`, and the guides of the rules it judged.
+    const reportOf = ({ pages, site, cost, fetch }: Crawled, run: RuleRun, incomplete?: Summary["incomplete"]): Report => {
+        run.sampled = sampledCells(pages, rulesByGroup, groups);
+        const findings = fold(run, config.fold);
+        attributeVendors(findings, config.vendorPaths);
+        const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }), ...(incomplete && { incomplete }) };
+        return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
+    };
+    const settle: Settle = (phase, crawled, ongoing) => {
+        const { pages, site } = crawled;
         const due = new Map([...rulesByGroup].map(([group, list]) => [group, list.filter((rule) => isPageRule(rule) && !results.has(cell(group, rule.meta.id)) && isSettledBy(plan.rules[rule.meta.id] ?? [], phase))]));
         const count = due.values().reduce((sum, list) => sum + list.length, 0);
         log.debug({ phase, rules: count }, "rules due");
         if (count === 0) return;
         const begun = performance.now();
         derive(pages, site, config, matchers, isDetected, derived);
-        ongoing.emit({ type: "rules.checked", phase, cells: cellsOf(runRules(pages, due, site, results)) });
-        log.debug({ phase, rules: count, pages: pages.length, durationMs: Math.round(performance.now() - begun) }, "rules settled early");
+        const cells = cellsOf(runRules(pages, due, site, results));
+        const settled = new Map([...rulesByGroup].map(([group, list]) => [group, list.filter((rule) => results.has(cell(group, rule.meta.id)))]));
+        const partial = ongoing.observer?.isKeepingPartial ? reportOf(crawled, runRules(pages, settled, site, results), "partial") : undefined;
+        ongoing.emit({ type: "rules.checked", phase, cells, ...(partial && { partial }) });
+        log.debug({ phase, rules: count, pages: pages.length, isPartial: partial !== undefined, durationMs: Math.round(performance.now() - begun) }, "rules settled early");
     };
-    const lint: Lint = ({ pages, site, cost, fetch }, started, ongoing) => {
+    const lint: Lint = (crawled, ongoing) => {
+        const { pages, site } = crawled;
         stopIfInterrupted("lint");
         ongoing.emit({ type: "phase.started", phase: "lint" });
         const unrendered = parity.length > 0 ? pages.filter((page) => page.html && !page.parity).length : 0;
@@ -490,15 +503,13 @@ function linter(config: Config): { plan: Plan; lint: Lint; settle: Settle } {
         const run = runRules(pages, rulesByGroup, site, results);
         ongoing.emit({ type: "rules.checked", phase: "lint", cells: cellsOf(run, before) });
         if (site.crawl?.complete !== true) partial(run, rulesByGroup, site.crawl?.reason ?? "unfinished");
-        run.sampled = sampledCells(pages, rulesByGroup, groups);
-        const findings = fold(run, config.fold);
-        attributeVendors(findings, config.vendorPaths);
         const isOutOfTime = site.crawl?.reason === "timeout" || site.crawl?.reason === "analysis-timeout";
-        const summary = { ...summarize(pages, run, rules, started, cost, rulesets), ...(fetch && { fetch }), ...(isOutOfTime && { incomplete: site.crawl?.reason as NonNullable<Summary["incomplete"]> }) };
+        const report = reportOf(crawled, run, isOutOfTime ? (site.crawl?.reason as NonNullable<Summary["incomplete"]>) : undefined);
+        const { summary } = report;
         log.debug(summary, "lint summary");
         log.debug({ pages: summary.pages, findings: summary.findings.total, grade: summary.rating?.grade, durationMs: summary.durationMs }, "lint done");
         ongoing.emit({ type: "phase.ended", phase: "lint" });
-        return { pages, findings, summary, site, rules: ruleGuides(findings, rulesByGroup, summary.checked) };
+        return report;
     };
     return { plan, lint, settle };
 }
@@ -610,12 +621,12 @@ async function crawlOpen(given: Config, run: Run, store: DiskStore | undefined, 
     stopIfInterrupted("resources");
     site.redirects = redirects;
     log.debug({ redirects: Object.keys(redirects).length }, "redirects recorded");
-    settle?.("crawl", memory.pages, site, run);
+    settle?.("crawl", { pages: memory.pages, site, cost, fetch: modes }, run);
     await store?.pruneBodies(memory.pages);
     const results = await fetchResources(memory.pages, config, openBucket("resources", config, store?.directory), resourceActive, responses, extractors, overdue, run);
     await store?.saveResources(results);
     attachResources(memory.pages, results);
-    settle?.("resources", memory.pages, site, run);
+    settle?.("resources", { pages: memory.pages, site, cost, fetch: modes }, run);
     const isProbed = rules.some((rule) => rule.meta.id === "links/external/unreachable");
     const isMediaProbed = rules.some((rule) => rule.meta.id === "sitemap/media/unreachable");
     log.debug({ isProbed, isMediaProbed }, "external link probes decided");
@@ -623,7 +634,7 @@ async function crawlOpen(given: Config, run: Run, store: DiskStore | undefined, 
     const links = memory.pages.flatMap((page) => [...(isProbed ? (page.html?.links.external ?? []) : []), ...(isMediaProbed ? mediaOf(page) : [])]);
     stopIfInterrupted("link probes");
     if (isProbed || isMediaProbed) site.links = await probeLinks(links, config, probes, overdue, run);
-    settle?.("probes", memory.pages, site, run);
+    settle?.("probes", { pages: memory.pages, site, cost, fetch: modes }, run);
     stopIfInterrupted("site extractors");
     const dns = config.proxy ? PROXIED_DNS : dnsClient(config.resolver, openBucket("dns", config, store?.directory), config.allowPrivate);
     counted(cost, await extractSites(memory.pages, site, siteActive, config, openBucket("origins", config, store?.directory), dns, probes, robots, linkedSiteExtractors(rules), openBucket("profiles", config, store?.directory), openBucket("lists", config, store?.directory), overdue, run));
@@ -684,19 +695,19 @@ export async function audit(overrides: Partial<Config>, options: StoreOptions = 
     const config = layered([overrides]);
     setVia(config.via);
     await loadPlugins(config.plugins, config.pluginSettings);
-    const { plan, lint, settle } = linter(config);
+    const { plan, lint, settle } = linter(config, started);
     await prepareLint(config);
     const run = new Run(options.observer);
     run.emit({ type: "run.planned", plan });
     const persist = async (store: DiskStore) => {
-        const report = withPrevious(lint(await crawlPages(config, run, store, settle), started, run), store);
+        const report = withPrevious(lint(await crawlPages(config, run, store, settle), run), store);
         await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
         return report;
     };
     const isFresh = !options.resume && config.cacheMode !== "offline";
     return ended(
         run,
-        async () => (options.store ? withStore(options.store, { fresh: isFresh, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config, run, undefined, settle), started, run)),
+        async () => (options.store ? withStore(options.store, { fresh: isFresh, seeds: config.seeds, configHash: crawlHash(config) }, persist) : lint(await crawlPages(config, run, undefined, settle), run)),
         (report) => report.summary.incomplete,
     );
 }
@@ -720,7 +731,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string, o
     const started = new Date();
     const config = layered([overrides]);
     await loadPlugins(config.plugins, config.pluginSettings);
-    const { plan, lint } = linter(config);
+    const { plan, lint } = linter(config, started);
     await prepareLint(config);
     const run = new Run(observer);
     run.emit({ type: "run.planned", plan });
@@ -735,7 +746,7 @@ export async function lintStore(overrides: Partial<Config>, directory: string, o
                 attachResources(pages, await store.resources());
                 const site = await store.site();
                 warnUnserved(site, siteExtractorsFor(rules));
-                const report = withPrevious(lint({ pages, site, cost }, started, run), store);
+                const report = withPrevious(lint({ pages, site, cost }, run), store);
                 await store.saveReport({ findings: report.findings, summary: report.summary, rules: report.rules });
                 return report;
             }),

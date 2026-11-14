@@ -921,6 +921,7 @@ describe("audit settling", () => {
             { seeds: [`${site.origin}/`, `${site.origin}/preconnect-font`], groups: { ...GROUPS, default: { rules: ["seo", "links", "html/preconnect*"] } }, excludeUrls: ["/tmp/**"] },
             {
                 observer: {
+                    isKeepingPartial: true,
                     update: (now, event) => {
                         state = now;
                         events.push(event);
@@ -953,6 +954,19 @@ describe("audit settling", () => {
             planned.toSorted((a, b) => a.localeCompare(b)),
         );
         for (const [group, ids] of Object.entries(plan().groups)) for (const id of ids) if (plan().rules[id]?.at(-1) === "lint") assert.equal(state?.rules[group]?.[id]?.phase, "lint", `${group} ${id}`);
+    });
+
+    it("keeps a partial report at each early settling, counting only the rules settled so far", () => {
+        const early = settled().filter((event) => event.phase !== "lint");
+        assert.ok(early.length > 0 && early.every((event) => event.partial?.summary.incomplete === "partial"), "every early settling carries a partial report");
+        const last = early.at(-1)?.partial;
+        const kept = new Set(early.flatMap((event) => Object.values(event.cells).flatMap((verdicts) => Object.keys(verdicts))));
+        assert.deepEqual(state?.partial, last);
+        const checked = Object.keys(last?.summary.checked ?? {});
+        const found = (last?.findings ?? []).map((finding) => finding.rule).filter((id) => Object.hasOwn(plan().rules, id));
+        for (const id of checked) assert.ok(kept.has(id), `${id} is in the partial report but never settled early`);
+        for (const id of found) assert.ok(kept.has(id), `${id} found before it settled`);
+        for (const id of kept) assert.deepEqual(last?.summary.byRule[id], report.summary.byRule[id], id);
     });
 
     it("finds in some cell exactly the rules the report counts findings for, at the same total", () => {

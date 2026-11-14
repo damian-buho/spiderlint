@@ -21,10 +21,10 @@ import { pageCsp } from "../src/server/web.ts";
 import { Buckets, clientOf } from "../src/server/clients.ts";
 import { admit, policyFor, presetSettings, presetsOffered, Refusal, grantedSignals, resolveRules } from "../src/server/policy.ts";
 import { addRanges } from "../src/server/providers.ts";
-import { connect, jobId, repeatKey, scanQueue } from "../src/server/queue.ts";
+import { connect, jobId, PARTIAL_FILE, repeatKey, scanQueue, type ScanJob } from "../src/server/queue.ts";
 import { tick } from "../src/server/examples.ts";
 import { hostSuffix, settingsOf } from "../src/server/settings.ts";
-import { startWorker } from "../src/server/worker.ts";
+import { keptPartial, startWorker } from "../src/server/worker.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const SETTINGS = settingsOf({
@@ -966,6 +966,33 @@ describe("job IDs", () => {
     it("differ for one host at one instant", () => {
         const at = new Date();
         assert.notEqual(jobId("example.org", at), jobId("example.org", at));
+    });
+});
+
+describe("a scan killed at its timeout", () => {
+    const job = { id: "killed", data: { host: "a.test" } } as ScanJob;
+    let cwd = "";
+
+    before(async () => {
+        cwd = await mkdtemp(path.join(tmpdir(), "spiderlint-killed-"));
+    });
+
+    after(async () => rm(cwd, { recursive: true, force: true }));
+
+    it("fails as before when the runner wrote no partial report", async () => {
+        assert.equal(await keptPartial(job, cwd, '{"done":1,"total":4,"phase":"crawl"}'), undefined);
+    });
+
+    it("finishes on the newest partial report, marked hard-timeout", async () => {
+        await writeFile(path.join(cwd, PARTIAL_FILE), JSON.stringify({ summary: { pages: 2, incomplete: "partial" }, findings: [{ rule: "seo/title/missing" }] }));
+        const kept = await keptPartial(job, cwd, '{"done":2,"total":4,"phase":"probes"}');
+        assert.equal(kept?.summary.incomplete, "hard-timeout");
+        assert.deepEqual([kept?.summary.pages, kept?.findings.length], [2, 1]);
+    });
+
+    it("keeps the partial report when no progress line came", async () => {
+        const kept = await keptPartial(job, cwd, "");
+        assert.equal(kept?.summary.incomplete, "hard-timeout");
     });
 });
 

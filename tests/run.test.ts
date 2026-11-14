@@ -8,6 +8,7 @@ import { eta, etaSpan, initialState, isRedrawn, isSettledBy, PHASES, phasesOf, p
 import { runRules, type PageResults } from "../src/rules/run.ts";
 import type { AggregateRule, PageRule } from "../src/rules/types.ts";
 import type { Facts, SiteFacts } from "../src/facts/types.ts";
+import type { Report } from "../src/index.ts";
 import { etaText, line } from "../src/status-line.ts";
 
 // The state after `events`, applied in order to a fresh run.
@@ -214,6 +215,17 @@ describe("run rules", () => {
             default: { "seo/title/missing": { status: "passed", phase: "crawl" }, "links/external/unreachable": { status: "findings", findings: { error: 2 }, phase: "probes" } },
             posts: { "seo/title/missing": { status: "untested", phase: "probes" } },
         });
+    });
+
+    it("keeps the newest partial report, and the earlier one when a settling carries none", () => {
+        const [first, second] = [{ summary: { pages: 1 } }, { summary: { pages: 2 } }] as unknown as Report[];
+        const kept = after([
+            { type: "rules.checked", at: 0, phase: "crawl", cells: {}, partial: first },
+            { type: "rules.checked", at: 1, phase: "resources", cells: {}, partial: second },
+        ]);
+        assert.equal(kept.partial, second);
+        assert.equal(reduce(kept, { type: "rules.checked", at: 2, phase: "lint", cells: {} }).partial, second);
+        assert.equal(initialState().partial, undefined);
     });
 
     it("never changes the state it is given when a cell settles", () => {

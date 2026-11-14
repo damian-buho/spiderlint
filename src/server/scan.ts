@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { writeSync } from "node:fs";
+import { renameSync, writeFileSync, writeSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { text } from "node:stream/consumers";
 import { setDefaultCACertificates } from "node:tls";
@@ -13,10 +13,10 @@ import { validateSubtree } from "../config/schema.ts";
 import { audit } from "../index.ts";
 import { log } from "../logger.ts";
 import { formatJson } from "../report/json.ts";
-import { progressWriter } from "../run.ts";
+import { progressWriter, type RunObserver } from "../run.ts";
 import { inSpan, startTelemetry, withTraceCarrier } from "../telemetry.ts";
 import { PREVIEW_FILE, preview } from "./preview.ts";
-import { PROGRESS_FD } from "./queue.ts";
+import { PARTIAL_FILE, PROGRESS_FD } from "./queue.ts";
 
 // The seed’s preview in `PREVIEW_FILE` before the epoch ms `by`; a failure leaves none and never fails the scan.
 async function takePreview(url: string, isPrivateAllowed: boolean, by: number): Promise<void> {
@@ -27,6 +27,21 @@ async function takePreview(url: string, isPrivateAllowed: boolean, by: number): 
     } catch (error) {
         log.warn({ url, by, error: error instanceof Error ? error.message : String(error) }, "preview not taken");
     }
+}
+
+// Writes progress lines to fd 3 and each new partial report to `PARTIAL_FILE` through a temporary file, so a kill never leaves half of one.
+function scanObserver(): RunObserver {
+    const progress = progressWriter((line) => writeSync(PROGRESS_FD, `${JSON.stringify(line)}\n`));
+    return {
+        isKeepingPartial: true,
+        update(state, event) {
+            progress.update(state, event);
+            if (event.type !== "rules.checked" || !event.partial) return;
+            writeFileSync(`${PARTIAL_FILE}.tmp`, formatJson(event.partial));
+            renameSync(`${PARTIAL_FILE}.tmp`, PARTIAL_FILE);
+            log.debug({ phase: event.phase, pages: event.partial.summary.pages, findings: event.partial.summary.findings.total }, "partial report written");
+        },
+    };
 }
 
 // Exit codes: 0 the report is on stdout, 2 the settings are invalid, 3 no page was fetched, 4 the run failed.
@@ -42,7 +57,7 @@ async function main(): Promise<number> {
         previewBy,
         trace,
     } = JSON.parse(await text(process.stdin)) as { url: string; settings: Record<string, unknown>; deny: string[]; via?: string; "content-signals"?: string[]; crawlDeadline: number; analysisDeadline: number; previewBy?: number; trace?: Record<string, string> };
-    const observer = progressWriter((progress) => writeSync(PROGRESS_FD, `${JSON.stringify(progress)}\n`));
+    const observer = scanObserver();
     const telemetry = await startTelemetry("spiderlint");
     try {
         const report = await withTraceCarrier(trace, async () =>

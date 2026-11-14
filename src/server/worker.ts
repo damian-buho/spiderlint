@@ -10,10 +10,10 @@ import { createInterface } from "node:readline";
 import { Job, Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { log } from "../logger.ts";
-import type { Plan } from "../run.ts";
+import { PHASES, type Plan, type Progress } from "../run.ts";
 import { inSpan, recordScan, traceCarrier, withTraceCarrier } from "../telemetry.ts";
 import { PREVIEW_FILE } from "./preview.ts";
-import { PREFIX, previewKey, PROGRESS_FD, QUEUE, recordExample, recordLatest, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
+import { PARTIAL_FILE, PREFIX, previewKey, PROGRESS_FD, QUEUE, recordExample, recordLatest, type ScanData, type ScanJob, type ScanResult } from "./queue.ts";
 import type { ServerSettings } from "./settings.ts";
 
 const RUNNER = new URL(`scan${path.extname(import.meta.url)}`, import.meta.url).pathname;
@@ -92,6 +92,20 @@ async function storePlan(job: ScanJob, line: string): Promise<void> {
     }
 }
 
+// The runner’s newest partial report marked `hard-timeout`, logged with the phase its `last` progress line reached; none when it wrote none.
+export async function keptPartial(job: ScanJob, cwd: string, last: string): Promise<ScanResult | undefined> {
+    try {
+        const report = JSON.parse(await readFile(path.join(cwd, PARTIAL_FILE), "utf8")) as ScanResult;
+        report.summary.incomplete = "hard-timeout";
+        const { phase = "crawl" } = (last ? JSON.parse(last) : {}) as Partial<Progress>;
+        log.warn({ job: job.id, host: job.data.host, phase, pages: report.summary.pages, skipped: PHASES.slice(PHASES.indexOf(phase) + 1) }, "partial report kept after the scan timeout");
+        return report;
+    } catch (error) {
+        log.info({ job: job.id, host: job.data.host, error: String(error) }, "no partial report to keep after the scan timeout");
+        return undefined;
+    }
+}
+
 // One scan in a runner child under a temporary working directory, its progress relayed at most once per second.
 async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Promise<ScanResult> {
     const { url, settings, scanTimeout, deny, via, "content-signals": signals } = job.data;
@@ -117,10 +131,11 @@ async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Prom
         if (tail.length > TAIL) tail.shift();
         log.debug({ job: job.id, line }, "runner log");
     });
-    const progress = { sent: 0, held: "" };
+    const progress = { sent: 0, held: "", last: "" };
     const store = (line: string) => void job.updateProgress(JSON.parse(line) as object).catch((error: unknown) => log.warn({ job: job.id, error: String(error) }, "progress not stored"));
     lines(child.stdio[PROGRESS_FD] as NodeJS.ReadableStream, (line) => {
         if (line.startsWith('{"plan":')) return void storePlan(job, line);
+        progress.last = line;
         const now = Date.now();
         // A line inside the interval is held, so the last one is stored once the runner exits.
         progress.held = now - progress.sent < PROGRESS_MS ? line : "";
@@ -134,8 +149,10 @@ async function runScan(job: ScanJob, redis: Redis, server: ServerSettings): Prom
     if (progress.held) store(progress.held);
     running.delete(child);
     if (code === 0 && previewBy) await storePreview(redis, job, cwd, server.retention);
+    const kept = isTimedOut ? await keptPartial(job, cwd, progress.last) : undefined;
     await rm(cwd, { recursive: true, force: true });
-    log.info({ job: job.id, url, code, signal, bytes: size }, "scan exited");
+    log.info({ job: job.id, url, code, signal, bytes: size, isKept: kept !== undefined }, "scan exited");
+    if (kept) return kept;
     if (code !== 0) throw new Error(reasonOf(code, tail, isTimedOut, scanTimeout));
     if (size > REPORT_MAX) throw new Error(`the report exceeds ${REPORT_MAX} bytes`);
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as ScanResult;
