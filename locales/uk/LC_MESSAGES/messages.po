@@ -1562,9 +1562,6 @@ msgstr "<img> передає значно більше пікселів, ніж 
 msgid "an <img> without srcset ships over {oversize} the width it displays"
 msgstr "<img> без srcset передає понад {oversize} ширини, яку показує"
 
-msgid "an <img> without width and height shifts the layout as it loads"
-msgstr "<img> без width і height зсуває макет під час завантаження"
-
 msgid "an origin serves a render-blocking {kind} and nothing preconnects to it"
 msgstr "origin віддає {kind}, що блокує відображення, і ніщо не робить preconnect до нього"
 

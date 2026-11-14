@@ -1562,9 +1562,6 @@ msgstr "un <img> envía muchos más píxeles de los que la página muestra"
 msgid "an <img> without srcset ships over {oversize} the width it displays"
 msgstr "un <img> sin srcset envía más de {oversize} el ancho que muestra"
 
-msgid "an <img> without width and height shifts the layout as it loads"
-msgstr "un <img> sin width y height desplaza el diseño al cargar"
-
 msgid "an origin serves a render-blocking {kind} and nothing preconnects to it"
 msgstr "un origen sirve un {kind} que bloquea el renderizado y nada se preconecta a él"
 

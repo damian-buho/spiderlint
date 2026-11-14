@@ -44,6 +44,13 @@ describe("rule sentences", () => {
             assert.deepEqual([...messages.difference(known)].toSorted(byName), [], `${lang} catalog lacks these messages`);
         }
     });
+
+    it("defines each msgid once per catalog, since the parser keeps only the last copy", () => {
+        for (const lang of ["es", "uk"]) {
+            const ids: string[] = readFileSync(new URL(`../locales/${lang}/LC_MESSAGES/messages.po`, import.meta.url), "utf8").match(/^msgid ".+"$/gm) ?? [];
+            assert.deepEqual([...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))], [], `${lang} catalog defines these msgids twice`);
+        }
+    });
 });
 
 describe("finding templates", () => {
