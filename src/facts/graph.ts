@@ -9,13 +9,18 @@ const DAMPING = 0.85;
 const ROUNDS = 100;
 const SETTLED = 1e-9;
 
-// Each page’s distinct internal link targets among the stored pages, a redirect standing for its target, self links dropped.
-function edges(pages: Facts[], redirects: Record<string, string>): Map<Facts, Facts[]> {
+// The stored pages by URL, a redirect standing for its target.
+function byHrefOf(pages: Facts[], redirects: Record<string, string>): Map<string, Facts> {
     const byHref = new Map(pages.map((page) => [page.url.href, page]));
     for (const [from, to] of Object.entries(redirects)) {
         const target = byHref.get(to);
         if (target) byHref.set(from, target);
     }
+    return byHref;
+}
+
+// Each page’s distinct internal link targets among the stored pages, self links dropped.
+function edges(pages: Facts[], byHref: Map<string, Facts>): Map<Facts, Facts[]> {
     return new Map(pages.map((page) => [page, [...new Set((page.html?.links.internal ?? []).map((href) => byHref.get(href)))].filter((target): target is Facts => target !== undefined && target !== page)]));
 }
 
@@ -57,7 +62,16 @@ function ranks(out: Map<Facts, Facts[]>): Map<Facts, number> {
 
 // Sets each page’s `graph` facts and returns the site’s; recomputed on every lint.
 export function linkGraph(pages: Facts[], redirects: Record<string, string> = {}): NonNullable<SiteFacts["graph"]> {
-    const out = edges(pages, redirects);
+    const byHref = byHrefOf(pages, redirects);
+    const out = edges(pages, byHref);
+    const previous = new Map<Facts, string>();
+    for (const page of pages) {
+        const nexts = page.html?.rels.next ?? [];
+        for (const href of nexts) {
+            const target = byHref.get(href);
+            if (target && target !== page) previous.set(target, page.url.href);
+        }
+    }
     const depth = depths(out);
     const rank = ranks(out);
     const inDegree = new Map<Facts, number>();
@@ -66,9 +80,10 @@ export function linkGraph(pages: Facts[], redirects: Record<string, string> = {}
         const linked = new Set((page.html?.links.internal ?? []).filter((href) => href !== page.url.href && href !== page.crawl.requested));
         const graph: GraphFacts = { "in-degree": inDegree.get(page) ?? 0, "out-degree": linked.size, rank: Number(((rank.get(page) ?? 0) * pages.length).toFixed(3)) };
         if (depth.has(page)) graph.depth = depth.get(page);
+        if (previous.has(page)) graph.prev = previous.get(page);
         page.graph = graph;
     }
     const site = { pages: pages.length, edges: out.values().reduce((sum, targets) => sum + targets.length, 0) };
-    log.debug({ ...site, unreached: pages.length - depth.size }, "link graph built");
+    log.debug({ ...site, unreached: pages.length - depth.size, paginated: previous.size }, "link graph built");
     return site;
 }

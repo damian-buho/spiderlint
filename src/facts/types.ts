@@ -121,6 +121,8 @@ export interface GraphFacts {
     "out-degree": number;
     // PageRank scaled so the average page is 1.
     rank: number;
+    // A stored page naming this one with rel=next.
+    prev?: string;
 }
 
 export interface CookieFacts {

@@ -21,7 +21,7 @@ function page(path: string, links: string[], via: "seed" | "link" = "link"): Fac
         group: "default",
         crawl: { depth: 0, "discovered-via": via, referrers: [] },
         http: { status: 200, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 1, decoded: 1 }, "content-type": "text/html" },
-        html: { links: { internal: links.map((link) => new URL(link, ORIGIN).href), external: [], nofollow: [] } },
+        html: { links: { internal: links.map((link) => new URL(link, ORIGIN).href), external: [], nofollow: [] }, rels: {} },
     } as unknown as Facts;
 }
 
@@ -54,6 +54,20 @@ describe("link graph", () => {
         const mean = pages.reduce((sum, facts) => sum + (facts.graph?.rank ?? 0), 0) / pages.length;
         assert.ok(Math.abs(mean - 1) < 0.01, String(mean));
         assert.ok((pages[0]?.graph?.rank ?? 0) > (pages[5]?.graph?.rank ?? 0));
+    });
+
+    it("spares a numbered listing page another page names with rel=next, and still flags a bare identifier", () => {
+        const listing = page("/posts/", ["/posts/2/", "/items/12345"], "seed");
+        const second = page("/posts/2/", ["/posts/"]);
+        const item = page("/items/12345", ["/posts/"]);
+        Object.assign(listing.html ?? {}, { title: "Posts", rels: { next: [`${ORIGIN}/posts/2/`] } });
+        Object.assign(second.html ?? {}, { title: "Older posts" });
+        Object.assign(item.html ?? {}, { title: "A gadget" });
+        linkGraph([listing, second, item]);
+        assert.equal(second.graph?.prev, `${ORIGIN}/posts/`);
+        const [rule] = compileRulesets(["url/slug/unreadable"], {}) as PageRule[];
+        const flagged = [listing, second, item].flatMap((facts) => rule?.check(facts) ?? []).map((finding) => new URL(finding.url).pathname);
+        assert.deepEqual(flagged, ["/items/12345"]);
     });
 
     it("fails the deep page, the dead end and the weakly linked page", () => {

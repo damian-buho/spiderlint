@@ -12,6 +12,8 @@ import type { Finding, Make } from "./types.ts";
 const ID_ONLY = /^(?:\d+|(?=[a-f]*\d)[\da-f]{6,}|[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})$/i;
 // A last segment naming a file by its extension.
 export const FILE = /\.[a-z\d]{1,5}$/i;
+// A path ending `/page/N`, or a `page=N` query, as listings paginate.
+const PAGED = /\/page\/\d+\/?$|[?&]page=\d+(?:&|$)/;
 // A well-known URI, whose form RFC 8615 fixes.
 const WELL_KNOWN = /^\/\.well-known\//;
 
@@ -36,15 +38,31 @@ function slugOf(page: Facts): string {
     return (page.url.pathname.split("/").findLast((segment) => segment.length > 0) ?? "").replace(FILE, "");
 }
 
+// The signal marking a page as one page of a listing, whose number is the right slug; none for any other page.
+function pagination(page: Facts, slug: string, heading: string): string | undefined {
+    if (page.html?.rels.prev) return "rel=prev";
+    if (page.graph?.prev) return "rel=next from another page";
+    if (PAGED.test(page.url.pathname + page.url.search)) return "page path or query";
+    return /^\d+$/.test(slug) && tokens(heading).has(String(Number(slug))) ? "number in the title" : undefined;
+}
+
 // A slug that is an identifier or shares no word with the page’s title or first heading.
 const readableSlug: Make = (severity) => ({
-    meta: { id: "url/slug/unreadable", severity, scope: "page", facts: ["url.pathname", "html.title", "html.h1"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”." },
+    meta: {
+        id: "url/slug/unreadable",
+        severity,
+        scope: "page",
+        facts: ["url.pathname", "html.title", "html.h1", "html.rels", "graph.prev"],
+        docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure",
+        fix: "Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.",
+    },
     check(page: Facts) {
         const slug = slugOf(page);
         const heading = [page.html?.title ?? "", ...(page.html?.h1 ?? [])].join(" ");
         if (!slug || !heading.trim()) return;
-        if (page.html?.rels.prev) {
-            log.debug({ rule: "url/slug/unreadable", url: page.url.href, slug }, "paginated page skipped");
+        const signal = pagination(page, slug, heading);
+        if (signal) {
+            log.debug({ rule: "url/slug/unreadable", url: page.url.href, slug, signal }, "paginated page skipped");
             return;
         }
         const isId = ID_ONLY.test(slug);
