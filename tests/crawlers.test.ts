@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { botAgent, userAgent } from "../src/agent.ts";
 import { edgeOf, wallOf, type Probe, type ProbeInit } from "../src/crawl/probe.ts";
 import type { SiteFacts, Stance } from "../src/facts/types.ts";
-import crawlers, { POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
+import crawlers, { crawlerName, POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
 import type { SiteContext } from "../src/plugins/types.ts";
 import { CRAWLERS } from "../src/rules/robots.ts";
 import type { AggregateRule } from "../src/rules/types.ts";
@@ -28,7 +28,10 @@ function judge(poses: PoseAnswer[], stance?: Stance) {
 
 describe("crawlers", () => {
     it("poses only as tokens the robots table knows, each UA keeping spiderlint’s own", () => {
-        for (const [agent] of POSES) assert.ok(Object.hasOwn(CRAWLERS, agent), agent);
+        for (const { agent } of POSES) assert.ok(Object.hasOwn(CRAWLERS, agent), agent);
+        assert.equal(crawlerName("gptbot"), "GPTBot (OpenAI)");
+        assert.equal(crawlerName("ccbot"), "CCBot (Common Crawl)");
+        assert.equal(crawlerName("unknownbot"), "unknownbot");
         assert.ok(botAgent("CCBot/2.0").startsWith("CCBot/2.0 "));
         assert.ok(botAgent("CCBot/2.0").endsWith(userAgent()));
     });
@@ -74,7 +77,7 @@ describe("crawlers", () => {
         } as unknown as SiteContext;
         const extractor = crawlers.sites[0];
         const facts = (await extractor?.extract(ORIGIN, context)) as { poses: PoseAnswer[] };
-        assert.deepEqual(seen, [undefined, ...POSES.map(([, ua]) => ua)]);
+        assert.deepEqual(seen, [undefined, ...POSES.map(({ ua }) => ua)]);
         assert.deepEqual(
             facts.poses.filter(({ status }) => status !== 200),
             [{ agent: "gptbot", status: 403, edge: "cloudflare" }],
@@ -90,11 +93,19 @@ describe("crawlers", () => {
             { agent: "oai-searchbot", status: 200 },
         ];
         const [plain] = judge(poses);
-        assert.deepEqual(plain?.locations, ["googlebot (403)"]);
+        assert.deepEqual(plain?.locations, ["Googlebot (Google): 403"]);
         assert.equal(plain?.message, "the site refuses crawlers the content signals welcome");
-        const [edge] = judge([{ agent: "gptbot", status: 403, edge: "cloudflare" }], { "ai-train": "yes" });
-        assert.deepEqual(edge?.locations, ["gptbot (403, cloudflare)"]);
-        assert.match(edge?.message ?? "", /may only refuse look-alikes/);
+        assert.equal(plain?.severity, "warning");
+        const [mixed] = judge(poses, { "ai-train": "yes" });
+        assert.deepEqual([mixed?.severity, mixed?.locations], ["warning", ["Googlebot (Google): 403", "GPTBot (OpenAI): 403, cloudflare"]]);
+        const everyPose = POSES.map(({ agent }) => ({ agent, status: 403, edge: "cloudflare" }));
+        const edge = judge(everyPose, { search: "yes", "ai-train": "yes", "ai-input": "yes" });
+        assert.deepEqual(
+            edge.map((finding) => finding.severity),
+            ["hint"],
+        );
+        assert.ok(edge[0]?.locations?.includes("GPTBot (OpenAI): 403, cloudflare"));
+        assert.match(edge[0]?.message ?? "", /verified-bots setting/);
         assert.equal(judge(poses, { search: "no", "ai-train": "no" }).length, 0);
         assert.equal(judge([{ agent: "googlebot", status: 0, error: "timeout" }]).length, 0);
         assert.equal(

@@ -1826,8 +1826,8 @@ msgstr "el archivo nombra rastreadores de IA"
 msgid "crawler access contradicts the content signals"
 msgstr "el acceso de los rastreadores contradice las señales de contenido"
 
-msgid "the edge refuses crawlers the content signals welcome; it may only refuse look-alikes"
-msgstr "el borde rechaza rastreadores que las señales de contenido aceptan; puede que solo rechace imitaciones"
+msgid "the edge refuses requests posing as crawlers the content signals welcome, as a verifying edge refuses any look-alike; check that its verified-bots setting lets the real crawlers through"
+msgstr "el borde rechaza las solicitudes que se hacen pasar por rastreadores que las señales de contenido aceptan, como un borde que verifica rechaza toda imitación; comprueba que su ajuste de bots verificados deja pasar a los rastreadores reales"
 
 msgid "the site refuses crawlers the content signals welcome"
 msgstr "el sitio rechaza rastreadores que las señales de contenido aceptan"

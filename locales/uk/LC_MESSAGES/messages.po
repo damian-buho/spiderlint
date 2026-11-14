@@ -1826,8 +1826,8 @@ msgstr "файл називає краулери ШІ"
 msgid "crawler access contradicts the content signals"
 msgstr "доступ краулерів суперечить сигналам вмісту"
 
-msgid "the edge refuses crawlers the content signals welcome; it may only refuse look-alikes"
-msgstr "периметр відхиляє краулерів, яких сигнали вмісту вітають; можливо, він відхиляє лише імітації"
+msgid "the edge refuses requests posing as crawlers the content signals welcome, as a verifying edge refuses any look-alike; check that its verified-bots setting lets the real crawlers through"
+msgstr "периметр відхиляє запити, що видають себе за краулерів, яких сигнали вмісту вітають, як перевірний периметр відхиляє будь-яку імітацію; перевірте, чи його налаштування перевірених ботів пропускає справжніх краулерів"
 
 msgid "the site refuses crawlers the content signals welcome"
 msgstr "сайт відхиляє краулерів, яких сигнали вмісту вітають"

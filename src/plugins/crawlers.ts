@@ -10,17 +10,31 @@ import { CRAWLERS, SIGNAL_OF } from "../rules/robots.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import type { Plugin, SiteExtractor } from "./types.ts";
 
-// The crawlers `/` is fetched as: robots.txt token, then the UA it sends without spiderlint’s suffix.
-export const POSES: [string, string][] = [
-    ["googlebot", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"],
-    ["bingbot", "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"],
-    ["oai-searchbot", "Mozilla/5.0 (compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)"],
-    ["perplexitybot", "Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)"],
-    ["chatgpt-user", "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)"],
-    ["gptbot", "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)"],
-    ["claudebot", "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"],
-    ["ccbot", "CCBot/2.0 (https://commoncrawl.org/faq/)"],
+// One crawler `/` is fetched as: its robots.txt token, product name, operator, and the UA it sends without spiderlint’s suffix.
+export interface Pose {
+    agent: string;
+    name: string;
+    operator: string;
+    ua: string;
+}
+
+// The crawlers `/` is fetched as.
+export const POSES: Pose[] = [
+    { agent: "googlebot", name: "Googlebot", operator: "Google", ua: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" },
+    { agent: "bingbot", name: "Bingbot", operator: "Microsoft", ua: "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)" },
+    { agent: "oai-searchbot", name: "OAI-SearchBot", operator: "OpenAI", ua: "Mozilla/5.0 (compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)" },
+    { agent: "perplexitybot", name: "PerplexityBot", operator: "Perplexity", ua: "Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)" },
+    { agent: "chatgpt-user", name: "ChatGPT-User", operator: "OpenAI", ua: "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)" },
+    { agent: "gptbot", name: "GPTBot", operator: "OpenAI", ua: "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)" },
+    { agent: "claudebot", name: "ClaudeBot", operator: "Anthropic", ua: "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)" },
+    { agent: "ccbot", name: "CCBot", operator: "Common Crawl", ua: "CCBot/2.0 (https://commoncrawl.org/faq/)" },
 ];
+
+// A robots.txt token as its product and operator, `GPTBot (OpenAI)`; a token no pose has stays as it is.
+export function crawlerName(agent: string): string {
+    const pose = POSES.find((candidate) => candidate.agent === agent);
+    return pose ? `${pose.name} (${pose.operator})` : agent;
+}
 
 // One crawler’s answer: its status, and the edge whose challenge or block page it got.
 export interface PoseAnswer {
@@ -47,7 +61,7 @@ const crawlers: SiteExtractor = {
         log.debug({ url, status: baseline.status }, "baseline for crawler poses probed");
         if (!isServed(baseline.status)) return { url, status: baseline.status, poses: [] };
         const poses: PoseAnswer[] = [];
-        for (const [agent, ua] of POSES) {
+        for (const { agent, ua } of POSES) {
             try {
                 const answer = await context.fetch(url, { redirect: "follow", as: ua });
                 const edge = edgeOf(answer);
@@ -63,7 +77,7 @@ const crawlers: SiteExtractor = {
     },
 };
 
-// Every crawler refused `/` that spiderlint was served, where its signal says yes; an edge’s refusal may be its check on look-alike crawlers.
+// Every crawler refused `/` that spiderlint was served, where its signal says yes; a refusal by edges alone is a hint, since a verifying edge refuses our look-alike too.
 const blocked: Make = (severity) => ({
     meta: { id: "crawlers/crawler/blocked", severity, scope: "site", facts: ["site.origins.*.crawlers.poses", "site.content-signals"], docs: "https://contentsignals.org/", fix: "Let the crawler through at the origin and the edge: allow verified bots in the firewall and drop any rule matching its User-Agent." },
     check(_pages, _group, site) {
@@ -78,10 +92,11 @@ const blocked: Make = (severity) => ({
                 return isWanted && status !== 0 && !isServed(status);
             });
             if (refused.length === 0) return [];
-            const locations = refused.map(({ agent, status, edge }) => `${agent} (${status}${edge ? `, ${edge}` : ""})`);
+            const locations = refused.map(({ agent, status, edge }) => `${crawlerName(agent)}: ${status}${edge ? `, ${edge}` : ""}`);
             const isEdgeOnly = refused.every(({ edge }) => edge !== undefined);
-            const message = said(isEdgeOnly ? "the edge refuses crawlers the content signals welcome; it may only refuse look-alikes" : "the site refuses crawlers the content signals welcome");
-            return [{ rule: "crawlers/crawler/blocked", severity, scope: "site", url: subject, ...message, locations, value: refused }];
+            const message = said(isEdgeOnly ? "the edge refuses requests posing as crawlers the content signals welcome, as a verifying edge refuses any look-alike; check that its verified-bots setting lets the real crawlers through" : "the site refuses crawlers the content signals welcome");
+            log.info({ rule: "crawlers/crawler/blocked", subject, refused: refused.length, isEdgeOnly }, "crawler refusals judged");
+            return [{ rule: "crawlers/crawler/blocked", severity: isEdgeOnly ? "hint" : severity, scope: "site", url: subject, ...message, locations, value: refused }];
         });
     },
 });
