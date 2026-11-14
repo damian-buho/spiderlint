@@ -510,7 +510,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         message: "no DMARC policy of reject applies to the name, so receivers accept mail forged from it (got {got})",
         severity: "warning",
         score: 6.4,
-        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: recordFix("Add a TXT record that tells receivers to refuse mail forged from `{domain}` or any name under it.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s" }),
     },
     "dns/null-mx/invalid": {
@@ -521,7 +521,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5,
         docs: "https://www.rfc-editor.org/rfc/rfc7505#section-4",
-        fix: "Delete the MX record with Mail server `.` from `{host}`, and keep the MX records of its real mail servers.",
+        fix: recordFix("Delete the MX record that says the name takes no mail, and keep the MX records of its real mail servers.", { Name: "{host}", "Mail server": ".", "Zone file": "{host}. MX 0 ." }),
     },
     "dns/spf/duplicate": {
         fact: "site.hosts.*.mail.spf",
@@ -541,7 +541,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.7,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
-        fix: "End the `v=spf1` TXT record of `{host}` in `-all`, such as Content `v=spf1 mx -all`, or in `~all` while its senders are still being listed.",
+        fix: recordFix("End the SPF record in `-all`, so receivers refuse mail from servers it does not list, for example:", { Name: "{host}", Content: "v=spf1 mx -all" }, "While you are still finding every server that sends your mail, end it in `~all`, which marks mail from other servers as suspect instead."),
     },
     "dns/dmarc/missing": {
         fact: "site.hosts.*.mail.dmarc",
@@ -550,7 +550,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         message: "no DMARC record applies to a name that takes or sends mail, so receivers deliver mail forged from it",
         severity: "warning",
         score: 6.2,
-        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: recordFix("Add a TXT record for DMARC.", DMARC_QUARANTINE, DMARC_REJECT_LATER),
     },
     "dns/dmarc-policy/weak": {
@@ -560,7 +560,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         message: "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})",
         severity: "warning",
         score: 6.2,
-        docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
+        docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
         fix: recordFix("Change the TXT record for DMARC to quarantine mail that fails its checks.", DMARC_QUARANTINE, DMARC_REJECT_LATER),
     },
 };
@@ -573,7 +573,11 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 3.8,
         docs: "https://www.rfc-editor.org/rfc/rfc9460",
-        fix: "Publish an HTTPS record (TYPE 65) naming your ALPNs and addresses.",
+        fix: recordFix(
+            "Add an HTTPS record, so browsers learn on their first visit which protocols the site speaks.",
+            { Name: "{host}", Priority: "1", Target: ".", Value: 'alpn="h3,h2"', "Zone file": '{host}. 3600 IN HTTPS 1 . alpn="h3,h2"' },
+            "A Target of `.` means the name itself. Leave `h3` out of the value if the site does not serve HTTP/3.",
+        ),
     },
     "dns/https-alpn/mismatch": {
         fact: "site.hosts.*.dns.h3",

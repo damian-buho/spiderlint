@@ -145,8 +145,8 @@ describe("formatHtml", () => {
     });
 
     it("renders a fix as Markdown, one record field per list item, with raw markup escaped", () => {
-        const fix = recordFix("Add a TXT record for DMARC.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine" }, "See [RFC 7489](https://www.rfc-editor.org/rfc/rfc7489) and [this](javascript:alert(1)).");
-        assert.equal(fixHtml(fixFor(fix)), '<p>Add a TXT record for DMARC.</p>\n<ul>\n<li>Name: <code>_dmarc.&lt;domain&gt;</code></li>\n<li>Content: <code>v=DMARC1; p=quarantine</code></li>\n</ul>\n<p>See <a href="https://www.rfc-editor.org/rfc/rfc7489" rel="noopener noreferrer">RFC 7489</a> and this.</p>\n');
+        const fix = recordFix("Add a TXT record for DMARC.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine" }, "See [RFC 9989](https://www.rfc-editor.org/rfc/rfc9989) and [this](javascript:alert(1)).");
+        assert.equal(fixHtml(fixFor(fix)), '<p>Add a TXT record for DMARC.</p>\n<ul>\n<li>Name: <code>_dmarc.&lt;domain&gt;</code></li>\n<li>Content: <code>v=DMARC1; p=quarantine</code></li>\n</ul>\n<p>See <a href="https://www.rfc-editor.org/rfc/rfc9989" rel="noopener noreferrer">RFC 9989</a> and this.</p>\n');
         assert.equal(fixHtml("Set <meta name=theme-color> and 1 < 2 <script>alert(1)</script>."), "<p>Set &lt;meta name=theme-color&gt; and 1 &lt; 2 &lt;script&gt;alert(1)&lt;/script&gt;.</p>\n");
     });
 
