@@ -2011,3 +2011,33 @@ msgstr "ningún registro DMARC se aplica a un nombre que recibe o envía correo,
 
 msgid "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})"
 msgstr "la política DMARC no pone en cuarentena ni rechaza, así que los receptores entregan el correo falsificado de un nombre que recibe o envía correo (se obtuvo {got})"
+
+msgid "{host} does not answer: Cloudflare answers {status}, {meaning}"
+msgstr "{host} no responde: Cloudflare responde {status}, {meaning}"
+
+msgid "{host} does not answer: it answers {status}"
+msgstr "{host} no responde: responde {status}"
+
+msgid "{host} does not answer: {error}"
+msgstr "{host} no responde: {error}"
+
+msgid "the origin sent an empty or unexpected response"
+msgstr "el servidor de origen envió una respuesta vacía o inesperada"
+
+msgid "the origin refused the connection"
+msgstr "el servidor de origen rechazó la conexión"
+
+msgid "the connection to the origin timed out"
+msgstr "la conexión con el servidor de origen agotó el tiempo de espera"
+
+msgid "the origin is unreachable"
+msgstr "el servidor de origen no es alcanzable"
+
+msgid "the origin took too long to answer"
+msgstr "el servidor de origen tardó demasiado en responder"
+
+msgid "the TLS handshake with the origin failed"
+msgstr "falló el handshake TLS con el servidor de origen"
+
+msgid "the origin’s certificate is not valid"
+msgstr "el certificado del servidor de origen no es válido"

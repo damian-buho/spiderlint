@@ -2011,3 +2011,33 @@ msgstr "жоден запис DMARC не стосується імені, що �
 
 msgid "the DMARC policy neither quarantines nor rejects, so receivers deliver mail forged from a name that takes or sends mail (got {got})"
 msgstr "політика DMARC не ставить у карантин і не відхиляє, тож одержувачі доставляють підроблену пошту від імені, що приймає або надсилає пошту (отримано {got})"
+
+msgid "{host} does not answer: Cloudflare answers {status}, {meaning}"
+msgstr "{host} не відповідає: Cloudflare відповідає {status}, {meaning}"
+
+msgid "{host} does not answer: it answers {status}"
+msgstr "{host} не відповідає: відповідь {status}"
+
+msgid "{host} does not answer: {error}"
+msgstr "{host} не відповідає: {error}"
+
+msgid "the origin sent an empty or unexpected response"
+msgstr "вихідний сервер надіслав порожню або неочікувану відповідь"
+
+msgid "the origin refused the connection"
+msgstr "вихідний сервер відхилив з’єднання"
+
+msgid "the connection to the origin timed out"
+msgstr "час очікування з’єднання з вихідним сервером вичерпано"
+
+msgid "the origin is unreachable"
+msgstr "вихідний сервер недосяжний"
+
+msgid "the origin took too long to answer"
+msgstr "вихідний сервер відповідав надто довго"
+
+msgid "the TLS handshake with the origin failed"
+msgstr "рукостискання TLS із вихідним сервером не вдалося"
+
+msgid "the origin’s certificate is not valid"
+msgstr "сертифікат вихідного сервера недійсний"

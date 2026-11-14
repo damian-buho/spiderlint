@@ -57,13 +57,15 @@ export interface ProbeOptions {
     proxy?: string;
 }
 
-// A probe robots.txt disallows for `spiderlint`, never sent; `unreachable` when that is only because the file did not answer.
+// A probe robots.txt disallows for `spiderlint`, never sent; `unreachable` when that is only because the file did not answer, `status` its 5xx.
 export class RobotsDisallowed extends Error {
     readonly unreachable?: string;
+    readonly status?: number;
 
-    constructor(message: string, unreachable?: string) {
+    constructor(message: string, unreachable?: string, status?: number) {
         super(message);
         if (unreachable !== undefined) this.unreachable = unreachable;
+        if (status !== undefined) this.status = status;
     }
 }
 
@@ -131,9 +133,10 @@ export async function probe(href: string, init: ProbeInit, options: ProbeOptions
         const robots = await options.robots?.(url.href);
         if (robots && !robots.isAllowed(url.href, "spiderlint")) {
             const facts = robotsFactsOf(robots);
-            const unreachable = facts?.error ?? (facts && facts.status >= 500 ? `robots.txt answers ${facts.status}` : undefined);
-            log.info({ url: url.href, unreachable }, "robots.txt disallows the probe; skipped");
-            throw new RobotsDisallowed(`robots.txt disallows ${url.href}`, unreachable);
+            const status = facts && facts.error === undefined && facts.status >= 500 ? facts.status : undefined;
+            const unreachable = facts?.error ?? (status === undefined ? undefined : `robots.txt answers ${status}`);
+            log.info({ url: url.href, unreachable, status }, "robots.txt disallows the probe; skipped");
+            throw new RobotsDisallowed(`robots.txt disallows ${url.href}`, unreachable, status);
         }
         const answer = await retrying(url, init, options);
         const location = answer.headers.location;

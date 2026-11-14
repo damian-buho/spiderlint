@@ -41,7 +41,7 @@ describe("origin preset", () => {
     async function entryRules(host: string): Promise<string[]> {
         const port = new URL(entry.origin).port;
         const report = await audit({ seeds: [`http://${host}:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), rules: ["origin"], maxPages: 1, cacheMode: "off" });
-        return rules(report).filter((rule) => /^origin\/(host-canonical|entry-|www-)/.test(rule));
+        return rules(report).filter((rule) => /^origin\/(canonical-host\/|entry-|www\/)/.test(rule));
     }
 
     it("probes the fixture origin once and faults none of its entry variants", async () => {
@@ -72,6 +72,17 @@ describe("origin preset", () => {
 
     it("faults a www host that reaches the apex in two hops through another host", async () => {
         assert.deepEqual(await entryRules("hops.test"), ["origin/entry-redirect/excessive"]);
+    });
+
+    it("reports a www host that answers 525 everywhere once as broken, not as off-canonical", async () => {
+        const port = new URL(entry.origin).port;
+        const report = await audit({ seeds: [`http://down.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), rules: ["origin"], maxPages: 1, cacheMode: "off" });
+        const broken = report.findings.filter((finding) => finding.rule === "origin/www/broken");
+        assert.deepEqual(
+            broken.map((finding) => [finding.url, finding.message]),
+            [[`http://www.down.test:${port}`, "www.down.test does not answer: Cloudflare answers 525, the TLS handshake with the origin failed"]],
+        );
+        assert.ok(!rules(report).includes("origin/canonical-host/mismatch"));
     });
 
     it("faults variants that land off the canonical origin", async () => {

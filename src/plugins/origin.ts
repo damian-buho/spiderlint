@@ -78,14 +78,29 @@ const MAX_ENTRY_HOPS = 5;
 // Statuses a moved entry may answer with.
 const PERMANENT = new Set([301, 308]);
 
-// One entry variant: the `[status, location]` hops, the URL it ends on, and whether its name resolves at all.
+// One entry variant: the `[status, location]` hops, the URL it ends on, whether its name resolves at all, and the 5xx that stopped it.
 export interface Variant {
     url: string;
     chain: [number, string][];
     final: string;
     resolves: boolean;
     error?: string;
+    status?: number;
 }
+
+// The error of a variant that kept redirecting, which says nothing about whether its host answers.
+const LOOPED = `more than ${MAX_ENTRY_HOPS} hops`;
+
+// Cloudflare’s own 5xx statuses, each by what failed between the edge and the origin.
+export const EDGE_STATUS: Record<number, string> = {
+    520: "the origin sent an empty or unexpected response",
+    521: "the origin refused the connection",
+    522: "the connection to the origin timed out",
+    523: "the origin is unreachable",
+    524: "the origin took too long to answer",
+    525: "the TLS handshake with the origin failed",
+    526: "the origin’s certificate is not valid",
+};
 
 // `hostname` with its `www.` label added to an apex or stripped from `www.<apex>`; any other name has none.
 export function swapped(hostname: string): string | undefined {
@@ -113,17 +128,19 @@ async function walk(href: string, context: SiteContext): Promise<Variant> {
             const answer = await context.delegated(url, { redirect: "manual" });
             const next = sentTo(answer, url);
             log.debug({ href, url, status: answer.status, next, hop }, "entry variant hop");
+            if (!next && answer.status >= 500) return { url: href, chain, final: url, resolves: true, error: `answers ${answer.status}`, status: answer.status };
             if (!next) return { url: href, chain, final: url, resolves: true };
             chain.push([answer.status, next]);
             url = next;
         }
-        return { url: href, chain, final: url, resolves: true, error: `more than ${MAX_ENTRY_HOPS} hops` };
+        return { url: href, chain, final: url, resolves: true, error: LOOPED };
     } catch (error) {
         if (error instanceof RobotsDisallowed && !error.unreachable) throw error;
         const why = error instanceof RobotsDisallowed ? (error.unreachable as string) : reason(error);
         const isUnresolved = chain.length === 0 && /\bENOTFOUND\b/.test(why);
         log.debug({ href, url, hops: chain.length, isUnresolved, error: why }, "entry variant stopped");
-        return { url: href, chain, final: url, resolves: !isUnresolved, ...(!isUnresolved && { error: why }) };
+        const status = error instanceof RobotsDisallowed ? error.status : undefined;
+        return { url: href, chain, final: url, resolves: !isUnresolved, ...(!isUnresolved && { error: why }), ...(status !== undefined && { status }) };
     }
 }
 
@@ -191,7 +208,44 @@ export function canonicalOf(subject: string, pages: readonly Facts[]): { origin:
     return { origin: isConfigured ? candidate : subject, isConfigured };
 }
 
-// One finding per origin naming each resolving variant that fails or ends off the canonical origin.
+// Variant hosts whose every variant resolves yet fails, each with its variants; a host that answers once is not one.
+export function brokenHosts(probes: readonly Variant[]): Map<string, Variant[]> {
+    const byHost = Map.groupBy(probes, (variant) => new URL(variant.url).hostname);
+    const broken = new Map(byHost.entries().filter(([, variants]) => variants.every((variant) => variant.resolves && variant.error !== undefined && variant.error !== LOOPED)));
+    log.debug({ hosts: byHost.keys().toArray(), broken: broken.keys().toArray() }, "entry hosts judged for answering");
+    return broken;
+}
+
+// The sentence of a host that does not answer: an edge status by its meaning, another status, or the network error.
+function brokenSaid(host: string, variant: Variant): Pick<Finding, "message" | "text" | "variables"> {
+    const meaning = variant.status === undefined ? undefined : EDGE_STATUS[variant.status];
+    if (meaning) return said("{host} does not answer: Cloudflare answers {status}, {meaning}", { host, status: String(variant.status), meaning: { name: meaning } });
+    if (variant.status !== undefined) return said("{host} does not answer: it answers {status}", { host, status: String(variant.status) });
+    return said("{host} does not answer: {error}", { host, error: variant.error ?? "" });
+}
+
+// One finding per variant host that resolves yet never answers, so redirect advice is not given for a host that is down.
+const wwwBroken: Make = (severity) => ({
+    meta: {
+        id: "origin/www/broken",
+        severity,
+        scope: "site",
+        facts: ["site.origins.*.variants.probes"],
+        docs: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/",
+        fix: "Repair the server behind the host so it answers and redirects to the canonical origin, or remove the host’s DNS records.",
+    },
+    check(_pages, _group, site) {
+        return Object.entries(site?.origins ?? {}).flatMap(([subject, facts]): Finding[] =>
+            [...brokenHosts((facts.variants as { probes: Variant[] } | undefined)?.probes ?? [])].map(([host, variants]) => {
+                const [first] = variants as [Variant, ...Variant[]];
+                log.info({ rule: "origin/www/broken", subject, host, status: first.status, error: first.error }, "entry host does not answer");
+                return { rule: "origin/www/broken", severity, scope: "site", url: new URL(first.url).origin, ...brokenSaid(host, first), data: { [subject]: { host } }, locations: variants.map((variant) => `${variant.url} → ${variant.error}`), value: variants };
+            }),
+        );
+    },
+});
+
+// One finding per origin naming each resolving variant on an answering host that fails or ends off the canonical origin.
 const hostCanonical: Make = (severity) => ({
     meta: { id: "origin/canonical-host/mismatch", severity, scope: "site", facts: ["site.origins.*.variants.probes"], docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308." },
     check(pages, _group, site) {
@@ -199,8 +253,10 @@ const hostCanonical: Make = (severity) => ({
         if (origins.length === 0) return;
         return origins.flatMap(([subject, facts]): Finding[] => {
             const { origin: canonical, isConfigured } = canonicalOf(subject, pages);
-            const astray = (facts.variants as { probes: Variant[] }).probes.filter((variant) => variant.resolves && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
-            log.debug({ rule: "origin/canonical-host/mismatch", subject, canonical, isConfigured, astray: astray.length }, "entry variants judged");
+            const { probes } = facts.variants as { probes: Variant[] };
+            const broken = brokenHosts(probes);
+            const astray = probes.filter((variant) => variant.resolves && !broken.has(new URL(variant.url).hostname) && (variant.error !== undefined || new URL(variant.final).origin !== canonical));
+            log.debug({ rule: "origin/canonical-host/mismatch", subject, canonical, isConfigured, astray: astray.length, broken: broken.keys().toArray() }, "entry variants judged");
             return astray.length === 0
                 ? []
                 : [
@@ -444,7 +500,7 @@ const meBackLink: Make = (severity) => ({
 // Checks made once per origin rather than per page.
 export default {
     name: "origin",
-    rules: { "origin/canonical-host/mismatch": hostCanonical, "links/rel-me-backlink/missing": meBackLink },
+    rules: { "origin/canonical-host/mismatch": hostCanonical, "origin/www/broken": wwwBroken, "links/rel-me-backlink/missing": meBackLink },
     sites: [notFound, entry, variants, locale, encodings, favicon, revalidation, crossDomain, slashTwins, meProfiles],
     presets: {
         origin: {
@@ -478,6 +534,7 @@ export default {
                     fix: "Redirect every http request to https with a 301 or 308, preserving the URL.",
                 },
                 "origin/canonical-host/mismatch": { severity: "warning", score: 5.6 },
+                "origin/www/broken": { severity: "warning", score: 5.6 },
                 "origin/entry-redirect/excessive": {
                     fact: "site.origins.*.variants.long",
                     expect: { maxItems: 0 },
