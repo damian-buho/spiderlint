@@ -166,9 +166,9 @@ function locations(t: Translator, found: string[] | undefined): string {
     );
 }
 
-// What was measured at `url` by name, after it.
+// What was measured at `url` by its translated name, after it.
 function measured(t: Translator, finding: Finding, url: string): string {
-    const values = namedAt(finding, url, t.number);
+    const values = namedAt(finding, url, t.number, undefined, (key) => t._(key));
     return values.length === 0 ? "" : `<span class="data">${escape(values.join(" · "))}</span>`;
 }
 

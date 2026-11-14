@@ -187,6 +187,7 @@ describe("formatHtml", () => {
         const input = { ...report, findings: [heavy] };
         assert.ok(formatHtml(input, undefined, false, "en").includes(`>https://cdn.test/hero.webp</a><span class="data">size: 912\u{A0}kB · limit: 200\u{A0}kB</span>`), "html names size and limit");
         assert.ok(formatHuman(input, undefined, false, "en").split("\n").includes("          https://cdn.test/hero.webp  size: 912\u{A0}kB  limit: 200\u{A0}kB"), "human names size and limit");
+        assert.ok(formatHtml(input, undefined, false, "es").includes(`<span class="data">tamaño: 912\u{A0}kB · límite: 200\u{A0}kB</span>`), "html translates the value names");
     });
 
     it("lists one flat card per finding, errors first and the highest impact first within a level, whole-site scope without a page list, and no group heading for default alone", () => {

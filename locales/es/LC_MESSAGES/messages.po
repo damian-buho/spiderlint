@@ -2044,3 +2044,183 @@ msgstr "falló el handshake TLS con el servidor de origen"
 
 msgid "the origin’s certificate is not valid"
 msgstr "el certificado del servidor de origen no es válido"
+
+msgid "animations"
+msgstr "animaciones"
+
+msgid "blocks"
+msgstr "bloques"
+
+msgid "canonical"
+msgstr "canónica"
+
+msgid "claims"
+msgstr "afirmaciones"
+
+msgid "content"
+msgstr "contenido"
+
+msgid "controls"
+msgstr "controles"
+
+msgid "cookies"
+msgstr "cookies"
+
+msgid "dates"
+msgstr "fechas"
+
+msgid "declarations"
+msgstr "declaraciones"
+
+msgid "detail"
+msgstr "detalle"
+
+msgid "document"
+msgstr "documento"
+
+msgid "elements"
+msgstr "elementos"
+
+msgid "enclosures"
+msgstr "adjuntos"
+
+msgid "entry"
+msgstr "entrada"
+
+msgid "error"
+msgstr "error"
+
+msgid "errors"
+msgstr "errores"
+
+msgid "faces"
+msgstr "tipos de letra"
+
+msgid "families"
+msgstr "familias"
+
+msgid "features"
+msgstr "funciones"
+
+msgid "fields"
+msgstr "campos"
+
+msgid "found"
+msgstr "encontrado"
+
+msgid "form"
+msgstr "formulario"
+
+msgid "future"
+msgstr "futuras"
+
+msgid "got"
+msgstr "se obtuvo"
+
+msgid "headers"
+msgstr "cabeceras"
+
+msgid "host"
+msgstr "host"
+
+msgid "hosts"
+msgstr "hosts"
+
+msgid "hubs"
+msgstr "hubs"
+
+msgid "images"
+msgstr "imágenes"
+
+msgid "inputs"
+msgstr "campos de entrada"
+
+msgid "items"
+msgstr "elementos"
+
+msgid "landing"
+msgstr "destino"
+
+msgid "lang"
+msgstr "idioma"
+
+msgid "limit"
+msgstr "límite"
+
+msgid "links"
+msgstr "enlaces"
+
+msgid "locked"
+msgstr "bloqueado"
+
+msgid "messages"
+msgstr "mensajes"
+
+msgid "missing"
+msgstr "faltan"
+
+msgid "nodes"
+msgstr "nodos"
+
+msgid "origin"
+msgstr "origen"
+
+msgid "page only"
+msgstr "solo en la página"
+
+msgid "preloads"
+msgstr "precargas"
+
+msgid "problems"
+msgstr "problemas"
+
+msgid "profiles"
+msgstr "perfiles"
+
+msgid "self"
+msgstr "URL propia"
+
+msgid "sitemap only"
+msgstr "solo en el sitemap"
+
+msgid "size"
+msgstr "tamaño"
+
+msgid "skew"
+msgstr "desfase"
+
+msgid "smaller"
+msgstr "más pequeño"
+
+msgid "source"
+msgstr "fuente"
+
+msgid "stylesheet"
+msgstr "hoja de estilos"
+
+msgid "target"
+msgstr "objetivo"
+
+msgid "terms"
+msgstr "términos"
+
+msgid "title"
+msgstr "título"
+
+msgid "tools"
+msgstr "herramientas"
+
+msgid "trap"
+msgstr "trampa"
+
+msgid "type"
+msgstr "tipo"
+
+msgid "unidentified"
+msgstr "sin identificar"
+
+msgid "value"
+msgstr "valor"
+
+msgid "videos"
+msgstr "vídeos"

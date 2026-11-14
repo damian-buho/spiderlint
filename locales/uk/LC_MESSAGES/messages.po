@@ -2044,3 +2044,183 @@ msgstr "рукостискання TLS із вихідним сервером н
 
 msgid "the origin’s certificate is not valid"
 msgstr "сертифікат вихідного сервера недійсний"
+
+msgid "animations"
+msgstr "анімації"
+
+msgid "blocks"
+msgstr "блоки"
+
+msgid "canonical"
+msgstr "канонічна"
+
+msgid "claims"
+msgstr "твердження"
+
+msgid "content"
+msgstr "вміст"
+
+msgid "controls"
+msgstr "елементи керування"
+
+msgid "cookies"
+msgstr "cookie"
+
+msgid "dates"
+msgstr "дати"
+
+msgid "declarations"
+msgstr "оголошення"
+
+msgid "detail"
+msgstr "подробиці"
+
+msgid "document"
+msgstr "документ"
+
+msgid "elements"
+msgstr "елементи"
+
+msgid "enclosures"
+msgstr "вкладення"
+
+msgid "entry"
+msgstr "запис"
+
+msgid "error"
+msgstr "помилка"
+
+msgid "errors"
+msgstr "помилки"
+
+msgid "faces"
+msgstr "накреслення"
+
+msgid "families"
+msgstr "сімейства"
+
+msgid "features"
+msgstr "функції"
+
+msgid "fields"
+msgstr "поля"
+
+msgid "found"
+msgstr "знайдено"
+
+msgid "form"
+msgstr "форма"
+
+msgid "future"
+msgstr "майбутні"
+
+msgid "got"
+msgstr "отримано"
+
+msgid "headers"
+msgstr "заголовки"
+
+msgid "host"
+msgstr "хост"
+
+msgid "hosts"
+msgstr "хости"
+
+msgid "hubs"
+msgstr "хаби"
+
+msgid "images"
+msgstr "зображення"
+
+msgid "inputs"
+msgstr "поля введення"
+
+msgid "items"
+msgstr "елементи"
+
+msgid "landing"
+msgstr "призначення"
+
+msgid "lang"
+msgstr "мова"
+
+msgid "limit"
+msgstr "ліміт"
+
+msgid "links"
+msgstr "посилання"
+
+msgid "locked"
+msgstr "заблоковано"
+
+msgid "messages"
+msgstr "повідомлення"
+
+msgid "missing"
+msgstr "бракує"
+
+msgid "nodes"
+msgstr "вузли"
+
+msgid "origin"
+msgstr "джерело"
+
+msgid "page only"
+msgstr "лише на сторінці"
+
+msgid "preloads"
+msgstr "попередні завантаження"
+
+msgid "problems"
+msgstr "проблеми"
+
+msgid "profiles"
+msgstr "профілі"
+
+msgid "self"
+msgstr "власна URL-адреса"
+
+msgid "sitemap only"
+msgstr "лише в карті сайту"
+
+msgid "size"
+msgstr "розмір"
+
+msgid "skew"
+msgstr "розбіжність"
+
+msgid "smaller"
+msgstr "менше"
+
+msgid "source"
+msgstr "джерело"
+
+msgid "stylesheet"
+msgstr "таблиця стилів"
+
+msgid "target"
+msgstr "ціль"
+
+msgid "terms"
+msgstr "терміни"
+
+msgid "title"
+msgstr "заголовок"
+
+msgid "tools"
+msgstr "інструменти"
+
+msgid "trap"
+msgstr "пастка"
+
+msgid "type"
+msgstr "тип"
+
+msgid "unidentified"
+msgstr "не визначено"
+
+msgid "value"
+msgstr "значення"
+
+msgid "videos"
+msgstr "відео"

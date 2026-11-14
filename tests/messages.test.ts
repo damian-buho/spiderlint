@@ -30,9 +30,11 @@ function templates(report: Report): void {
     const plain = report.findings.filter((finding) => finding.text === undefined).map((finding) => `${finding.rule}: ${finding.message}`);
     assert.deepEqual([...new Set(plain)].toSorted(byName), [], "findings still written as plain messages");
     const texts = new Set(report.findings.flatMap((finding) => (finding.text === undefined ? [] : [finding.text])));
+    const keys = new Set(report.findings.flatMap((finding) => Object.values(finding.data ?? {}).flatMap((values) => Object.keys(values))));
     for (const lang of ["es", "uk"]) {
         const known = catalog(lang);
         assert.deepEqual([...texts.difference(known)].toSorted(byName), [], `${lang} catalog lacks these texts`);
+        assert.deepEqual([...keys.difference(known)].toSorted(byName), [], `${lang} catalog lacks these value names`);
     }
 }
 
