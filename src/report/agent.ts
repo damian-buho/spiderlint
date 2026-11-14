@@ -67,7 +67,7 @@ function block(same: Finding[], guide: RuleGuide | undefined, origin: string): s
     const reads = guide?.facts.length ? `Reads: ${guide.facts.map((fact) => `\`${fact}\``).join(", ")}${guide.expect ? `, expects \`${JSON.stringify(guide.expect)}\`` : ""}` : "";
     const facts = finding.scope === "page" && guide?.expect ? `, and \`spiderlint show-facts ${finding.samples?.[0] ?? finding.url}\` shows \`${guide.facts[0]}\` meeting it` : "";
     const all = fixesOf(guide).map((fix) => fixFor(fix, finding));
-    const fix = all.length > 0 ? `Fix: ${all.join(" ")}` : guide?.docs ? `Fix: follow ${guide.docs}` : "";
+    const fix = all.length > 0 ? `Fix: ${all.join("\n\n")}` : guide?.docs ? `Fix: follow ${guide.docs}` : "";
     return [
         `## ${finding.rule} (${finding.severity} ${scoreOf(finding).toFixed(1)})`,
         "",

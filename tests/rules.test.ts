@@ -237,8 +237,11 @@ describe("rule fixes", () => {
             const rule = compileRule(id, spec.severity === "off" ? { ...spec, severity: "warning" } : spec) as Rule;
             assert.ok(rule.meta.fix, `rule ${id} is missing a fix`);
             for (const fix of [rule.meta.fix, ...(rule.meta.extra ?? [])]) {
-                assert.ok(!fix.includes("\n"), `rule ${id} has a multi-line fix`);
-                if (!/^(axe|htmlhint|html-validate|markdownlint)\//.test(id)) assert.match(fix, /^[^a-z].*[.?!]$/su, `rule ${id} fix is not a sentence`);
+                const prose = fix.split("\n").filter((line) => line !== "" && !line.startsWith("- "));
+                if (!/^(axe|htmlhint|html-validate|markdownlint)\//.test(id)) {
+                    for (const line of prose) assert.match(line, /^[^a-z].*[.?!:]$/u, `rule ${id} fix has a line that is not a sentence: ${line}`);
+                    assert.doesNotMatch(fix, /:$/u, `rule ${id} fix ends on a colon`);
+                }
                 assert.doesNotMatch(fix, /<(host|domain|origin|url)>|\{(?!(host|domain|origin|url)\})[a-z]+\}/, `rule ${id} fix has a placeholder fixFor does not fill`);
             }
         });

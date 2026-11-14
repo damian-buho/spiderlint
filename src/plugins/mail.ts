@@ -11,6 +11,7 @@ import { getDomain } from "tldts";
 import type { DnsClient, Reply } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
 import { log } from "../logger.ts";
+import { recordFix } from "../rules/fix.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { pin } from "../rules/score.ts";
 import { MAIL_RULES, records, texts, warnOnce, zoneOf } from "./dns.ts";
@@ -571,6 +572,10 @@ const MAIL = { "site.hosts.*.mail.mode": "mail" };
 const present = (path: string, type = "object"): Record<string, unknown> => ({ ...MAIL, [`site.hosts.*.mail.${path}`]: { type } });
 const clean = (path: string): Record<string, unknown> => ({ ...present(path), [`site.hosts.*.mail.${path}.errors`]: { maxItems: 0 } });
 
+const MTA_STS = { Name: "_mta-sts.{domain}", Content: "v=STSv1; id=20260101" };
+const MTA_STS_NEXT = { Name: "_mta-sts.{domain}", Content: "v=STSv1; id=20260102" };
+const TLS_RPT = { Name: "_smtp._tls.{domain}", Content: "v=TLSRPTv1; rua=mailto:tls-reports@{domain}" };
+
 const RULES: Record<string, RuleSpec> = {
     "mail/spf/invalid": {
         fact: "site.hosts.*.mail.spf-walk.errors",
@@ -580,7 +585,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.2,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-12",
-        fix: "Rewrite the TXT record at Name `{host}` as `v=spf1`, then mechanisms such as `mx ip4:192.0.2.1 include:_spf.example.net`, then `-all`, separated by single spaces.",
+        fix: recordFix("Rewrite the SPF record as `v=spf1`, then the servers allowed to send, then `-all`, separated by single spaces, for example:", { Name: "{host}", Content: "v=spf1 mx ip4:192.0.2.1 include:_spf.example.net -all" }),
     },
     "mail/spf-lookups/excessive": {
         fact: "site.hosts.*.mail.spf-walk.lookups",
@@ -590,7 +595,11 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.6.4",
-        fix: "Cut the `include`, `a`, `mx`, `ptr` and `exists` terms of the SPF record at Name `{host}` to at most 10 lookups, replacing includes with the `ip4:` and `ip6:` ranges they name.",
+        fix: recordFix(
+            "Cut the SPF record down to at most 10 DNS lookups: each `include`, `a`, `mx`, `ptr` and `exists` term costs one, and so does every such term inside an included record.",
+            { Name: "{host}" },
+            "Replace an `include:` with the `ip4:` and `ip6:` ranges its record lists, and update them when the provider changes its servers.",
+        ),
     },
     "mail/spf-void-lookups/excessive": {
         fact: "site.hosts.*.mail.spf-walk.void-lookups",
@@ -600,7 +609,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.2,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.6.4",
-        fix: "Delete the terms of the SPF record at Name `{host}` that name domains with no record, such as an `include:` of a provider you left.",
+        fix: recordFix("Delete the terms of the SPF record that name a domain with no record, such as an `include:` of a mail provider you no longer use.", { Name: "{host}" }),
     },
     "mail/spf-ptr/deprecated": {
         fact: "site.hosts.*.mail.spf-walk.ptr",
@@ -610,7 +619,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.9,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.5",
-        fix: "Replace `ptr` in the SPF record at Name `{host}` with the `ip4:` and `ip6:` ranges of the servers it matched.",
+        fix: recordFix("Replace `ptr` in the SPF record with the `ip4:` and `ip6:` addresses of the servers it matched.", { Name: "{host}" }),
     },
     "mail/spf-after-all/unused": {
         fact: "site.hosts.*.mail.spf-walk.after-all",
@@ -620,7 +629,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.1,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
-        fix: "Move every mechanism of the SPF record at Name `{host}` before its `all`, such as `v=spf1 mx include:_spf.example.net -all`.",
+        fix: recordFix("Move every term of the SPF record before its `all`, which receivers read last, for example:", { Name: "{host}", Content: "v=spf1 mx include:_spf.example.net -all" }),
     },
     "mail/spf/redundant": {
         fact: "site.hosts.*.mail.spf-walk.redundant",
@@ -630,7 +639,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 1.4,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-6.1",
-        fix: "Delete the repeated terms from the SPF record at Name `{host}`, and drop `redirect=` where the record ends in `all`.",
+        fix: recordFix("Delete the repeated terms from the SPF record, and drop `redirect=` when the record ends in `all`.", { Name: "{host}" }),
     },
     "mail/spf-include/broken": {
         fact: "site.hosts.*.mail.spf-walk.missing-includes",
@@ -640,7 +649,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.2",
-        fix: "Delete the `include:` or `redirect=` of the SPF record at Name `{host}` that names no SPF record, or correct its spelling.",
+        fix: recordFix("Delete the `include:` or `redirect=` of the SPF record that points at a domain with no SPF record, or correct its spelling.", { Name: "{host}" }),
     },
     "mail/dmarc/duplicate": {
         fact: "site.hosts.*.mail.dmarc.records",
@@ -650,7 +659,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.3,
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.10",
-        fix: "Keep one TXT record with Content starting `v=DMARC1` at Name `_dmarc.{domain}`, merging the others into it.",
+        fix: recordFix("Keep one TXT record starting with `v=DMARC1`, and merge the others into it.", { Name: "_dmarc.{domain}" }),
     },
     "mail/dmarc/invalid": {
         fact: "site.hosts.*.mail.dmarc.errors",
@@ -660,7 +669,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.1,
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
-        fix: "Rewrite the TXT record at Name `_dmarc.{domain}` as tag=value pairs after `v=DMARC1`, such as `v=DMARC1; p=reject; rua=mailto:dmarc@{domain}`.",
+        fix: recordFix("Rewrite the DMARC record as `v=DMARC1` followed by `tag=value` pairs separated by semicolons, for example:", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=reject; rua=mailto:dmarc@{domain}" }),
     },
     "mail/dmarc-subdomain-policy/weak": {
         fact: "site.hosts.*.mail.dmarc",
@@ -670,7 +679,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.6,
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
-        fix: "Add `sp=reject`, or the policy the subdomains need, to the TXT record at Name `_dmarc.{domain}`.",
+        fix: recordFix("Add `sp=reject` to the DMARC record, or the policy your subdomains need, so mail forged from a subdomain is refused too.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=reject; sp=reject; rua=mailto:dmarc@{domain}" }),
     },
     "mail/dmarc-testing/present": {
         fact: "site.hosts.*.mail.dmarc.testing",
@@ -680,7 +689,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.4,
         docs: "https://www.rfc-editor.org/rfc/rfc9989#section-4.7",
-        fix: "Remove `t=y` and `pct=` from the TXT record at Name `_dmarc.{domain}` once its reports show only your own servers.",
+        fix: recordFix("Remove `t=y` and `pct=` from the DMARC record, so its policy applies to all mail.", { Name: "_dmarc.{domain}" }, "Do this once the reports sent to its `rua=` address list only servers that are yours."),
     },
     "mail/dmarc-report-uri/invalid": {
         fact: "site.hosts.*.mail.dmarc.not-mailto",
@@ -690,7 +699,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.1,
         docs: "https://www.rfc-editor.org/rfc/rfc9990#section-3",
-        fix: "Write each `rua=` and `ruf=` address in the TXT record at Name `_dmarc.{domain}` as `mailto:dmarc@{domain}`.",
+        fix: recordFix("Write each `rua=` and `ruf=` address in the DMARC record as a `mailto:` address, for example:", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=reject; rua=mailto:dmarc@{domain}" }),
     },
     "mail/dmarc-external-auth/missing": {
         fact: "site.hosts.*.mail.dmarc.unauthorized",
@@ -700,7 +709,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.3,
         docs: "https://www.rfc-editor.org/rfc/rfc9990#section-4",
-        fix: "Ask the report destination to publish a TXT record at Name `{domain}._report._dmarc.<destination>` with Content `v=DMARC1`, or report to an address under `{domain}`.",
+        fix: recordFix("Ask whoever receives the reports to publish a TXT record that accepts reports about `{domain}`, where `<destination>` is the domain of their address:", { Name: "{domain}._report._dmarc.<destination>", Content: "v=DMARC1" }, "Or send the reports to an address under `{domain}` instead."),
     },
     "mail/dkim/missing": {
         fact: "site.hosts.*.mail.dkim.found",
@@ -710,7 +719,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.7,
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.2.1",
-        fix: "Publish the DKIM key your mail provider gives as a TXT record at Name `<selector>._domainkey.{domain}`, and list its selector under `org.spiderlint.mail.dkim-selectors`.",
+        fix: recordFix("Publish the DKIM key your mail provider gives you as a TXT record, where `<selector>` is the name the provider gives the key:", { Name: "<selector>._domainkey.{domain}", Content: "v=DKIM1; k=rsa; p=<the key>" }, "Then list the selector under `org.spiderlint.mail.dkim-selectors`."),
     },
     "mail/dkim/invalid": {
         fact: "site.hosts.*.mail.dkim.found",
@@ -720,7 +729,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4,
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
-        fix: "Republish the TXT record at Name `<selector>._domainkey.{domain}` exactly as your mail provider gives it, `v=DKIM1; k=rsa; p=` and the base64 key.",
+        fix: recordFix("Publish the DKIM record again exactly as your mail provider gives it.", { Name: "<selector>._domainkey.{domain}", Content: "v=DKIM1; k=rsa; p=<the key>" }),
     },
     "mail/dkim-key/invalid": {
         fact: "site.hosts.*.mail.dkim.found",
@@ -750,7 +759,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 3.9,
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
-        fix: "Remove `t=y` from the TXT record at Name `<selector>._domainkey.{domain}`.",
+        fix: recordFix("Remove `t=y` from the DKIM record.", { Name: "<selector>._domainkey.{domain}" }),
     },
     "mail/dkim-revoked/present": {
         fact: "site.hosts.*.mail.dkim.found",
@@ -760,7 +769,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 1.6,
         docs: "https://www.rfc-editor.org/rfc/rfc6376#section-3.6.1",
-        fix: "Delete the TXT record at Name `<selector>._domainkey.{domain}` once no mail signed with it is in transit.",
+        fix: recordFix("Delete the DKIM record with the empty key a week after your servers stopped signing with it.", { Name: "<selector>._domainkey.{domain}" }),
     },
     "mail/mx-address/missing": {
         fact: "site.hosts.*.mail.exchanges",
@@ -809,7 +818,7 @@ const RULES: Record<string, RuleSpec> = {
         message: "no MTA-STS record, so senders deliver over STARTTLS that an attacker on the path can strip",
         severity: "info",
         docs: "https://www.rfc-editor.org/rfc/rfc8461",
-        fix: "Serve `version: STSv1`, `mode: enforce`, one `mx:` line per Mail server and `max_age: 604800` at `https://mta-sts.{domain}/.well-known/mta-sts.txt`, then add a TXT record at Name `_mta-sts.{domain}` with Content `v=STSv1; id=20260101`.",
+        fix: recordFix("Serve a text file at `https://mta-sts.{domain}/.well-known/mta-sts.txt` with these lines, one `mx:` line per mail server of the name:\n\n- `version: STSv1`\n- `mode: enforce`\n- `mx: <mail server>`\n- `max_age: 604800`\n\nThen add a TXT record:", MTA_STS),
     },
     "mail/mta-sts/invalid": {
         fact: "site.hosts.*.mail.mta-sts.errors",
@@ -819,7 +828,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.5,
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-3.1",
-        fix: "Keep one TXT record at Name `_mta-sts.{domain}` with Content `v=STSv1; id=20260101`, the id letters and digits only.",
+        fix: recordFix("Keep one MTA-STS record, its id made of letters and digits only.", MTA_STS),
     },
     "mail/mta-sts-policy/unreachable": {
         fact: "site.hosts.*.mail.mta-sts.policy.errors",
@@ -839,7 +848,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.6,
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-5",
-        fix: "Set `mode: enforce` in `https://mta-sts.{domain}/.well-known/mta-sts.txt` once TLS reports show no failures, and change the id of the TXT record at Name `_mta-sts.{domain}`.",
+        fix: recordFix("Set `mode: enforce` in `https://mta-sts.{domain}/.well-known/mta-sts.txt`, then give the MTA-STS record a new id, so senders read the file again:", MTA_STS_NEXT, "Do this once the TLS reports you receive show no failed deliveries."),
     },
     "mail/mta-sts-mx/mismatch": {
         fact: "site.hosts.*.mail.mta-sts.policy.unmatched",
@@ -849,7 +858,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.8,
         docs: "https://www.rfc-editor.org/rfc/rfc8461#section-4.1",
-        fix: "Add an `mx:` line for every Mail server of `{host}` to `https://mta-sts.{domain}/.well-known/mta-sts.txt`, and change the id of the TXT record at Name `_mta-sts.{domain}`.",
+        fix: recordFix("Add an `mx:` line for every mail server of `{host}` to `https://mta-sts.{domain}/.well-known/mta-sts.txt`, then give the MTA-STS record a new id, so senders read the file again:", MTA_STS_NEXT),
     },
     "mail/mta-sts-max-age/weak": {
         fact: "site.hosts.*.mail.mta-sts.policy.max-age",
@@ -869,7 +878,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 1.8,
         docs: "https://www.rfc-editor.org/rfc/rfc8460",
-        fix: "Add a TXT record at Name `_smtp._tls.{domain}` with Content `v=TLSRPTv1; rua=mailto:tls-reports@{domain}`.",
+        fix: recordFix("Add a TXT record, so mail servers tell you when they could not deliver to you over TLS.", TLS_RPT),
         extra: ["Report Relay https://dbuho.me/project/report-relay/ collects these reports and sends them to your Grafana: open source, self-hosted, free."],
     },
     "mail/tls-rpt/invalid": {
@@ -880,7 +889,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.6,
         docs: "https://www.rfc-editor.org/rfc/rfc8460#section-3",
-        fix: "Keep one TXT record at Name `_smtp._tls.{domain}` with Content `v=TLSRPTv1; rua=mailto:tls-reports@{domain}`.",
+        fix: recordFix("Keep one TLS reporting record, written as:", TLS_RPT),
     },
     "mail/bimi/invalid": {
         fact: "site.hosts.*.mail.bimi.errors",
@@ -890,7 +899,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.5,
         docs: "https://datatracker.ietf.org/doc/draft-brand-indicators-for-message-identification/",
-        fix: "Keep one TXT record at Name `default._bimi.{domain}` with Content `v=BIMI1; l=https://{domain}/logo.svg; a=https://{domain}/vmc.pem`.",
+        fix: recordFix("Keep one BIMI record, written as:", { Name: "default._bimi.{domain}", Content: "v=BIMI1; l=https://{domain}/logo.svg; a=https://{domain}/vmc.pem" }),
     },
     "mail/bimi-dmarc/weak": {
         fact: "site.hosts.*.mail.bimi.dmarc-enforced",
@@ -900,7 +909,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.4,
         docs: "https://datatracker.ietf.org/doc/draft-brand-indicators-for-message-identification/",
-        fix: "Set `p=quarantine` or `p=reject` without `t=y` or `pct=` in the TXT record at Name `_dmarc.{domain}`.",
+        fix: recordFix("Set the DMARC record to quarantine or reject, without `t=y` or `pct=`, since mail clients show the logo only then.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}" }),
     },
     "mail/bimi-logo/invalid": {
         fact: "site.hosts.*.mail.bimi.logo.errors",
@@ -930,7 +939,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.8,
         docs: "https://www.rfc-editor.org/rfc/rfc7672",
-        fix: "Sign the zone of each Mail server of `{host}` and add a TLSA record at Name `_25._tcp.<mail server>` with Usage `3`, Selector `1`, Matching type `1` and the hash of its key.",
+        fix: recordFix("Sign the DNS zone of each mail server of `{host}` with DNSSEC, then add a TLSA record for each server:", { Name: "_25._tcp.<mail server>", Usage: "3", Selector: "1", "Matching type": "1", Certificate: "<SHA-256 hash of the server’s public key>" }),
     },
     "mail/starttls/missing": {
         fact: "site.hosts.*.mail.starttls",

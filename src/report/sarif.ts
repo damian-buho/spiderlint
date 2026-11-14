@@ -4,7 +4,7 @@
 
 import { VERSION } from "../agent.ts";
 import type { Report } from "../index.ts";
-import { fixFor } from "../rules/fix.ts";
+import { fixFor, plainFix } from "../rules/fix.ts";
 import { inEnglish, valuesAt, writtenAll } from "../rules/message.ts";
 import { scoreOf } from "../rules/score.ts";
 import type { Finding, RuleGuide, Severity } from "../rules/types.ts";
@@ -73,7 +73,7 @@ function messageStrings(findings: Finding[]): { ids: Map<string, string>; byRule
 // The rule’s generic fixes and docs link, which code scanning shows beside each alert.
 function help({ fix, extra, docs }: RuleGuide) {
     const all = [fix, ...(extra ?? [])].filter((text): text is string => text !== undefined).map((text) => fixFor(text));
-    const text = [...all, docs].filter(Boolean);
+    const text = [...all.map((fix) => plainFix(fix).join("\n")), docs].filter(Boolean);
     const markdown = [...all, docs && `[Documentation](${docs})`].filter(Boolean);
     return text.length === 0 ? {} : { help: { text: text.join("\n\n"), markdown: markdown.join("\n\n") }, ...(docs && { helpUri: docs }) };
 }

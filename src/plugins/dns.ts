@@ -13,6 +13,7 @@ import { parseSvcb, type Svcb } from "../crawl/svcb.ts";
 import type { Facts } from "../facts/types.ts";
 import { dnsProvider } from "../facts/vendors.ts";
 import { log } from "../logger.ts";
+import { recordFix } from "../rules/fix.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { type SiteContext, type SiteExtractor, type Plugin } from "./types.ts";
 
@@ -478,6 +479,9 @@ const rdap: SiteExtractor = {
 const SILENT = { "site.hosts.*.mail.mode": "none" };
 const ACTIVE = { "site.hosts.*.mail.mode": "mail" };
 
+const DMARC_QUARANTINE = { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}" };
+const DMARC_REJECT_LATER = "After a few weeks, read the reports sent to dmarc@{domain}. When every server they list is yours, change `p=quarantine` to `p=reject`.";
+
 export const MAIL_RULES: Record<string, RuleSpec> = {
     "dns/null-mx/missing": {
         fact: "site.hosts.*.mail.mx",
@@ -487,7 +491,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.6,
         docs: "https://www.rfc-editor.org/rfc/rfc7505",
-        fix: "Add one MX record — Name `{host}`, Mail server `.`, Priority `0`, in a zone file `{host}. MX 0 .` — and delete every other MX of the name.",
+        fix: recordFix("Add an MX record that says the name takes no mail.", { Name: "{host}", "Mail server": ".", Priority: "0", "Zone file": "{host}. MX 0 ." }, "Then delete every other MX record of the name."),
     },
     "dns/spf-null/missing": {
         fact: "site.hosts.*.mail.spf",
@@ -497,7 +501,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.1,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-5.1",
-        fix: "Add one TXT record — Name `{host}`, Content `v=spf1 -all` — and delete every other `v=spf1` record of the name, since SPF is not inherited by subdomains.",
+        fix: recordFix("Add a TXT record that says no server sends mail as this name.", { Name: "{host}", Content: "v=spf1 -all" }, "Then delete every other TXT record of the name that starts with `v=spf1`. A subdomain does not inherit this record, so each name that sends no mail needs its own."),
     },
     "dns/dmarc-reject/missing": {
         fact: "site.hosts.*.mail.dmarc",
@@ -507,7 +511,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.4,
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
-        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s` — which covers `{domain}` and every name under it.",
+        fix: recordFix("Add a TXT record that tells receivers to refuse mail forged from `{domain}` or any name under it.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s" }),
     },
     "dns/null-mx/invalid": {
         fact: "site.hosts.*.mail.mx",
@@ -527,7 +531,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc7208#section-4.5",
-        fix: "Keep one TXT record at Name `{host}` naming every server that sends its mail, such as Content `v=spf1 mx -all`, and merge or delete every other `v=spf1` record.",
+        fix: recordFix("Keep one SPF record for the name, listing every server that sends its mail, for example:", { Name: "{host}", Content: "v=spf1 mx -all" }, "Move the servers the other TXT records starting with `v=spf1` list into it, then delete those records."),
     },
     "dns/spf-all/weak": {
         fact: "site.hosts.*.mail.spf",
@@ -547,7 +551,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.2,
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
-        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}` — and move to `p=reject` once the reports show only your own servers.",
+        fix: recordFix("Add a TXT record for DMARC.", DMARC_QUARANTINE, DMARC_REJECT_LATER),
     },
     "dns/dmarc-policy/weak": {
         fact: "site.hosts.*.mail.dmarc",
@@ -557,7 +561,7 @@ export const MAIL_RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 6.2,
         docs: "https://www.rfc-editor.org/rfc/rfc7489#section-6.3",
-        fix: "Add one TXT record — Name `_dmarc.{domain}`, Content `v=DMARC1; p=quarantine; rua=mailto:dmarc@{domain}` — and move to `p=reject` once the reports show only your own servers.",
+        fix: recordFix("Change the TXT record for DMARC to quarantine mail that fails its checks.", DMARC_QUARANTINE, DMARC_REJECT_LATER),
     },
 };
 
@@ -596,7 +600,11 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4,
         docs: "https://www.rfc-editor.org/rfc/rfc8659",
-        fix: "Add one CAA record per CA you use — Name `{domain}`, Flags `0`, Tag `issue`, CA domain `letsencrypt.org` — which covers every name under it.",
+        fix: recordFix(
+            "Add a CAA record for each certificate authority you use; it covers every name under `{domain}`.",
+            { Name: "{domain}", Flags: "0", Tag: "issue", "CA domain": "letsencrypt.org", "Zone file": '{domain}. CAA 0 issue "letsencrypt.org"' },
+            "Put your own authority’s domain in place of `letsencrypt.org`.",
+        ),
     },
     "dns/caa-issuer/mismatch": {
         fact: "site.hosts.*.dns.caa.issuer",
@@ -791,7 +799,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.2,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
-        fix: "Make the NS records at Name `{domain}` and the name servers set at the registrar name the same servers.",
+        fix: "Make the NS records of `{domain}` in your DNS panel list the same name servers as those set at the registrar.",
     },
     "dns/agents/missing": {
         fact: "site.hosts.*.dns.agents",
@@ -800,7 +808,11 @@ const RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.8,
         docs: "https://specification.website/spec/agent-readiness/dns-aid/",
-        fix: "Publish an HTTPS record — Name `_index._agents.{domain}`, Priority `1`, Target the host that serves the site, alpn `h3,h2`, port `443` — and add `_mcp._agents` or `_a2a._agents` records for each agent service.",
+        fix: recordFix(
+            "Add an HTTPS record that tells agents which host serves the site.",
+            { Name: "_index._agents.{domain}", Priority: "1", Target: "{host}.", Value: 'alpn="h3,h2" port=443', "Zone file": '_index._agents.{domain}. 3600 IN HTTPS 1 {host}. alpn="h3,h2" port=443' },
+            "For each agent service, add one more such record with the service’s own host as Target, at `_mcp._agents.{domain}` for an MCP server or `_a2a._agents.{domain}` for an A2A agent. The record format is in [RFC 9460](https://www.rfc-editor.org/rfc/rfc9460#section-2.3) and [DNS-AID](https://datatracker.ietf.org/doc/draft-mozleywilliams-dnsop-dnsaid/).",
+        ),
     },
     "dns/apex-cname/present": {
         fact: "site.hosts.*.dns.apex-cname",
@@ -810,7 +822,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 4.8,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-3.6.2",
-        fix: "Replace the CNAME at Name `{domain}` with A and AAAA records, or with the provider’s ALIAS or flattened CNAME.",
+        fix: "Delete the CNAME record of `{domain}`, then add A and AAAA records with the addresses it led to, or the ALIAS or flattened CNAME record your DNS provider offers in its place.",
     },
     "dns/soa-timers/range": {
         fact: "site.hosts.*.nameservers.soa",
@@ -872,7 +884,7 @@ const RULES: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5,
         docs: "https://www.rfc-editor.org/rfc/rfc1034#section-4.2.2",
-        fix: "Make the name servers set at the registrar and the NS records at Name `{domain}` name the same servers.",
+        fix: "Make the name servers set at the registrar list the same servers as the NS records of `{domain}` in your DNS panel.",
     },
     "dns/ns-network/single": {
         fact: "site.hosts.*.nameservers.networks",

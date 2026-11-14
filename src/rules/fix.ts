@@ -27,3 +27,18 @@ export function fixFor(fix: string, finding?: Finding): string {
     if (finding && !values) log.debug({ rule: finding.rule, url: finding.url }, "fix left generic, no subject");
     return (finding?.hint ?? fix).replaceAll(PLACEHOLDER, (_match, name: string) => values?.[name] ?? `<${name}>`);
 }
+
+// A DNS record fix as Markdown: the lead sentence, one dashboard field per line as code, then the advice.
+export function recordFix(lead: string, fields: Record<string, string>, after = ""): string {
+    const lines = Object.entries(fields).map(([name, value]) => `- ${name}: \`${value}\``);
+    return [lead, lines.join("\n"), after].filter(Boolean).join("\n\n");
+}
+
+// A Markdown fix as plain text lines: code spans unwrapped, a link as its text and URL, blank lines dropped.
+export function plainFix(fix: string): string[] {
+    return fix
+        .replaceAll(/`([^`]+)`/g, "$1")
+        .replaceAll(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1 ($2)")
+        .split("\n")
+        .filter((line) => line.trim() !== "");
+}

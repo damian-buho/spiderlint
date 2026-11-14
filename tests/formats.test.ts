@@ -11,7 +11,8 @@ import { formatCheckstyle } from "../src/report/checkstyle.ts";
 import { formatAgent } from "../src/report/agent.ts";
 import { formatCsv } from "../src/report/csv.ts";
 import { formatHuman } from "../src/report/human.ts";
-import { formatHtml } from "../src/report/html.ts";
+import { fixHtml, formatHtml } from "../src/report/html.ts";
+import { fixFor, plainFix, recordFix } from "../src/rules/fix.ts";
 import type { Finding } from "../src/rules/types.ts";
 import { parseCsv } from "./fixtures/csv.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
@@ -88,9 +89,17 @@ describe("formatCheckstyle and formatCsv", () => {
         const text = formatHuman(report, undefined, false, undefined, false, true);
         const withFix = report.findings.find((finding) => finding.severity !== "hint" && report.rules?.[finding.rule]?.fix) as Finding;
         const guide = report.rules?.[withFix.rule];
-        assert.ok(text.includes(`fix  ${guide?.fix}`), withFix.rule);
+        const first = plainFix(fixFor(guide?.fix ?? "", withFix))[0];
+        assert.ok(text.includes(`fix  ${first}`), withFix.rule);
         if (guide?.docs) assert.ok(text.includes(`docs ${guide.docs}`), withFix.rule);
-        assert.ok(!formatHuman(report).includes(`fix  ${guide?.fix}`));
+        assert.ok(!formatHuman(report).includes(`fix  ${first}`));
+    });
+
+    it("human --explain prints a Markdown fix as indented lines with code spans unwrapped", () => {
+        const finding: Finding = { rule: "dns/dmarc/missing", severity: "warning", scope: "site", url: "sqlite.org", message: "no DMARC record" };
+        const fix = recordFix("Add a TXT record for DMARC.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine" }, "Then change `p=quarantine` to `p=reject`.");
+        const text = formatHuman({ ...report, pages: [], findings: [finding], rules: { "dns/dmarc/missing": { facts: [], fix } } }, undefined, false, undefined, false, true);
+        assert.match(text, /fix {2}Add a TXT record for DMARC\.\n {7,}- Name: _dmarc\.sqlite\.org\n {7,}- Content: v=DMARC1; p=quarantine\n {7,}Then change p=quarantine to p=reject\./u);
     });
 
     it("csv has a header and one row per finding", () => {
@@ -133,6 +142,12 @@ describe("formatHtml", () => {
         assert.ok(html.includes("says &quot;hi&quot;, twice"));
         assert.ok(!html.includes("<&>"));
         assert.ok(!html.includes('href="javascript:'));
+    });
+
+    it("renders a fix as Markdown, one record field per list item, with raw markup escaped", () => {
+        const fix = recordFix("Add a TXT record for DMARC.", { Name: "_dmarc.{domain}", Content: "v=DMARC1; p=quarantine" }, "See [RFC 7489](https://www.rfc-editor.org/rfc/rfc7489) and [this](javascript:alert(1)).");
+        assert.equal(fixHtml(fixFor(fix)), '<p>Add a TXT record for DMARC.</p>\n<ul>\n<li>Name: <code>_dmarc.&lt;domain&gt;</code></li>\n<li>Content: <code>v=DMARC1; p=quarantine</code></li>\n</ul>\n<p>See <a href="https://www.rfc-editor.org/rfc/rfc7489" rel="noopener noreferrer">RFC 7489</a> and this.</p>\n');
+        assert.equal(fixHtml("Set <meta name=theme-color> and 1 < 2 <script>alert(1)</script>."), "<p>Set &lt;meta name=theme-color&gt; and 1 &lt; 2 &lt;script&gt;alert(1)&lt;/script&gt;.</p>\n");
     });
 
     it("sets lang and dir and translates its own words, never a rule ID", () => {

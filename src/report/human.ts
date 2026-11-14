@@ -6,7 +6,7 @@ import { relative, singleOrigin } from "../crawl/scope.ts";
 import { environmentLocale } from "../i18n.ts";
 import { bytes as sized, isLabelled, label, withUnit, type NumberFormat } from "../facts/labels.ts";
 import type { Report } from "../index.ts";
-import { fixFor, fixesOf } from "../rules/fix.ts";
+import { fixFor, fixesOf, plainFix } from "../rules/fix.ts";
 import { cachedReads, valuesAt } from "../rules/message.ts";
 import { byUrgency, scoreOf, type Sort } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
@@ -135,7 +135,12 @@ function change(now: number, before: number | undefined, paint: Paint, number: N
 // The rule’s fixes filled for this finding, then its docs, under the finding.
 function explanation(guide: RuleGuide | undefined, finding: Finding, paint: Paint): string[] {
     const all = fixesOf(guide);
-    const fixes = all.map((fix, index) => `${paint("dim", `${DETAIL}fix${all.length > 1 ? ` ${index + 1}` : " "} `)}${fixFor(fix, finding)}`);
+    const fixes = all.map((fix, index) => {
+        const head = `${DETAIL}fix${all.length > 1 ? ` ${index + 1}` : " "} `;
+        return plainFix(fixFor(fix, finding))
+            .map((line, number) => (number === 0 ? `${paint("dim", head)}${line}` : `${" ".repeat(head.length)}${line}`))
+            .join("\n");
+    });
     return [...fixes, guide?.docs ? paint("dim", `${DETAIL}docs ${guide.docs}`) : ""].filter(Boolean);
 }
 

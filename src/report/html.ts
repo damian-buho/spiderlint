@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { Marked } from "marked";
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { shippedRules } from "../rules/catalog.ts";
 import { fixFor, fixesOf } from "../rules/fix.ts";
@@ -109,6 +110,21 @@ export function escape(value: unknown): string {
     return String(value).replaceAll(/[&<>"']/g, (character) => ENTITIES[character] as string);
 }
 
+// Markdown with raw HTML shown as text, links kept only to http(s) and mailto, images as their alt text.
+const FIX_MARKDOWN = new Marked({
+    gfm: true,
+    renderer: {
+        html: ({ text }) => escape(text),
+        link: ({ href, text }) => (/^(https?:|mailto:)/i.test(href) ? `<a href="${escape(href)}" rel="noopener noreferrer">${escape(text)}</a>` : escape(text)),
+        image: ({ text }) => escape(text),
+    },
+});
+
+// A Markdown fix as sanitised HTML.
+export function fixHtml(fix: string): string {
+    return FIX_MARKDOWN.parse(fix, { async: false });
+}
+
 // The sort control’s script: a chosen radio sets each card’s flex order to its rank, through CSSOM so a strict style policy allows it.
 export const SORT_SCRIPT = `for (const radio of document.querySelectorAll(".sort input[name=sort]")) radio.addEventListener("change", () => { for (const card of document.querySelectorAll(".rule-list .rule-card")) card.style.order = card.dataset[radio.id.slice(5)]; });`;
 
@@ -185,7 +201,7 @@ function cached(t: Translator, same: Finding[], origin: string): string {
 // The rule’s fixes filled for this finding, then its docs link; nothing when the rule has neither.
 function remedy(t: Translator, guide: RuleGuide | undefined, finding: Finding): string {
     const fix = fixesOf(guide)
-        .map((text) => `<p>${escape(t._("Fix: {fix}", { fix: fixFor(text, finding) }))}</p>`)
+        .map((text) => `<div class="fix">${fixHtml(t._("Fix: {fix}", { fix: fixFor(text, finding) }))}</div>`)
         .join("");
     const documentation = guide?.docs && /^https?:\/\//i.test(guide.docs) ? `<p><a href="${escape(guide.docs)}" rel="noopener noreferrer">${escape(t._("Documentation"))}</a></p>` : "";
     return fix + documentation;
@@ -257,8 +273,8 @@ function passed(t: Translator, report: Pick<Report, "summary" | "rules">): strin
     const rows = clean.map(([id, rule]) => {
         const fix = fixesOf(report.rules?.[id])
             .map((text) => fixFor(text))
-            .join(" ");
-        const body = fix ? `<div class="rule-findings"><p class="muted">${escape(fix)}</p></div>` : "";
+            .join("\n\n");
+        const body = fix ? `<div class="rule-findings muted">${fixHtml(fix)}</div>` : "";
         const foot = `<span>${escape(t._("Impact"))}: ${escape(t.number(0))}</span><span>${escape(t._("Scope"))}: ${escape(t._("Pages: {count}", { count: t.number(rule.pages) }))}</span>`;
         return `<details class="rule-card passed"><summary class="rule-head"><span class="tick" aria-hidden="true">✓</span><code>${escape(id)}</code><span class="rule-arrow" aria-hidden="true">▾</span></summary>${body}<footer class="rule-foot">${foot}</footer></details>`;
     });

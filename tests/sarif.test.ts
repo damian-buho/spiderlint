@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { audit, type Report } from "../src/index.ts";
 import { formatSarif } from "../src/report/sarif.ts";
+import { fixFor, plainFix } from "../src/rules/fix.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const GROUPS = {
@@ -38,7 +39,9 @@ describe("formatSarif", () => {
         const helped = rules.filter((rule) => report.rules?.[rule.id]?.fix);
         assert.ok(helped.length > 0);
         for (const rule of helped) {
-            assert.ok(rule.help?.text.startsWith(report.rules?.[rule.id]?.fix as string), rule.id);
+            const fix = fixFor(report.rules?.[rule.id]?.fix as string);
+            assert.ok(rule.help?.markdown.startsWith(fix), rule.id);
+            assert.ok(rule.help?.text.startsWith(plainFix(fix).join("\n")), rule.id);
             assert.equal(rule.helpUri, report.rules?.[rule.id]?.docs, rule.id);
         }
     });
