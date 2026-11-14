@@ -85,6 +85,16 @@ describe("origin preset", () => {
         assert.ok(!rules(report).includes("origin/canonical-host/mismatch"));
     });
 
+    it("names the edge that answers a broken host with a plain 5xx", async () => {
+        const port = new URL(entry.origin).port;
+        const report = await audit({ seeds: [`http://lapsed.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), rules: ["origin"], maxPages: 1, cacheMode: "off" });
+        const broken = report.findings.filter((finding) => finding.rule === "origin/www/broken");
+        assert.deepEqual(
+            broken.map((finding) => finding.message),
+            ["www.lapsed.test does not answer: Fastly answers 503"],
+        );
+    });
+
     it("faults variants that land off the canonical origin", async () => {
         const port = new URL(entry.origin).port;
         const report = await audit({ seeds: [`http://www.hops.test:${port}/page`], resolve: ENTRY_HOSTS.map((name) => parsePin(`${name}:127.0.0.1`)), canonicalOrigin: `http://www.hops.test:${port}`, rules: ["origin"], maxPages: 1, cacheMode: "off" });

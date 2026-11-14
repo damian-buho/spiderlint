@@ -2018,6 +2018,9 @@ msgstr "{host} no responde: Cloudflare responde {status}, {meaning}"
 msgid "{host} does not answer: it answers {status}"
 msgstr "{host} no responde: responde {status}"
 
+msgid "{host} does not answer: {edge} answers {status}"
+msgstr "{host} no responde: {edge} responde {status}"
+
 msgid "{host} does not answer: {error}"
 msgstr "{host} no responde: {error}"
 

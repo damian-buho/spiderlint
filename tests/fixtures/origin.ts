@@ -17,9 +17,9 @@ const TRACE = "Error: no route\n    at dispatch (/srv/app/router.js:42:11)\n";
 const CROSS_DOMAIN = `<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" /></cross-domain-policy>`;
 
 // Names the `entry` kind answers, each pinned to the fixture’s address.
-export const ENTRY_HOSTS = ["drop.test", "www.drop.test", "hops.test", "www.hops.test", "via.hops.test", "down.test", "www.down.test"];
+export const ENTRY_HOSTS = ["drop.test", "www.drop.test", "hops.test", "www.hops.test", "via.hops.test", "down.test", "www.down.test", "lapsed.test", "www.lapsed.test"];
 
-// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only, `/crossdomain.xml` grants every origin; `trace`: a missing path is a 404 stack trace, plain http redirects to https; `skew`: `Date` runs 10 minutes ahead, and `/cached` comes from a cache; `entry`: `www.drop.test` 302s to the apex root, `www.hops.test` 301s to the apex through `via.hops.test`, `www.down.test` answers Cloudflare’s 525 on every path; `twin`: `/` links `/posts/2`, which answers with and without a trailing slash, and `/posts/3`, whose slash form redirects.
+// `soft`: every path answers 200 with an ETag it never honours, `/` redirects Japanese readers and offers gzip only, `/crossdomain.xml` grants every origin; `trace`: a missing path is a 404 stack trace, plain http redirects to https; `skew`: `Date` runs 10 minutes ahead, and `/cached` comes from a cache; `entry`: `www.drop.test` 302s to the apex root, `www.hops.test` 301s to the apex through `via.hops.test`, `www.down.test` answers Cloudflare’s 525 on every path, `www.lapsed.test` Fastly’s 503; `twin`: `/` links `/posts/2`, which answers with and without a trailing slash, and `/posts/3`, whose slash form redirects.
 export async function serveOrigin(kind: "soft" | "trace" | "skew" | "entry" | "twin"): Promise<Origin> {
     const requested: string[] = [];
     const server: Server = createServer((request, response) => {
@@ -34,6 +34,11 @@ export async function serveOrigin(kind: "soft" | "trace" | "skew" | "entry" | "t
         const { hostname, port } = new URL(`http://${request.headers.host}`);
         if (kind === "entry" && hostname === "www.down.test") {
             response.writeHead(525, { server: "cloudflare" });
+            response.end();
+            return;
+        }
+        if (kind === "entry" && hostname === "www.lapsed.test") {
+            response.writeHead(503, { "x-served-by": "cache-fra-etou8220123-FRA" });
             response.end();
             return;
         }

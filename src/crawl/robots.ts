@@ -7,6 +7,7 @@ import { fetchCached, type Stored } from "../cache/http.ts";
 import { OfflineMiss, type Bucket } from "../cache/index.ts";
 import type { ContentSignalFacts, RobotsFileFacts, RobotsGroupFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
+import { servedBy } from "./edges.ts";
 import { reason } from "./fetch.ts";
 
 export type RobotsBucket = Bucket<Stored<string>>;
@@ -76,11 +77,12 @@ async function load(origin: string, bucket: RobotsBucket): Promise<RobotsTxtFile
     let content: string;
     let facts: RobotsFileFacts;
     try {
-        const { status, value, cached, revalidated } = await fetchCached(bucket, url, (response) => response.text(), true);
+        const { status, headers, value, cached, revalidated } = await fetchCached(bucket, url, (response) => response.text(), true);
         const isApplied = status >= 200 && status < 300;
+        const edge = status >= 500 ? servedBy(headers) : undefined;
         content = isApplied ? value : status >= 400 && status < 500 ? "" : DISALLOW_ALL;
-        facts = parseRobots(url, status, isApplied ? value : "");
-        log.debug({ url, status, cached, revalidated, isDisallowAll: content === DISALLOW_ALL }, "robots.txt read");
+        facts = { ...parseRobots(url, status, isApplied ? value : ""), ...(edge && { edge }) };
+        log.debug({ url, status, edge, cached, revalidated, isDisallowAll: content === DISALLOW_ALL }, "robots.txt read");
     } catch (error) {
         if (error instanceof OfflineMiss) throw error;
         content = DISALLOW_ALL;

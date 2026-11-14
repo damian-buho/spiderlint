@@ -76,6 +76,7 @@ export interface RobotsFileFacts {
     url: string;
     status: number;
     error?: string;
+    edge?: string;
     groups: RobotsGroupFacts[];
     sitemaps: string[];
     "content-signals": ContentSignalFacts[];

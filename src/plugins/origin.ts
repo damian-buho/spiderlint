@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { load } from "cheerio";
 import { getDomain } from "tldts";
 import { reason } from "../crawl/fetch.ts";
+import { edgeName, servedBy } from "../crawl/edges.ts";
 import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -86,6 +87,7 @@ export interface Variant {
     resolves: boolean;
     error?: string;
     status?: number;
+    edge?: string;
 }
 
 // The error of a variant that kept redirecting, which says nothing about whether its host answers.
@@ -127,8 +129,9 @@ async function walk(href: string, context: SiteContext): Promise<Variant> {
         for (let hop = 0; hop <= MAX_ENTRY_HOPS; hop += 1) {
             const answer = await context.delegated(url, { redirect: "manual" });
             const next = sentTo(answer, url);
-            log.debug({ href, url, status: answer.status, next, hop }, "entry variant hop");
-            if (!next && answer.status >= 500) return { url: href, chain, final: url, resolves: true, error: `answers ${answer.status}`, status: answer.status };
+            const edge = answer.status >= 500 ? servedBy(answer.headers) : undefined;
+            log.debug({ href, url, status: answer.status, next, hop, edge }, "entry variant hop");
+            if (!next && answer.status >= 500) return { url: href, chain, final: url, resolves: true, error: `answers ${answer.status}`, status: answer.status, ...(edge && { edge }) };
             if (!next) return { url: href, chain, final: url, resolves: true };
             chain.push([answer.status, next]);
             url = next;
@@ -140,7 +143,8 @@ async function walk(href: string, context: SiteContext): Promise<Variant> {
         const isUnresolved = chain.length === 0 && /\bENOTFOUND\b/.test(why);
         log.debug({ href, url, hops: chain.length, isUnresolved, error: why }, "entry variant stopped");
         const status = error instanceof RobotsDisallowed ? error.status : undefined;
-        return { url: href, chain, final: url, resolves: !isUnresolved, ...(!isUnresolved && { error: why }), ...(status !== undefined && { status }) };
+        const edge = error instanceof RobotsDisallowed ? error.edge : undefined;
+        return { url: href, chain, final: url, resolves: !isUnresolved, ...(!isUnresolved && { error: why }), ...(status !== undefined && { status }), ...(edge && { edge }) };
     }
 }
 
@@ -216,10 +220,11 @@ export function brokenHosts(probes: readonly Variant[]): Map<string, Variant[]> 
     return broken;
 }
 
-// The sentence of a host that does not answer: an edge status by its meaning, another status, or the network error.
+// The sentence of a host that does not answer: a Cloudflare status by its meaning, another status by the edge that sent it, or the network error.
 function brokenSaid(host: string, variant: Variant): Pick<Finding, "message" | "text" | "variables"> {
     const meaning = variant.status === undefined ? undefined : EDGE_STATUS[variant.status];
     if (meaning) return said("{host} does not answer: Cloudflare answers {status}, {meaning}", { host, status: String(variant.status), meaning: { name: meaning } });
+    if (variant.status !== undefined && variant.edge) return said("{host} does not answer: {edge} answers {status}", { host, edge: edgeName(variant.edge), status: String(variant.status) });
     if (variant.status !== undefined) return said("{host} does not answer: it answers {status}", { host, status: String(variant.status) });
     return said("{host} does not answer: {error}", { host, error: variant.error ?? "" });
 }

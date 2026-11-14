@@ -5,6 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { botAgent, userAgent } from "../src/agent.ts";
+import { edgeName, servedBy } from "../src/crawl/edges.ts";
 import { edgeOf, wallOf, type Probe, type ProbeInit } from "../src/crawl/probe.ts";
 import type { SiteFacts, Stance } from "../src/facts/types.ts";
 import crawlers, { crawlerName, POSES, type PoseAnswer } from "../src/plugins/crawlers.ts";
@@ -49,6 +50,25 @@ describe("crawlers", () => {
         assert.equal(edgeOf(answer(200, { "akamai-x-true-cache-ttl": "-1" })), undefined);
         assert.equal(edgeOf(answer(401, { server: "cloudflare" })), undefined);
         assert.equal(edgeOf(answer(403, { server: "nginx" })), undefined);
+    });
+
+    it("names the CDN that served an answer of any status, and none for a bare origin", () => {
+        assert.equal(servedBy({ server: "cloudflare" }), "cloudflare");
+        assert.equal(servedBy({ "cf-ray": "8f1-FRA" }), "cloudflare");
+        assert.equal(servedBy({ server: "AkamaiGHost" }), "akamai");
+        assert.equal(servedBy({ "akamai-grn": "0.1" }), "akamai");
+        assert.equal(servedBy({ "x-amz-cf-id": "abc" }), "cloudfront");
+        assert.equal(servedBy({ via: "1.1 abc.cloudfront.net (CloudFront)" }), "cloudfront");
+        assert.equal(servedBy({ "x-served-by": "cache-fra-etou8220123-FRA" }), "fastly");
+        assert.equal(servedBy({ "x-served-by": "cache-bwi-1, cache-fra-2" }), "fastly");
+        assert.equal(servedBy({ "x-fastly-request-id": "abc" }), "fastly");
+        assert.equal(servedBy({ "x-served-by": "web-01" }), undefined);
+        assert.equal(servedBy({ server: "nginx" }), undefined);
+    });
+
+    it("names an edge for people, its ID when it has no name", () => {
+        assert.equal(edgeName("aws-waf"), "AWS WAF");
+        assert.equal(edgeName("unknown"), "unknown");
     });
 
     it("calls a page walled only by marks a block or challenge carries, never a site’s own refusal behind its edge", () => {
@@ -98,14 +118,14 @@ describe("crawlers", () => {
         assert.equal(plain?.message, "the site refuses crawlers the content signals welcome");
         assert.equal(plain?.severity, "warning");
         const [mixed] = judge(poses, { "ai-train": "yes" });
-        assert.deepEqual([mixed?.severity, mixed?.locations], ["warning", ["Googlebot (Google): 403", "GPTBot (OpenAI): 403, cloudflare"]]);
+        assert.deepEqual([mixed?.severity, mixed?.locations], ["warning", ["Googlebot (Google): 403", "GPTBot (OpenAI): 403, Cloudflare"]]);
         const everyPose = POSES.map(({ agent }) => ({ agent, status: 403, edge: "cloudflare" }));
         const edge = judge(everyPose, { search: "yes", "ai-train": "yes", "ai-input": "yes" });
         assert.deepEqual(
             edge.map((finding) => finding.severity),
             ["hint"],
         );
-        assert.ok(edge[0]?.locations?.includes("GPTBot (OpenAI): 403, cloudflare"));
+        assert.ok(edge[0]?.locations?.includes("GPTBot (OpenAI): 403, Cloudflare"));
         assert.match(edge[0]?.message ?? "", /verified-bots setting/);
         const scored = compileRule("crawlers/crawler/blocked", { severity: "warning", score: 5.1 }) as AggregateRule;
         const site: SiteFacts = { sitemaps: [], origins: { [ORIGIN]: { crawlers: { url: `${ORIGIN}/`, status: 200, poses: everyPose } } }, "content-signals": { "ai-train": "yes" } };

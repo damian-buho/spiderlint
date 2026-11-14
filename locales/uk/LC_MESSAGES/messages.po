@@ -2018,6 +2018,9 @@ msgstr "{host} не відповідає: Cloudflare відповідає {statu
 msgid "{host} does not answer: it answers {status}"
 msgstr "{host} не відповідає: відповідь {status}"
 
+msgid "{host} does not answer: {edge} answers {status}"
+msgstr "{host} не відповідає: {edge} відповідає {status}"
+
 msgid "{host} does not answer: {error}"
 msgstr "{host} не відповідає: {error}"
 

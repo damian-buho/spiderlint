@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { edgeName } from "../crawl/edges.ts";
 import { edgeOf } from "../crawl/probe.ts";
 import type { ContentSignal } from "../facts/types.ts";
 import { log } from "../logger.ts";
@@ -92,7 +93,7 @@ const blocked: Make = (severity) => ({
                 return isWanted && status !== 0 && !isServed(status);
             });
             if (refused.length === 0) return [];
-            const locations = refused.map(({ agent, status, edge }) => `${crawlerName(agent)}: ${status}${edge ? `, ${edge}` : ""}`);
+            const locations = refused.map(({ agent, status, edge }) => `${crawlerName(agent)}: ${status}${edge ? `, ${edgeName(edge)}` : ""}`);
             const isEdgeOnly = refused.every(({ edge }) => edge !== undefined);
             const message = said(isEdgeOnly ? "the edge refuses requests posing as crawlers the content signals welcome, as a verifying edge refuses any look-alike; check that its verified-bots setting lets the real crawlers through" : "the site refuses crawlers the content signals welcome");
             log.info({ rule: "crawlers/crawler/blocked", subject, refused: refused.length, isEdgeOnly }, "crawler refusals judged");
