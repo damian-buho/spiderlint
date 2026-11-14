@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 ---
 description: HSTS, CSP, nosniff, Referrer-Policy, framing and cross-origin isolation
+when:
+  http.status: {minimum: 200, maximum: 499, not: {const: 429}}
 rules:
   http/hsts/missing:
     fact: http.parsed.strict-transport-security

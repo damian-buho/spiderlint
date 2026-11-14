@@ -164,6 +164,12 @@ A rendered page’s declarations come from its served HTML: per meta `name`, `ht
 Crawlee’s session pool retires a session on `401`, `403` and `429` and retries
 the request until it fails, so such a page would vanish from the facts. Both
 crawlers set `blockedStatusCodes: []`: those statuses are findings, not blocks.
+The http crawler retries a `429` or `503` (and Crawlee any other `5xx`) up to
+three times, waiting `Retry-After` in seconds (at most 30 s) or an exponential
+backoff with jitter; a page that still fails is stored with that status, empty
+headers and no `error`, so `links/internal/unreachable` says it answers `429`.
+`security-headers` judges only a `2xx`–`4xx` answer other than `429`, since a
+404 page still sends the site’s headers and a rate limiter’s does not.
 
 Captured for every page regardless of mode: status, HTTP version, redirect
 chain, all headers, remote address, `got` timings (`dns`, `tcp`, `tls`,

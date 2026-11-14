@@ -312,7 +312,7 @@ export class Frontier {
         return {
             ...(storage && { requestQueue: storage.queues[mode] }),
             autoscaledPoolOptions: { isFinishedFunction: () => this.#isFinished() },
-            // A 401, 403 or 429 is a page to lint, never a session to retire and retry.
+            // A 401, 403 or 429 never retires a session; the http adapter retries a 429 or 503 itself.
             sessionPoolOptions: { blockedStatusCodes: [] },
             requestHandlerTimeoutSecs: this.#config.timeout,
             navigationTimeoutSecs: Math.ceil(this.#config.timeout / 2),
@@ -361,12 +361,12 @@ export class Frontier {
         };
     }
 
-    // A page no attempt fetched, as status 0 and its error so its referrers still see it; undefined past --max-pages.
-    failed(request: Request, error: string): Facts | undefined {
+    // A page no attempt fetched, as the status it last answered, else 0 and its error, so its referrers still see it; undefined past --max-pages.
+    failed(request: Request, error: string, status = 0): Facts | undefined {
         const url = new URL(request.url);
         if (!this.admit(request, url)) return undefined;
-        log.warn({ url: url.href, error, retries: request.retryCount }, "page not fetched");
-        return { ...this.identity(request, url), http: { status: 0, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "", error } };
+        log.warn({ url: url.href, status, error, retries: request.retryCount }, "page not fetched");
+        return { ...this.identity(request, url), http: { status, redirects: [], headers: {}, timing: {}, cookies: [], size: { body: 0, decoded: 0 }, "content-type": "", ...(status === 0 && { error }) } };
     }
 
     // Hands a request to the browser before any fetch when its group renders there; true once handed.

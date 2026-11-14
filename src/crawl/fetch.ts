@@ -10,7 +10,7 @@ import { admit, guardedFetch, pace, patient } from "./network.ts";
 
 const ATTEMPTS = 3;
 const TIMEOUT_MS = 30_000;
-const RETRY_STATUS = new Set([429, 503]);
+export const RETRY_STATUS = new Set([429, 503]);
 
 export interface Fetched<T> {
     response: Response;

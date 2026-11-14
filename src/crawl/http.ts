@@ -4,6 +4,7 @@
 
 import { CheerioCrawler, Configuration, type CheerioCrawlingContext } from "crawlee";
 import type { Readable } from "node:stream";
+import { setTimeout as sleep } from "node:timers/promises";
 import { agentHeaders } from "../agent.ts";
 import type { Config } from "../config/index.ts";
 import { ACCEPT_ENCODING, capped, isParsed, replayed, type Capped } from "./body.ts";
@@ -13,7 +14,7 @@ import { cookieFacts, dateSkew, earlyHintsHook, redactHeaders, redirectHook, tim
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { CrawlStorage, Earlier, Frontier, OnPage } from "./frontier.ts";
-import { MISMATCH, reason } from "./fetch.ts";
+import { delay, MISMATCH, reason, RETRY_STATUS } from "./fetch.ts";
 import { admit, guardUrl } from "./network.ts";
 import { width } from "./resources.ts";
 
@@ -89,6 +90,7 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
     const crawler = new Crawler(
         {
             additionalMimeTypes: ["*/*"],
+            additionalHttpErrorStatusCodes: [...RETRY_STATUS],
             ...frontier.options("http", storage, proxy),
             maxConcurrency: width(config.concurrency),
             preNavigationHooks: [
@@ -176,8 +178,18 @@ export function httpCrawler(config: Config, onPage: OnPage, frontier: Frontier, 
                 if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "http") }, "links enqueued");
             },
+            async errorHandler({ request }, error) {
+                const source = bodies.get(request)?.source as { statusCode?: number; headers?: Record<string, string | string[] | undefined> } | undefined;
+                const status = source?.statusCode ?? 0;
+                if (!RETRY_STATUS.has(status)) return log.debug({ url: request.url, status, error: error.message }, "page retried at once");
+                const wait = delay(request.retryCount, first(source?.headers?.["retry-after"]));
+                log.info({ url: request.url, status, attempt: request.retryCount + 1, wait }, "page answered a retry status, waiting before the next attempt");
+                await sleep(wait);
+            },
             async failedRequestHandler({ request }, error) {
-                const facts = frontier.failed(request, failure(error, bodies.get(request)?.source));
+                const source = bodies.get(request)?.source;
+                const status = (source as { statusCode?: number } | undefined)?.statusCode ?? 0;
+                const facts = frontier.failed(request, failure(error, source), status >= 400 ? status : 0);
                 if (facts) await onPage(facts, "");
             },
         },
