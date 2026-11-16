@@ -7,7 +7,8 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { createServer, type AddressInfo } from "node:net";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { MIMEType } from "node:util";
 import { Configuration, PlaywrightCrawler, type PlaywrightCrawlerOptions, type PlaywrightCrawlingContext, type PlaywrightDirectNavigationOptions, type Request as CrawleeRequest } from "crawlee";
@@ -52,13 +53,17 @@ export function loadedDigest(page: Page): string | undefined {
     return loaded.get(page);
 }
 
-// A loopback port free right now, for the next browser to listen on.
-async function freePort(): Promise<number> {
-    const server = createServer();
-    await new Promise<void>((resolve, reject) => server.once("error", reject).listen(0, "127.0.0.1", resolve));
-    const { port } = server.address() as AddressInfo;
-    await new Promise((resolve) => server.close(resolve));
-    return port;
+// The DevTools port Chromium chose under `--remote-debugging-port=0`, from the file it writes into its profile.
+async function activePort(profile: string): Promise<number | undefined> {
+    let text = "";
+    try {
+        text = await readFile(path.join(profile, "DevToolsActivePort"), "utf8");
+    } catch (error) {
+        log.warn({ profile, error: String(error) }, "browser DevTools port file unreadable");
+    }
+    const port = Number(text.split("\n", 1)[0]);
+    log.debug({ profile, port }, "browser DevTools port read");
+    return port > 0 ? port : undefined;
 }
 
 type Transport = Pick<Facts, "tls"> & { headers: Record<string, string | string[]>; remote?: Facts["http"]["remote"]; security?: string };
@@ -456,16 +461,18 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                 preLaunchHooks: isPortOpen
                     ? [
                           async (pageId, launchContext) => {
-                              const port = await freePort();
-                              launchContext.launchOptions = { ...launchContext.launchOptions, args: [...(launchContext.launchOptions?.args ?? []), `${PORT_ARGUMENT}${port}`] };
-                              log.debug({ pageId, port }, "browser DevTools port opened on loopback");
+                              launchContext.userDataDir = await mkdtemp(path.join(tmpdir(), "spiderlint-chromium-"));
+                              launchContext.launchOptions = { ...launchContext.launchOptions, args: [...(launchContext.launchOptions?.args ?? []), `${PORT_ARGUMENT}0`] };
+                              log.debug({ pageId, profile: launchContext.userDataDir }, "browser DevTools port opened on loopback");
                           },
                       ]
                     : [],
                 postLaunchHooks: [
-                    (pageId) => {
+                    (pageId, browserController) => {
                         launches += 1;
                         log.debug({ pageId, launches }, "browser launched");
+                        const profile = browserController.launchContext.userDataDir;
+                        if (isPortOpen && profile) browserController.browser.once("disconnected", () => void rm(profile, { recursive: true, force: true }).then(() => log.debug({ profile }, "browser profile removed")));
                     },
                 ],
             },
@@ -514,8 +521,8 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 if (router.isDetecting(url.href)) router.detected(url.href, served?.html, facts.html);
                 pages += 1;
-                const port = browserController.launchContext.launchOptions?.args?.findLast((argument) => argument.startsWith(PORT_ARGUMENT))?.slice(PORT_ARGUMENT.length);
-                if (port) ports.set(page, Number(port));
+                const port = isPortOpen ? await activePort(browserController.launchContext.userDataDir) : undefined;
+                if (port) ports.set(page, port);
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");
