@@ -53,7 +53,10 @@ function isFresh<T>(bucket: Bucket<Stored<T>>, entry: Entry<Stored<T>>, policy: 
 }
 
 // A GET with `sent` headers answered from `bucket` while fresh, revalidated with its validators once stale, stored when RFC 9111 allows; an entry `isUsable` rejects is fetched again in full, except offline.
-export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>, isCapped = false, isUsable?: (stored: Stored<T>) => boolean, sent: Record<string, string> = {}): Promise<Served<T>> {
+export async function fetchCached<T>(bucket: Bucket<Stored<T>>, url: string, consume: (response: Response) => Promise<T>, options: { isCapped?: boolean; isUsable?: (stored: Stored<T>) => boolean; sent?: Record<string, string> } = {}): Promise<Served<T>> {
+    const isCapped = options.isCapped ?? false;
+    const isUsable = options.isUsable;
+    const sent = options.sent ?? {};
     const found = await bucket.get(url);
     const entry = found && (!isUsable || bucket.mode === "offline" || isUsable(found.value)) ? found : undefined;
     if (found && !entry) log.debug({ bucket: bucket.name, url, stored: found.stored }, "cache entry lacks what the caller needs");

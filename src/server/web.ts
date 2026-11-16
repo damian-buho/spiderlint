@@ -150,7 +150,7 @@ function publicOrigin(c: Context): string {
 }
 
 // The page in the reader’s language with the owner’s fragments, never cached, under the page policy they extend; the view is reported to Matomo when one is set.
-function respond(c: Context, t: Translator, title: string, body: string, status: ContentfulStatusCode = 200, head = "", extra: { description?: string; host?: string; image?: string } = {}): Response {
+function respond(c: Context, t: Translator, title: string, body: string, options: { status?: ContentfulStatusCode; head?: string; description?: string; host?: string; image?: string } = {}): Response {
     type Fragment = { html: string; sources: Sources };
     const { page: owner, matomo, examples } = c.get("settings");
     const slots = (["head", "header", "footer"] as const).map((slot) => owner.fragments?.slot(slot, t.lang) ?? { html: "", sources: { script: [], style: [] } });
@@ -159,6 +159,9 @@ function respond(c: Context, t: Translator, title: string, body: string, status:
     const privacy = matomo ? `<a href="${escape(matomo.privacy)}" rel="noopener noreferrer">${escape(t._("Privacy"))}</a>` : "";
     const origin = publicOrigin(c);
     const self = new URL(c.req.path, origin).href;
+    const status = options.status ?? 200;
+    const head = options.head ?? "";
+    const extra = options;
     const description = extra.description ?? t._("Check every page of a site: SEO tags, security headers, TLS, links and more.");
     const seo = `<meta name="description" content="${escape(description)}"><link rel="canonical" href="${escape(self)}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta property="og:image" content="${escape(`${origin}${extra.image ?? "/logo.png"}`)}"><meta property="og:url" content="${escape(self)}"><meta property="og:type" content="website">`;
     const skip = `<a class="skip" href="#main">${escape(t._("Skip to main content"))}</a>`;
@@ -235,7 +238,7 @@ async function examplesPage(c: Context, t: Translator, jobs: Jobs, number: numbe
     const list = shown.length > 0 ? cards(t, shown) : `<p class="muted">${escape(t._("The first examples are being scanned. Come back soon."))}</p>`;
     const heading = number === 1 ? t._("Example reports") : t._("Example reports, page {page}", { page: t.number(number) });
     const body = `<main id="main"><h1>${escape(heading)}</h1><p>${escape(t._("Well-known sites this instance scans by itself, again and again. Each card leads to the latest report."))}</p>${list}${pager(t, number, pages)}</main>`;
-    return respond(c, t, `${heading} — spiderlint`, body, 200, "", { description: t._("spiderlint reports of well-known sites: search engine tags, security headers, TLS, links and more, rated S to F.") });
+    return respond(c, t, `${heading} — spiderlint`, body, { status: 200, head: "", description: t._("spiderlint reports of well-known sites: search engine tags, security headers, TLS, links and more, rated S to F.") });
 }
 
 // The box that keeps a scan out of the latest reports and the badge.
@@ -252,11 +255,16 @@ function signalChoice(t: Translator, form: Record<string, unknown>): string {
 }
 
 // The form, with the address typed, the preset chosen, the hide box, the signals chosen and the refusal it met, if any.
-function formPage(c: Context, t: Translator, offered: string[], recent: Recent[], typed = "", refusal?: Refusal, chosen?: string, isHidden = false, ticked: Record<string, unknown> = {}): Response {
+function formPage(c: Context, t: Translator, offered: string[], recent: Recent[], options: { typed?: string; refusal?: Refusal; chosen?: string; isHidden?: boolean; ticked?: Record<string, unknown> } = {}): Response {
+    const typed = options.typed ?? "";
+    const refusal = options.refusal;
+    const chosen = options.chosen;
+    const isHidden = options.isHidden ?? false;
+    const ticked = options.ticked ?? {};
     if (refusal?.retryAfter !== undefined) c.header("retry-after", String(refusal.retryAfter));
     const alert = refusal ? `<p class="alert" role="alert">${escape(refusalText(t, refusal))}${refusal.code === "banned" ? `<br><small>${escape(refusal.message)}</small>` : ""}</p>` : "";
     const body = `<main id="main"><h1>spiderlint</h1><p>${escape(t._("Checks every page of a site: search engine tags, security headers, TLS, links and more."))}</p>${alert}<form method="post" action="/"><label for="url" class="muted">${escape(t._("Site address"))}</label><input id="url" name="url" type="text" inputmode="url" autocomplete="url" required spellcheck="false" placeholder="example.com" value="${escape(typed)}"${refusal ? ' aria-invalid="true"' : ""}><button type="submit">${escape(t._("Scan"))}</button>${presetChoice(t, offered, chosen)}${signalChoice(t, ticked)}${hideChoice(t, isHidden)}</form><p class="muted"><small>${escape(t._("Scans obey robots.txt and identify themselves as spiderlint. A finished report is public: its link and the site’s badge lead to it."))}</small></p>${recentBlock(t, recent)}</main>`;
-    return respond(c, t, t._("spiderlint — scan every page of a website"), body, refusal?.status ?? 200);
+    return respond(c, t, t._("spiderlint — scan every page of a website"), body, { status: refusal?.status ?? 200 });
 }
 
 // The time left as the reader writes it: “about 2–4 min”, “less than 3 min” while the low end is zero.
@@ -477,9 +485,9 @@ export function web(jobs: Jobs): Hono {
         return c.body(new Uint8Array(image));
     });
 
-    app.get("/", async (c) => formPage(c, translate(c), offered(), await recent(), c.req.query("url") ?? ""));
+    app.get("/", async (c) => formPage(c, translate(c), offered(), await recent(), { typed: c.req.query("url") ?? "" }));
 
-    app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: async (c) => formPage(c, translate(c), offered(), await recent(), "", new Refusal(400, "invalid-body", "form too large")) }), async (c) => {
+    app.post("/", bodyLimit({ maxSize: BODY_MAX, onError: async (c) => formPage(c, translate(c), offered(), await recent(), { typed: "", refusal: new Refusal(400, "invalid-body", "form too large") }) }), async (c) => {
         const t = translate(c);
         const form = await formOf(c);
         const typed = typeof form.url === "string" ? form.url : "";
@@ -494,7 +502,7 @@ export function web(jobs: Jobs): Hono {
         } catch (error) {
             if (!(error instanceof Refusal)) throw error;
             log.info({ code: error.code, status: error.status, preset, isHidden }, "form refused");
-            return formPage(c, t, offered(), await recent(), typed, error, preset, isHidden, form);
+            return formPage(c, t, offered(), await recent(), { typed, refusal: error, chosen: preset, isHidden, ticked: form });
         }
     });
 
@@ -505,7 +513,7 @@ export function web(jobs: Jobs): Hono {
             job = await jobOf(jobs.queue, c.req.param("id"));
         } catch (error) {
             if (!(error instanceof Refusal)) throw error;
-            return respond(c, t, t._("Scan not found"), `<main id="main"><h1>${escape(t._("Scan not found"))}</h1><p>${escape(refusalText(t, error))}</p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, 404);
+            return respond(c, t, t._("Scan not found"), `<main id="main"><h1>${escape(t._("Scan not found"))}</h1><p>${escape(refusalText(t, error))}</p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, { status: 404 });
         }
         const state = await job.getState();
         const scanned = shown(job.data.url);
@@ -517,11 +525,12 @@ export function web(jobs: Jobs): Hono {
         log.debug({ job: job.id, state, isRepeat, wait, hidden: job.data.hidden === true }, "job page rendered");
         if (state === "completed") {
             const hasPreview = (await jobs.redis.exists(previewKey(job.id as string))) > 0;
-            return respond(c, t, title, `<main id="main">${doneBody(t, job, wait, isRepeat)}</main>`, 200, noindex, { ...extra, ...(hasPreview && { image: `/previews/${job.id}.webp` }) });
+            return respond(c, t, title, `<main id="main">${doneBody(t, job, wait, isRepeat)}</main>`, { status: 200, head: noindex, ...extra, ...(hasPreview && { image: `/previews/${job.id}.webp` }) });
         }
-        if (state === "failed") return respond(c, t, title, `<main id="main"><h1>${escape(scanned)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, 200, noindex, extra);
+        if (state === "failed")
+            return respond(c, t, title, `<main id="main"><h1>${escape(scanned)}</h1><p class="alert" role="alert">${escape(t._("The scan failed."))}</p><p><code>${escape(job.failedReason)}</code></p><p><a href="/">${escape(t._("Start a new scan"))}</a></p></main>`, { status: 200, head: noindex, ...extra });
         const body = `<main id="main"><h1>${escape(scanned)}</h1>${isRepeat ? `<p class="notice">${escape(t._("This site was scanned recently, so this is the existing scan."))}</p>` : ""}${progressBody(t, job, state === "active" ? "running" : "queued")}</main><script>${SCRIPT}</script>`;
-        return respond(c, t, title, body, 200, `<noscript><meta http-equiv="refresh" content="${REFRESH_S}"></noscript>${noindex}`, extra);
+        return respond(c, t, title, body, { status: 200, head: `<noscript><meta http-equiv="refresh" content="${REFRESH_S}"></noscript>${noindex}`, ...extra });
     });
 
     app.get("/badge/:file", async (c) => {

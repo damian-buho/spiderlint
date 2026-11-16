@@ -163,7 +163,7 @@ describe("extractor cache", () => {
 
     it("runs an extractor once per version and body, and never one that opts out or names no version", async () => {
         const [runs, hits] = [{} as Record<string, number>, {} as Record<string, number>];
-        const cache = new ExtractorCache(new Bucket<CachedFacts>("extractors", root, 0, "use"), runs, hits);
+        const cache = new ExtractorCache(new Bucket<CachedFacts>("extractors", root, 0, "use"), { runs, hits });
         const run = (extractor: { id: string; version?: string; cached?: false }, body: string) => cache.run(extractor, "https://a.test/", "text/html", body, work);
         for (const body of ["a", "a", "b"]) await run({ id: "v1", version: "1" }, body);
         await run({ id: "v1", version: "2" }, "a");

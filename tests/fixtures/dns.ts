@@ -257,7 +257,9 @@ function answer(query: Packet, isTcp: boolean, isValidating: boolean, overrides:
 }
 
 // A resolver answering the fixture zones over UDP and TCP on one ephemeral port; `isValidating` sets `AD` where signed.
-export async function serveDns(isValidating = true, overrides: Record<string, Zone> = {}): Promise<DnsFixture> {
+export async function serveDns(options: { isValidating?: boolean; overrides?: Record<string, Zone> } = {}): Promise<DnsFixture> {
+    const isValidating = options.isValidating ?? true;
+    const overrides = options.overrides ?? {};
     const queries: string[] = [];
     const tcp = createServer((socket) => {
         socket.once("data", (chunk: Buffer) => {

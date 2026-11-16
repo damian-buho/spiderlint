@@ -423,7 +423,10 @@ export function pageRule(id: string, facts: string[], judge: (page: Facts) => Of
 }
 
 // A site rule keyed by resource URL: one finding per offending resource, its pages as `urls`.
-export function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict, facts = ["resources"], valueOf = (resource: ResourceFacts): unknown => resource.http?.status, guide: Guide = {}): Make {
+export function resourceRule(id: string, isUsed: (page: Facts, resource: ResourceFacts) => boolean, verdict: Verdict, options: { facts?: string[]; valueOf?: (resource: ResourceFacts) => unknown; guide?: Guide } = {}): Make {
+    const facts = options.facts ?? ["resources"];
+    const valueOf = options.valueOf ?? ((resource: ResourceFacts): unknown => resource.http?.status);
+    const guide = options.guide ?? {};
     return (severity) => ({
         meta: { id, severity, scope: "site", facts, ...guide },
         check(pages: Facts[]) {
@@ -543,37 +546,35 @@ export const builtin: Record<string, Make> = {
     ...cachingRules,
     ...lengthRules,
     ...relationRules,
-    "resources/resource/unreachable": resourceRule(
-        "resources/resource/unreachable",
-        (_page, resource) => resource.kind !== "enclosure",
-        resourceStatus,
-        undefined,
-        (resource) => resource.http?.status ?? 0,
-        { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." },
-    ),
+    "resources/resource/unreachable": resourceRule("resources/resource/unreachable", (_page, resource) => resource.kind !== "enclosure", resourceStatus, {
+        valueOf: (resource) => resource.http?.status ?? 0,
+        guide: { docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Status", fix: "Fix the resource server so it answers 2xx, or remove the resource from the page." },
+    }),
     "resources/protocol/insecure": resourceRule(
         "resources/protocol/insecure",
         (page, resource) => page.url.protocol === "https:" && resource.url.startsWith("http:"),
         (resource) => said("{kind} loads over http: on the https: pages that use it", { kind: resource.kind }),
-        undefined,
-        undefined,
-        { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content", fix: "Load the resource over https instead of http." },
+        { guide: { docs: "https://developer.mozilla.org/docs/Web/Security/Mixed_content", fix: "Load the resource over https instead of http." } },
     ),
     "resources/integrity/missing": resourceRule(
         "resources/integrity/missing",
         (_page, resource) => resource.origin === "cross" && (resource.kind === "script" || resource.kind === "style"),
         (resource) => (resource.integrity ? undefined : said("cross-origin {kind} without integrity", { kind: resource.kind })),
-        undefined,
-        undefined,
-        { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." },
+        { guide: { docs: "https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity", fix: "Add an integrity attribute (sha384 or sha256) and crossorigin=anonymous to each cross-origin script and style sheet." } },
     ),
-    "resources/cache-control/weak": resourceRule("resources/cache-control/weak", isAnyUse, resourceCacheControl, undefined, (resource) => resource.http?.headers["cache-control"], {
-        docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Caching#cache_busting",
-        fix: "Send Cache-Control: public, max-age=31536000, immutable with every fingerprinted asset.",
+    "resources/cache-control/weak": resourceRule("resources/cache-control/weak", isAnyUse, resourceCacheControl, {
+        valueOf: (resource) => resource.http?.headers["cache-control"],
+        guide: {
+            docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Caching#cache_busting",
+            fix: "Send Cache-Control: public, max-age=31536000, immutable with every fingerprinted asset.",
+        },
     }),
-    "resources/compression/missing": resourceRule("resources/compression/missing", isAnyUse, resourceCompression, undefined, (resource) => resource.http?.headers["content-encoding"], {
-        docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Compression",
-        fix: "Serve text assets br, zstd or gzip to every client whose Accept-Encoding offers one.",
+    "resources/compression/missing": resourceRule("resources/compression/missing", isAnyUse, resourceCompression, {
+        valueOf: (resource) => resource.http?.headers["content-encoding"],
+        guide: {
+            docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Compression",
+            fix: "Serve text assets br, zstd or gzip to every client whose Accept-Encoding offers one.",
+        },
     }),
     "html/canonical/mismatch": pointsHere("html/canonical/mismatch", "html.canonical", "canonical link", (html) => html.canonical, { docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Point <link rel=canonical> at this page’s own URL." }),
     "html/og-url/mismatch": pointsHere("html/og-url/mismatch", "html.property.og:url", "og:url", (html) => html.property["og:url"], { docs: "https://ogp.me/#metadata", fix: "Point <meta property=og:url> at this page’s own URL." }),

@@ -97,7 +97,7 @@ describe("network plugin", () => {
     before(async () => {
         const cymru = Object.keys(ZONES).filter((key) => key.includes(".cymru.com|"));
         const unreachable = Object.fromEntries(cymru.map((key) => [key, { rcode: "SERVFAIL" }]));
-        [fixture, down] = await Promise.all([serveDns(true, ZONES), serveDns(true, { ...ZONES, ...unreachable })]);
+        [fixture, down] = await Promise.all([serveDns({ isValidating: true, overrides: ZONES }), serveDns({ isValidating: true, overrides: { ...ZONES, ...unreachable } })]);
     });
 
     after(async () => {

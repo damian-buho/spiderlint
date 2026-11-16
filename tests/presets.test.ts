@@ -470,7 +470,7 @@ describe("presets", () => {
     it("excludes and overrides rules by ID or glob", () => {
         const spec = { fact: "html.title", expect: { minLength: 3 } };
         const rulesets = { t: { rules: { "a/x": spec, "a/y": spec, "b/z": spec } } };
-        const severities = (excluded: string[], overrides = {}) => Object.fromEntries(compileRulesets(["t"], rulesets, new Set(excluded), overrides).map((rule) => [rule.meta.id, rule.meta.severity]));
+        const severities = (excluded: string[], overrides = {}) => Object.fromEntries(compileRulesets(["t"], rulesets, { excludeRules: new Set(excluded), overrides }).map((rule) => [rule.meta.id, rule.meta.severity]));
         assert.deepEqual(Object.keys(severities(["a/*"])), ["b/z"]);
         assert.deepEqual(Object.keys(severities(["a/x"])), ["a/y", "b/z"]);
         assert.deepEqual(Object.keys(severities(["**"])), []);

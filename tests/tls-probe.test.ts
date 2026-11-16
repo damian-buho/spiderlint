@@ -185,10 +185,14 @@ describe("tls-probe plugin", { skip: !fixture && "openssl is not on PATH" }, () 
 
     it("leaves the suite rules silent on a Cloudflare edge, whose suites a customer cannot trim", () => {
         const facts = { protocols: ["TLSv1.2", "TLSv1.3"], "weak-ciphers": ["TLS_RSA_WITH_AES_128_CBC_SHA"], "insecure-ciphers": ["TLS_RSA_WITH_3DES_EDE_CBC_SHA"], vulnerabilities: ["sweet32"], "forward-secrecy": "some", "server-order": false };
-        const rules = (edge?: string, extra = {}) => judged("https://example.org", { ...facts, ...extra }, edge ? { edge: { name: edge, kind: "edge", evidence: ["header cf-ray: 1"], confidence: "medium" } } : undefined).map(([rule]) => rule);
-        assert.deepEqual(rules(), ["tls-probe/cipher-order/missing", "tls-probe/cipher/insecure", "tls-probe/cipher/weak", "tls-probe/forward-secrecy/missing", "tls-probe/vulnerability/insecure"]);
-        assert.deepEqual(rules("cloudflare"), []);
-        assert.deepEqual(rules("cloudflare", { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] }), ["tls-probe/protocol/deprecated", "tls-probe/tls13/missing"]);
+        const rules = (options: { edge?: string; extra?: Record<string, unknown> } = {}) => {
+            const edge = options.edge;
+            const extra = options.extra ?? {};
+            return judged("https://example.org", { ...facts, ...extra }, edge ? { edge: { name: edge, kind: "edge", evidence: ["header cf-ray: 1"], confidence: "medium" } } : undefined).map(([rule]) => rule);
+        };
+        assert.deepEqual(rules({}), ["tls-probe/cipher-order/missing", "tls-probe/cipher/insecure", "tls-probe/cipher/weak", "tls-probe/forward-secrecy/missing", "tls-probe/vulnerability/insecure"]);
+        assert.deepEqual(rules({ edge: "cloudflare" }), []);
+        assert.deepEqual(rules({ edge: "cloudflare", extra: { protocols: ["TLSv1", "TLSv1.2"], legacy: ["TLSv1"] } }), ["tls-probe/protocol/deprecated", "tls-probe/tls13/missing"]);
     });
 
     it("carries the Cloudflare dashboard hint on legacy protocols behind Cloudflare, and the generic fix elsewhere", () => {

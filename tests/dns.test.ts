@@ -143,7 +143,7 @@ describe("dns plugin", () => {
     let directory: string;
 
     before(async () => {
-        [fixture, plain] = await Promise.all([serveDns(), serveDns(false)]);
+        [fixture, plain] = await Promise.all([serveDns(), serveDns({ isValidating: false })]);
         directory = await mkdtemp(path.join(tmpdir(), "spiderlint-dns-"));
     });
 
@@ -243,7 +243,7 @@ describe("dns plugin", () => {
     });
 
     it("finds an authoritative server that answers recursive queries", async () => {
-        const open = await serveDns(true, { "a.root-servers.net|A": { recursive: true, answers: [a("a.root-servers.net", "198.41.0.4")] } });
+        const open = await serveDns({ isValidating: true, overrides: { "a.root-servers.net|A": { recursive: true, answers: [a("a.root-servers.net", "198.41.0.4")] } } });
         try {
             const facts = await extract("good.fixture", [page("good.fixture", "Let's Encrypt", [], 'h3=":443"')], dnsClient(open.server, off(), true, open.port));
             assert.deepEqual(
@@ -441,7 +441,7 @@ describe("dns plugin", () => {
     });
 
     it("compares public resolvers only when asked, and names their disagreements", async () => {
-        const other = await serveDns(false, { "good.fixture|A": { answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.77" }] } });
+        const other = await serveDns({ isValidating: false, overrides: { "good.fixture|A": { answers: [{ type: "A", name: "good.fixture", ttl: 300, data: "192.0.2.77" }] } } });
         try {
             const resolvers = dns.sites?.find((site) => site.id === "resolvers");
             const context = (compare: string[]) => ({ pages: [], signal: new AbortController().signal, dns: dnsClient(fixture.server, off(), true, fixture.port), settings: { compare } }) as unknown as SiteContext;

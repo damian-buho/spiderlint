@@ -24,10 +24,10 @@ export class ExtractorCache {
     readonly #runs: Record<string, number>;
     readonly #hits: Record<string, number>;
 
-    constructor(bucket: Bucket<CachedFacts> | undefined, runs: Record<string, number> = {}, hits: Record<string, number> = {}) {
+    constructor(bucket: Bucket<CachedFacts> | undefined, options: { runs?: Record<string, number>; hits?: Record<string, number> } = {}) {
         this.#bucket = bucket;
-        this.#runs = runs;
-        this.#hits = hits;
+        this.#runs = options.runs ?? {};
+        this.#hits = options.hits ?? {};
     }
 
     // The entry key, undefined for an extractor that opts out or names no version.

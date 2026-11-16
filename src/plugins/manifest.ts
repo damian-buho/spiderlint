@@ -63,9 +63,7 @@ const parse = resourceRule(
         const error = manifestOf(resource)?.error;
         return error ? { ...said("the manifest does not parse"), data: { [resource.url]: { error } } } : undefined;
     },
-    FACTS,
-    (resource) => manifestOf(resource)?.error,
-    { docs: DOCS, fix: "Serve the manifest as one JSON object." },
+    { facts: FACTS, valueOf: (resource) => manifestOf(resource)?.error, guide: { docs: DOCS, fix: "Serve the manifest as one JSON object." } },
 );
 
 const fields = resourceRule(
@@ -76,9 +74,7 @@ const fields = resourceRule(
         const missing = FIELDS.filter((field) => !members.has(field));
         return missing.length === 0 ? undefined : { ...said("the manifest lacks members, so browsers will not offer to install the site"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
-    FACTS,
-    (resource) => manifestOf(resource)?.members,
-    { docs: DOCS, fix: `Add ${FIELDS.join(", ")} to the manifest.` },
+    { facts: FACTS, valueOf: (resource) => manifestOf(resource)?.members, guide: { docs: DOCS, fix: `Add ${FIELDS.join(", ")} to the manifest.` } },
 );
 
 const icons = resourceRule(
@@ -90,9 +86,7 @@ const icons = resourceRule(
         const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
         return missing.length === 0 ? undefined : { ...said("the manifest icons lack sizes or a maskable icon"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
-    FACTS,
-    (resource) => manifestOf(resource)?.icons,
-    { docs: "https://web.dev/articles/maskable-icon", fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo." },
+    { facts: FACTS, valueOf: (resource) => manifestOf(resource)?.icons, guide: { docs: "https://web.dev/articles/maskable-icon", fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo." } },
 );
 
 // Where the manifest is served from, as what, and whether its app stays inside its own scope and origin.
@@ -114,9 +108,11 @@ const served = resourceRule(
         log.debug({ url: resource.url, type, problems: problems.length }, "manifest serving judged");
         return problems.length === 0 ? undefined : { ...said("the manifest is served or declared wrongly"), data: { [resource.url]: { problems: problems.join("; ") } } };
     },
-    FACTS,
-    (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
-    { docs: "https://www.w3.org/TR/appmanifest/#id-member", fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin." },
+    {
+        facts: FACTS,
+        valueOf: (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
+        guide: { docs: "https://www.w3.org/TR/appmanifest/#id-member", fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin." },
+    },
 );
 
 // Whether a page’s head links a manifest.

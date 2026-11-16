@@ -268,7 +268,7 @@ function refuseUnknown(config: Config, groups: Record<string, GroupConfig>): voi
 // Each group’s rules, flags applied.
 function rulesOf(config: Config): Map<string, Rule[]> {
     const excludeRules = new Set([...config.excludeRules, ...config.denyRules]);
-    return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, excludeRules, config.overrides)]));
+    return new Map(Object.entries(groupsOf(config)).map(([name, group]) => [name, compileRulesets(group.rules, config.rulesets, { excludeRules, overrides: config.overrides })]));
 }
 
 // Every rule some group runs, flags applied.
@@ -304,7 +304,7 @@ function counted(cost: Cost, ids: string[]): void {
 // The `extractors` bucket for this run, counting into `cost`.
 function extractorCache(config: Config, store: DiskStore | undefined, cost: Cost): ExtractorCache {
     cost.extractorsCached = {};
-    return new ExtractorCache(openBucket("extractors", config, store?.directory), cost.extractors, cost.extractorsCached);
+    return new ExtractorCache(openBucket("extractors", config, store?.directory), { runs: cost.extractors, hits: cost.extractorsCached });
 }
 
 // Stored pages an extractor never saw get its facts from their stored body, the lowest URLs filling each sample, so a new rule needs no re-crawl.
@@ -337,7 +337,7 @@ function groupModes(config: Config): Record<string, GroupMode> {
     const modes: Record<string, GroupMode> = {};
     const groups = Object.entries(groupsOf(config));
     for (const [name, group] of groups) {
-        const rules = compileRulesets(group.rules, config.rulesets, excludeRules, config.overrides);
+        const rules = compileRulesets(group.rules, config.rulesets, { excludeRules, overrides: config.overrides });
         const readers = rules.filter((rule) => rule.meta.facts.some((fact) => isBrowserFact(fact))).map((rule) => `rule ${rule.meta.id} in group ${name}`);
         const pin = config.fetch === "http" || config.fetch === "browser" ? config.fetch : (group.fetch ?? config.fetch);
         const isPinnedAbove = config.fetch === "http" && (group.fetch === "browser" || group.fetch === "adaptive");

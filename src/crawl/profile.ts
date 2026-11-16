@@ -47,7 +47,7 @@ export async function cachedGet(url: string, bucket: ProfileBucket, robots: Robo
         log.info({ url }, "robots.txt disallows the page; skipped");
         throw new RobotsDisallowed(`robots.txt disallows ${url}`);
     }
-    const { status, value, at, cached, revalidated } = await fetchCached(bucket, url, read, true);
+    const { status, value, at, cached, revalidated } = await fetchCached(bucket, url, read, { isCapped: true });
     log.debug({ url, status, at, cached, revalidated }, "page read through the profiles bucket");
     return { url: value.url, status, body: value.body, at: at ?? new Date().toISOString(), ...(cached && { cached }), ...(revalidated && { revalidated }) };
 }

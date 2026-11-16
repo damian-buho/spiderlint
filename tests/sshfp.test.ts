@@ -73,10 +73,13 @@ describe("sshfp plugin", () => {
         await chmod(path.join(directory, "ssh-keyscan"), 0o755);
         path_ = process.env.PATH;
         process.env.PATH = `${directory}${path.delimiter}${path_ ?? ""}`;
-        fixture = await serveDns(true, {
-            "match.fixture|SSHFP": { ad: true, answers: [record("match.fixture", 4, 2, RFC_7479_SHA256)] },
-            "stale.fixture|SSHFP": { ad: true, answers: [record("stale.fixture", 4, 2, "00".repeat(32)), record("stale.fixture", 1, 2, "11".repeat(32))] },
-            "unsigned.fixture|SSHFP": { answers: [record("unsigned.fixture", 4, 1, fingerprint(BLOB, 1))] },
+        fixture = await serveDns({
+            isValidating: true,
+            overrides: {
+                "match.fixture|SSHFP": { ad: true, answers: [record("match.fixture", 4, 2, RFC_7479_SHA256)] },
+                "stale.fixture|SSHFP": { ad: true, answers: [record("stale.fixture", 4, 2, "00".repeat(32)), record("stale.fixture", 1, 2, "11".repeat(32))] },
+                "unsigned.fixture|SSHFP": { answers: [record("unsigned.fixture", 4, 1, fingerprint(BLOB, 1))] },
+            },
         });
         client = dnsClient(fixture.server, new Bucket<StoredReply>("dns", undefined, 60, "off"), true);
     });

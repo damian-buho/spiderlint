@@ -77,7 +77,7 @@ async function load(origin: string, bucket: RobotsBucket): Promise<RobotsTxtFile
     let content: string;
     let facts: RobotsFileFacts;
     try {
-        const { status, headers, value, cached, revalidated } = await fetchCached(bucket, url, (response) => response.text(), true);
+        const { status, headers, value, cached, revalidated } = await fetchCached(bucket, url, (response) => response.text(), { isCapped: true });
         const isApplied = status >= 200 && status < 300;
         const edge = status >= 500 ? servedBy(headers) : undefined;
         content = isApplied ? value : status >= 400 && status < 500 ? "" : DISALLOW_ALL;

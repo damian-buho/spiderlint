@@ -11,10 +11,12 @@ const URL_KEY = /^(?:[a-z][\w+.-]*:)?\//i;
 const RANK = [/^co2\./, /^http\.size\./, /^browser\.weight\./, /^resources\.length$/, /^http\.timing\./, /^browser\.timing\./];
 
 // Scalar leaves of a facts document by dotted path; an array becomes its `.length`, a URL-keyed map is left out.
-export function flatten(value: unknown, prefix = "", out: Record<string, Scalar> = {}): Record<string, Scalar> {
+export function flatten(value: unknown, options: { prefix?: string; out?: Record<string, Scalar> } = {}): Record<string, Scalar> {
+    const prefix = options.prefix ?? "";
+    const out = options.out ?? {};
     if (Array.isArray(value)) out[`${prefix}length`] = value.length;
     else if (value !== null && typeof value === "object") {
-        for (const [key, child] of Object.entries(value)) if (!URL_KEY.test(key)) flatten(child, `${prefix}${key}.`, out);
+        for (const [key, child] of Object.entries(value)) if (!URL_KEY.test(key)) flatten(child, { prefix: `${prefix}${key}.`, out });
     } else if (["string", "number", "boolean"].includes(typeof value)) out[prefix.slice(0, -1)] = value as Scalar;
     return out;
 }

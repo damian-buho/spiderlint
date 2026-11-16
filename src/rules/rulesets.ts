@@ -119,7 +119,9 @@ export function ruleIds(names: string[], rulesets: Record<string, RulesetConfig>
 
 // Union of the named rulesets, compiled; `off` rules — including `--exclude-rules` and a
 // `--error`/`--warning`/`--info` override landing on `off` — are dropped (AGENTS.md ## Rules).
-export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>, excludeRules: Set<string> = new Set(), overrides: Record<string, Exclude<Severity, "off">> = {}): Rule[] {
+export function compileRulesets(names: string[], rulesets: Record<string, RulesetConfig>, options: { excludeRules?: Set<string>; overrides?: Record<string, Exclude<Severity, "off">> } = {}): Rule[] {
+    const excludeRules = options.excludeRules ?? new Set();
+    const overrides = options.overrides ?? {};
     const specs: Record<string, RuleSpec> = {};
     for (const name of names) Object.assign(specs, resolveRuleset(name, rulesets));
     const rules: Rule[] = [];

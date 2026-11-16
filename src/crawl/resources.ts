@@ -196,14 +196,7 @@ async function headRemembered(url: string, bucket: ResourceBucket, failures: Fai
 // One cached or retried GET with `sent` headers; a final failure is status 0 with its error.
 async function fetchOne(url: string, max: number, bucket: ResourceBucket, extractors: ResourceExtractor[], cache: ExtractorCache, sent: Record<string, string>): Promise<ResourceResults[string]> {
     try {
-        const { status, headers, value, ms, cached, revalidated } = await fetchCached(
-            bucket,
-            url,
-            (response) => consume(url, response, max, extractors, cache),
-            false,
-            (stored) => isServed(stored, extractors),
-            sent,
-        );
+        const { status, headers, value, ms, cached, revalidated } = await fetchCached(bucket, url, (response) => consume(url, response, max, extractors, cache), { isCapped: false, isUsable: (stored) => isServed(stored, extractors), sent });
         const { bytes, facts } = value;
         log.debug({ url, status, bytes, cached, revalidated }, "resource fetched");
         const contentType = mediaType(headers["content-type"]);
