@@ -292,7 +292,7 @@ function kindRules(kind: Kind): Record<string, Make> {
             const hits = of(cssOf(resource));
             return hits.length === 0 ? undefined : { ...said(says.sheet), data: { [resource.url]: { messages: hits.length } }, locations: hits.map((hit) => located(hit)) };
         },
-        { facts: [`resources.${ID}`], valueOf: (resource) => of(cssOf(resource)), guide: { docs, fix } },
+        { facts: [`resources.${ID}`], value: (resource) => of(cssOf(resource)), guide: { docs, fix } },
     );
     const inline = pageRule(
         `css/inline-${inlineName}`,
@@ -377,7 +377,7 @@ const unsupported: Make = (severity, settings) =>
                 const judged = unsupportedIn(cssOf(resource) as CssFacts, targets);
                 return judged && { ...said("the style sheet uses features the browser targets “{query}” lack", { query: targets.query }), data: { [resource.url]: { features: judged.features } }, locations: judged.locations };
             },
-            { facts: [`resources.${ID}`], valueOf: (resource) => cssOf(resource)?.features, guide: UNSUPPORTED },
+            { facts: [`resources.${ID}`], value: (resource) => cssOf(resource)?.features, guide: UNSUPPORTED },
         )(severity),
         settings as CssSettings,
     );

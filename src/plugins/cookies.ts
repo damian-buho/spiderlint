@@ -116,7 +116,7 @@ function onResources(check: Check): Make {
             const names = failing(resource.http?.cookies);
             return names.length === 0 ? undefined : { ...said(`${SUBJECT} ${check.message}`, { kind: resource.kind }), data: { [resource.url]: { cookies: names.join(", ") } } };
         },
-        { facts: ["resources"], valueOf: (resource) => failing(resource.http?.cookies), guide: { docs: check.docs, ...(check.fix && { fix: check.fix }) } },
+        { facts: ["resources"], value: (resource) => failing(resource.http?.cookies), guide: { docs: check.docs, ...(check.fix && { fix: check.fix }) } },
     );
 }
 

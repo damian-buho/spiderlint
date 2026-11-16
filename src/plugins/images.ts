@@ -207,7 +207,7 @@ const modernFormat: Make = (severity, settings) =>
                 ? undefined
                 : { ...said("a {format} image is smaller as {target}", { format: image.format, target: target as Target }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: encoded[target as Target] as number } } } };
         },
-        { facts: FACTS, valueOf, guide: { docs: "https://web.dev/articles/choose-the-right-image-format", fix: "Convert the image to WebP or AVIF." } },
+        { facts: FACTS, value: valueOf, guide: { docs: "https://web.dev/articles/choose-the-right-image-format", fix: "Convert the image to WebP or AVIF." } },
     )(severity);
 
 // An image its own format, or SVGO, re-encodes much smaller.
@@ -220,7 +220,7 @@ const recompress: Make = (severity, settings) =>
             const share = saved((settings as ImagesSettings).saving, image.bytes, image.encoded?.same);
             return share === undefined ? undefined : { ...said("a {format} image re-encodes smaller", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: image.encoded?.same as number } } } };
         },
-        { facts: FACTS, valueOf, guide: { docs: "https://web.dev/articles/use-imagemin-to-compress-images", fix: "Re-encode the image with a modern tool at a lower quality or smaller dimensions." } },
+        { facts: FACTS, value: valueOf, guide: { docs: "https://web.dev/articles/use-imagemin-to-compress-images", fix: "Re-encode the image with a modern tool at a lower quality or smaller dimensions." } },
     )(severity);
 
 // An image heavier than `weight`.
@@ -233,7 +233,7 @@ const weight: Make = (severity, settings) =>
             const limit = (settings as ImagesSettings).weight;
             return image.bytes > limit ? { ...said("a {format} image is above the weight limit", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, limit: { fact: "http.size.body", value: limit } } } } : undefined;
         },
-        { facts: FACTS, valueOf, guide: { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia", fix: "Resize or re-compress the image so the file is below the weight limit." } },
+        { facts: FACTS, value: valueOf, guide: { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia", fix: "Resize or re-compress the image so the file is below the weight limit." } },
     )(severity);
 
 // A stylesheet or script minification shrinks by both `saving` bounds.
@@ -246,7 +246,7 @@ const minify: Make = (severity, settings) =>
             const share = saved((settings as ImagesSettings).saving, text.bytes, text.minified);
             return share === undefined ? undefined : { ...said("a {kind} minifies smaller", { kind: resource.kind }), data: { [resource.url]: { size: { fact: "http.size.body", value: text.bytes }, smaller: { fact: "http.size.body", value: text.minified } } } };
         },
-        { facts: [`resources.${TEXT}`], valueOf: textOf, guide: { docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression", fix: "Minify the stylesheet or script in the build." } },
+        { facts: [`resources.${TEXT}`], value: textOf, guide: { docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression", fix: "Minify the stylesheet or script in the build." } },
     )(severity);
 
 // A font served in any format but WOFF2.
@@ -257,7 +257,7 @@ const fontFormat = resourceRule(
         const font = fontOf(resource) as { format: string; bytes: number };
         return font.format === "woff2" ? undefined : { ...said("a {format} font is not WOFF2", { format: font.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: font.bytes } } } };
     },
-    { facts: [`resources.${FONTS}`], valueOf: fontOf, guide: { docs: "https://web.dev/articles/reduce-webfont-size", fix: "Convert the font to WOFF2." } },
+    { facts: [`resources.${FONTS}`], value: fontOf, guide: { docs: "https://web.dev/articles/reduce-webfont-size", fix: "Convert the font to WOFF2." } },
 );
 
 // A stylesheet whose `@font-face` rules hide text while their font loads.
@@ -268,7 +268,7 @@ const fontDisplay = resourceRule(
         const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
         return invisible.length === 0 ? undefined : { ...said("@font-face rules without font-display: swap, fallback or optional"), data: { [resource.url]: { faces: invisible.length, families: [...new Set(invisible)].join(", ") } } };
     },
-    { facts: [`resources.${TEXT}`], valueOf: (resource) => textOf(resource)?.["font-faces"], guide: { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display", fix: "Add font-display: swap (or fallback or optional) to each @font-face." } },
+    { facts: [`resources.${TEXT}`], value: (resource) => textOf(resource)?.["font-faces"], guide: { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display", fix: "Add font-display: swap (or fallback or optional) to each @font-face." } },
 );
 
 type Img = HtmlFacts["images"][number];
