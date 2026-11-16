@@ -13,7 +13,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
     {
-        ignores: ["coverage/", "node_modules/", "tmp/", "out/", "dist/", "**/*.tmp.*"],
+        ignores: ["coverage/", "node_modules/", "reports/", "tmp/", "out/", "dist/", "**/*.tmp.*"],
     },
     js.configs.recommended,
     ...tseslint.configs.strict,
