@@ -36,6 +36,8 @@ Rules:
   list-rules [ruleset|id…]        list rules at the severity this config gives
   list-presets                    list the shipped rulesets and their groups
   explain-rule <rule>             show a rule’s facts, expectation and fix
+  rules                           print the shipped rule catalog, or write one
+                                  page per rule
 
 Cache:
   show-cache [domain…]            show the entries, bytes and age of each bucket
@@ -560,6 +562,31 @@ Options for every command, see spiderlint --help:
 Examples:
   Drop cached pages older than a week:
     spiderlint purge-cache pages example.com --older-than 7d
+```
+
+## spiderlint rules
+
+```console
+$ spiderlint rules --help
+Usage: spiderlint rules [options]
+Print the shipped rule catalog, or write one page per rule.
+
+The catalog is YAML at org.projectfile.pages.rules.items; markdown writes one
+page per rule, one per ruleset and index.md into --output.
+
+Output:
+  --format <format>  yaml or markdown (default: yaml)
+  --lang <tag>       en, es, uk (default: from LC_ALL, LC_MESSAGES or LANG)
+  --output <dir>     with --format markdown, the directory to write pages in
+
+Options for every command, see spiderlint --help:
+  --config, --site, --[no-]color, --[no-]progress, --log-level
+
+Examples:
+  Print the rule catalog in Spanish:
+    spiderlint rules --lang es
+  Write the rule pages of a documentation book:
+    spiderlint rules --format markdown --output book/rules
 ```
 
 ## spiderlint show-cache

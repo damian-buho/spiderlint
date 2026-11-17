@@ -2253,3 +2253,36 @@ msgstr "valor"
 
 msgid "videos"
 msgstr "vídeos"
+
+msgid "Kind"
+msgstr "Tipo"
+
+msgid "Rulesets"
+msgstr "Conjuntos de reglas"
+
+msgid "Reads"
+msgstr "Lee"
+
+msgid "Message"
+msgstr "Mensaje"
+
+msgid "Fix"
+msgstr "Solución"
+
+msgid "Fix {number}"
+msgstr "Solución {number}"
+
+msgid "Expects"
+msgstr "Espera"
+
+msgid "When"
+msgstr "Cuándo"
+
+msgid "References"
+msgstr "Referencias"
+
+msgid "Rules"
+msgstr "Reglas"
+
+msgid "Rules: {count}"
+msgstr "Reglas: {count}"

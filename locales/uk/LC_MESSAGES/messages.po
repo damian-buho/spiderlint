@@ -2253,3 +2253,36 @@ msgstr "значення"
 
 msgid "videos"
 msgstr "відео"
+
+msgid "Kind"
+msgstr "Вид"
+
+msgid "Rulesets"
+msgstr "Набори правил"
+
+msgid "Reads"
+msgstr "Читає"
+
+msgid "Message"
+msgstr "Повідомлення"
+
+msgid "Fix"
+msgstr "Виправлення"
+
+msgid "Fix {number}"
+msgstr "Виправлення {number}"
+
+msgid "Expects"
+msgstr "Очікує"
+
+msgid "When"
+msgstr "Коли"
+
+msgid "References"
+msgstr "Посилання"
+
+msgid "Rules"
+msgstr "Правила"
+
+msgid "Rules: {count}"
+msgstr "Правил: {count}"

@@ -24,6 +24,8 @@ import { NothingStored } from "./store/disk.ts";
 import { writeAgentFiles } from "./report/agent.ts";
 import { scoreOf, SORTS } from "./rules/score.ts";
 import { explainRule, formatExplanation, formatPresets, formatRules, listPresets, listRules } from "./rules/catalog.ts";
+import { catalogYaml, PAGE_FORMATS, shippedCatalog, writeRulePages } from "./rules/pages.ts";
+import { environmentLanguage, LANGUAGES, translator } from "./i18n.ts";
 import { handleInterrupts, Interrupted } from "./interrupt.ts";
 import { isLogLevel, log, logColor } from "./logger.ts";
 import type { RunObserver } from "./run.ts";
@@ -50,6 +52,7 @@ interface Flags {
     sort?: string;
     facts?: string[];
     format?: string;
+    lang?: string;
 }
 
 interface Verb {
@@ -290,6 +293,18 @@ const VERBS: Verb[] = [
         examples: [["Explain a rule before turning it on", "spiderlint explain-rule html/theme-color-dark/missing"]],
     },
     {
+        name: "rules",
+        args: [],
+        group: "Rules",
+        summary: "print the shipped rule catalog, or write one page per rule",
+        about: ["The catalog is YAML at org.projectfile.pages.rules.items; markdown writes one page per rule, one per ruleset and index.md into --output."],
+        options: () => section("Output", [flag("--format <format>", PAGE_FORMATS.join(" or "), "yaml"), flag("--lang <tag>", LANGUAGES.join(", "), "from LC_ALL, LC_MESSAGES or LANG"), flag("--output <dir>", "with --format markdown, the directory to write pages in")]),
+        examples: [
+            ["Print the rule catalog in Spanish", "spiderlint rules --lang es"],
+            ["Write the rule pages of a documentation book", "spiderlint rules --format markdown --output book/rules"],
+        ],
+    },
+    {
         name: "show-cache",
         args: ["[domain...]"],
         group: "Cache",
@@ -524,6 +539,7 @@ async function execute(verb: Command): Promise<number> {
     const seeds = verb.args;
     nameSpan(`spiderlint ${command}`);
     try {
+        if (command === "rules") return rules(values);
         const { settings: fileSettings, sites } = loadSettings(values.config ?? process.env.SPIDERLINT_CONFIG);
         // Shared settings, then the site’s patch, then environment and flags.
         const configFor = (site: Settings): Config => layered([fileSettings, site, environmentSettings(process.env), flagSettings(values)]);
@@ -632,6 +648,24 @@ async function run(verb: Command, targets: string[], bucket: string | undefined,
         else await emit(report);
         return command === "audit" ? exitCode(report, config.failOn) : report.pages.length === 0 ? 3 : 0;
     }
+}
+
+// The shipped rule catalog as YAML on stdout, or one Markdown page per rule under --output.
+function rules(values: Flags): number {
+    const format = pick("--format", values.format ?? "yaml", PAGE_FORMATS);
+    const lang = values.lang === undefined ? environmentLanguage() : pick("--lang", values.lang, LANGUAGES);
+    const t = translator(lang);
+    const catalog = shippedCatalog();
+    log.debug({ format, lang, output: values.output, rules: catalog.length }, "rule pages chosen");
+    if (format === "yaml") {
+        if (values.output !== undefined) return usageError("--output: only with --format markdown");
+        console.log(catalogYaml(catalog, t));
+        return 0;
+    }
+    if (values.output === undefined) return usageError("--format markdown: needs --output <dir>");
+    const pages = writeRulePages(values.output, catalog, t);
+    console.log(`${pages} pages written to ${values.output}`);
+    return 0;
 }
 
 // Every stored page with export-facts, else the first seed crawled alone, in human, json, yaml or csv; 3 when there is no page.
