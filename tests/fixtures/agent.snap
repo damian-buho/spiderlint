@@ -119,8 +119,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/theme-color/missing` reports n
 pages share one <title>
 
 Where: /tags/a: 43 characters: “Fixture tag index — posts filed under a tag”, used by or shared with:
-- /tags/a: 43 characters: “Fixture tag index — posts filed under a tag”
-- /tags/b: 43 characters: “Fixture tag index — posts filed under a tag”
+- /tags/a
+- /tags/b
 Reads: `html.title`
 Fix: Give each page a distinct <title>.
 Docs: https://developers.google.com/search/docs/appearance/title-link
@@ -131,8 +131,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/title/duplicate` reports no ht
 pages share one meta description
 
 Where: /tags/a: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”, used by or shared with:
-- /tags/a: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-- /tags/b: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
+- /tags/a
+- /tags/b
 Reads: `html.meta.description`
 Fix: Give each page a distinct meta description.
 Docs: https://developers.google.com/search/docs/appearance/snippet
@@ -143,8 +143,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/description/duplicate` reports
 pages share one og:title
 
 Where: /tags/a: 43 characters: “Fixture tag index — posts filed under a tag”, used by or shared with:
-- /tags/a: 43 characters: “Fixture tag index — posts filed under a tag”
-- /tags/b: 43 characters: “Fixture tag index — posts filed under a tag”
+- /tags/a
+- /tags/b
 Reads: `html.property.og:title`
 Fix: Give each page a distinct og:title.
 Docs: https://ogp.me/#metadata
@@ -155,8 +155,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/og-title/duplicate` reports no
 pages share one og:description
 
 Where: /tags/a: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”, used by or shared with:
-- /tags/a: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
-- /tags/b: 80 characters: “Every post of the fixture site filed under this tag, listed by the tag template.”
+- /tags/a
+- /tags/b
 Reads: `html.property.og:description`
 Fix: Give each page a distinct og:description.
 Docs: https://ogp.me/#optional
@@ -269,7 +269,7 @@ Done when: `spiderlint audit ORIGIN/ --rules html/jsonld/invalid` reports no htm
 trailing slashes differ in group default: 7 of 8 pages end without /; the others differ
 
 Where: /app/: end with /, used by or shared with:
-- /app/: end with /
+- /app/
 Reads: `url.pathname`
 Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
 Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash

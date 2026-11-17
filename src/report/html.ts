@@ -15,7 +15,7 @@ import { impact, pagesOf, scoreOf, type Sort } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
 import type { Paint } from "../color.ts";
 import { ordered } from "./agent.ts";
-import { bundle } from "./human.ts";
+import { bundle, byPages } from "./human.ts";
 import { passing } from "./rating.ts";
 
 const ORDER = { error: 0, warning: 1, info: 2, hint: 3 };
@@ -177,9 +177,17 @@ function measured(t: Translator, finding: Finding, url: string): string {
 function reach(t: Translator, same: Finding[], origin: string, total: number): { subject: string; count?: number; isWhole: boolean; pages: string[] } {
     const [first] = same as [Finding];
     const at = (finding: Finding, url: string, found?: string[]) => `${link(url, origin)}${measured(t, finding, url)}${locations(t, found)}`;
+    if (same.length > 1 && first.urls) {
+        const group = (owner: Finding[]) =>
+            `${owner.map((finding) => at(finding, finding.url)).join("<br>")}${items(
+                t,
+                ((owner[0] as Finding).urls ?? []).map((url) => (measured(t, owner[0] as Finding, url) === measured(t, owner[0] as Finding, (owner[0] as Finding).url) ? link(url, origin) : at(owner[0] as Finding, url))),
+            )}`;
+        return { subject: "", count: same.length, isWhole: false, pages: byPages(same).map((owner) => group(owner)) };
+    }
     if (same.length > 1) return { subject: "", count: same.length, isWhole: total > 0 && same.length >= total, pages: same.map((finding) => at(finding, finding.url, finding.locations)) };
     if (first.occurrences !== undefined) return { subject: "", count: first.occurrences, isWhole: (first.coverage ?? 0) >= 1, pages: (first.samples ?? []).map((url) => at(first, url, first.sampleLocations?.[url])) };
-    if (first.urls) return { subject: first.urls.includes(first.url) ? "" : first.url, count: first.urls.length, isWhole: total > 0 && first.urls.length >= total, pages: first.urls.map((url) => at(first, url)) };
+    if (first.urls) return { subject: first.urls.includes(first.url) ? "" : first.url, count: first.urls.length, isWhole: total > 0 && first.urls.length >= total, pages: first.urls.map((url) => (measured(t, first, url) === measured(t, first, first.url) ? link(url, origin) : at(first, url))) };
     return { subject: first.url, isWhole: first.scope === "site", pages: [] };
 }
 
@@ -238,7 +246,7 @@ function entry(t: Translator, same: Finding[], origin: string, guides: Report["r
 function rules(t: Translator, findings: Finding[], origin: string, guides: Report["rules"], total: number, sort: Sort, span?: number): string {
     const level = (same: Finding[]) => ORDER[(same[0] as Finding).severity];
     const top = (same: Finding[]) => Math.max(...same.map((finding) => scoreOf(finding)));
-    const bundles = bundle(ordered(findings, total, sort).flat());
+    const bundles = bundle(ordered(findings, total, sort).flat(), true);
     const rank = (compare: (a: Finding[], b: Finding[]) => number) => new Map(bundles.toSorted(compare).map((same, index) => [same, index]));
     const byMeasure = (measure: (same: Finding[]) => number) => (a: Finding[], b: Finding[]) => measure(b) - measure(a);
     const byImpact = rank(byMeasure((same) => bundleImpact(same, total)));

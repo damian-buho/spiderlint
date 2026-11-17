@@ -9,12 +9,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { audit, type Report } from "../src/index.ts";
 import { agentFiles, formatAgent, writeAgentFiles } from "../src/report/agent.ts";
+import { formatHtml } from "../src/report/html.ts";
+import { formatHuman } from "../src/report/human.ts";
 import { serveFixture, type Fixture } from "./fixtures/server.ts";
 
 const GROUPS = { posts: { match: ["/posts/**"], rules: ["seo"] }, default: { rules: ["seo", "links"] } };
 const SNAPSHOT = new URL("fixtures/agent.snap", import.meta.url);
 // The snapshot’s licence header, kept out of the comparison.
 const HEADER = /^(?:# SPDX.*\n|#\n)+\n/;
+
+const make = (name: string, text: string, urls: string[]) => ({ rule: "images/format/outdated", severity: "warning" as const, scope: "site" as const, url: `https://cdn.test/${name}`, message: text, text, urls });
 
 describe("agent format", () => {
     let site: Fixture;
@@ -48,6 +52,28 @@ describe("agent format", () => {
             assert.match(block, /^Fix: /m, block);
             assert.match(block, /^Done when: `spiderlint audit ORIGIN\/ --rules [^`]+` reports no /m, block);
         }
+    });
+
+    it("merges resource findings sharing a message into one block, and keeps a different message apart", () => {
+        const findings = [make("a.jpg", "a jpeg image is smaller as avif", ["/x", "/y"]), make("b.jpg", "a jpeg image is smaller as avif", ["/x"]), make("c.png", "a png image is smaller as webp", ["/z"])];
+        const blocks = formatAgent({ ...report, findings, rules: undefined })
+            .split(/^## /m)
+            .slice(1);
+        assert.equal(blocks.length, 2);
+        const merged = blocks.find((block) => block.includes("as avif")) ?? "";
+        assert.match(merged, /Where: 2 findings:\n- https:\/\/cdn\.test\/a\.jpg\n {2}used by or shared with:\n {2}- \/x\n {2}- \/y\n- https:\/\/cdn\.test\/b\.jpg\n {2}used by or shared with:\n {2}- \/x\n/);
+        assert.match(blocks.find((block) => block.includes("as webp")) ?? "", /Where: https:\/\/cdn\.test\/c\.png, used by or shared with:\n- \/z\n/);
+    });
+
+    it("merges the same findings once in the human and html reports, a shared page list printed once", () => {
+        const findings = [make("a.jpg", "a jpeg image is smaller as avif", [`${site.origin}/x`, `${site.origin}/y`]), make("b.jpg", "a jpeg image is smaller as avif", [`${site.origin}/x`, `${site.origin}/y`])];
+        const input = { ...report, findings, rules: undefined };
+        const human = formatHuman(input, undefined, false, "en");
+        assert.equal(human.match(/images\/format\/outdated — 2 findings/g)?.length, 1);
+        assert.equal(human.match(/^ {12}\/x$/gm)?.length, 1, human);
+        const html = formatHtml(input, undefined, false, "en");
+        assert.equal(html.match(/a jpeg image is smaller as avif/g)?.length, 1);
+        assert.equal(html.match(/>\/x<\/a>/g)?.length, 1);
     });
 
     it("ends with the CO2, bytes, requests and timings of the crawl, timings varying run to run", () => {

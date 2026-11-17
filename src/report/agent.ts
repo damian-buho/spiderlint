@@ -14,7 +14,7 @@ import { cachedReads, inEnglish, valuesAt } from "../rules/message.ts";
 import { utc } from "../facts/read-note.ts";
 import { scoreOf, type Sort, urgency } from "../rules/score.ts";
 import type { Finding, RuleGuide } from "../rules/types.ts";
-import { bundle } from "./human.ts";
+import { bundle, byPages } from "./human.ts";
 import { passing } from "./rating.ts";
 import { printable, printableFinding } from "./printable.ts";
 
@@ -50,7 +50,14 @@ function where(same: Finding[], origin: string): string[] {
         const pages = finding.sampled === undefined ? `${finding.occurrences} pages` : `${finding.occurrences} of ${finding.sampled} sampled pages`;
         return [`Where: ${pages} ${finding.groups ? `in groups ${finding.groups.join(", ")}` : `of group ${finding.group}`} (${Math.round((finding.coverage ?? 0) * 100)} %), for example:`, ...(finding.samples ?? []).flatMap((url) => at(url, finding.sampleLocations?.[url]))];
     }
-    if (finding.urls) return [`Where: ${named(finding.url, finding)}, used by or shared with:`, ...finding.urls.flatMap((url) => at(url, undefined)), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
+    // A page repeating the owner’s own value is named bare, so a shared value prints once.
+    const page = (url: string, owner: Finding) => (valuesAt(owner, url, inEnglish).join("\t") === valuesAt(owner, owner.url, inEnglish).join("\t") ? relative(url, origin) : named(url, owner));
+    if (same.length > 1 && finding.urls)
+        return [
+            `Where: ${same.length} findings:`,
+            ...byPages(same).flatMap((group) => [...group.map((owner) => `- ${named(owner.url, owner)}`), "  used by or shared with:", ...(group[0]?.urls ?? []).map((url) => `  - ${page(url, group[0] as Finding)}`), ...(group[0]?.locations ?? []).map((location) => `  - at ${location}`)]),
+        ];
+    if (finding.urls) return [`Where: ${named(finding.url, finding)}, used by or shared with:`, ...finding.urls.map((url) => `- ${page(url, finding)}`), ...(finding.locations ?? []).map((location) => `- at ${location}`)];
     return same.length > 1 ? [`Where: ${same.length} pages:`, ...same.flatMap((page) => at(page.url, page.locations, page))] : [`Where: ${named(finding.url, finding)}`, ...(finding.locations ?? []).map((location) => `- at ${location}`)];
 }
 
@@ -111,7 +118,7 @@ function summary({ rating, pages, findings, checks, checked }: Report["summary"]
 // The summary with the rating, one block per finding after folding, no colour, then the fact statistics; the shared origin once on top and URLs under it relative; `sort` impact lists by impact alone.
 export function formatAgent(report: Report, _paint?: unknown, _isFull?: boolean, _lang?: string, isHintListed = false, _isExplained?: boolean, _isStats?: boolean, sort: Sort = "severity"): string {
     const origin = sharedOrigin(report);
-    const blocks = ordered(actionable(report, isHintListed), report.pages.length, sort).flatMap((rule) => bundle(rule).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
+    const blocks = ordered(actionable(report, isHintListed), report.pages.length, sort).flatMap((rule) => bundle(rule, true).map((same) => block(same, report.rules?.[(same[0] as Finding).rule], origin)));
     return [`# spiderlint findings${origin ? ` for ${origin}` : ""}`, summary(report.summary), ...(blocks.length > 0 ? blocks : ["No findings."]), ...statistics(report.summary.stats)].join("\n\n");
 }
 
@@ -123,7 +130,7 @@ export function agentFiles(report: Report, isHintListed = false, sort: Sort = "s
     for (const same of rules) {
         const rule = (same[0] as Finding).rule;
         const title = `# spiderlint: ${rule}${origin ? ` on ${origin}` : ""}`;
-        files.set(`${rule.replaceAll(/[^a-z0-9.-]+/gi, "-")}.md`, `${[title, ...bundle(same).map((bundled) => block(bundled, report.rules?.[rule], origin))].join("\n\n")}\n`);
+        files.set(`${rule.replaceAll(/[^a-z0-9.-]+/gi, "-")}.md`, `${[title, ...bundle(same, true).map((bundled) => block(bundled, report.rules?.[rule], origin))].join("\n\n")}\n`);
     }
     log.debug({ files: files.size }, "agent files rendered");
     return files;

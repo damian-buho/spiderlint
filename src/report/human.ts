@@ -90,20 +90,36 @@ function shortMessage(finding: Finding, origin: string): string {
     return origin ? finding.message.replaceAll(`${origin}/`, "/") : finding.message;
 }
 
-// Page findings sharing severity, score, rule and sentence bundle together, by template when they carry one; folds and aggregates stay alone.
-export function bundle(findings: Finding[]): Finding[][] {
+// Page findings sharing severity, score, rule and sentence bundle together, by template when they carry one; folds stay alone, aggregates too unless `isMerged`.
+export function bundle(findings: Finding[], isMerged = false): Finding[][] {
     const bundles = new Map<string, Finding[]>();
     for (const [index, finding] of findings.entries()) {
-        const isPlain = finding.occurrences === undefined && !finding.urls;
+        const isPlain = finding.occurrences === undefined && (isMerged || !finding.urls);
         const key = isPlain ? `${finding.severity}\t${scoreOf(finding)}\t${finding.rule}\t${finding.text === undefined ? finding.message : `${finding.text}\t${JSON.stringify(finding.variables ?? {})}`}` : String(index);
         bundles.set(key, [...(bundles.get(key) ?? []), finding]);
     }
     return bundles.values().toArray();
 }
 
+// A merged bundle’s findings grouped by the page list they share, so the pages print once.
+export function byPages(same: Finding[]): Finding[][] {
+    return Map.groupBy(same, (finding) => JSON.stringify(finding.urls))
+        .values()
+        .toArray();
+}
+
 // A bundle prints its message once, then every page on its own line.
 function bundled(same: Finding[], origin: string, paint: Paint, limit: number): string[] {
     const first = same[0] as Finding;
+    if (first.urls)
+        return [
+            `${heading(first, paint)} — ${same.length} findings: ${shortMessage(first, origin)}`,
+            ...byPages(same).flatMap((group) => [
+                ...group.map((finding) => paint("dim", `${DETAIL}${shown(finding, finding.url, origin)}`)),
+                ...(group[0]?.urls ?? []).slice(0, limit).map((url) => paint("dim", `${NESTED}${relative(url, origin)}`)),
+                ...((group[0]?.urls?.length ?? 0) > limit ? [paint("dim", `${NESTED}… and ${(group[0]?.urls?.length ?? 0) - limit} more`)] : []),
+            ]),
+        ];
     return [`${heading(first, paint)} — ${same.length} pages: ${shortMessage(first, origin)}`, ...same.flatMap((finding) => [paint("dim", `${DETAIL}${shown(finding, finding.url, origin)}`), ...located(finding.locations, NESTED, paint, limit)])];
 }
 
@@ -148,7 +164,7 @@ function explanation(guide: RuleGuide | undefined, finding: Finding, paint: Pain
 // Findings by level then impact (score times pages touched), or by impact alone with `sort`, then rule then URL, bundled, each followed by its explanation when `guides` is given.
 function listed(findings: Finding[], origin: string, paint: Paint, limit: number, total: number, sort: Sort, guides?: Report["rules"]): string[] {
     findings.sort(byUrgency(total, sort));
-    return bundle(findings).flatMap((same) => {
+    return bundle(findings, true).flatMap((same) => {
         const first = same[0] as Finding;
         return [...(same.length > 1 ? bundled(same, origin, paint, limit) : line(first, origin, paint, limit)), ...(guides ? explanation(guides[first.rule], first, paint) : [])];
     });
