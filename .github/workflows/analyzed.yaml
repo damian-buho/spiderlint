@@ -45,7 +45,7 @@ jobs:
             ci-cache-npm-
       - name: npm-install
         if: vars.CI_SKIP_DEPENDENCIES_ARE_INSTALLED != 'true' && vars.CI_SKIP_NPM_INSTALL != 'true'
-        uses: projectfile-org/actions/run-tool@b0da59497e5cc94a601334e6b4d9e376000012b7 # v1
+        uses: projectfile-org/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
         with:
           image: ${{ vars.NODE_TOOL_IMAGE || format('{0}/b19/node', vars.SOURCE_DOCKER_REGISTRY || 'ghcr.io/damian-buho') }}
           version: ${{ vars.M6E_BASE_IMAGE_VARIANT_PREFIX }}n${{ vars.B19_NODE_SERIES || '26' }}
@@ -59,7 +59,7 @@ jobs:
           key: ci-cache-npm-${{ steps.stamp-npm.outputs.stamp }}
       - name: stryker
         if: vars.CI_SKIP_ANALYZED != 'true' && vars.CI_SKIP_STRYKER != 'true'
-        uses: projectfile-org/actions/run-tool@b0da59497e5cc94a601334e6b4d9e376000012b7 # v1
+        uses: projectfile-org/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
         with:
           image: ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'ghcr.io/damian-buho') }}
           version: ${{ env.M6E_TAG }}
@@ -78,7 +78,7 @@ jobs:
           persist-credentials: false
       - name: dive-scan-registry
         if: vars.CI_SKIP_IMAGE_IS_ANALYZED != 'true' && vars.CI_SKIP_DIVE_SCAN_REGISTRY != 'true'
-        uses: projectfile-org/actions/run-tool@b0da59497e5cc94a601334e6b4d9e376000012b7 # v1
+        uses: projectfile-org/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
         with:
           image: ${{ vars.D9T_GO_TOOLS_IMAGE || format('{0}/d9t/go-tools', vars.SOURCE_DOCKER_REGISTRY || 'ghcr.io/damian-buho') }}
           version: ${{ env.M6E_TAG }}
