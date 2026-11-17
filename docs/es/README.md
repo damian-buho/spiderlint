@@ -161,6 +161,8 @@ Rules:
   list-rules [ruleset|id…]        list rules at the severity this config gives
   list-presets                    list the shipped rulesets and their groups
   explain-rule <rule>             show a rule’s facts, expectation and fix
+  rules                           print the shipped rule catalog, or write one
+                                  page per rule
 
 Cache:
   show-cache [domain…]            show the entries, bytes and age of each bucket
