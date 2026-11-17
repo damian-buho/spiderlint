@@ -70,6 +70,10 @@ Spiderlint наразі не має програми винагород за в�
 
 | ID | Причина |
 | --- | --- |
+| [CVE-2026-33671](https://nvd.nist.gov/vuln/detail/CVE-2026-33671) | transitive picomatch dep of a pinned upstream npm release; fixable only upstream |
+| [CVE-2026-112366](https://nvd.nist.gov/vuln/detail/CVE-2026-112366) | blocked by upstream; picomatch ships no fixed release yet |
 | [CVE-2026-123158](https://nvd.nist.gov/vuln/detail/CVE-2026-123158) | not affected on Ubuntu, sshd on musl without PAM only (ubuntu.com/security/CVE-2026-123158) |
+| [GHSA-c2c7-rcm5-vvqj](https://github.com/advisories/GHSA-c2c7-rcm5-vvqj) | transitive picomatch dep of a pinned upstream npm release; fixable only upstream |
+| [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf) | blocked by upstream; picomatch ships no fixed release yet |
 
 <!-- textlint-enable -->
