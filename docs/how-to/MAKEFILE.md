@@ -25,7 +25,7 @@ Stage one mdBook per language from the docs and the rendered page collections
 
 Build each staged language book into dist/site/&lt;lang>/, the root sending to the default language
 
-`auto-book dist/book dist/site ${org.projectfile.i18n.default-language}`
+`auto-book dist/book dist/site`
 
 > Image: D9T_MDBOOK_IMAGE
 
