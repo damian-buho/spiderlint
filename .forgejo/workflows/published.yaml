@@ -115,6 +115,9 @@ jobs:
         with:
           container: ${{ env.M6E_CONTAINER_INSTANCE }}
           run: test.d
+      - name: pages-check
+        if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_CONTAINER_IS_TESTED != 'true' && vars.CI_SKIP_PAGES_CHECK != 'true'
+        run: .makefile/container/scripts/pages-capture.sh --check --image --default-lang= es uk
       - name: usage-check
         if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_CONTAINER_IS_TESTED != 'true' && vars.CI_SKIP_USAGE_CHECK != 'true'
         run: .makefile/container/scripts/usage-capture.sh --check --image --default-lang= es uk
