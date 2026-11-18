@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Accesibilidad revisada desde todos los lados
 
-- Cada regla de axe-core para WCAG 2.2 A y AA, y sus buenas prácticas, se ejecuta en la página renderizada, así que también se detectan los defectos que introducen los scripts.
+- Cada regla de axe-core para [WCAG](https://en.wikipedia.org/wiki/Web_Content_Accessibility_Guidelines) 2.2 A y AA, y sus buenas prácticas, se ejecuta en la página renderizada, así que también se detectan los defectos que introducen los scripts.
 - El marcado de cada página, no de una muestra, se revisa en busca de los defectos de accesibilidad que html-validate ve sin navegador: etiquetas que faltan, niveles de encabezado saltados, texto alternativo ausente.
 - El uso con teclado se prueba en unas pocas páginas por plantilla: Tab debe alcanzar cada control sin quedar atrapado, el foco debe verse y no quedar tapado, un enlace para saltar al contenido debe ir primero, y se informa de los manejadores de clic en elementos simples.
 - Se respetan los ajustes del visitante: las animaciones se detienen con movimiento reducido, el texto sigue legible en el esquema oscuro y en el contraste alto que ofrece la página, el foco y los iconos sobreviven al contraste alto de Windows, y los campos de formulario son lo bastante grandes para que los teléfonos no amplíen.
@@ -42,12 +42,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### El DNS detrás de cada host rastreado
 
 - Se informa de la falta de registros HTTPS, para que una primera visita pueda empezar en HTTP/3 sin un viaje extra para descubrirlo.
-- CAA se juzga contra el certificado que el sitio sirve de verdad, así que una CA que CAA prohíbe se detecta antes de que falle una renovación.
-- DNSSEC se comprueba de extremo a extremo: una zona sin firmar, algoritmos débiles, firmas que ya no se renuevan y una zona firmada que los resolvedores con validación rechazan.
-- Se pregunta directamente a los servidores de nombres y cualquier otra consulta va solo al resolvedor que indiques, así que un servidor cojo o una zona desincronizada salen a la luz, y un enlace a un subdominio cuyo CNAME no apunta a nada se marca como riesgo de secuestro.
-- Cada nombre se juzga por lo que sus registros dicen que hace con el correo: al que no lo usa se le exige un MX nulo, un SPF que lo rechaza todo y una política DMARC de rechazo, y al que sí, un único registro SPF cerrado y una política DMARC aplicada, así que una configuración a medias sale a la luz en ambos casos.
+- [CAA](https://en.wikipedia.org/wiki/DNS_Certification_Authority_Authorization) se juzga contra el certificado que el sitio sirve de verdad, así que una CA que CAA prohíbe se detecta antes de que falle una renovación.
+- [DNSSEC](https://es.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) se comprueba de extremo a extremo: una zona sin firmar, algoritmos débiles, firmas que ya no se renuevan y una zona firmada que los resolvedores con validación rechazan.
+- Se pregunta directamente a los servidores de nombres y cualquier otra consulta va solo al resolvedor que indiques, así que un servidor cojo o una zona desincronizada salen a la luz, y un enlace a un subdominio cuyo [CNAME](https://en.wikipedia.org/wiki/CNAME_record) no apunta a nada se marca como riesgo de secuestro.
+- Cada nombre se juzga por lo que sus registros dicen que hace con el correo: al que no lo usa se le exige un MX nulo, un [SPF](https://es.wikipedia.org/wiki/Sender_Policy_Framework) que lo rechaza todo y una política [DMARC](https://es.wikipedia.org/wiki/DMARC) de rechazo, y al que sí, un único registro SPF cerrado y una política DMARC aplicada, así que una configuración a medias sale a la luz en ambos casos.
 - El registro del dominio se lee de su registro, así que una renovación a pocos días, un bloqueo de transferencia ausente o un registro que nombra otros servidores de nombres que la zona se ven antes de que el dominio caduque o se lo lleven.
-- Cada dirección se atribuye a la red que la enruta, así que salen a la luz una ruta que las redes que aplican RPKI descartan, un servidor de correo sin DNS inverso que coincida, o un sitio y sus servidores de nombres detrás de un solo proveedor.
+- Cada dirección se atribuye a la red que la enruta, así que salen a la luz una ruta que las redes que aplican [RPKI](https://en.wikipedia.org/wiki/Resource_Public_Key_Infrastructure) descartan, un servidor de correo sin DNS inverso que coincida, o un sitio y sus servidores de nombres detrás de un solo proveedor.
 - Las huellas de claves de host SSH publicadas en el DNS se comparan con las claves que el servidor SSH presenta de verdad, así que un registro que quedó obsoleto tras rotar una clave se detecta antes de que los clientes se nieguen a conectar, y se señala el que ningún cliente puede creer sin DNSSEC.
 
 ### Feeds revisados tal como los ven los lectores
@@ -58,7 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - También se juzga cómo se sirve el feed para su consulta periódica: su tipo y codificación, las peticiones condicionales hasta una revalidación respondida con 200 y un cuerpo sin cambios en vez de 304, la caché, el tamaño y una hoja XSL que Chrome ya no aplica.
 - Los feeds de pódcast pueden revisarse, de forma opcional, en lo que exigen los directorios: las etiquetas de canal y de episodio de iTunes, un GUID estable de Podcasting 2.0, una política `podcast:locked` y una carátula que Apple acepta — JPEG o PNG cuadrado, de 1400 a 3000 px por lado.
 - Cada adjunto se consulta una vez con HEAD y se juzga contra su declaración: alcance, coincidencia de bytes y de tipo, y soporte de rangos de bytes, que Apple exige a los servidores de episodios.
-- Un hub WebSub declarado puede sondearse con una petición de descubrimiento, solo de forma opcional.
+- Un hub [WebSub](https://en.wikipedia.org/wiki/WebSub) declarado puede sondearse con una petición de descubrimiento, solo de forma opcional.
 - Una muestra del corpus del validador de feeds del W3C viaja como fixtures, para que cada mensaje que él emite siga emitiéndose aquí.
 - Un directorio de pódcast exige RSS 2.0 con los espacios de nombres de iTunes y de contenido declarados, un adjunto único con URL, longitud y tipo por episodio, un GUID por episodio que nunca cambia y fechas RFC 2822.
 
@@ -100,9 +100,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### Autenticación del correo de cada dominio que recorre
 
 - Detecta por sí solo si un dominio recibe o envía correo, y al que no hace ninguna de las dos cosas le mantiene las revisiones sin correo, así que nadie tiene que decir de qué tipo es.
-- Recorre SPF a través de cada include igual que los receptores, así que un registro que falla en silencio por demasiadas consultas o un include que no existe sale a la luz antes de que el correo rebote.
-- Revisa DMARC, DKIM y MX en busca de los fallos que castigan los receptores: varias políticas, direcciones de informes que los rechazan, claves cortas, claves que siguen en prueba y servidores de correo detrás de un CNAME.
-- Lee MTA-STS, los informes de TLS y BIMI de principio a fin, así que detecta una política que deja fuera a un servidor de correo o un logotipo que ningún cliente de correo va a mostrar.
+- Recorre [SPF](https://es.wikipedia.org/wiki/Sender_Policy_Framework) a través de cada include igual que los receptores, así que un registro que falla en silencio por demasiadas consultas o un include que no existe sale a la luz antes de que el correo rebote.
+- Revisa [DMARC](https://es.wikipedia.org/wiki/DMARC), [DKIM](https://es.wikipedia.org/wiki/DomainKeys_Identified_Mail) y MX en busca de los fallos que castigan los receptores: varias políticas, direcciones de informes que los rechazan, claves cortas, claves que siguen en prueba y servidores de correo detrás de un [CNAME](https://en.wikipedia.org/wiki/CNAME_record).
+- Lee [MTA-STS](https://en.wikipedia.org/wiki/MTA-STS), los informes de TLS y BIMI de principio a fin, así que detecta una política que deja fuera a un servidor de correo o un logotipo que ningún cliente de correo va a mostrar.
 - DANE y una prueba STARTTLS en vivo de cada servidor de correo están disponibles cuando los activas.
 
 ### Cada origen comprobado una vez, más allá de sus páginas
@@ -142,7 +142,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Informes para personas, canalizaciones y agentes de código
 
-- Los hallazgos salen en texto, JSON, SARIF, Checkstyle, CSV o un informe HTML, y un rastreo guardado se vuelve a formatear sin pedir de nuevo el sitio.
+- Los hallazgos salen en texto, JSON, [SARIF](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html), Checkstyle, CSV o un informe HTML, y un rastreo guardado se vuelve a formatear sin pedir de nuevo el sitio.
 - Cada hallazgo puede decir cómo corregirlo en el sitio auditado, con el registro, la cabecera o la etiqueta exactos y los nombres del propio sitio ya puestos, y el análisis de código muestra la misma guía junto a cada alerta.
 - El formato agent convierte los hallazgos en instrucciones de corrección para un agente de código, ordenadas por severidad y por cuántas páginas arregla cada corrección.
 - Una acción de CI audita un sitio en cada push, hace fallar el trabajo en la severidad que elijas, sube el SARIF al análisis de código y guarda el rastreo en caché, así que volver a auditar un sitio sin cambios cuesta casi nada.
@@ -179,8 +179,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Cabeceras de seguridad evaluadas, no solo detectadas
 
-- Content-Security-Policy se lee directiva por directiva, desde la cabecera o un `<meta>`: los scripts en línea sin nonce ni hash, `eval`, los scripts desde cualquier host y la falta de `object-src`, `base-uri`, `frame-ancestors` o Trusted Types son cada uno un hallazgo propio.
-- HSTS debe durar lo suficiente y cubrir los subdominios, y las respuestas no deben poder ser olfateadas, enmarcadas por otros sitios ni filtrar URL completas por el referente.
+- [Content-Security-Policy](https://en.wikipedia.org/wiki/Content_Security_Policy) se lee directiva por directiva, desde la cabecera o un `<meta>`: los scripts en línea sin nonce ni hash, `eval`, los scripts desde cualquier host y la falta de `object-src`, `base-uri`, `frame-ancestors` o Trusted Types son cada uno un hallazgo propio.
+- [HSTS](https://es.wikipedia.org/wiki/HTTP_Strict_Transport_Security) debe durar lo suficiente y cubrir los subdominios, y las respuestas no deben poder ser olfateadas, enmarcadas por otros sitios ni filtrar URL completas por el referente.
 - El aislamiento entre orígenes, Permissions-Policy y los puntos de notificación se revisan en cada página, no solo en la portada.
 - Se informa de una cabecera X-XSS-Protection que aún activa el filtro retirado, porque ese filtro también se puede aprovechar.
 - Una cabecera que rompe su propia gramática, como un max-age de HSTS que no es un número o una directiva de Cache-Control que ninguna caché conoce, es un solo hallazgo que nombra el fallo, en lugar de aprobar por estar presente o de fallar en cada comprobación que la lee.

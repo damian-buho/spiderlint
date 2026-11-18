@@ -245,7 +245,7 @@ refreshes itself every 5 s, and with scripts it follows the job’s events inste
 The language comes from `Accept-Language` (`en`, `es`, `uk`, English otherwise),
 with `lang` and `dir` set; finding messages and rule IDs stay as the report
 carries them. A form sent from another site (`Sec-Fetch-Site: cross-site`) is
-refused. Every page carries a content security policy allowing only its own
+refused. Every page carries a [content security policy](https://en.wikipedia.org/wiki/Content_Security_Policy) allowing only its own
 style sheet and script by hash.
 
 A finished host is the badge’s for `retention`, so its latest report is public to

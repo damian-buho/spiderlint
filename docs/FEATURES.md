@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Accessibility checked from every side
 
-- Every axe-core rule for WCAG 2.2 A and AA, and its best practices, runs in the rendered page, so defects that scripts introduce are caught too.
+- Every axe-core rule for [WCAG](https://en.wikipedia.org/wiki/Web_Content_Accessibility_Guidelines) 2.2 A and AA, and its best practices, runs in the rendered page, so defects that scripts introduce are caught too.
 - The markup of every page, not a sample, is checked for the accessibility defects html-validate sees without a browser: missing labels, skipped heading levels, missing alt text.
 - Keyboard use is tried on a few pages per template: Tab must reach every control without a trap, focus must show and stay uncovered, a skip link must come first, and click handlers on plain elements are reported.
 - Visitor settings are honoured: animations stop under reduced motion, text stays readable in the dark scheme and the higher contrast a page offers, focus and icons survive Windows high contrast, and form fields are large enough that phones do not zoom.
@@ -40,12 +40,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### The DNS behind every crawled host
 
 - Missing HTTPS records are reported, so a first visit can start on HTTP/3 without a round trip to discover it.
-- CAA is judged against the certificate the site actually serves, so a CA that CAA forbids is caught before it fails a renewal.
-- DNSSEC is checked end-to-end: an unsigned zone, weak algorithms, stalled re-signing, and a signed zone that validating resolvers reject.
-- Name servers are asked directly and every other query goes only to the resolver you name, so a lame server or a zone out of sync shows, and a link to a subdomain whose CNAME points nowhere is flagged as a takeover risk.
-- Each name is judged by what its records say it does with mail: one that takes none is held to a null MX, a deny-all SPF and a DMARC reject policy, one that does to a single closed SPF record and an enforced DMARC policy, so a half-finished setup shows either way.
+- [CAA](https://en.wikipedia.org/wiki/DNS_Certification_Authority_Authorization) is judged against the certificate the site actually serves, so a CA that CAA forbids is caught before it fails a renewal.
+- [DNSSEC](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) is checked end-to-end: an unsigned zone, weak algorithms, stalled re-signing, and a signed zone that validating resolvers reject.
+- Name servers are asked directly and every other query goes only to the resolver you name, so a lame server or a zone out of sync shows, and a link to a subdomain whose [CNAME](https://en.wikipedia.org/wiki/CNAME_record) points nowhere is flagged as a takeover risk.
+- Each name is judged by what its records say it does with mail: one that takes none is held to a null MX, a deny-all [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework) and a [DMARC](https://en.wikipedia.org/wiki/DMARC) reject policy, one that does to a single closed SPF record and an enforced DMARC policy, so a half-finished setup shows either way.
 - The domain registration is read from its registry, so a renewal that is days away, a missing transfer lock or a registry naming other name servers than the zone shows before the domain lapses or is taken.
-- Every address is traced to the network that routes it, so a route that RPKI-enforcing networks drop, a mail server with no matching reverse DNS, or a site and its name servers all behind one provider come to light.
+- Every address is traced to the network that routes it, so a route that [RPKI](https://en.wikipedia.org/wiki/Resource_Public_Key_Infrastructure)-enforcing networks drop, a mail server with no matching reverse DNS, or a site and its name servers all behind one provider come to light.
 - SSH host key fingerprints published in DNS are compared with the keys the SSH server actually presents, so a record left stale by a key rotation is caught before it makes clients refuse to connect, and one no client may trust without DNSSEC is named.
 
 ### Feeds checked the way readers see them
@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - How the feed is served for polling is judged too: its type and encoding, conditional requests down to a revalidation answered 200 with an unchanged body instead of 304, caching, size, and an XSL style sheet Chrome no longer applies.
 - Podcast feeds can be checked for what directories require, as an opt-in: the iTunes channel and episode tags, a stable Podcasting 2.0 GUID, a `podcast:locked` policy, and artwork Apple accepts — square JPEG or PNG, 1400–3000 px per side.
 - Every enclosure is answered once with HEAD and judged against its declaration: reachability, byte and type agreement, and byte-range support, which Apple requires of episode hosts.
-- A declared WebSub hub can be probed with a discovery request, opt-in only.
+- A declared [WebSub](https://en.wikipedia.org/wiki/WebSub) hub can be probed with a discovery request, opt-in only.
 - A sample of the W3C feed validator corpus ships as fixtures, so every message it fires keeps firing one here.
 - A podcast directory requires RSS 2.0 with the iTunes and content namespaces declared, a unique enclosure with URL, length and type per episode, a GUID per episode that never changes, and RFC 2822 dates.
 
@@ -98,9 +98,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 ### Mail authentication of every domain it crawls
 
 - A domain that takes or sends mail is found on its own, and one that does neither keeps the no-mail checks, so nobody has to say which kind it is.
-- SPF is walked through every include the way receivers walk it, so a record that silently fails on too many lookups or a missing include shows before mail bounces.
-- DMARC, DKIM and MX are checked for the faults receivers punish: several policies, report addresses that refuse the reports, short keys, keys left in testing, and mail servers behind a CNAME.
-- MTA-STS, TLS reporting and BIMI are read end-to-end, so a policy that leaves a mail server out or a logo no mail client will show is caught.
+- [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework) is walked through every include the way receivers walk it, so a record that silently fails on too many lookups or a missing include shows before mail bounces.
+- [DMARC](https://en.wikipedia.org/wiki/DMARC), [DKIM](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) and MX are checked for the faults receivers punish: several policies, report addresses that refuse the reports, short keys, keys left in testing, and mail servers behind a [CNAME](https://en.wikipedia.org/wiki/CNAME_record).
+- [MTA-STS](https://en.wikipedia.org/wiki/MTA-STS), TLS reporting and BIMI are read end-to-end, so a policy that leaves a mail server out or a logo no mail client will show is caught.
 - DANE and a live STARTTLS check of each mail server are there when you turn them on.
 
 ### Each origin checked once, beyond its pages
@@ -140,7 +140,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Reports for people, pipelines and coding agents
 
-- Findings come as text, JSON, SARIF, Checkstyle, CSV or an HTML report, and a stored crawl is re-formatted without fetching the site again.
+- Findings come as text, JSON, [SARIF](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html), Checkstyle, CSV or an HTML report, and a stored crawl is re-formatted without fetching the site again.
 - Each finding can say how to fix it for the site at hand, the exact record, header or tag with the site’s own names filled in, and code scanning shows the same guidance beside every alert.
 - The agent format turns findings into fix prompts for a coding agent, ordered by severity and by how many pages each fix clears.
 - A CI action audits a site on every push, fails the job at the severity you choose, uploads SARIF to code scanning, and caches the crawl so an unchanged site costs almost nothing to re-audit.
@@ -177,8 +177,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Security headers judged, not just detected
 
-- Content-Security-Policy is read directive by directive, from the header or a `<meta>`: inline scripts without a nonce or hash, `eval`, scripts from any host, and a missing `object-src`, `base-uri`, `frame-ancestors` or Trusted Types are each a finding of their own.
-- HSTS must last long enough and cover subdomains, and responses must not be sniffed, framed by other sites, or leak full URLs through the referrer.
+- [Content-Security-Policy](https://en.wikipedia.org/wiki/Content_Security_Policy) is read directive by directive, from the header or a `<meta>`: inline scripts without a nonce or hash, `eval`, scripts from any host, and a missing `object-src`, `base-uri`, `frame-ancestors` or Trusted Types are each a finding of their own.
+- [HSTS](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security) must last long enough and cover subdomains, and responses must not be sniffed, framed by other sites, or leak full URLs through the referrer.
 - Cross-origin isolation, Permissions-Policy and reporting endpoints are checked on every page, not only the front page.
 - An X-XSS-Protection header that still turns the retired filter on is reported, since that filter can itself be abused.
 - A header that breaks its own grammar, such as an HSTS max-age that is not a number or a Cache-Control directive no cache knows, is one finding naming the fault, instead of passing because it is present or failing every check that reads it.
