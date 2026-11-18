@@ -1819,7 +1819,7 @@ org:
               - feeds
             references:
               - https://www.rssboard.org/rss-profile
-            rationale: "Los lectores muestran el texto tal cual, así que los suscriptores ven sintaxis sin procesar como ## y [texto](url) en lugar de entradas con formato."
+            rationale: Los lectores muestran el texto tal cual, así que los suscriptores ven sintaxis sin procesar como `##` y `[texto](url)` en lugar de entradas con formato.
           - id: feeds/content-type/mismatch
             title: El contenido tiene HTML pero está declarado como texto plano
             severity: warning

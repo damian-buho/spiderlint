@@ -494,7 +494,7 @@ const PROBLEM_RULES = Object.fromEntries([
     }),
     problemRule("content-markup/invalid", "raw-markup", "delivers unrendered Markdown or MDX to readers", DOCS.rss, "Render each item’s Markdown or MDX to HTML before it goes into the feed, as the page itself does.", {
         title: "Item content is unrendered Markdown or MDX",
-        rationale: "Readers display the text as it is, so subscribers see raw syntax such as ## and [text](url) instead of formatted posts.",
+        rationale: "Readers display the text as it is, so subscribers see raw syntax such as `##` and `[text](url)` instead of formatted posts.",
     }),
     problemRule("template-placeholder/present", "template-leak", "delivers template placeholders or missing values to readers", DOCS.rss, "Fill every template value before the feed is written, and leave out a field that has no value.", {
         title: "The feed contains template placeholders or empty values",

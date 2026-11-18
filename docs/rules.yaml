@@ -1819,7 +1819,7 @@ org:
               - feeds
             references:
               - https://www.rssboard.org/rss-profile
-            rationale: "Readers display the text as it is, so subscribers see raw syntax such as ## and [text](url) instead of formatted posts."
+            rationale: Readers display the text as it is, so subscribers see raw syntax such as `##` and `[text](url)` instead of formatted posts.
           - id: feeds/content-type/mismatch
             title: Item content holds HTML but is declared as plain text
             severity: warning

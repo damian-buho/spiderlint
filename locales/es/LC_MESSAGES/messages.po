@@ -2674,8 +2674,8 @@ msgstr "JSON Feed 1.1 sustituyó el autor único por una lista de autores. Los l
 msgid "Item content is unrendered Markdown or MDX"
 msgstr "El contenido de los elementos es Markdown o MDX sin renderizar"
 
-msgid "Readers display the text as it is, so subscribers see raw syntax such as ## and [text](url) instead of formatted posts."
-msgstr "Los lectores muestran el texto tal cual, así que los suscriptores ven sintaxis sin procesar como ## y [texto](url) en lugar de entradas con formato."
+msgid "Readers display the text as it is, so subscribers see raw syntax such as `##` and `[text](url)` instead of formatted posts."
+msgstr "Los lectores muestran el texto tal cual, así que los suscriptores ven sintaxis sin procesar como `##` y `[texto](url)` en lugar de entradas con formato."
 
 msgid "The feed contains template placeholders or empty values"
 msgstr "El feed contiene marcadores de plantilla o valores vacíos"

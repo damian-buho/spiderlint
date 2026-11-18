@@ -2674,8 +2674,8 @@ msgstr "JSON Feed 1.1 замінив одного автора списком а
 msgid "Item content is unrendered Markdown or MDX"
 msgstr "Вміст записів — це невідрендерені Markdown чи MDX"
 
-msgid "Readers display the text as it is, so subscribers see raw syntax such as ## and [text](url) instead of formatted posts."
-msgstr "Читачі показують текст як є, тож підписники бачать сирий синтаксис на кшталт ## і [текст](url) замість відформатованих постів."
+msgid "Readers display the text as it is, so subscribers see raw syntax such as `##` and `[text](url)` instead of formatted posts."
+msgstr "Читачі показують текст як є, тож підписники бачать сирий синтаксис на кшталт `##` і `[текст](url)` замість відформатованих постів."
 
 msgid "The feed contains template placeholders or empty values"
 msgstr "Стрічка містить заповнювачі шаблону або порожні значення"
