@@ -61,4 +61,4 @@ The form is at `http://127.0.0.1:8080/`, the API under `/v1/` and a health check
 - Ban what you do not want scanned with a policy `ban`, and slow a host down with `rate` and `repeat`.
 - Change `SPIDERLINT_MODE` to `api` on one container and `worker` on others to scale scans apart from the pages.
 
-The settings file is read again every 5 seconds, so a valid edit applies without a restart. Every setting, route and the page customisation options are described in the [scan server reference](../server.md).
+The settings file is read again every 5 seconds, so a valid edit applies without a restart. Every setting, route and the page customisation options are described in the [scan server reference](server.md).
