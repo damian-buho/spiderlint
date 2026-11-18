@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { rulePageUrl } from "../src/rules/book.ts";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -34,7 +35,7 @@ describe("formatSarif", () => {
 
     after(() => site.close());
 
-    it("gives every rule with a guide its fix and docs as help", () => {
+    it("gives every rule with a guide its fix, its book page as helpUri and the upstream reference as help", () => {
         const rules = sarif.runs[0].tool.driver.rules as { id: string; help?: { text: string; markdown: string }; helpUri?: string }[];
         const helped = rules.filter((rule) => report.rules?.[rule.id]?.fix);
         assert.ok(helped.length > 0);
@@ -42,7 +43,9 @@ describe("formatSarif", () => {
             const fix = fixFor(report.rules?.[rule.id]?.fix as string);
             assert.ok(rule.help?.markdown.startsWith(fix), rule.id);
             assert.ok(rule.help?.text.startsWith(plainFix(fix).join("\n")), rule.id);
-            assert.equal(rule.helpUri, report.rules?.[rule.id]?.docs, rule.id);
+            assert.equal(rule.helpUri, rulePageUrl(rule.id, "en"), rule.id);
+            const reference = report.rules?.[rule.id]?.docs;
+            if (reference) assert.ok(rule.help?.markdown.includes(`[Reference](${reference})`), rule.id);
         }
     });
 

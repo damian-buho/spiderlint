@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { rulePageUrl } from "../rules/book.ts";
 import { Marked } from "marked";
 import { relative, singleOrigin } from "../crawl/scope.ts";
 import { shippedRules } from "../rules/catalog.ts";
@@ -201,12 +202,15 @@ function cached(t: Translator, same: Finding[], origin: string): string {
     )}`;
 }
 
-// The rule’s fixes filled for this finding, then its docs link; nothing when the rule has neither.
+// The rule’s fixes filled for this finding, then its book page and reference links; nothing when the rule has none.
 function remedy(t: Translator, guide: RuleGuide | undefined, finding: Finding): string {
     const fix = fixesOf(guide)
         .map((text) => `<div class="fix">${fixHtml(t._("Fix: {fix}", { fix: fixFor(text, finding) }))}</div>`)
         .join("");
-    const documentation = guide?.docs && /^https?:\/\//i.test(guide.docs) ? `<p><a href="${escape(guide.docs)}" rel="noopener noreferrer">${escape(t._("Documentation"))}</a></p>` : "";
+    const page = rulePageUrl(finding.rule, t.lang);
+    const reference = guide?.docs && /^https?:\/\//i.test(guide.docs) ? `<a href="${escape(guide.docs)}" rel="noopener noreferrer">${escape(t._("Reference"))}</a>` : "";
+    const links = [page ? `<a href="${escape(page)}" rel="noopener noreferrer">${escape(t._("Documentation"))}</a>` : "", reference].filter(Boolean).join(" · ");
+    const documentation = links ? `<p>${links}</p>` : "";
     return fix + documentation;
 }
 

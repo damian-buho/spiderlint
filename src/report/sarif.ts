@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { rulePageUrl } from "../rules/book.ts";
 import { VERSION } from "../agent.ts";
 import type { Report } from "../index.ts";
 import { fixFor, plainFix } from "../rules/fix.ts";
@@ -70,12 +71,14 @@ function messageStrings(findings: Finding[]): { ids: Map<string, string>; byRule
     return { ids, byRule };
 }
 
-// The rule’s generic fixes and docs link, which code scanning shows beside each alert.
-function help({ fix, extra, docs }: RuleGuide) {
+// The rule’s generic fixes, book page and reference, which code scanning shows beside each alert.
+function help(id: string, { fix, extra, docs }: RuleGuide) {
+    const page = rulePageUrl(id, "en");
     const all = [fix, ...(extra ?? [])].filter((text): text is string => text !== undefined).map((text) => fixFor(text));
-    const text = [...all.map((fix) => plainFix(fix).join("\n")), docs].filter(Boolean);
-    const markdown = [...all, docs && `[Documentation](${docs})`].filter(Boolean);
-    return text.length === 0 ? {} : { help: { text: text.join("\n\n"), markdown: markdown.join("\n\n") }, ...(docs && { helpUri: docs }) };
+    const text = [...all.map((fix) => plainFix(fix).join("\n")), page, docs].filter(Boolean);
+    const markdown = [...all, page && `[Documentation](${page})`, docs && `[Reference](${docs})`].filter(Boolean);
+    const uri = page ?? docs;
+    return text.length === 0 ? {} : { help: { text: text.join("\n\n"), markdown: markdown.join("\n\n") }, ...(uri && { helpUri: uri }) };
 }
 
 // Code scanning reads the worst score of a security rule’s findings as its CVSS-style severity, "0.0" to "10.0".
@@ -88,7 +91,7 @@ function security(id: string, findings: Finding[]) {
 // One driver rule per distinct rule ID seen in the findings, with its help when the report carries its guide.
 function toRules(findings: Finding[], strings: Map<string, Record<string, { text: string }>>, guides: Report["rules"] = {}) {
     const ids = [...new Set(findings.map((finding) => finding.rule))].toSorted((a, b) => a.localeCompare(b));
-    return ids.map((id) => ({ id, shortDescription: { text: id }, ...(strings.has(id) && { messageStrings: strings.get(id) }), ...(guides[id] && help(guides[id])), ...security(id, findings) }));
+    return ids.map((id) => ({ id, shortDescription: { text: id }, ...(strings.has(id) && { messageStrings: strings.get(id) }), ...(guides[id] && help(id, guides[id])), ...security(id, findings) }));
 }
 
 // The run's totals as a SARIF invocation; the summary rides in its property bag.

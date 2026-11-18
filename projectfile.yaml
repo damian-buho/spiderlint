@@ -77,6 +77,16 @@ links:
     type: homepage
     url: https://dbuho.me/project/spiderlint/
   - label:
+      en: Spiderlint book on GitHub Pages
+      es: Libro de Spiderlint en GitHub Pages
+      uk: Книга Spiderlint на GitHub Pages
+    preferred: true
+    priority: 30
+    tags:
+      - public
+    type: documentation
+    url: https://damian-buho.github.io/spiderlint/
+  - label:
       en: Repository on kiota.ch
       es: Repositorio en kiota.ch
       uk: Репозиторій на kiota.ch

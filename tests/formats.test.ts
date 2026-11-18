@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { rulePageUrl } from "../src/rules/book.ts";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { HtmlValidate } from "html-validate";
@@ -85,13 +86,14 @@ describe("formatCheckstyle and formatCsv", () => {
         assert.ok(formatHuman(hostile).includes(String.raw`at 1:1 title \u{1b}[2J`));
     });
 
-    it("human --explain prints each finding’s fix and docs under it, and nothing without the flag", () => {
+    it("human --explain prints each finding’s fix, book page and reference under it, and nothing without the flag", () => {
         const text = formatHuman(report, undefined, false, undefined, false, true);
         const withFix = report.findings.find((finding) => finding.severity !== "hint" && report.rules?.[finding.rule]?.fix) as Finding;
         const guide = report.rules?.[withFix.rule];
         const first = plainFix(fixFor(guide?.fix ?? "", withFix))[0];
         assert.ok(text.includes(`fix  ${first}`), withFix.rule);
-        if (guide?.docs) assert.ok(text.includes(`docs ${guide.docs}`), withFix.rule);
+        assert.ok(text.includes(`docs ${rulePageUrl(withFix.rule, "en") as string}`), withFix.rule);
+        if (guide?.docs) assert.ok(text.includes(`ref  ${guide.docs}`), withFix.rule);
         assert.ok(!formatHuman(report).includes(`fix  ${first}`));
     });
 

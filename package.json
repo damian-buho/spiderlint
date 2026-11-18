@@ -16,7 +16,8 @@
     "src/server/*.png",
     "presets/",
     "vendors/",
-    "locales/"
+    "locales/",
+    "projectfile.yaml"
   ],
   "scripts": {
     "start": "node --experimental-strip-types src/cli.ts",

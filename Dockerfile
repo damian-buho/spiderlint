@@ -50,7 +50,7 @@ RUN --mount=type=bind,from=fetch,source=.,target=/fetch                         
 USER ${B19_UID}
 
 COPY --chown=${B19_UID}:${B19_GID} .container/user/ /
-COPY --chown=${B19_UID}:${B19_GID} package.json package-lock.json tsconfig.json ${B19_HOME}/
+COPY --chown=${B19_UID}:${B19_GID} package.json package-lock.json tsconfig.json projectfile.yaml ${B19_HOME}/
 COPY --chown=${B19_UID}:${B19_GID} src/                                       ${B19_HOME}/src/
 COPY --chown=${B19_UID}:${B19_GID} presets/                                   ${B19_HOME}/presets/
 COPY --chown=${B19_UID}:${B19_GID} vendors/                                   ${B19_HOME}/vendors/

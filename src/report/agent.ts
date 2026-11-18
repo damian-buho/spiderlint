@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { rulePageUrl } from "../rules/book.ts";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { writeAtomic } from "../cache/index.ts";
@@ -82,7 +83,7 @@ function block(same: Finding[], guide: RuleGuide | undefined, origin: string): s
         "",
         ...where(same, origin),
         ...cached(same, origin),
-        ...[reads, fix, guide?.fix && guide.docs ? `Docs: ${guide.docs}` : ""].filter(Boolean),
+        ...[reads, fix, rulePageUrl(finding.rule, "en") ? `Docs: ${rulePageUrl(finding.rule, "en")}` : "", guide?.fix && guide.docs ? `Reference: ${guide.docs}` : ""].filter(Boolean),
         `Done when: \`spiderlint audit ${target}/ --rules ${finding.rule}\` reports no ${finding.rule} finding${facts}.`,
     ].join("\n");
 }

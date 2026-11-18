@@ -30,7 +30,8 @@ Where: /missing, used by or shared with:
 - /tags/c
 Reads: `http.status`, `crawl.referrers`
 Fix: Fix the page at the link target so it answers 2xx, or point the links to a working URL.
-Docs: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/links.html#links/internal/unreachable
+Reference: https://developers.google.com/search/docs/crawling-indexing/http-network-errors
 Done when: `spiderlint audit ORIGIN/ --rules links/internal/unreachable` reports no links/internal/unreachable finding.
 
 ## html/h1/missing (error 7.4)
@@ -43,7 +44,8 @@ Where: 5 pages of group posts (100 %), for example:
 - /posts/3: none
 Reads: `html.h1`, expects `{"type":"array","minItems":1}`
 Fix: Use exactly one <h1> per page.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/h1/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
 Done when: `spiderlint audit ORIGIN/ --rules html/h1/missing` reports no html/h1/missing finding.
 
 ## html/viewport/missing (warning 5.3)
@@ -56,7 +58,8 @@ Where: 13 pages in groups posts, default (100 %), for example:
 - /app/: none
 Reads: `html.meta.viewport`, expects `{"type":"string"}`
 Fix: Add <meta name=viewport content="width=device-width"> to the head.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/viewport/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
 Done when: `spiderlint audit ORIGIN/ --rules html/viewport/missing` reports no html/viewport/missing finding.
 
 ## html/author/missing (warning 3.7)
@@ -69,7 +72,8 @@ Where: 6 pages of group default (100 %), for example:
 - /orphan: none
 Reads: `html.author`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta name=author>, article:author, or a JSON-LD author to the article head.
-Docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/author/missing
+Reference: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
 Done when: `spiderlint audit ORIGIN/ --rules html/author/missing` reports no html/author/missing finding.
 
 ## html/published-date/missing (warning 3.6)
@@ -82,7 +86,8 @@ Where: 6 pages of group default (100 %), for example:
 - /orphan: none
 Reads: `html.published`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601.
-Docs: https://ogp.me/#type_article
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/published-date/missing
+Reference: https://ogp.me/#type_article
 Done when: `spiderlint audit ORIGIN/ --rules html/published-date/missing` reports no html/published-date/missing finding.
 
 ## html/theme-color/missing (warning 3.3)
@@ -95,7 +100,8 @@ Where: 5 pages of group posts (100 %), for example:
 - /posts/3: none
 Reads: `html.meta.theme-color`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta name=theme-color> with a color value.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/theme-color/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color/missing` reports no html/theme-color/missing finding.
 
 ## html/theme-color/missing (warning 3.3)
@@ -111,7 +117,8 @@ Where: 6 pages:
 - /tags/c: none
 Reads: `html.meta.theme-color`, expects `{"type":"string","minLength":1}`
 Fix: Add <meta name=theme-color> with a color value.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/theme-color/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color/missing` reports no html/theme-color/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.theme-color` meeting it.
 
 ## html/title/duplicate (warning 5.9)
@@ -123,7 +130,8 @@ Where: /tags/a: 43 characters: “Fixture tag index — posts filed under a tag�
 - /tags/b
 Reads: `html.title`
 Fix: Give each page a distinct <title>.
-Docs: https://developers.google.com/search/docs/appearance/title-link
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/title/duplicate
+Reference: https://developers.google.com/search/docs/appearance/title-link
 Done when: `spiderlint audit ORIGIN/ --rules html/title/duplicate` reports no html/title/duplicate finding.
 
 ## html/description/duplicate (warning 5.6)
@@ -135,7 +143,8 @@ Where: /tags/a: 80 characters: “Every post of the fixture site filed under thi
 - /tags/b
 Reads: `html.meta.description`
 Fix: Give each page a distinct meta description.
-Docs: https://developers.google.com/search/docs/appearance/snippet
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/description/duplicate
+Reference: https://developers.google.com/search/docs/appearance/snippet
 Done when: `spiderlint audit ORIGIN/ --rules html/description/duplicate` reports no html/description/duplicate finding.
 
 ## html/og-title/duplicate (warning 4.2)
@@ -147,7 +156,8 @@ Where: /tags/a: 43 characters: “Fixture tag index — posts filed under a tag�
 - /tags/b
 Reads: `html.property.og:title`
 Fix: Give each page a distinct og:title.
-Docs: https://ogp.me/#metadata
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-title/duplicate
+Reference: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-title/duplicate` reports no html/og-title/duplicate finding.
 
 ## html/og-description/duplicate (warning 4.1)
@@ -159,7 +169,8 @@ Where: /tags/a: 80 characters: “Every post of the fixture site filed under thi
 - /tags/b
 Reads: `html.property.og:description`
 Fix: Give each page a distinct og:description.
-Docs: https://ogp.me/#optional
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-description/duplicate
+Reference: https://ogp.me/#optional
 Done when: `spiderlint audit ORIGIN/ --rules html/og-description/duplicate` reports no html/og-description/duplicate finding.
 
 ## html/canonical/mismatch (warning 6.4)
@@ -169,7 +180,8 @@ canonical link names another URL, not this page
 Where: /about: /about/
 Reads: `html.canonical`
 Fix: Point <link rel=canonical> at this page’s own URL.
-Docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/canonical/mismatch
+Reference: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
 Done when: `spiderlint audit ORIGIN/ --rules html/canonical/mismatch` reports no html/canonical/mismatch finding.
 
 ## html/description/missing (warning 6.0)
@@ -179,7 +191,8 @@ no meta description
 Where: /app/: none
 Reads: `html.meta.description`, expects `{"type":"string"}`
 Fix: Add <meta name=description> with a summary to the head.
-Docs: https://developers.google.com/search/docs/appearance/snippet
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/description/missing
+Reference: https://developers.google.com/search/docs/appearance/snippet
 Done when: `spiderlint audit ORIGIN/ --rules html/description/missing` reports no html/description/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.description` meeting it.
 
 ## html/title/length (warning 5.7)
@@ -189,7 +202,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/description/missing` reports n
 Where: /about: 11 characters: “About page!”
 Reads: `html.title`, expects `{"type":"string","minLength":30,"maxLength":60}`
 Fix: Shorten or lengthen <title> to 30–60 characters.
-Docs: https://developers.google.com/search/docs/appearance/title-link
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/title/length
+Reference: https://developers.google.com/search/docs/appearance/title-link
 Done when: `spiderlint audit ORIGIN/ --rules html/title/length` reports no html/title/length finding, and `spiderlint show-facts ORIGIN/about` shows `html.title` meeting it.
 
 ## html/img-alt/missing (warning 5.0)
@@ -199,7 +213,8 @@ an <img> has no alt attribute
 Where: /posts/3: {"src":"/figure.png"}
 Reads: `html.images`, expects `{"type":"array","items":{"required":["alt"]}}`
 Fix: Add an alt attribute to every <img>.
-Docs: https://developers.google.com/search/docs/appearance/google-images
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/img-alt/missing
+Reference: https://developers.google.com/search/docs/appearance/google-images
 Done when: `spiderlint audit ORIGIN/ --rules html/img-alt/missing` reports no html/img-alt/missing finding, and `spiderlint show-facts ORIGIN/posts/3` shows `html.images` meeting it.
 
 ## html/title/redundant (warning 4.8)
@@ -209,7 +224,8 @@ Done when: `spiderlint audit ORIGIN/ --rules html/img-alt/missing` reports no ht
 Where: /duplicate: 47 characters: “Duplicate Fixture Page - Duplicate Fixture Page”
 Reads: `html.title`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
 Fix: Remove the repeated suffix from <title>.
-Docs: https://developers.google.com/search/docs/appearance/title-link
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/title/redundant
+Reference: https://developers.google.com/search/docs/appearance/title-link
 Done when: `spiderlint audit ORIGIN/ --rules html/title/redundant` reports no html/title/redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.title` meeting it.
 
 ## html/description/redundant (warning 4.7)
@@ -219,7 +235,8 @@ meta description repeats itself around a separator
 Where: /duplicate: 51 characters: “Duplicate content notice - Duplicate content notice”
 Reads: `html.meta.description`, expects `{"type":"string","pattern":"^(?!.*(.{2,120}?)\\s*[-|:–—·»]\\s*\\1$).*$"}`
 Fix: Remove the repeated suffix from the meta description.
-Docs: https://developers.google.com/search/docs/appearance/snippet
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/description/redundant
+Reference: https://developers.google.com/search/docs/appearance/snippet
 Done when: `spiderlint audit ORIGIN/ --rules html/description/redundant` reports no html/description/redundant finding, and `spiderlint show-facts ORIGIN/duplicate` shows `html.meta.description` meeting it.
 
 ## html/og-image/missing (warning 4.6)
@@ -229,7 +246,8 @@ no og:image
 Where: /app/: none
 Reads: `html.property.og:image`, expects `{"type":"string"}`
 Fix: Add <meta property=og:image> with the absolute URL of a preview image.
-Docs: https://ogp.me/#metadata
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-image/missing
+Reference: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-image/missing` reports no html/og-image/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:image` meeting it.
 
 ## links/external/unreachable (warning 4.6)
@@ -240,7 +258,8 @@ Where: EXTERNAL/gone, used by or shared with:
 - /about
 Reads: `site.links`, `html.links.external`
 Fix: Remove or repoint each broken external link.
-Docs: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/links.html#links/external/unreachable
+Reference: https://developer.mozilla.org/docs/Web/HTTP/Reference/Status/404
 Done when: `spiderlint audit ORIGIN/ --rules links/external/unreachable` reports no links/external/unreachable finding.
 
 ## links/internal/redirected (warning 4.6)
@@ -251,7 +270,8 @@ Where: /old-about: /about, used by or shared with:
 - /orphan
 Reads: `site.redirects`, `html.links.internal`
 Fix: Make the link target point at the final URL, or serve the content directly.
-Docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/links.html#links/internal/redirected
+Reference: https://developers.google.com/search/docs/crawling-indexing/301-redirects
 Done when: `spiderlint audit ORIGIN/ --rules links/internal/redirected` reports no links/internal/redirected finding.
 
 ## html/jsonld/invalid (warning 4.5)
@@ -261,7 +281,8 @@ a JSON-LD block does not parse
 Where: /about: {"@error":"Unexpected end of JSON input"}
 Reads: `html.jsonld`, expects `{"items":{"not":{"type":"object","required":["@error"]}}}`
 Fix: Fix the JSON-LD block so it is valid JSON.
-Docs: https://json-ld.org/spec/latest/json-ld/
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/jsonld/invalid
+Reference: https://json-ld.org/spec/latest/json-ld/
 Done when: `spiderlint audit ORIGIN/ --rules html/jsonld/invalid` reports no html/jsonld/invalid finding, and `spiderlint show-facts ORIGIN/about` shows `html.jsonld` meeting it.
 
 ## url/trailing-slash/inconsistent (warning 4.3)
@@ -272,7 +293,8 @@ Where: /app/: end with /, used by or shared with:
 - /app/
 Reads: `url.pathname`
 Fix: Pick one form, with or without the trailing slash, and redirect the other to it.
-Docs: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/url.html#url/trailing-slash/inconsistent
+Reference: https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash
 Done when: `spiderlint audit ORIGIN/ --rules url/trailing-slash/inconsistent` reports no url/trailing-slash/inconsistent finding.
 
 ## html/og-title/missing (warning 4.0)
@@ -282,7 +304,8 @@ no og:title
 Where: /app/: none
 Reads: `html.property.og:title`, expects `{"type":"string"}`
 Fix: Add <meta property=og:title> with the page title.
-Docs: https://ogp.me/#metadata
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-title/missing
+Reference: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-title/missing` reports no html/og-title/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:title` meeting it.
 
 ## html/og-description/missing (warning 3.9)
@@ -292,7 +315,8 @@ no og:description
 Where: /app/: none
 Reads: `html.property.og:description`, expects `{"type":"string"}`
 Fix: Add <meta property=og:description> with a summary of the page.
-Docs: https://ogp.me/#optional
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-description/missing
+Reference: https://ogp.me/#optional
 Done when: `spiderlint audit ORIGIN/ --rules html/og-description/missing` reports no html/og-description/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:description` meeting it.
 
 ## html/theme-color-dark/missing (warning 3.4)
@@ -302,7 +326,8 @@ color-scheme names light and dark, but no theme-color pair carries a prefers-col
 Where: /about: 3 items
 Reads: `html.metas`, expects `{"allOf":[{"contains":{"properties":{"name":{"const":"theme-color"}},"required":["name"]},"minContains":2},{"contains":{"properties":{"name":{"const":"theme-color"},"media":{"pattern":"(?i:prefers-color-scheme)"}},"required":["name","media"]}}]}`
 Fix: Add <meta name=theme-color media="(prefers-color-scheme: dark)"> beside the light one.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/theme-color-dark/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
 Done when: `spiderlint audit ORIGIN/ --rules html/theme-color-dark/missing` reports no html/theme-color-dark/missing finding, and `spiderlint show-facts ORIGIN/about` shows `html.metas` meeting it.
 
 ## html/favicon/missing (info 2.2)
@@ -315,7 +340,8 @@ Where: 12 pages in groups posts, default (92 %), for example:
 - /duplicate: 2 items
 Reads: `html.head.links`, expects `{"contains":{"required":["rel"],"properties":{"rel":{"pattern":"(?i:(^|\\s)icon(\\s|$))"}}}}`
 Fix: Add <link rel=icon href=/favicon.ico> to the head.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/favicon/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
 Done when: `spiderlint audit ORIGIN/ --rules html/favicon/missing` reports no html/favicon/missing finding.
 
 ## html/privacy-policy/missing (info 1.6)
@@ -328,7 +354,8 @@ Where: 12 pages in groups posts, default (92 %), for example:
 - /duplicate: none
 Reads: `html.rels.privacy-policy`, expects `{"type":"array","minItems":1}`
 Fix: Add <link rel=privacy-policy href=/privacy> to the head.
-Docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/privacy-policy/missing
+Reference: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
 Done when: `spiderlint audit ORIGIN/ --rules html/privacy-policy/missing` reports no html/privacy-policy/missing finding.
 
 ## html/color-scheme/missing (info 1.4)
@@ -341,7 +368,8 @@ Where: 5 pages of group posts (100 %), for example:
 - /posts/3: none
 Reads: `html.meta.color-scheme`, expects `{"type":"string"}`
 Fix: Add <meta name=color-scheme content="light dark">.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/color-scheme/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/missing` reports no html/color-scheme/missing finding.
 
 ## html/color-scheme/missing (info 1.4)
@@ -357,7 +385,8 @@ Where: 6 pages:
 - /tags/c: none
 Reads: `html.meta.color-scheme`, expects `{"type":"string"}`
 Fix: Add <meta name=color-scheme content="light dark">.
-Docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/color-scheme/missing
+Reference: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
 Done when: `spiderlint audit ORIGIN/ --rules html/color-scheme/missing` reports no html/color-scheme/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.meta.color-scheme` meeting it.
 
 ## html/hreflang-x-default/missing (info 2.6)
@@ -367,7 +396,8 @@ hreflang alternates should include x-default
 Where: /about: 1 items
 Reads: `html.hreflang`, expects `{"contains":{"required":["lang"],"properties":{"lang":{"const":"x-default"}}}}`
 Fix: Add <link rel=alternate hreflang=x-default> to the head.
-Docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/hreflang-x-default/missing
+Reference: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
 Done when: `spiderlint audit ORIGIN/ --rules html/hreflang-x-default/missing` reports no html/hreflang-x-default/missing finding, and `spiderlint show-facts ORIGIN/about` shows `html.hreflang` meeting it.
 
 ## html/og-url/missing (info 2.5)
@@ -377,7 +407,8 @@ no og:url
 Where: /app/: none
 Reads: `html.property.og:url`, expects `{"type":"string"}`
 Fix: Add <meta property=og:url> with this page’s absolute URL.
-Docs: https://ogp.me/#metadata
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-url/missing
+Reference: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-url/missing` reports no html/og-url/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:url` meeting it.
 
 ## html/og-url/mismatch (info 2.4)
@@ -387,7 +418,8 @@ og:url names another URL, not this page
 Where: /orphan: /
 Reads: `html.property.og:url`
 Fix: Point <meta property=og:url> at this page’s own URL.
-Docs: https://ogp.me/#metadata
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-url/mismatch
+Reference: https://ogp.me/#metadata
 Done when: `spiderlint audit ORIGIN/ --rules html/og-url/mismatch` reports no html/og-url/mismatch finding.
 
 ## groups/heterogeneous (info 2.0)
@@ -397,6 +429,7 @@ html/theme-color/missing fails on 6 of 8 pages; the group likely spans two templ
 Where: /app/
 Reads: `group`
 Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/groups.html#groups/heterogeneous
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
 ## groups/heterogeneous (info 2.0)
@@ -406,6 +439,7 @@ html/color-scheme/missing fails on 6 of 8 pages; the group likely spans two temp
 Where: /app/
 Reads: `group`
 Fix: Split the group’s `match` so each template gets its own group, then check with `spiderlint list-groups`.
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/groups.html#groups/heterogeneous
 Done when: `spiderlint audit ORIGIN/ --rules groups/heterogeneous` reports no groups/heterogeneous finding.
 
 ## html/og-type/missing (info 1.1)
@@ -415,5 +449,6 @@ no og:type
 Where: /app/: none
 Reads: `html.property.og:type`, expects `{"type":"string"}`
 Fix: Set og:type to website, or article on a post.
-Docs: https://ogp.me/#types
+Docs: https://damian-buho.github.io/spiderlint/en/pages/rules/html.html#html/og-type/missing
+Reference: https://ogp.me/#types
 Done when: `spiderlint audit ORIGIN/ --rules html/og-type/missing` reports no html/og-type/missing finding, and `spiderlint show-facts ORIGIN/app/` shows `html.property.og:type` meeting it.
