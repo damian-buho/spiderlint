@@ -16,13 +16,13 @@ spiderlint --version
 ```
 
 - `npm link` symlinks the checkout into the global prefix. Node resolves the real path, which lies outside `node_modules`, so the sources run and every edit applies at once.
-- `npm unlink --global dbuho-spiderlint` removes the link.
+- `npm unlink --global spiderlint` removes the link.
 
 ## Install a packed build
 
 ```sh
 npm pack
-npm install --global ./dbuho-spiderlint-*.tgz
+npm install --global ./spiderlint-*.tgz
 ```
 
 - `prepack` compiles `src/` into `dist/` with `tsconfig.build.json`, and `postpack` deletes `dist/` again, so a checkout never keeps a stale build.

@@ -228,7 +228,6 @@ Puntos de entrada de la canalización:
 
 ## Documentación
 
-- [Run spiderlint from a checkout](../how-to/RUN-FROM-A-CHECKOUT.md)
 - [Self-host the scan server](../how-to/SELFHOST.md)
 
 ## Políticas

@@ -226,7 +226,6 @@ Pipeline entry points:
 
 ## Documentation
 
-- [Run spiderlint from a checkout](docs/how-to/RUN-FROM-A-CHECKOUT.md)
 - [Self-host the scan server](docs/how-to/SELFHOST.md)
 
 ## Policies
