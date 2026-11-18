@@ -38,17 +38,26 @@ type Json = Record<string, unknown>;
 const list = (value: unknown): Json[] => (Array.isArray(value) ? (value as Json[]) : []);
 
 // What each OTLP/JSON path adds to the received signals.
-const SIGNALS: Record<string, (body: Json, received: Received) => void> = {
-    "/v1/traces": (body, received) => {
-        for (const resource of list(body.resourceSpans)) for (const scope of list(resource.scopeSpans)) received.spans.push(...(list(scope.spans) as unknown as Span[]));
-    },
-    "/v1/logs": (body, received) => {
-        for (const resource of list(body.resourceLogs)) for (const scope of list(resource.scopeLogs)) received.logTraces.push(...list(scope.logRecords).flatMap((record) => (typeof record.traceId === "string" && record.traceId ? [record.traceId] : [])));
-    },
-    "/v1/metrics": (body, received) => {
-        for (const resource of list(body.resourceMetrics)) for (const scope of list(resource.scopeMetrics)) received.metrics.push(...list(scope.metrics).map((metric) => String(metric.name)));
-    },
-};
+const SIGNALS = new Map<string, (body: Json, received: Received) => void>([
+    [
+        "/v1/traces",
+        (body, received) => {
+            for (const resource of list(body.resourceSpans)) for (const scope of list(resource.scopeSpans)) received.spans.push(...(list(scope.spans) as unknown as Span[]));
+        },
+    ],
+    [
+        "/v1/logs",
+        (body, received) => {
+            for (const resource of list(body.resourceLogs)) for (const scope of list(resource.scopeLogs)) received.logTraces.push(...list(scope.logRecords).flatMap((record) => (typeof record.traceId === "string" && record.traceId ? [record.traceId] : [])));
+        },
+    ],
+    [
+        "/v1/metrics",
+        (body, received) => {
+            for (const resource of list(body.resourceMetrics)) for (const scope of list(resource.scopeMetrics)) received.metrics.push(...list(scope.metrics).map((metric) => String(metric.name)));
+        },
+    ],
+]);
 
 // A collector taking OTLP/JSON on /v1/traces, /v1/logs and /v1/metrics.
 async function collector(): Promise<{ server: Server; endpoint: string; received: Received }> {
@@ -60,7 +69,7 @@ async function collector(): Promise<{ server: Server; endpoint: string; received
         });
         request.on("end", () => {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}") as Json;
-            if (Object.hasOwn(SIGNALS, request.url ?? "")) SIGNALS[request.url as string]?.(body, received);
+            SIGNALS.get(request.url ?? "")?.(body, received);
             response.writeHead(200, { "content-type": "application/json" }).end("{}");
         });
     });
