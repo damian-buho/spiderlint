@@ -13,6 +13,14 @@ on the next regeneration.
 
 ## Book
 
+### `book-pdf`
+
+Print each built language book to dist/pdf/&lt;name>-&lt;lang>.pdf with headless Chrome
+
+`.makefile/container/scripts/book-pdf.sh dist/site dist/pdf ${identity.name}`
+
+> Image: D9T_JS_TOOLS_IMAGE
+
 ### `book-stage`
 
 Stage one mdBook per language from the docs and the rendered page collections
