@@ -12,6 +12,8 @@ rules:
     severity: error
     score: 9.5
     message: "certificate is not trusted"
+    title: "The site’s certificate is not trusted"
+    rationale: "Browsers show a full-page warning or block the connection, so most visitors turn away and cannot be sure they reach the real site. Only HTTPS pages."
     fix: "Install the CA bundle the server needs, or request a certificate from a trusted CA."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/protocol/deprecated:
@@ -20,6 +22,8 @@ rules:
     severity: warning
     score: 6.1
     message: "TLS should be 1.2 or 1.3"
+    title: "The connection uses a TLS version older than 1.2"
+    rationale: "TLS 1.0 and 1.1 are retired and have known attacks, so an attacker on the path may read or alter the traffic. Only HTTPS pages."
     fix: "Disable TLS 1.0 and 1.1 in the server configuration; keep only TLS 1.2 and 1.3."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/certificate/expiring:
@@ -29,6 +33,8 @@ rules:
     severity: warning
     score: [[0, 6.8], [1, 6.0], [2, 3.2], [14, 1.0]]
     message: "certificate expires within 14 days"
+    title: "The site’s certificate expires within 14 days"
+    rationale: "Once it lapses, browsers block the site with a security warning, so a missed renewal takes it offline for most visitors. Only HTTPS pages with a certificate not yet expired."
     fix: "Renew the certificate before it lapses, and check that automatic renewal is scheduled and succeeds."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/certificate/expired:
@@ -37,6 +43,8 @@ rules:
     severity: error
     score: 9.3
     message: "certificate has expired"
+    title: "The site’s certificate has expired"
+    rationale: "Browsers block the site with a security warning, so most visitors cannot reach it. Only HTTPS pages."
     fix: "Renew the certificate and reload the server that serves it."
     docs: https://developer.mozilla.org/docs/Web/Security/Transport_Layer_Security
   tls/key/weak:
@@ -50,6 +58,8 @@ rules:
     severity: error
     score: 8.8
     message: "certificate key is weaker than RSA 2048 or EC P-256"
+    title: "The certificate’s key is weaker than RSA 2048 or EC P-256"
+    rationale: "A short key can be factored or broken by a determined attacker, who could then impersonate the site. Only HTTPS pages."
     fix: "Issue the certificate for a new EC P-256 key, or an RSA key of at least 2048 bits."
     docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
   tls/signature/weak:
@@ -59,5 +69,7 @@ rules:
     severity: error
     score: 8.6
     message: "the certificate chain is signed with SHA-1 or MD5"
+    title: "The certificate chain is signed with SHA-1 or MD5"
+    rationale: "These hashes can be forged, so an attacker could craft a certificate that passes for the real one, and browsers distrust such chains. Only HTTPS pages."
     fix: "Reissue the certificate from a CA that signs with SHA-256 or stronger, and serve its current intermediates."
     docs: https://www.rfc-editor.org/rfc/rfc9155

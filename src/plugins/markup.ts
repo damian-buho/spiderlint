@@ -74,7 +74,12 @@ const langSwitcher = pageRule(
         });
         return locations.length === 0 ? [] : [{ ...said("language switcher links do not declare the language they lead to"), data: { [page.url.href]: { links: locations.length } }, value: locations, locations }];
     },
-    { docs: "https://www.w3.org/International/questions/qa-link-lang", fix: "Give each switcher link `lang` and `hreflang` equal to its target’s language, and write its text in that language." },
+    {
+        docs: "https://www.w3.org/International/questions/qa-link-lang",
+        title: "Language switcher links do not declare their target language",
+        rationale: "Without lang and hreflang a screen reader pronounces the link in the wrong language, and visitors and search engines cannot tell which language it leads to.",
+        fix: "Give each switcher link `lang` and `hreflang` equal to its target’s language, and write its text in that language.",
+    },
 );
 
 const captions = pageRule(
@@ -86,7 +91,12 @@ const captions = pageRule(
         const bare = facts.videos.filter((video) => !(video.muted && !video.controls) && video.tracks.every((kind) => kind !== "captions" && kind !== "subtitles"));
         return bare.length === 0 ? [] : [{ ...said("a <video> without captions or subtitles"), data: { [page.url.href]: { videos: bare.length } }, value: bare, locations: bare.map((video) => video.src ?? "<video>") }];
     },
-    { docs: "https://www.w3.org/WAI/media/av/captions/", fix: 'Add `<track kind="captions" src="….vtt" srclang="…">` to each video with speech; a muted decorative loop without controls is exempt.' },
+    {
+        docs: "https://www.w3.org/WAI/media/av/captions/",
+        title: "A video has no captions or subtitles",
+        rationale: "Deaf and hard-of-hearing visitors, and anyone watching without sound, cannot follow speech in a video with no text track. Muted videos without controls are exempt.",
+        fix: 'Add `<track kind="captions" src="….vtt" srclang="…">` to each video with speech; a muted decorative loop without controls is exempt.',
+    },
 );
 
 // The input `type` or `inputmode` an autocomplete field name calls for.
@@ -107,7 +117,12 @@ const inputType = pageRule(
         });
         return locations.length === 0 ? [] : [{ ...said("an <input> whose type does not match the autocomplete field, so phones show the wrong keyboard"), data: { [page.url.href]: { inputs: locations.length } }, value: locations, locations }];
     },
-    { docs: "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-field", fix: "Set `type` (or `inputmode`) to what the autocomplete field holds: `email`, `tel` or `url`." },
+    {
+        docs: "https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-field",
+        title: "An input’s type does not match its autocomplete field",
+        rationale: "Phones show the wrong keyboard and autofill suggests the wrong value when an email, phone or URL field is a plain text input.",
+        fix: "Set `type` (or `inputmode`) to what the autocomplete field holds: `email`, `tel` or `url`.",
+    },
 );
 
 export default {

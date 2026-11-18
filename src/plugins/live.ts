@@ -177,7 +177,12 @@ const reducedMotion = pageRule(
         const moving = [...facts.motion.map((entry) => `${located(entry)} ${entry.name} ${entry.seconds === undefined ? "endless" : `${entry.seconds} s`}`), ...facts.videos.map((video) => `${located(video)} autoplays`)];
         return moving.length === 0 ? [] : [{ ...said("animations and videos keep moving although the visitor asks for reduced motion"), data: { [page.url.href]: { animations: facts.motion.length, videos: facts.videos.length } }, value: moving, locations: moving }];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html", fix: "Stop endless and long animations and autoplay inside `@media (prefers-reduced-motion: reduce)`." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html",
+        title: "Animations and videos ignore the reduced-motion preference",
+        rationale: "Visitors who ask their system for less motion, often because moving content causes dizziness or nausea, still get endless animations and autoplay. Only sampled pages are judged, in a browser.",
+        fix: "Stop endless and long animations and autoplay inside `@media (prefers-reduced-motion: reduce)`.",
+    },
 );
 
 const clickListener = pageRule(
@@ -188,7 +193,12 @@ const clickListener = pageRule(
         if (!found) return;
         return found.length === 0 ? [] : [{ ...said("a <div> or <span> takes clicks with no role, so neither keyboards nor screen readers find it"), data: { [page.url.href]: { elements: found.length } }, value: found.map((element) => element.target), locations: found.map((element) => located(element)) }];
     },
-    { docs: "https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/", fix: 'Use `<button>` or `<a href>`; a custom control needs a role, `tabindex="0"` and a key handler too.' },
+    {
+        docs: "https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/",
+        title: "A clickable div or span has no role",
+        rationale: "A plain element that takes clicks cannot be reached by keyboard or announced by a screen reader, so those visitors cannot use it. Only sampled pages are judged, in a browser.",
+        fix: 'Use `<button>` or `<a href>`; a custom control needs a role, `tabindex="0"` and a key handler too.',
+    },
 );
 
 const inputFontSize = pageRule(
@@ -201,7 +211,12 @@ const inputFontSize = pageRule(
             ? []
             : [{ ...said("a form field is set under {limit} px, so iOS Safari zooms in on focus", { limit: MIN_FONT }), data: { [page.url.href]: { fields: small.length } }, value: small.map((field) => `${field.target} ${field.size} px`), locations: small.map((field) => `${located(field)} ${field.size} px`) }];
     },
-    { docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag", fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen." },
+    {
+        docs: "https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag",
+        title: "Form fields use a font under 16 px",
+        rationale: "iOS Safari zooms the page in when a field with a smaller font is focused, which disorients phone users. Measured at a desktop viewport on sampled pages, in a browser.",
+        fix: "Give inputs, selects and text areas `font-size: 16px` or more; measured at the crawler’s desktop viewport, so a phone-only media query goes unseen.",
+    },
 );
 
 const darkContrast = pageRule(
@@ -221,7 +236,12 @@ const darkContrast = pageRule(
                   },
               ];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html", fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+        title: "Text is too faint to read in the dark scheme the page claims",
+        rationale: "The page declares dark support but some elements have low contrast in it, so visitors using dark mode cannot read them. Only sampled pages are judged, in a browser.",
+        fix: "Give every `prefers-color-scheme: dark` colour a matching background, or drop `dark` from `color-scheme` until the dark styles exist.",
+    },
 );
 
 const forcedIcons = pageRule(
@@ -241,7 +261,12 @@ const forcedIcons = pageRule(
                   },
               ];
     },
-    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`." },
+    {
+        docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors",
+        title: "Icon controls show nothing under forced colours",
+        rationale: "A button whose only content is a gradient or masked icon turns blank in Windows high-contrast mode, so those visitors cannot see what it does. Only sampled pages are judged, in a browser.",
+        fix: "Draw icons with inline SVG in `currentColor` or an `<img>`; a masked icon needs `forced-color-adjust: none` and `background-color: ButtonText` under `@media (forced-colors: active)`.",
+    },
 );
 
 const forcedOptOut = pageRule(
@@ -252,7 +277,12 @@ const forcedOptOut = pageRule(
         if (!kept) return;
         return kept.length === 0 ? [] : [{ ...said("an element keeps its own text colours under forced colours"), data: { [page.url.href]: { elements: kept.length } }, value: kept.map((element) => element.target), locations: kept.map((element) => `${located(element)} ${element.colors}`) }];
     },
-    { docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust", fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text." },
+    {
+        docs: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust",
+        title: "Elements keep their own text colours under forced colours",
+        rationale: "Text that opts out of forced colours keeps its own palette, which may be unreadable against the background a high-contrast visitor chose. Only sampled pages are judged, in a browser.",
+        fix: "Keep `forced-color-adjust: none` to small graphics such as logos and swatches, never on text.",
+    },
 );
 
 const contrastMore = pageRule(
@@ -263,7 +293,12 @@ const contrastMore = pageRule(
         if (!contrast) return;
         return contrast.claimed ? [] : [{ ...said("no style answers `prefers-contrast: more`, so a visitor asking for more contrast sees the default colours"), value: false }];
     },
-    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast", fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1." },
+    {
+        docs: "https://developer.mozilla.org/docs/Web/CSS/@media/prefers-contrast",
+        title: "No style answers a request for more contrast",
+        rationale: "Visitors who set their system to more contrast, such as people with low vision, still see the default pale colours. Only sampled pages are judged, in a browser.",
+        fix: "Darken muted text and borders inside `@media (prefers-contrast: more)`, aiming at 7:1.",
+    },
 );
 
 const contrastEnhanced = pageRule(
@@ -283,7 +318,12 @@ const contrastEnhanced = pageRule(
                   },
               ];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html", fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/contrast-enhanced.html",
+        title: "Text stays below 7:1 contrast when more contrast is requested",
+        rationale: "The page answers the more-contrast preference but some text still falls short of the 7:1 enhanced ratio, so low-vision visitors who asked for it gain little. Only sampled pages are judged, in a browser.",
+        fix: "Raise every colour pair inside `@media (prefers-contrast: more)` to 7:1, or 4.5:1 for large text.",
+    },
 );
 
 const webmcp = pageRule(
@@ -294,7 +334,12 @@ const webmcp = pageRule(
         if (!tools) return;
         return tools.length === 0 ? [{ ...said("the browser supports WebMCP but the page registers no tools, so an agent in it can only click and read"), data: { [page.url.href]: { tools: 0 } }, value: tools }] : [];
     },
-    { docs: "https://webmcp.org/", fix: "Register the page’s actions as WebMCP tools with `navigator.modelContext`, so an in-browser agent calls them instead of driving the interface." },
+    {
+        docs: "https://webmcp.org/",
+        title: "The page registers no WebMCP tools for in-browser agents",
+        rationale: "A browser agent can then only click and read the interface, which is slower and more fragile than calling the page’s actions. Only checked where the browser supports WebMCP.",
+        fix: "Register the page’s actions as WebMCP tools with `navigator.modelContext`, so an in-browser agent calls them instead of driving the interface.",
+    },
 );
 
 export default {

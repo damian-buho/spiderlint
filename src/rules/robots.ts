@@ -6,7 +6,7 @@ import { groupsFor } from "../crawl/robots.ts";
 import type { ContentSignal, Facts, RobotsFileFacts, RobotsGroupFacts, SiteFacts, Stance } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { said } from "./message.ts";
-import type { Finding, Make } from "./types.ts";
+import type { Finding, Make, RuleMeta } from "./types.ts";
 
 // Crawler product tokens by purpose; `index` is a search engine, `retired` ones no vendor still sends.
 export const CRAWLERS: Record<string, "index" | "training" | "search" | "user" | "retired"> = {
@@ -49,9 +49,9 @@ function isBlanket(group: RobotsGroupFacts): boolean {
 }
 
 // One site rule per robots.txt file: `judge` returns the finding’s sentence and value, or nothing.
-function robotsRule(id: string, documentation: string, judge: (file: RobotsFileFacts, site?: SiteFacts) => Pick<Finding, "message" | "text" | "variables" | "data" | "locations" | "value"> | undefined, fix?: string, facts: string[] = []): Make {
+function robotsRule(id: string, documentation: string, judge: (file: RobotsFileFacts, site?: SiteFacts) => Pick<Finding, "message" | "text" | "variables" | "data" | "locations" | "value"> | undefined, guide: Pick<RuleMeta, "title" | "rationale" | "fix">, facts: string[] = []): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "site", facts: ["site.robots", ...facts], docs: documentation, ...(fix && { fix }) },
+        meta: { id, severity, scope: "site", facts: ["site.robots", ...facts], docs: documentation, ...guide },
         check(_pages: Facts[], _group?: string, site?: SiteFacts) {
             const findings: Finding[] = [];
             const files = site?.robots ?? [];
@@ -73,7 +73,11 @@ const disallowAll = robotsRule(
         const blanket = file.groups.filter((group) => group.agents.includes("*") && isBlanket(group));
         return blanket.length > 0 ? { ...said("User-agent: * is disallowed from every path, so no crawler indexes the site"), value: "/" } : undefined;
     },
-    "Remove the Disallow: / rule from the User-agent: * group, or add Allow rules for the paths you want crawled.",
+    {
+        title: "robots.txt blocks every crawler from the whole site",
+        rationale: "User-agent: * with Disallow: / and no Allow tells every well-behaved crawler to stay out, so search engines drop the site from their results.",
+        fix: "Remove the Disallow: / rule from the User-agent: * group, or add Allow rules for the paths you want crawled.",
+    },
 );
 
 // The AI crawlers the file names, each with its purpose and whether it is shut out.
@@ -85,7 +89,11 @@ const aiCrawlers = robotsRule(
         if (named.length === 0) return;
         return { ...said("the file names AI crawlers"), locations: named.map(({ agent, purpose, blocked }) => `${agent} (${purpose}${blocked ? ", disallowed" : ""})`), value: named };
     },
-    "Confirm each named AI crawler is allowed or disallowed as intended.",
+    {
+        title: "robots.txt addresses AI crawlers",
+        rationale: "Rules for crawlers that train models or fetch pages for AI answers decide whether the content is used there. The finding lists each named crawler and whether it is shut out, so the owner can confirm that is intended.",
+        fix: "Confirm each named AI crawler is allowed or disallowed as intended.",
+    },
 );
 
 // Every `Content-Signal` line naming an unknown signal, a value other than yes or no, or nothing.
@@ -99,7 +107,11 @@ const contentSignal = robotsRule(
         });
         return malformed.length > 0 ? { ...said("Content-Signal should be search, ai-input or ai-train set to yes or no"), data: { [file.url]: { found: malformed.map((line) => line.value).join(", ") } }, value: malformed.map((line) => line.value) } : undefined;
     },
-    "Write each Content-Signal line as comma-separated signal=yes|no pairs, e.g. Content-Signal: search=yes, ai-input=no, ai-train=no.",
+    {
+        title: "A Content-Signal line in robots.txt is malformed",
+        rationale: "Crawlers that read Content-Signal may ignore a line with an unknown signal or a value other than yes or no, so the owner’s wishes on search, AI input and AI training are not honoured.",
+        fix: "Write each Content-Signal line as comma-separated signal=yes|no pairs, e.g. Content-Signal: search=yes, ai-input=no, ai-train=no.",
+    },
 );
 
 // The stance a file serves: its `Content-Signal` lines outside a group or for `*`, the last one winning per signal.
@@ -134,7 +146,11 @@ const crawlerAccess = robotsRule(
         if (wrong.length === 0) return;
         return { ...said("crawler access contradicts the content signals"), locations: wrong, value: wrong, data: { [file.url]: { source: declared ? "declared" : "served" } } };
     },
-    "Disallow / for every crawler whose signal is no, and lift the Disallow for every crawler whose signal is yes, e.g. User-agent: GPTBot then Disallow: /.",
+    {
+        title: "robots.txt access contradicts the declared content signals",
+        rationale: "A crawler is shut out although the signals allow its purpose, or let in although they say no, so the content is missing from search or used for AI against the owner’s stated wishes. Skipped when robots.txt does not answer or fails with a server error.",
+        fix: "Disallow / for every crawler whose signal is no, and lift the Disallow for every crawler whose signal is yes, e.g. User-agent: GPTBot then Disallow: /.",
+    },
     ["site.content-signals"],
 );
 

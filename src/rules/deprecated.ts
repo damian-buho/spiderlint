@@ -30,7 +30,16 @@ export const DEPRECATED: Record<string, Deprecation> = {
 
 // One finding per page naming every deprecated header it sends, with what replaces each.
 const deprecatedHeader: Make = (severity) => ({
-    meta: { id: "http/header/deprecated", severity, scope: "page", facts: ["http.headers"], docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers", fix: "Remove each deprecated header, and send Reporting-Endpoints in place of Report-To unless NEL still reads it." },
+    meta: {
+        id: "http/header/deprecated",
+        severity,
+        scope: "page",
+        facts: ["http.headers"],
+        docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers",
+        title: "The page sends headers that no current browser reads",
+        rationale: "X-XSS-Protection, Expect-CT, Public-Key-Pins, Feature-Policy, P3P and Report-To are dead weight on every response, and some give a false sense of protection. Report-To is left alone while NEL still reads it.",
+        fix: "Remove each deprecated header, and send Reporting-Endpoints in place of Report-To unless NEL still reads it.",
+    },
     check(page: Facts) {
         const sent = Object.keys(page.http.headers).filter((name) => {
             const entry = DEPRECATED[name];

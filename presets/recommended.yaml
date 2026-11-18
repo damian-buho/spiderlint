@@ -49,6 +49,8 @@ rules:
     severity: warning
     score: 4.2
     message: "no Date header"
+    title: "The response has no Date header"
+    rationale: "Without Date, caches cannot work out how old a response is, so they may serve stale content or cache it badly. Clients that compare clocks lose a reference too."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7
     fix: "Send Date in IMF-fixdate form, as Sun, 06 Nov 1994 08:49:37 GMT."
   http/date/invalid:
@@ -58,5 +60,7 @@ rules:
     severity: warning
     score: 4.2
     message: "Date should be an IMF-fixdate"
+    title: "The Date header is not in the standard date format"
+    rationale: "Caches and clients that cannot parse Date fall back to guessing the response’s age, which breaks freshness calculations. HTTP requires the fixed GMT form, such as Sun, 06 Nov 1994 08:49:37 GMT. Only responses that send Date are checked."
     fix: "Send Date in IMF-fixdate form, as Sun, 06 Nov 1994 08:49:37 GMT."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-5.6.7

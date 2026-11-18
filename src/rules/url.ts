@@ -54,6 +54,8 @@ const readableSlug: Make = (severity) => ({
         scope: "page",
         facts: ["url.pathname", "html.title", "html.h1", "html.rels", "graph.prev"],
         docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure",
+        title: "The URL slug is an identifier or shares no word with the title",
+        rationale: "A readable URL tells visitors and search engines what the page is about before it loads, and is easier to share and remember. Paginated listings are left out.",
         fix: "Name the page in its URL with words from its title, as /spring-recipes for “Spring recipes”.",
     },
     check(page: Facts) {
@@ -90,7 +92,16 @@ function minority(id: string, severity: Finding["severity"], text: string, varia
 
 // Pages whose words join with the separator fewer pages of the site use.
 const separators: Make = (severity) => ({
-    meta: { id: "url/separator/inconsistent", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure", fix: "Join the words of every URL with hyphens, and redirect the others to them." },
+    meta: {
+        id: "url/separator/inconsistent",
+        severity,
+        scope: "site",
+        facts: ["url.pathname"],
+        docs: "https://developers.google.com/search/docs/crawling-indexing/url-structure",
+        title: "URLs join words with different separators",
+        rationale: "Mixing hyphens and underscores makes URLs hard to guess and type, and search engines read a hyphen as a word break but an underscore as part of one word. Reported for the pages that use the separator fewer pages of the site use.",
+        fix: "Join the words of every URL with hyphens, and redirect the others to them.",
+    },
     check(pages: Facts[]) {
         const forms = new Map<string, Facts[]>();
         for (const page of pages) {
@@ -105,7 +116,16 @@ const separators: Make = (severity) => ({
 
 // Per group, pages whose trailing slash differs from the group’s usual form; the root, file names and well-known URIs are left out.
 const trailingSlash: Make = (severity) => ({
-    meta: { id: "url/trailing-slash/inconsistent", severity, scope: "site", facts: ["url.pathname"], docs: "https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash", fix: "Pick one form, with or without the trailing slash, and redirect the other to it." },
+    meta: {
+        id: "url/trailing-slash/inconsistent",
+        severity,
+        scope: "site",
+        facts: ["url.pathname"],
+        docs: "https://developers.google.com/search/blog/2010/04/to-slash-or-not-to-slash",
+        title: "URLs of a group differ in their trailing slash",
+        rationale: "A URL with and without a trailing slash can be two separate pages, so the same content may be indexed twice and links, shares and cache entries are split between them. The root, file names and well-known URIs are skipped.",
+        fix: "Pick one form, with or without the trailing slash, and redirect the other to it.",
+    },
     check(pages: Facts[]) {
         const judged = pages.filter((page) => page.url.pathname !== "/" && !FILE.test(page.url.pathname) && !WELL_KNOWN.test(page.url.pathname));
         return Map.groupBy(judged, (page) => page.group)

@@ -18,6 +18,8 @@ const internalNofollow: Make = (severity) => ({
         scope: "page",
         facts: ["html.links.internal", "html.links.nofollow"],
         docs: "https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links",
+        title: "Internal links carry rel=nofollow",
+        rationale: "nofollow on the site’s own links withholds ranking signals from its pages and hampers crawlers in discovering them. To keep crawlers out of a page, use robots.txt or noindex instead.",
         fix: "Drop rel=nofollow from links to the site’s own pages; keep robots.txt or noindex for pages crawlers should skip.",
     },
     check(page: Facts) {
@@ -51,6 +53,8 @@ const externalRelation: Make = (severity, expect) => {
             scope: "page",
             facts: ["html.links.external", "html.links.rel"],
             docs: "https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links",
+            title: "External links lack the rel tokens the policy requires",
+            rationale: "Search engines ask sites to mark paid links sponsored and user content ugc, and a link missing the tokens declared for its host may be read as passing ranking and risk a penalty. Only hosts matching the configured policy are checked.",
             fix: "Add the rel tokens the policy names, as sponsored on paid links and ugc on user content, rather than nofollow on every external link.",
             expect: expect as Record<string, unknown> | undefined,
         },

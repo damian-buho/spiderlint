@@ -80,7 +80,16 @@ const crawlers: SiteExtractor = {
 
 // Every crawler refused `/` that spiderlint was served, where its signal says yes; a refusal by edges alone is a hint, since a verifying edge refuses our look-alike too.
 const blocked: Make = (severity) => ({
-    meta: { id: "crawlers/crawler/blocked", severity, scope: "site", facts: ["site.origins.*.crawlers.poses", "site.content-signals"], docs: "https://contentsignals.org/", fix: "Let the crawler through at the origin and the edge: allow verified bots in the firewall and drop any rule matching its User-Agent." },
+    meta: {
+        id: "crawlers/crawler/blocked",
+        severity,
+        scope: "site",
+        facts: ["site.origins.*.crawlers.poses", "site.content-signals"],
+        docs: "https://contentsignals.org/",
+        title: "The site refuses crawlers its content signals welcome",
+        rationale: "Search engines and AI crawlers the site’s own signals allow get an error instead of the page, so it drops out of results or answers. A refusal seen only through a CDN is a hint, since verifying edges refuse look-alikes too.",
+        fix: "Let the crawler through at the origin and the edge: allow verified bots in the firewall and drop any rule matching its User-Agent.",
+    },
     check(_pages, _group, site) {
         const stance = { search: "yes", ...site?.["content-signals"] } as Partial<Record<ContentSignal, "yes" | "no">>;
         return Object.entries(site?.origins ?? {}).flatMap(([subject, facts]): Finding[] => {

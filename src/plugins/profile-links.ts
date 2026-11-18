@@ -116,7 +116,12 @@ const rendered = pageRule(
             ? []
             : [{ ...said("Not every rel=me profile links back to the site"), data: { [page.url.href]: { profiles: missing.map((profile) => profile.url).join(", ") } }, evidence: missing.map((profile) => evidence("profiles", profile.url, profile, "browser")), value: missing.map((profile) => profile.url) }];
     },
-    { docs: "https://microformats.org/wiki/rel-me", fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in." },
+    {
+        docs: "https://microformats.org/wiki/rel-me",
+        title: "A rel=me profile does not link back once its scripts run",
+        rationale: "Services such as Mastodon only verify a profile when it links back, so the visitor sees no verified badge. The profile is loaded in a browser, and only profiles answering 2xx are judged.",
+        fix: "Add this site to the profile’s website links, and confirm the profile page shows it to visitors who are not signed in.",
+    },
 );
 
 export default {

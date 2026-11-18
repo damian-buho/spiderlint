@@ -106,11 +106,11 @@ function impactScore(severity: Severity, impact: string | undefined): number | u
     return table[impact as keyof typeof table];
 }
 
-// One finding per violated rule on a page, its impact and elements as the value; `fix` is axe’s `help`.
-function rule(id: string, helpUrl: string, fix?: string): Make {
+// One finding per violated rule on a page, its impact and elements as the value; `title` and `fix` are axe’s `help`.
+function rule(id: string, helpUrl: string, title: string): Make {
     const ruleId = `${PREFIX}${id}`;
     return (severity) => ({
-        meta: { id: ruleId, severity, scope: "page", facts: [`${ID}.violations`], docs: helpUrl, ...(fix && { fix }) },
+        meta: { id: ruleId, severity, scope: "page", facts: [`${ID}.violations`], docs: helpUrl, title, fix: title },
         check(page: Facts) {
             const facts = page[ID] as AxeFacts | undefined;
             if (!facts) return;

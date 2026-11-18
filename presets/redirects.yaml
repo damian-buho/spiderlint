@@ -10,6 +10,8 @@ rules:
     severity: warning
     score: 4.8
     message: "takes more than 2 redirects to land"
+    title: "Reaching the page takes more than 2 redirects"
+    rationale: "Every extra redirect adds a round trip before the page starts loading, which slows visitors, and crawlers may give up on long chains."
     fix: "Collapse the redirect chain so the final URL is reached in one or two hops."
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects
   redirects/status/temporary:
@@ -19,5 +21,7 @@ rules:
     severity: info
     score: 2.4
     message: "reached through a temporary redirect"
+    title: "The page is reached through a temporary redirect"
+    rationale: "A 302, 303 or 307 tells search engines the move may be undone, so they keep indexing the old URL and may not pass its ranking to the new one. Only pages that answer 2xx after redirecting are checked."
     fix: "Answer a moved page with 301 or 308, not 302, 303 or 307."
     docs: https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side

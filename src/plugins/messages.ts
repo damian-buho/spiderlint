@@ -17,11 +17,11 @@ export interface MarkupMessage {
     source?: string;
 }
 
-// One finding per distinct message of linter rule `id` under `page[extractor].messages`, its locations as the value; `fix` is the upstream rule description.
-export function messageRule(extractor: string, prefix: string, id: string, documentation: string, fix?: string): Make {
+// One finding per distinct message of linter rule `id` under `page[extractor].messages`, its locations as the value; `title` is the upstream rule description, and the fix when none is given.
+export function messageRule(extractor: string, prefix: string, id: string, documentation: string, title?: string, fix: string | undefined = title): Make {
     const ruleId = `${prefix}${id}`;
     return (severity) => ({
-        meta: { id: ruleId, severity, scope: "page", facts: [`${extractor}.messages`], docs: documentation, ...(fix && { fix }) },
+        meta: { id: ruleId, severity, scope: "page", facts: [`${extractor}.messages`], docs: documentation, ...(title && { title }), ...(fix && { fix }) },
         check(page: Facts) {
             const facts = page[extractor] as { messages: MarkupMessage[] } | undefined;
             if (!facts) return;

@@ -14,6 +14,8 @@ rules:
     severity: info
     score: [[4, 1.6], [10, 3.0]]
     message: "a page is more than 3 links away from the start page"
+    title: "A page is more than 3 links from the start page"
+    rationale: "Pages buried deep in the site are found late by crawlers and are rarely reached by visitors. Search engines may treat them as less important. Only HTML pages that answer 2xx and were reached by the crawl are checked."
     fix: "Link the page from a hub, a section index or the navigation."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
   links/outgoing/missing:
@@ -22,6 +24,8 @@ rules:
     severity: info
     score: 1.6
     message: "a page links to no other page of the site"
+    title: "A page links to no other page of the site"
+    rationale: "A page without outgoing links is a dead end: visitors must use the back button, and crawlers find nothing further from it. Only HTML pages that answer 2xx are checked."
     fix: "Add navigation or related links back into the site."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
   links/incoming/weak:
@@ -31,5 +35,7 @@ rules:
     severity: info
     score: 1.8
     message: "only a few pages of the site link here"
+    title: "Only a few pages of the site link to this page"
+    rationale: "A page that few others link to is hard to find and signals little importance to search engines. Only HTML pages that answer 2xx are checked, and not the start page or pages in a paginated series."
     fix: "Link the page from its section index or related pages."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable

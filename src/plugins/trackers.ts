@@ -18,7 +18,16 @@ function vendorOf(host: string): string | undefined {
 
 // One finding per tracker vendor a page loads from, with its hosts and the pages loading it.
 const inventory: Make = (severity) => ({
-    meta: { id: "trackers/vendor/present", severity, scope: "site", facts: ["resources"], docs: "https://specification.website/spec/privacy/analytics-privacy/", fix: "Drop the vendor, or name it in the privacy policy and load it only after consent." },
+    meta: {
+        id: "trackers/vendor/present",
+        severity,
+        scope: "site",
+        facts: ["resources"],
+        docs: "https://specification.website/spec/privacy/analytics-privacy/",
+        title: "The site loads a known analytics or ad-tech vendor",
+        rationale: "Such vendors learn which pages visitors read and may need consent under privacy law. The vendor is recognised from a hand-kept list of hosts among the resources pages load.",
+        fix: "Drop the vendor, or name it in the privacy policy and load it only after consent.",
+    },
     check(pages: Facts[]) {
         const found = new Map<string, { hosts: Set<string>; urls: Set<string> }>();
         for (const page of pages) {

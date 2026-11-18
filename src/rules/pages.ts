@@ -23,9 +23,9 @@ export function shippedCatalog(): RuleExplanation[] {
     return listRules(layered([]), []);
 }
 
-// A rule’s fixes in order, placeholders shown as `<host>`.
+// A rule’s fixes in order, placeholders shown as `<host>`, a fix that only repeats the title left out.
 function fixes(rule: RuleExplanation): string[] {
-    return [rule.fix, ...(rule.extra ?? [])].filter((fix): fix is string => fix !== undefined).map((fix) => fixFor(fix));
+    return [rule.fix, ...(rule.extra ?? [])].filter((fix): fix is string => fix !== undefined && fix !== rule.title).map((fix) => fixFor(fix));
 }
 
 // The catalog as a projectfile document: `org.projectfile.pages.rules.items[]`, one entry per rule.

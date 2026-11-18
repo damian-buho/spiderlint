@@ -237,6 +237,8 @@ const wwwBroken: Make = (severity) => ({
         scope: "site",
         facts: ["site.origins.*.variants.probes"],
         docs: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/",
+        title: "A host that resolves in DNS does not answer",
+        rationale: "Visitors and search engines who reach the www or apex host get an error or a timeout, and redirect advice is pointless until the server answers. Judged once per origin.",
         fix: "Repair the server behind the host so it answers and redirects to the canonical origin, or remove the host’s DNS records.",
     },
     check(_pages, _group, site) {
@@ -252,7 +254,16 @@ const wwwBroken: Make = (severity) => ({
 
 // One finding per origin naming each resolving variant on an answering host that fails or ends off the canonical origin.
 const hostCanonical: Make = (severity) => ({
-    meta: { id: "origin/canonical-host/mismatch", severity, scope: "site", facts: ["site.origins.*.variants.probes"], docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls", fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308." },
+    meta: {
+        id: "origin/canonical-host/mismatch",
+        severity,
+        scope: "site",
+        facts: ["site.origins.*.variants.probes"],
+        docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+        title: "Entry variants do not all lead to one canonical origin",
+        rationale: "When http, https, www and the bare domain each serve the site, search engines split ranking across copies and visitors land on inconsistent addresses. Judged once per origin.",
+        fix: "Redirect every http, https, www and apex variant to the one canonical origin with a 301 or 308.",
+    },
     check(pages, _group, site) {
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts.variants !== undefined);
         if (origins.length === 0) return;
@@ -482,7 +493,16 @@ const meProfiles: SiteExtractor = {
 
 // One finding per origin naming every `rel=me` profile whose page does not link back, filed on the pages that declare them.
 const meBackLink: Make = (severity) => ({
-    meta: { id: "links/rel-me-backlink/missing", severity, scope: "site", facts: ["site.origins.*.rel-me.unverified"], docs: "https://microformats.org/wiki/rel-me", fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen." },
+    meta: {
+        id: "links/rel-me-backlink/missing",
+        severity,
+        scope: "site",
+        facts: ["site.origins.*.rel-me.unverified"],
+        docs: "https://microformats.org/wiki/rel-me",
+        title: "A rel=me profile’s HTML does not link back to the site",
+        rationale: "Services such as Mastodon only verify a profile when it links back, so the visitor sees no verified badge. The profile is read as plain HTML, so a link a script adds is not seen.",
+        fix: "Link each rel=me profile back to the site, marked rel=me where the profile allows it; a link a script adds after load is not seen.",
+    },
     check(pages, _group, site) {
         const verdicts = judged(pages);
         const origins = Object.entries(site?.origins ?? {}).filter(([, facts]) => facts["rel-me"] !== undefined);
@@ -518,6 +538,8 @@ export default {
                     severity: "warning",
                     score: 5.8,
                     docs: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors#soft-404-errors",
+                    title: "Missing pages answer 200 instead of 404 or 410",
+                    rationale: "Search engines index error pages as real content, and visitors and crawlers cannot tell a dead link from a live page. A random missing URL is requested once per origin.",
                     fix: "Return 404 or 410 for missing pages instead of 200 with a soft-404 body.",
                 },
                 "origin/error-page/disclosing": {
@@ -528,6 +550,8 @@ export default {
                     severity: "warning",
                     score: 5,
                     docs: "https://owasp.org/www-community/Improper_Error_Handling",
+                    title: "The not-found page exposes a stack trace or server version",
+                    rationale: "A stack trace or a version number tells attackers exactly which software and flaws to target. Only judged when the missing-page request answers 404 or 410.",
                     fix: "Serve a plain HTML 404 page with no server version or stack trace.",
                 },
                 "origin/https-redirect/missing": {
@@ -536,6 +560,8 @@ export default {
                     message: "plain http does not redirect to https in one permanent hop (got {got}); deprecated, see origin/canonical-host/mismatch",
                     severity: "off",
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
+                    title: "Plain http does not redirect to https in one permanent hop",
+                    rationale: "Visitors who type or follow an http address stay unencrypted or take a detour. Superseded by the canonical-origin check and off by default.",
                     fix: "Redirect every http request to https with a 301 or 308, preserving the URL.",
                 },
                 "origin/canonical-host/mismatch": { severity: "warning", score: 5.6 },
@@ -547,6 +573,8 @@ export default {
                     severity: "warning",
                     score: 4.8,
                     docs: "https://hstspreload.org/#deployment-recommendations",
+                    title: "Entry variants take more than one redirect hop",
+                    rationale: "Each extra redirect adds a round trip before the page starts loading, and search engines may stop following a long chain. Judged once per origin.",
                     fix: "Redirect each variant straight to the canonical origin, or first to https on its own host and then there.",
                 },
                 "origin/entry-redirect/temporary": {
@@ -556,6 +584,8 @@ export default {
                     severity: "warning",
                     score: 4.6,
                     docs: "https://developers.google.com/search/docs/crawling-indexing/301-redirects#permanent-server-side",
+                    title: "Entry variants redirect with a temporary status",
+                    rationale: "A 302, a 307 or a meta refresh tells search engines the move is not permanent, so they keep indexing the old address. Judged once per origin.",
                     fix: "Answer every entry variant with 301 or 308, never 302, 307 or a meta refresh.",
                 },
                 "origin/entry-redirect-path/missing": {
@@ -565,6 +595,8 @@ export default {
                     severity: "warning",
                     score: 5.4,
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Redirections",
+                    title: "Entry redirects drop the requested path or query",
+                    rationale: "A visitor who follows a deep link or a bookmark through http or www ends on the home page instead of the page they wanted. Judged once per origin.",
                     fix: "Carry the request path and query into the Location of every entry redirect.",
                 },
                 "origin/entry-redirect/insecure": {
@@ -574,6 +606,8 @@ export default {
                     severity: "error",
                     score: 9,
                     docs: "https://developer.mozilla.org/docs/Web/Security/Practical_implementation_guides/TLS#http_redirections",
+                    title: "A redirect sends visitors from https back to plain http",
+                    rationale: "The visitor’s connection drops from encrypted to unencrypted, so anyone on the network can read or alter the page. Judged once per origin.",
                     fix: "Never redirect an https request to an http URL.",
                 },
                 "origin/www/unreachable": {
@@ -583,6 +617,8 @@ export default {
                     severity: "hint",
                     score: 0.7,
                     docs: "https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes",
+                    title: "The www or apex host has no DNS answer",
+                    rationale: "Visitors who type the address with or without www get an error instead of the site. A hint only, since a missing variant can be deliberate.",
                     fix: "Publish an A or AAAA record for the www or apex host and redirect it to the canonical origin.",
                 },
                 "origin/locale-redirect/present": {
@@ -592,6 +628,8 @@ export default {
                     severity: "warning",
                     score: 4.4,
                     docs: "https://developers.google.com/search/docs/specialty/international/locale-adaptive-pages",
+                    title: "The home page redirects by Accept-Language",
+                    rationale: "Visitors and crawlers asking in different languages are sent to different URLs, so search engines may only ever see one of them. Judged once per origin.",
                     fix: "Serve the same content for every language unless the page has language-specific alternates.",
                 },
                 "origin/compression/missing": {
@@ -602,6 +640,8 @@ export default {
                     severity: "info",
                     score: 2.4,
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Headers/Accept-Encoding",
+                    title: "The home page is not offered in br, zstd and gzip",
+                    rationale: "Missing compression makes every visitor download more bytes, which is slowest on mobile connections. Only a text page of 1 KiB or more is judged.",
                     fix: "Configure the server to compress text responses with br, zstd and gzip.",
                 },
                 "origin/favicon/invalid": {
@@ -611,6 +651,8 @@ export default {
                     severity: "info",
                     score: 2.2,
                     docs: "https://developers.google.com/search/docs/appearance/favicon-in-search",
+                    title: "/favicon.ico is not an image",
+                    rationale: "Browsers and crawlers request /favicon.ico by default, so an HTML error page there leaves a missing icon and wastes a request.",
                     fix: "Serve /favicon.ico as a real image (PNG, ICO, or SVG).",
                 },
                 "origin/revalidation/broken": {
@@ -621,6 +663,8 @@ export default {
                     severity: "info",
                     score: 1.8,
                     docs: "https://developer.mozilla.org/docs/Web/HTTP/Guides/Conditional_requests",
+                    title: "A conditional request is not answered with 304 Not Modified",
+                    rationale: "Without 304 replies every repeat visit and every crawler re-downloads the whole page. Only judged when the page carries a validator such as an ETag.",
                     fix: "Answer a request whose If-None-Match or If-Modified-Since still matches with 304 and no body.",
                 },
                 "origin/slash-redirect/missing": {
@@ -630,6 +674,8 @@ export default {
                     severity: "warning",
                     score: 5.2,
                     docs: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+                    title: "A page answers under both trailing-slash forms with the same title",
+                    rationale: "Two addresses for one page split links and search ranking between them and create duplicate content. Judged once per origin.",
                     fix: "Redirect the trailing-slash form you do not use to the one you do with a 301 or 308.",
                 },
                 "origin/cross-domain-policy/insecure": {
@@ -639,6 +685,8 @@ export default {
                     severity: "warning",
                     score: 5.2,
                     docs: "https://www.adobe.com/devnet-docs/acrobatetk/tools/AppSec/xdomain.html",
+                    title: "A cross-domain policy file lets any origin read the site",
+                    rationale: "A wildcard policy lets a page on any other site make Flash or Silverlight requests as the visitor and read the answers. Judged once per origin.",
                     fix: "Delete crossdomain.xml and clientaccesspolicy.xml, or list only the domains that need access.",
                 },
             },

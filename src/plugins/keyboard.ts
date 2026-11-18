@@ -194,7 +194,12 @@ const tabWalk = pageRule(
             ...(facts.unreached.length > 0 ? [{ ...said("an interactive element is never reached by Tab"), data: { [page.url.href]: { elements: facts.unreached.length } }, value: facts.unreached, locations: facts.unreached.map((element) => located(element)) }] : []),
         ];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html", fix: "Let Tab reach every control: drop negative tabindex from interactive elements, and release focus from any widget that holds it." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html",
+        title: "Keyboard focus is trapped or skips interactive elements",
+        rationale: "Visitors who cannot use a mouse get stuck or cannot reach a control at all. Only sampled pages, walked with the Tab key in a browser, are judged.",
+        fix: "Let Tab reach every control: drop negative tabindex from interactive elements, and release focus from any widget that holds it.",
+    },
 );
 
 const focusVisible = pageRule(
@@ -205,7 +210,12 @@ const focusVisible = pageRule(
         if (!hidden) return;
         return hidden.length === 0 ? [] : [{ ...said("an element shows no visible change when focused"), data: { [page.url.href]: { elements: hidden.length } }, value: hidden.map((stop) => stop.target), locations: hidden.map((stop) => located(stop)) }];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html", fix: "Give `:focus-visible` an outline or box-shadow; never remove the outline without a replacement." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html",
+        title: "Focused elements show no visible focus indicator",
+        rationale: "Keyboard users cannot tell which control is active when focusing it changes nothing on screen. Only sampled pages, walked with the Tab key in a browser, are judged.",
+        fix: "Give `:focus-visible` an outline or box-shadow; never remove the outline without a replacement.",
+    },
 );
 
 const focusObscured = pageRule(
@@ -216,7 +226,12 @@ const focusObscured = pageRule(
         if (!covered) return;
         return covered.length === 0 ? [] : [{ ...said("a focused element is hidden under fixed or sticky content"), data: { [page.url.href]: { elements: covered.length } }, value: covered.map((stop) => stop.target), locations: covered.map((stop) => `${located(stop)} under ${stop["obscured-by"]}`) }];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html", fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html",
+        title: "A focused element is hidden under sticky or fixed content",
+        rationale: "Keyboard users tab to a control they cannot see because a header or banner covers it. Only sampled pages, walked with the Tab key in a browser, are judged.",
+        fix: "Set `scroll-padding-top` to the sticky header’s height, or keep banners from covering the content.",
+    },
 );
 
 const forcedFocus = pageRule(
@@ -227,7 +242,12 @@ const forcedFocus = pageRule(
         if (!lost) return;
         return lost.length === 0 ? [] : [{ ...said("an element loses its focus indicator under forced colours"), data: { [page.url.href]: { elements: lost.length } }, value: lost.map((stop) => stop.target), locations: lost.map((stop) => located(stop)) }];
     },
-    { docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors", fix: "Add `outline: 2px solid transparent` beside a `box-shadow` focus ring; forced colours drop the shadow and paint the outline." },
+    {
+        docs: "https://developer.mozilla.org/docs/Web/CSS/@media/forced-colors",
+        title: "Focus indicators vanish under forced colours",
+        rationale: "A focus ring drawn only with box-shadow disappears in Windows high-contrast mode, so keyboard users lose track of focus. Only sampled pages are judged, in a browser.",
+        fix: "Add `outline: 2px solid transparent` beside a `box-shadow` focus ring; forced colours drop the shadow and paint the outline.",
+    },
 );
 
 const skipLink = pageRule(
@@ -238,7 +258,12 @@ const skipLink = pageRule(
         if (!first) return;
         return first["in-main"] || first["skips-to"]?.main ? [] : [{ ...said("the first Tab stop is not a link to the main content"), value: first, locations: [first.target] }];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Techniques/general/G1", fix: 'Make the first focusable element `<a href="#main">Skip to content</a>`, pointing at `<main id="main">`.' },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Techniques/general/G1",
+        title: "The first Tab stop is not a skip link to the main content",
+        rationale: "Keyboard and screen-reader users must tab through the whole navigation on every page before reaching the content. Only sampled pages are judged, in a browser.",
+        fix: 'Make the first focusable element `<a href="#main">Skip to content</a>`, pointing at `<main id="main">`.',
+    },
 );
 
 export default {

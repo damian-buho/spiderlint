@@ -25,5 +25,7 @@ rules:
     severity: warning
     score: 5.2
     message: "loads an accessibility overlay, which does not fix the page and gets in the way of assistive tools"
+    title: "The page loads an accessibility overlay script"
+    rationale: "Overlay widgets claim to fix accessibility automatically, but they do not repair the underlying markup and often interfere with screen readers and keyboard users. They can also expose the site to accessibility complaints. The check matches known overlay vendors’ domains."
     fix: "Remove the accessibility overlay script and fix accessibility issues directly."
     docs: https://overlayfactsheet.com/

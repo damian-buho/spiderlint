@@ -69,7 +69,16 @@ async function extract(page: Facts, _body: string, live?: Page): Promise<Lightho
 
 // A category score of at least 0.9, Lighthouse’s own green.
 function score(category: string, label: string, link: string, scale: Scale): RuleSpec {
-    return { fact: `${ID}.scores.${category}`, expect: { type: "number", minimum: 0.9 }, severity: "warning", score: scale, message: `Lighthouse ${label} score is ${GOT}, under 0.9`, docs: link, fix: `Fix the failing audits Lighthouse lists under ${label}, largest savings first.` };
+    return {
+        fact: `${ID}.scores.${category}`,
+        expect: { type: "number", minimum: 0.9 },
+        severity: "warning",
+        score: scale,
+        message: `Lighthouse ${label} score is ${GOT}, under 0.9`,
+        docs: link,
+        title: `Low Lighthouse ${label} score`,
+        fix: `Fix the failing audits Lighthouse lists under ${label}, largest savings first.`,
+    };
 }
 
 // A lab metric at most `limit`, the bound Lighthouse marks good.
@@ -81,6 +90,7 @@ function metric(key: keyof typeof VITALS, limit: number, unit: string, link: str
         score: scale,
         message: `${key.toUpperCase()} is ${GOT}${unit} in the lab, over ${limit}${unit}`,
         docs: link,
+        title: `${key.toUpperCase()} over ${limit}${unit} in the lab`,
         fix: `Reduce ${key.toUpperCase()} below ${limit}${unit}; the Lighthouse report names the elements and resources behind it.`,
     };
 }

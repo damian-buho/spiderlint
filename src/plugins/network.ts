@@ -181,6 +181,8 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.hosts.*.network.web",
         expect: { items: { properties: { rpki: { not: { const: "invalid" } } } } },
         message: "an address sits in a route RPKI marks invalid, so networks that drop invalid routes cannot reach the site",
+        title: "An address sits in a route that RPKI marks invalid",
+        rationale: "Networks that drop RPKI-invalid routes cannot reach the site at all, and the mismatch can also signal a route hijack.",
         severity: "error",
         score: 9,
         docs: "https://www.rfc-editor.org/rfc/rfc6811",
@@ -190,6 +192,8 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.hosts.*.network.web",
         expect: { items: { properties: { rpki: { not: { const: "not-found" } } } } },
         message: "an address sits in a prefix no ROA covers, so a hijack of its route cannot be told apart",
+        title: "An address sits in a prefix that no RPKI route authorisation covers",
+        rationale: "Without a ROA, a hijack of the route cannot be told apart from the real one, so a rogue network can attract the site’s traffic.",
         severity: "hint",
         score: 0.7,
         docs: "https://www.rfc-editor.org/rfc/rfc6480",
@@ -199,6 +203,8 @@ const RULES: Record<string, RuleSpec> = {
         fact: "site.hosts.*.network.mail",
         expect: { items: { properties: { fcrdns: { const: true } } } },
         message: "a mail exchanger address has no PTR, or its PTR does not resolve back to it, so large mailbox providers refuse its mail",
+        title: "A mail server address has no matching reverse DNS name",
+        rationale: "Large mailbox providers refuse or junk mail from an address with no PTR record, or whose PTR does not resolve back to that address, so the name’s mail goes missing.",
         severity: "warning",
         score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc1912#section-2.1",
@@ -209,7 +215,16 @@ const RULES: Record<string, RuleSpec> = {
 
 // One finding per crawled host whose addresses and name servers sit in one autonomous system, unless an anycast DNS operator announces it.
 const asnSingle: Make = (severity) => ({
-    meta: { id: "network/asn/single", severity, scope: "site", facts: ["site.hosts.*.network.asns"], docs: "https://www.rfc-editor.org/rfc/rfc2182#section-3.1", fix: "Serve the zone from at least one name server in a second autonomous system." },
+    meta: {
+        id: "network/asn/single",
+        severity,
+        scope: "site",
+        title: "The site and its name servers sit in one autonomous system",
+        rationale: "One network outage then takes both the site and its DNS down together. Not flagged when an anycast DNS operator announces the zone.",
+        facts: ["site.hosts.*.network.asns"],
+        docs: "https://www.rfc-editor.org/rfc/rfc2182#section-3.1",
+        fix: "Serve the zone from at least one name server in a second autonomous system.",
+    },
     check(_pages, _group, site) {
         const linked = new Set(site?.linked);
         return Object.entries(site?.hosts ?? {}).flatMap(([host, facts]): Finding[] => {

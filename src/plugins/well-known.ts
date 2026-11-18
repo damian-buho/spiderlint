@@ -43,7 +43,7 @@ interface Spec {
     check?: Check;
     // An HTML page is the file itself, and a redirect off the host counts as present.
     html?: true;
-    rule?: { id: string; docs: string; score?: number };
+    rule?: { id: string; title: string; rationale: string; docs: string; score?: number };
 }
 
 const DAY_MS = 86_400_000;
@@ -230,7 +230,7 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "gpc",
         paths: ["/.well-known/gpc.json"],
-        rule: { id: "gpc", score: 4.4, docs: "https://www.w3.org/TR/gpc/#gpc-support-resource" },
+        rule: { id: "gpc", title: "The /.well-known/gpc.json file is malformed", rationale: "Browsers and privacy tools read it to learn whether the site honours the Global Privacy Control signal, so a broken file leaves that choice unknown.", score: 4.4, docs: "https://www.w3.org/TR/gpc/#gpc-support-resource" },
         check: json("object", (data, errors) => {
             if (typeof data.gpc !== "boolean") errors.push("gpc is not a boolean");
             if (data.lastUpdate !== undefined && Number.isNaN(Date.parse(String(data.lastUpdate)))) errors.push("lastUpdate is not a date");
@@ -240,7 +240,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "api-catalog",
         paths: ["/.well-known/api-catalog"],
-        rule: { id: "api-catalog", score: 4.6, docs: "https://www.rfc-editor.org/rfc/rfc9727#section-4" },
+        rule: {
+            id: "api-catalog",
+            title: "The /.well-known/api-catalog file is malformed",
+            rationale: "Clients and agents use it to discover the site’s APIs, so a malformed catalog hides them. It must be a linkset served as application/linkset+json.",
+            score: 4.6,
+            docs: "https://www.rfc-editor.org/rfc/rfc9727#section-4",
+        },
         check: json("object", (data, errors, { answer }) => {
             served(answer, ["application/linkset+json"], errors);
             if (!Array.isArray(data.linkset)) errors.push("linkset is not an array");
@@ -249,7 +255,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "openid-configuration",
         paths: ["/.well-known/openid-configuration"],
-        rule: { id: "openid-configuration", score: 5.6, docs: "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata" },
+        rule: {
+            id: "openid-configuration",
+            title: "The /.well-known/openid-configuration file is malformed",
+            rationale: "Sign-in clients read it to find the identity provider’s endpoints, so a missing member or an issuer on another origin makes “sign in with” flows fail or become unsafe.",
+            score: 5.6,
+            docs: "https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata",
+        },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["issuer", "authorization_endpoint", "jwks_uri", "response_types_supported", "subject_types_supported", "id_token_signing_alg_values_supported"], errors);
             sameOrigin(data.issuer, "issuer", [origin], errors);
@@ -258,7 +270,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "oauth-authorization-server",
         paths: ["/.well-known/oauth-authorization-server"],
-        rule: { id: "oauth-authorization-server", score: 5.6, docs: "https://www.rfc-editor.org/rfc/rfc8414#section-2" },
+        rule: {
+            id: "oauth-authorization-server",
+            title: "The /.well-known/oauth-authorization-server file is malformed",
+            rationale: "OAuth clients read it to find the server’s endpoints, so a missing member or an issuer on another origin makes authorisation fail or become unsafe.",
+            score: 5.6,
+            docs: "https://www.rfc-editor.org/rfc/rfc8414#section-2",
+        },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["issuer", "response_types_supported"], errors);
             sameOrigin(data.issuer, "issuer", [origin], errors);
@@ -267,7 +285,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "oauth-protected-resource",
         paths: ["/.well-known/oauth-protected-resource"],
-        rule: { id: "oauth-protected-resource", score: 5.4, docs: "https://www.rfc-editor.org/rfc/rfc9728#section-3.3" },
+        rule: {
+            id: "oauth-protected-resource",
+            title: "The /.well-known/oauth-protected-resource file is malformed",
+            rationale: "OAuth clients read it to learn which authorisation servers protect the resource, so a missing or foreign resource identifier breaks that discovery.",
+            score: 5.4,
+            docs: "https://www.rfc-editor.org/rfc/rfc9728#section-3.3",
+        },
         check: json("object", (data, errors, { origin }) => {
             need(data, ["resource"], errors);
             sameOrigin(data.resource, "resource", [origin, `${origin}/`], errors);
@@ -276,7 +300,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "webauthn",
         paths: ["/.well-known/webauthn"],
-        rule: { id: "webauthn", score: 5.4, docs: "https://www.w3.org/TR/webauthn-3/#sctn-related-origins" },
+        rule: {
+            id: "webauthn",
+            title: "The /.well-known/webauthn file is malformed",
+            rationale: "Browsers read it to let passkeys work across related sites, so an entry that is not an https origin makes sign-in with a passkey fail on those sites.",
+            score: 5.4,
+            docs: "https://www.w3.org/TR/webauthn-3/#sctn-related-origins",
+        },
         check: json("object", (data, errors) => {
             if (!Array.isArray(data.origins)) errors.push("origins is not an array");
             const origins: unknown[] = Array.isArray(data.origins) ? data.origins : [];
@@ -286,7 +316,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "apple-app-site-association",
         paths: ["/.well-known/apple-app-site-association"],
-        rule: { id: "apple-app-site-association", score: 5, docs: "https://developer.apple.com/documentation/xcode/supporting-associated-domains" },
+        rule: {
+            id: "apple-app-site-association",
+            title: "The /.well-known/apple-app-site-association file is malformed",
+            rationale: "Apple devices read it to open links in the app, so a wrong content type or a redirect makes iOS ignore it and links open in the browser instead.",
+            score: 5,
+            docs: "https://developer.apple.com/documentation/xcode/supporting-associated-domains",
+        },
         check: json("object", (_data, errors, { answer }) => {
             served(answer, ["application/json"], errors);
             if (answer.redirects.length > 0) errors.push(`reached through ${answer.redirects.length} redirects`);
@@ -295,16 +331,33 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "assetlinks",
         paths: ["/.well-known/assetlinks.json"],
-        rule: { id: "assetlinks", score: 5, docs: "https://developers.google.com/digital-asset-links/v1/getting-started" },
+        rule: {
+            id: "assetlinks",
+            title: "The /.well-known/assetlinks.json file is malformed",
+            rationale: "Android reads it to verify that the app owns the site’s links, so a malformed statement list stops app links from opening the app.",
+            score: 5,
+            docs: "https://developers.google.com/digital-asset-links/v1/getting-started",
+        },
         check: json("array", (data, errors) => {
             each(data, "statements", ["relation", "target"], errors);
         }),
     },
-    { key: "nodeinfo", paths: ["/.well-known/nodeinfo"], rule: { id: "nodeinfo", score: 3.8, docs: "https://github.com/jhass/nodeinfo/blob/main/PROTOCOL.md" }, check: nodeinfo },
+    {
+        key: "nodeinfo",
+        paths: ["/.well-known/nodeinfo"],
+        rule: { id: "nodeinfo", title: "The /.well-known/nodeinfo file is malformed", rationale: "Fediverse servers read it to learn what software the site runs, so a malformed document hides the instance from directories and statistics.", score: 3.8, docs: "https://github.com/jhass/nodeinfo/blob/main/PROTOCOL.md" },
+        check: nodeinfo,
+    },
     {
         key: "traffic-advice",
         paths: ["/.well-known/traffic-advice"],
-        rule: { id: "traffic-advice", score: 4, docs: "https://github.com/buettner/private-prefetch-proxy/blob/main/traffic-advice.md" },
+        rule: {
+            id: "traffic-advice",
+            title: "The /.well-known/traffic-advice file is malformed",
+            rationale: "Chrome reads it to decide whether to prefetch the site through a proxy, so a malformed file is ignored and the site’s wishes go unheard.",
+            score: 4,
+            docs: "https://github.com/buettner/private-prefetch-proxy/blob/main/traffic-advice.md",
+        },
         check: json("array", (data, errors, { answer }) => {
             served(answer, ["application/trafficadvice+json"], errors);
             for (const [index, advice] of each(data, "advice", ["user_agent"], errors).entries()) {
@@ -317,7 +370,13 @@ const WELL_KNOWN: Spec[] = [
     {
         key: "tdmrep",
         paths: ["/.well-known/tdmrep.json"],
-        rule: { id: "tdmrep", score: 4.2, docs: "https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/#sec-tdm-file-orig" },
+        rule: {
+            id: "tdmrep",
+            title: "The /.well-known/tdmrep.json file is malformed",
+            rationale: "Crawlers that gather text for AI training read it to see whether the site reserves its rights, so a malformed file may be treated as no reservation.",
+            score: 4.2,
+            docs: "https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/#sec-tdm-file-orig",
+        },
         check: json("array", (data, errors) => {
             for (const [index, rule] of each(data, "rules", ["location", "tdm-reservation"], errors).entries()) if (rule["tdm-reservation"] !== undefined && ![0, 1].includes(rule["tdm-reservation"] as number)) errors.push(`rules[${index}].tdm-reservation is not 0 or 1`);
         }),
@@ -331,7 +390,13 @@ const AGENTS: Spec[] = [
     {
         key: "agent-card",
         paths: ["/.well-known/agent-card.json"],
-        rule: { id: "agent-card", score: 0.6, docs: "https://specification.website/spec/agent-readiness/a2a-agent-cards/" },
+        rule: {
+            id: "agent-card",
+            title: "The /.well-known/agent-card.json file is malformed",
+            rationale: "Other agents read it to learn what this agent can do and how to call it, so a missing member makes it undiscoverable or unusable. It is a draft format.",
+            score: 0.6,
+            docs: "https://specification.website/spec/agent-readiness/a2a-agent-cards/",
+        },
         check: json("object", (data, errors, { answer }) => {
             served(answer, ["application/json"], errors);
             need(data, ["name", "description", "version", "supportedInterfaces", "capabilities", "defaultInputModes", "defaultOutputModes", "skills"], errors);
@@ -343,7 +408,13 @@ const AGENTS: Spec[] = [
     {
         key: "ai-catalog",
         paths: ["/.well-known/ai-catalog.json"],
-        rule: { id: "ai-catalog", score: 0.4, docs: "https://specification.website/spec/agent-readiness/agentic-resource-discovery/" },
+        rule: {
+            id: "ai-catalog",
+            title: "The /.well-known/ai-catalog.json file is malformed",
+            rationale: "Agents read it to discover the AI resources the site offers, so a malformed entry hides them. It is a draft format.",
+            score: 0.4,
+            docs: "https://specification.website/spec/agent-readiness/agentic-resource-discovery/",
+        },
         check: json("object", (data, errors) => {
             need(data, ["specVersion", "host", "entries"], errors);
             for (const [index, entry] of each(data.entries, "entries", ["identifier", "displayName"], errors).entries()) {
@@ -356,13 +427,25 @@ const AGENTS: Spec[] = [
     {
         key: "mcp-server-card",
         paths: ["/.well-known/mcp/server-card.json"],
-        rule: { id: "mcp-server-card", score: 0.6, docs: "https://specification.website/spec/agent-readiness/mcp-and-tool-discovery/" },
+        rule: {
+            id: "mcp-server-card",
+            title: "The /.well-known/mcp/server-card.json file is malformed",
+            rationale: "Agents read it to find and describe the site’s MCP server, so an unparsable card leaves the server undiscoverable. It is a draft format.",
+            score: 0.6,
+            docs: "https://specification.website/spec/agent-readiness/mcp-and-tool-discovery/",
+        },
         check: json("object", (data) => ({ name: data.name, version: data.version })),
     },
     {
         key: "agent-skills",
         paths: ["/.well-known/agent-skills/index.json"],
-        rule: { id: "agent-skills", score: 0.5, docs: "https://specification.website/spec/agent-readiness/agent-skills-discovery/" },
+        rule: {
+            id: "agent-skills",
+            title: "The /.well-known/agent-skills/index.json file is malformed",
+            rationale: "Agents read it to discover the skills the site offers, so a missing member or skill field hides them. It is a draft format.",
+            score: 0.5,
+            docs: "https://specification.website/spec/agent-readiness/agent-skills-discovery/",
+        },
         check: json("object", (data, errors) => {
             need(data, ["$schema", "skills"], errors);
             return { schema: data.$schema, skills: each(data.skills, "skills", ["name", "type", "description", "url", "digest"], errors).length };
@@ -371,13 +454,19 @@ const AGENTS: Spec[] = [
     {
         key: "auth-md",
         paths: ["/auth.md"],
-        rule: { id: "auth-md", score: 0.3, docs: "https://workos.com/auth-md" },
+        rule: { id: "auth-md", title: "The /auth.md file is malformed", rationale: "Agents read it to learn how to authenticate with the site, and an empty file tells them nothing. It is a proposal.", score: 0.3, docs: "https://workos.com/auth-md" },
         check: (text) => ({ errors: text.trim() ? [] : ["the file is empty"], fields: { bytes: text.length } }),
     },
     {
         key: "okf",
         paths: ["/okf/index.md"],
-        rule: { id: "okf", score: 0.3, docs: "https://specification.website/spec/agent-readiness/okf-bundle/" },
+        rule: {
+            id: "okf",
+            title: "The /okf/index.md file is malformed",
+            rationale: "Agents read it to load the site’s knowledge bundle, and without an okf_version in its front matter they cannot tell which format it follows. It is a proposal.",
+            score: 0.3,
+            docs: "https://specification.website/spec/agent-readiness/okf-bundle/",
+        },
         check: (text) => {
             const version = /^---\r?\n(?:.*\r?\n)*?okf_version:\s*["']?([^"'\s]+)/.exec(text)?.[1];
             return { errors: version ? [] : ["no okf_version in the front matter"], fields: { version } };
@@ -386,7 +475,13 @@ const AGENTS: Spec[] = [
     {
         key: "schemamap",
         paths: ["/schemamap.xml"],
-        rule: { id: "schemamap", score: 0.3, docs: "https://specification.website/spec/agent-readiness/schemamap/" },
+        rule: {
+            id: "schemamap",
+            title: "The /schemamap.xml file is malformed",
+            rationale: "Agents read it to find the site’s structured-data endpoints, so a file without a schemamap root or the right type is ignored. It is a proposal.",
+            score: 0.3,
+            docs: "https://specification.website/spec/agent-readiness/schemamap/",
+        },
         check: (text, { answer }) => {
             const errors: string[] = [];
             served(answer, ["application/xml", "text/xml"], errors);
@@ -572,6 +667,8 @@ function validity(extractor: string, specs: Spec[], severity: RuleSpec["severity
                         message: [spec.paths[0], "is malformed: {got}"].join(" "),
                         severity,
                         ...(spec.rule.score !== undefined && { score: spec.rule.score }),
+                        title: spec.rule.title,
+                        rationale: spec.rule.rationale,
                         docs: spec.rule.docs,
                         fix: `Correct each error the finding lists in ${spec.paths[0]}.`,
                     },
@@ -589,6 +686,8 @@ const SECURITY: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.8,
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-3",
+        title: "The site has no security.txt for vulnerability reports",
+        rationale: "Researchers who find a flaw have no published way to tell the owner, so it may go unreported or be disclosed publicly instead.",
         fix: "Publish /.well-known/security.txt with a Contact field and an Expires.",
     },
     "well-known/security-txt/invalid": {
@@ -599,6 +698,8 @@ const SECURITY: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.6,
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5",
+        title: "The security.txt file breaks the RFC 9116 format",
+        rationale: "Tools and researchers that parse security.txt may miss the contact address, so reports do not reach the owner. Judged only when the file exists.",
         fix: "Rewrite security.txt so each field is on its own line with `Field: value`.",
     },
     "well-known/security-txt-expires/invalid": {
@@ -614,6 +715,8 @@ const SECURITY: Record<string, RuleSpec> = {
             [1095, 4.5],
         ],
         docs: "https://www.rfc-editor.org/rfc/rfc9116#section-2.5.5",
+        title: "The security.txt file expires, or is dated over a year ahead",
+        rationale: "An expired file signals that its contact may be out of date, and RFC 9116 asks for an expiry under a year away. Judged only when the file carries an Expires date.",
         fix: "Set Expires in security.txt to a date less than a year away.",
     },
     "well-known/change-password/missing": {
@@ -624,6 +727,8 @@ const SECURITY: Record<string, RuleSpec> = {
         severity: "warning",
         score: 5.4,
         docs: "https://w3c.github.io/webappsec-change-password-url/",
+        title: "Password pages exist but /.well-known/change-password leads nowhere",
+        rationale: "Password managers and browsers use this address to send visitors straight to the page where they change a password. Judged only when a crawled page asks for a password.",
         fix: "Serve a 302 or 303 redirect from /.well-known/change-password to the password-change page.",
     },
 };
@@ -638,6 +743,8 @@ const WELL_KNOWN_RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.2,
         docs: "https://www.rfc-editor.org/rfc/rfc8615#section-3",
+        title: "Links use /.well-known/ names IANA has not registered",
+        rationale: "A well-known path outside the registry may clash with another use of the name, and clients will not know what it means.",
         fix: "Register the suffix with IANA, or remove the link if it is not a standard well-known path.",
     },
 };
@@ -650,6 +757,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.7,
         docs: "https://llmstxt.org/",
+        title: "The site has no /llms.txt summary for language models",
+        rationale: "AI assistants that look for a short description of the site have nothing to read, so they rely on crawling the whole thing. It is a proposal, so only a hint.",
         fix: "Add /llms.txt with an H1, a one-line description, and links to the site’s resources.",
     },
     "well-known/llms-txt/invalid": {
@@ -660,6 +769,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.6,
         docs: "https://llmstxt.org/#format",
+        title: "The /llms.txt file is malformed",
+        rationale: "Agents that read /llms.txt expect one H1 first, then sections and links, and may skip or misread a file that departs from it. Judged only when the file exists.",
         fix: "Rewrite /llms.txt as Markdown that opens with one H1 followed by its sections.",
     },
     "well-known/llms-full-txt/missing": {
@@ -670,6 +781,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.6,
         docs: "https://llmstxt.org/",
+        title: "/llms.txt has no /llms-full.txt twin with the whole content",
+        rationale: "An agent that wants the full text must fetch every listed page one by one. Only checked when /llms.txt exists, and only a hint.",
         fix: "Publish /llms-full.txt beside /llms.txt with the full text of the pages it lists.",
     },
     "well-known/llms-full-txt/invalid": {
@@ -680,6 +793,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.4,
         docs: "https://llmstxt.org/#format",
+        title: "The /llms-full.txt file is malformed",
+        rationale: "Agents that load the full text expect one H1 first, the right content type and working links, and may skip or misread a file that departs from it. Judged only when the file exists.",
         fix: "Open /llms-full.txt with its one H1, serve it as text/markdown, and repair or drop every link that does not answer 200.",
     },
     "well-known/llms-txt-markdown/invalid": {
@@ -690,6 +805,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2.2,
         docs: "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md",
+        title: "The /llms.txt file has Markdown that renderers misread",
+        rationale: "Broken Markdown such as a skipped heading level or a stray marker is read differently by renderers and agents, so the summary may come out garbled. Judged only when the file exists.",
         fix: "Repair each Markdown defect listed in /llms.txt at the line and column the finding names.",
     },
     "well-known/llms-full-txt-markdown/invalid": {
@@ -700,6 +817,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "info",
         score: 2,
         docs: "https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md",
+        title: "The /llms-full.txt file has Markdown that renderers misread",
+        rationale: "Broken Markdown such as a skipped heading level or a stray marker is read differently by renderers and agents, so the text may come out garbled. Judged only when the file exists.",
         fix: "Repair each Markdown defect listed in /llms-full.txt at the line and column the finding names.",
     },
     ...validity("agents", AGENTS, "hint"),
@@ -711,6 +830,8 @@ const AGENT_RULES: Record<string, RuleSpec> = {
         severity: "hint",
         score: 0.5,
         docs: "https://llmstxt.org/#proposal",
+        title: "Pages have no Markdown version for agents",
+        rationale: "AI agents then have to strip HTML out of the page, which is costlier and error-prone. Judged only on pages that may be indexed, and only a hint.",
         fix: "Add an index.md twin beside each page, or answer Accept: text/markdown with Markdown at the same URL.",
     },
 };
@@ -722,6 +843,8 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         message: "no carbon.txt discloses the site’s sustainability documents and providers",
         severity: "info",
         score: 2.4,
+        title: "The site has no carbon.txt disclosing its sustainability documents",
+        rationale: "Carbon accounting tools and green-hosting directories cannot find the site’s sustainability claims or the providers behind it.",
         fix: "Publish /carbon.txt naming your sustainability disclosures and upstream providers.",
         docs: "https://carbontxt.org/",
     },
@@ -732,6 +855,8 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         message: "carbon.txt is malformed: {got}",
         severity: "info",
         score: 2.2,
+        title: "The carbon.txt file is malformed",
+        rationale: "Tools that read carbon.txt cannot rely on a file that departs from the syntax, so its disclosures may not be counted. Judged only when the file exists.",
         fix: "Correct carbon.txt against syntax 0.5.",
         docs: "https://carbontxt.org/syntax",
     },
@@ -742,6 +867,8 @@ const CARBON_RULES: Record<string, RuleSpec> = {
         message: "carbon.txt names disclosures past their valid_until: {got}",
         severity: "info",
         score: 2.8,
+        title: "carbon.txt lists disclosures past their valid_until date",
+        rationale: "An expired sustainability document no longer supports the claim it backs, which can mislead anyone relying on it. Judged only when the file exists.",
         fix: "Replace each expired disclosure with its current document and valid_until.",
         docs: "https://carbontxt.org/syntax",
     },
@@ -755,6 +882,8 @@ const CARBON_RULES: Record<string, RuleSpec> = {
             [365, 1.2],
             [1095, 3],
         ],
+        title: "carbon.txt was last updated more than a year ago",
+        rationale: "A stale file suggests the sustainability claims in it may be out of date. Judged only when the file states a last_updated date.",
         fix: "Review carbon.txt and bump last_updated.",
         docs: "https://carbontxt.org/syntax",
     },

@@ -9,7 +9,7 @@ import { reason } from "../crawl/fetch.ts";
 import { RobotsDisallowed, type Probe } from "../crawl/probe.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import type { Severity } from "../rules/types.ts";
+import type { RuleMeta, Severity } from "../rules/types.ts";
 import { mediaType } from "./origin.ts";
 import { type SiteContext, type SiteExtractor, type Plugin } from "./types.ts";
 
@@ -308,9 +308,9 @@ const icons: SiteExtractor = {
 };
 
 // A rule over one of the per-origin problem lists.
-function problemRule(check: keyof IconsFacts, severity: Severity, score: number, message: string, documentation: string, fix: string) {
+function problemRule(check: keyof IconsFacts, severity: Severity, score: number, message: string, documentation: string, guide: Pick<RuleMeta, "title" | "rationale" | "fix">) {
     // eslint-disable-next-line unicorn/no-incorrect-template-string-interpolation -- {got} is the rule message placeholder
-    return { fact: `site.origins.*.${ID}.${check}`, expect: { maxItems: 0 }, message: `${message}: {got}`, severity, score, docs: documentation, fix };
+    return { fact: `site.origins.*.${ID}.${check}`, expect: { maxItems: 0 }, message: `${message}: {got}`, severity, score, docs: documentation, ...guide };
 }
 
 export default {
@@ -320,33 +320,36 @@ export default {
         icons: {
             description: "Favicons and platform icons fetched and measured: the favicon, SVG, Apple touch, Safari pinned tab and Windows tile icons, and every declared size",
             rules: {
-                "icons/favicon/missing": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images."),
-                "icons/svg/invalid": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", `Link a well-formed SVG with <link rel=icon type="${SVG}">.`),
-                "icons/apple-touch/missing": problemRule(
-                    "apple-touch",
-                    "warning",
-                    3.8,
-                    "the Apple touch icon is missing or unfit",
-                    "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html",
-                    "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>.",
-                ),
-                "icons/mask-icon/invalid": problemRule(
-                    "mask-icon",
-                    "hint",
-                    0.4,
-                    "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead",
-                    "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html",
-                    "Link a single-colour SVG with a color attribute, or drop rel=mask-icon.",
-                ),
-                "icons/ms-tile/unreachable": problemRule(
-                    "ms-tile",
-                    "info",
-                    1.4,
-                    "a Windows tile image or browserconfig.xml is broken",
-                    "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)",
-                    "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them.",
-                ),
-                "icons/declared-size/mismatch": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", "Make each icon’s sizes and type match the file, or correct the declaration."),
+                "icons/favicon/missing": problemRule("favicon", "warning", 4.6, "the favicon is missing or broken", "https://developers.google.com/search/docs/appearance/favicon-in-search", {
+                    title: "The favicon is missing or broken",
+                    rationale: "Browser tabs, bookmarks and search results show a blank or default icon instead of the site’s, which makes it harder to recognise.",
+                    fix: "Link an icon with <link rel=icon>, or serve /favicon.ico as an ICO holding 16 and 32 px images.",
+                }),
+                "icons/svg/invalid": problemRule("svg", "hint", 0.6, "no usable SVG favicon", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/rel#icon", {
+                    title: "There is no usable SVG favicon",
+                    rationale: "An SVG icon stays sharp at any size and can follow dark mode; without one browsers fall back to a fixed-size bitmap.",
+                    fix: `Link a well-formed SVG with <link rel=icon type="${SVG}">.`,
+                }),
+                "icons/apple-touch/missing": problemRule("apple-touch", "warning", 3.8, "the Apple touch icon is missing or unfit", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html", {
+                    title: "The Apple touch icon is missing or unfit",
+                    rationale: "iPhone and iPad visitors who add the site to their home screen get a screenshot or blank tile instead of the logo.",
+                    fix: "Serve an opaque 180×180 PNG at /apple-touch-icon.png, or link one with <link rel=apple-touch-icon>.",
+                }),
+                "icons/mask-icon/invalid": problemRule("mask-icon", "hint", 0.4, "the Safari pinned tab icon is unusable; since Safari 12 an SVG rel=icon serves instead", "https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/pinnedTabs/pinnedTabs.html", {
+                    title: "The Safari pinned tab icon is unusable",
+                    rationale: "Safari draws a pinned tab from this icon, so a broken one leaves a blank or wrongly coloured tab. Safari 12 and later use the SVG favicon instead, so this matters little.",
+                    fix: "Link a single-colour SVG with a color attribute, or drop rel=mask-icon.",
+                }),
+                "icons/ms-tile/unreachable": problemRule("ms-tile", "info", 1.4, "a Windows tile image or browserconfig.xml is broken", "https://learn.microsoft.com/previous-versions/windows/internet-explorer/ie-developer/platform-apis/dn320426(v=vs.85)", {
+                    title: "A Windows tile image or browserconfig.xml is broken",
+                    rationale: "A Windows start-menu tile for the site shows a blank or default image. It only matters for old Windows pinning, so the impact is small.",
+                    fix: "Serve every image msapplication-TileImage and browserconfig.xml name, or remove them.",
+                }),
+                "icons/declared-size/mismatch": problemRule("declared-size", "warning", 4.2, "icons are not the size or type they declare", "https://developer.mozilla.org/docs/Web/HTML/Reference/Attributes/sizes", {
+                    title: "Icons are not the size or type they declare",
+                    rationale: "Browsers pick an icon by its declared size and type, so a wrong declaration makes them choose a poor fit or reject the file.",
+                    fix: "Make each icon’s sizes and type match the file, or correct the declaration.",
+                }),
             },
         },
     },

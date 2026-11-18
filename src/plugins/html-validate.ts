@@ -79,7 +79,7 @@ for (const id of htmlValidateIds) {
     }
 }
 
-// The page rule of html-validate rule `id`; `fix` is derived from the upstream description when present.
+// The page rule of html-validate rule `id`; `title` is the upstream description when present.
 function rule(id: string): Make {
     return messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`, DESCRIPTIONS.get(id));
 }

@@ -63,7 +63,11 @@ const parse = resourceRule(
         const error = manifestOf(resource)?.error;
         return error ? { ...said("the manifest does not parse"), data: { [resource.url]: { error } } } : undefined;
     },
-    { facts: FACTS, value: (resource) => manifestOf(resource)?.error, guide: { docs: DOCS, fix: "Serve the manifest as one JSON object." } },
+    {
+        facts: FACTS,
+        value: (resource) => manifestOf(resource)?.error,
+        guide: { docs: DOCS, title: "The web app manifest does not parse", rationale: "A manifest that is not valid JSON is ignored by browsers, so the site cannot be installed as an app and loses its name and icons on home screens.", fix: "Serve the manifest as one JSON object." },
+    },
 );
 
 const fields = resourceRule(
@@ -74,7 +78,11 @@ const fields = resourceRule(
         const missing = FIELDS.filter((field) => !members.has(field));
         return missing.length === 0 ? undefined : { ...said("the manifest lacks members, so browsers will not offer to install the site"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
-    { facts: FACTS, value: (resource) => manifestOf(resource)?.members, guide: { docs: DOCS, fix: `Add ${FIELDS.join(", ")} to the manifest.` } },
+    {
+        facts: FACTS,
+        value: (resource) => manifestOf(resource)?.members,
+        guide: { docs: DOCS, title: "The web app manifest lacks members installation needs", rationale: "Without name, start_url, display and icons browsers will not offer to install the site, so visitors get no home-screen app. Only manifests that parse are judged.", fix: `Add ${FIELDS.join(", ")} to the manifest.` },
+    },
 );
 
 const icons = resourceRule(
@@ -86,7 +94,16 @@ const icons = resourceRule(
         const missing = [...SIZES.filter((size) => !sizes.has(size) && !sizes.has("any")), ...(all.some((icon) => icon.purpose.includes("maskable")) ? [] : ["a maskable icon"])];
         return missing.length === 0 ? undefined : { ...said("the manifest icons lack sizes or a maskable icon"), data: { [resource.url]: { missing: missing.join(", ") } } };
     },
-    { facts: FACTS, value: (resource) => manifestOf(resource)?.icons, guide: { docs: "https://web.dev/articles/maskable-icon", fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo." } },
+    {
+        facts: FACTS,
+        value: (resource) => manifestOf(resource)?.icons,
+        guide: {
+            docs: "https://web.dev/articles/maskable-icon",
+            title: "The manifest icons lack required sizes or a maskable icon",
+            rationale: "Without 192×192 and 512×512 icons the installed app gets a blurry or default icon, and without a maskable one Android crops the logo badly. Only manifests that parse are judged.",
+            fix: "List a 192×192 and a 512×512 icon, and one with `purpose: maskable` whose safe zone holds the logo.",
+        },
+    },
 );
 
 // Where the manifest is served from, as what, and whether its app stays inside its own scope and origin.
@@ -111,7 +128,12 @@ const served = resourceRule(
     {
         facts: FACTS,
         value: (resource) => ({ type: resource.http?.["content-type"], start: manifestOf(resource)?.start, scope: manifestOf(resource)?.scope, id: manifestOf(resource)?.id }),
-        guide: { docs: "https://www.w3.org/TR/appmanifest/#id-member", fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin." },
+        guide: {
+            docs: "https://www.w3.org/TR/appmanifest/#id-member",
+            title: "The manifest is served or declared wrongly",
+            rationale: "A manifest with the wrong content type, no id, or a start URL outside its scope or origin can be rejected or give the installed app the wrong identity.",
+            fix: "Serve the manifest as application/manifest+json with an id, and a start_url inside a scope on the site’s own origin.",
+        },
     },
 );
 
@@ -120,7 +142,16 @@ const isLinked = (page: Facts) => (page.html?.head.links ?? []).some((link) => (
 
 // A group where some HTML pages link a manifest and others do not: one finding naming the pages without it.
 const discovery: Make = (severity) => ({
-    meta: { id: "manifest/link/missing", severity, scope: "group", facts: ["html.head.links"], docs: "https://developer.mozilla.org/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable", fix: "Link the manifest with <link rel=manifest> from every page, so the app installs from wherever a visitor lands." },
+    meta: {
+        id: "manifest/link/missing",
+        severity,
+        scope: "group",
+        facts: ["html.head.links"],
+        docs: "https://developer.mozilla.org/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable",
+        title: "Some pages do not link the web app manifest",
+        rationale: "A visitor who lands on a page without the manifest link cannot install the app from there. Only groups where some HTML pages link a manifest and others do not are flagged.",
+        fix: "Link the manifest with <link rel=manifest> from every page, so the app installs from wherever a visitor lands.",
+    },
     check(pages: Facts[], group?: string): Finding[] | undefined {
         const html = pages.filter((page) => page.html !== undefined && page.http.status >= 200 && page.http.status <= 299);
         const without = html.filter((page) => !isLinked(page)).map((page) => page.url.href);

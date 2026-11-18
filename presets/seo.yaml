@@ -12,6 +12,8 @@ rules:
     severity: error
     score: 8.2
     message: "no <html lang>"
+    title: "The page does not declare its language"
+    rationale: "Screen readers pick the wrong pronunciation, browsers may offer needless translation, and search engines must guess which audience the page is for. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
     fix: "Set <html lang> to the page’s language, as <html lang=en>."
   html/lang/invalid:
@@ -21,6 +23,8 @@ rules:
     severity: error
     score: 8.2
     message: "<html lang> should be a BCP 47 language tag"
+    title: "The page’s language code is not a valid language tag"
+    rationale: "Screen readers and browsers cannot match an invalid code to a language, so they treat the page as if it had none. Only pages that set a language are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Global_attributes/lang
     fix: "Set <html lang> to a BCP 47 language tag."
   html/viewport/missing:
@@ -29,6 +33,8 @@ rules:
     severity: warning
     score: 5.3
     message: "no meta viewport"
+    title: "The page has no viewport meta tag"
+    rationale: "Phones render the page as a zoomed-out desktop layout, so visitors must pinch and scroll sideways, and search engines may rate the page as not mobile-friendly. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
     fix: "Add <meta name=viewport content=\"width=device-width\"> to the head."
   html/viewport/inaccessible:
@@ -38,6 +44,8 @@ rules:
     severity: warning
     score: 5.3
     message: "meta viewport should set width=device-width and allow zoom"
+    title: "The viewport tag blocks zooming or ignores the device width"
+    rationale: "Visitors with low vision cannot zoom in, and a page that does not follow the device width looks tiny on phones. Only pages that set a viewport are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
     fix: "Set <meta name=viewport content=\"width=device-width\"> and allow zoom."
   html/viewport/invalid:
@@ -49,6 +57,8 @@ rules:
     severity: warning
     score: 3.3
     message: "no meta theme-color"
+    title: "The page has no theme-color meta tag"
+    rationale: "Mobile browsers cannot tint their address bar to match the site, so the page looks less polished and less like an app. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color
     fix: "Add <meta name=theme-color> with a color value."
   html/theme-color/invalid:
@@ -60,6 +70,8 @@ rules:
     severity: info
     score: 1.4
     message: "no meta color-scheme"
+    title: "The page does not declare its color scheme"
+    rationale: "Browsers cannot tell that the page supports dark mode, so they may paint a white flash or default controls in the wrong theme. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
     fix: "Add <meta name=color-scheme content=\"light dark\">."
   html/color-scheme/invalid:
@@ -69,6 +81,8 @@ rules:
     severity: info
     score: 1.4
     message: "meta color-scheme should be normal, or scheme names such as light dark"
+    title: "The color-scheme value is not valid"
+    rationale: "Browsers ignore a value they cannot read, so the page gets no dark-mode support from it. Only pages that set color-scheme are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/color-scheme
     fix: "Set meta color-scheme to normal, or to scheme names such as \"light dark\"."
   html/theme-color-dark/missing:
@@ -81,6 +95,8 @@ rules:
     severity: warning
     score: 3.4
     message: "color-scheme names light and dark, but no theme-color pair carries a prefers-color-scheme media"
+    title: "Light and dark are declared, but no dark theme-color is set"
+    rationale: "The address bar stays in the light color when the visitor uses dark mode, which clashes with the page. Only pages whose color-scheme names both light and dark are checked."
     fix: "Add <meta name=theme-color media=\"(prefers-color-scheme: dark)\"> beside the light one."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color#media
   html/noindex/mismatch:
@@ -90,6 +106,8 @@ rules:
     severity: error
     score: 8.0
     message: "a page the sitemap lists says noindex, in <meta name=robots> or X-Robots-Tag"
+    title: "A page listed in the sitemap says noindex"
+    rationale: "The sitemap asks search engines to index the page while the page asks them not to, so the page may vanish from results by mistake. Only production sites are checked, and not copies of a page on another origin."
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
     fix: "Remove noindex from <meta name=robots> or X-Robots-Tag, or unlist the page from the sitemap."
   html/dir/missing:
@@ -99,6 +117,8 @@ rules:
     severity: warning
     score: 3.8
     message: "a right-to-left language should set <html dir=rtl>"
+    title: "A right-to-left page does not set its text direction"
+    rationale: "Without dir=rtl, punctuation and mixed text land in the wrong place and the layout may flip incorrectly for readers of Arabic, Hebrew, Persian and similar languages. Only pages whose language is written right to left are checked."
     docs: https://www.w3.org/International/questions/qa-html-dir
     fix: "Add dir=rtl to the <html> element."
   html/charset/missing:
@@ -107,6 +127,8 @@ rules:
     severity: warning
     score: 5.2
     message: "no <meta charset>"
+    title: "The page declares no character encoding"
+    rationale: "Browsers must guess the encoding, so accented letters, symbols and emoji can appear as garbage for some visitors. Only HTML pages that answer 2xx are checked."
     docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
     fix: "Add <meta charset=utf-8> as the first element of <head>."
   html/charset/invalid:
@@ -116,6 +138,8 @@ rules:
     severity: warning
     score: 5.2
     message: "<meta charset> should declare UTF-8 within the first 1024 bytes"
+    title: "The character encoding is not UTF-8 near the top of the page"
+    rationale: "Browsers read only the first 1024 bytes for the declaration, so a later or non-UTF-8 one may be missed and the text garbled. Only pages that declare a charset are checked."
     docs: https://html.spec.whatwg.org/multipage/semantics.html#charset
     fix: "Add <meta charset=utf-8> as the first element of <head>."
   html/privacy-policy/missing:
@@ -124,6 +148,8 @@ rules:
     severity: info
     score: 1.6
     message: "no link with rel=privacy-policy"
+    title: "The page links no privacy policy with rel=privacy-policy"
+    rationale: "Browsers, crawlers and assistants cannot find the privacy policy automatically, so visitors have a harder time learning what happens to their data. Only HTML pages that answer 2xx are checked."
     docs: https://html.spec.whatwg.org/multipage/links.html#link-type-privacy-policy
     fix: "Add <link rel=privacy-policy href=/privacy> to the head."
   html/favicon/missing:
@@ -132,6 +158,8 @@ rules:
     severity: info
     score: 2.2
     message: "no <link rel=icon> in the head"
+    title: "The page has no favicon link in its head"
+    rationale: "Browsers request /favicon.ico blindly and may show a blank icon in tabs, bookmarks and search results, which makes the site harder to recognise. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#icon
     fix: "Add <link rel=icon href=/favicon.ico> to the head."
   html/hreflang-x-default/missing:
@@ -141,6 +169,8 @@ rules:
     severity: info
     score: 2.6
     message: "hreflang alternates should include x-default"
+    title: "The hreflang alternates have no x-default"
+    rationale: "Visitors whose language the site does not offer have no designated fallback page, so search engines pick one for them. Only pages that declare hreflang alternates are checked."
     docs: https://developers.google.com/search/docs/specialty/international/localized-versions#xdefault
     fix: "Add <link rel=alternate hreflang=x-default> to the head."
   html/jsonld/invalid:
@@ -149,6 +179,8 @@ rules:
     severity: warning
     score: 4.5
     message: "a JSON-LD block does not parse"
+    title: "A JSON-LD block does not parse"
+    rationale: "Search engines skip structured data they cannot read, so the rich results it was meant to enable, such as ratings or event listings, never appear. Only HTML pages that answer 2xx are checked."
     docs: https://json-ld.org/spec/latest/json-ld/
     fix: "Fix the JSON-LD block so it is valid JSON."
   url/path/invalid:
@@ -157,6 +189,8 @@ rules:
     severity: info
     score: 2.8
     message: "URL path should be lowercase, with hyphens and no empty segment"
+    title: "The URL path is not lowercase with hyphens"
+    rationale: "Mixed case, underscores and empty segments make URLs harder to read, share and type, and a server may treat each form as a separate page. Only pages that answer 2xx are checked."
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
     fix: "Rewrite the path to be lowercase, with hyphens and no empty segments."
   html/title/missing:
@@ -165,6 +199,8 @@ rules:
     severity: error
     score: 7.8
     message: "no <title>"
+    title: "The page has no title"
+    rationale: "Browser tabs, bookmarks and search results show a bare address, so visitors cannot tell the page apart and search engines have little to rank it by. Only HTML pages that answer 2xx are checked."
     docs: https://developers.google.com/search/docs/appearance/title-link
     fix: "Add a <title> to the head."
   html/description/missing:
@@ -173,6 +209,8 @@ rules:
     severity: warning
     score: 6.0
     message: "no meta description"
+    title: "The page has no meta description"
+    rationale: "Search engines build the snippet from whatever text they find, which often reads poorly and lowers clicks from results. Only HTML pages that answer 2xx are checked."
     docs: https://developers.google.com/search/docs/appearance/snippet
     fix: "Add <meta name=description> with a summary to the head."
   html/title/length:
@@ -182,6 +220,8 @@ rules:
     severity: warning
     score: 5.7
     message: "<title> should be 30–60 characters"
+    title: "The title is shorter than 30 or longer than 60 characters"
+    rationale: "Search results cut off a long title and a short one wastes the space that sets the page apart, so fewer visitors click it. Only pages that have a title are checked."
     docs: https://developers.google.com/search/docs/appearance/title-link
     fix: "Shorten or lengthen <title> to 30–60 characters."
   html/description/length:
@@ -191,6 +231,8 @@ rules:
     severity: warning
     score: 5.5
     message: "meta description should be 50–160 characters"
+    title: "The meta description is shorter than 50 or longer than 160 characters"
+    rationale: "Search engines cut off a long description and a very short one gives them little to show, so the snippet reads poorly. Only pages that have a meta description are checked."
     docs: https://developers.google.com/search/docs/appearance/snippet
     fix: "Shorten or lengthen the meta description to 50–160 characters."
   html/title/redundant:
@@ -200,6 +242,8 @@ rules:
     severity: warning
     score: 4.8
     message: "<title> repeats itself around a separator"
+    title: "The title repeats itself around a separator"
+    rationale: "A repeated phrase such as “Shop - Shop” wastes the limited space of a title in search results and looks careless. Only pages that have a title are checked."
     docs: https://developers.google.com/search/docs/appearance/title-link
     fix: "Remove the repeated suffix from <title>."
   html/description/redundant:
@@ -209,6 +253,8 @@ rules:
     severity: warning
     score: 4.7
     message: "meta description repeats itself around a separator"
+    title: "The meta description repeats itself around a separator"
+    rationale: "A repeated phrase wastes the limited space of the snippet in search results and looks careless. Only pages that have a meta description are checked."
     docs: https://developers.google.com/search/docs/appearance/snippet
     fix: "Remove the repeated suffix from the meta description."
   html/h1/missing:
@@ -217,6 +263,8 @@ rules:
     severity: error
     score: 7.4
     message: "no <h1>"
+    title: "The page has no main heading"
+    rationale: "Screen reader users and search engines lose the clearest signal of what the page is about. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
     fix: "Use exactly one <h1> per page."
   html/h1/duplicate:
@@ -225,6 +273,8 @@ rules:
     severity: error
     score: 7.4
     message: "more than one <h1>"
+    title: "The page has more than one main heading"
+    rationale: "Several h1 headings blur what the page is about for screen reader users and search engines. Only HTML pages that answer 2xx are checked."
     docs: https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/Heading_Elements
     fix: "Use exactly one <h1> per page."
   html/canonical/missing:
@@ -233,6 +283,8 @@ rules:
     severity: warning
     score: 5.4
     message: "no canonical link"
+    title: "The page has no canonical link"
+    rationale: "Without it, search engines must guess which of several URLs for the same content to index, which splits ranking between them. Only HTML pages that answer 2xx are checked."
     docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
     fix: "Add <link rel=canonical> with the page’s absolute URL to the head."
   html/canonical/invalid:
@@ -242,6 +294,8 @@ rules:
     severity: warning
     score: 5.4
     message: "canonical link should be an absolute URL"
+    title: "The canonical link is not an absolute URL"
+    rationale: "A relative canonical may be resolved wrongly or ignored by search engines, so they index a duplicate instead. Only pages that have a canonical link are checked."
     docs: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
     fix: "Make the canonical link an absolute URL."
   html/canonical/mismatch:
@@ -256,6 +310,8 @@ rules:
     severity: warning
     score: 5.0
     message: "an <img> has no alt attribute"
+    title: "An image has no alt attribute"
+    rationale: "Screen reader users get no description of the image, and search engines cannot use it to understand the page or list it in image search. Only HTML pages that answer 2xx are checked."
     docs: https://developers.google.com/search/docs/appearance/google-images
     fix: "Add an alt attribute to every <img>."
   html/og-title/missing:
@@ -264,6 +320,8 @@ rules:
     severity: warning
     score: 4.0
     message: "no og:title"
+    title: "The page has no og:title"
+    rationale: "Shared links on social networks and chat apps fall back to a guessed title, which can look wrong. Only HTML pages that answer 2xx are checked."
     docs: https://ogp.me/#metadata
     fix: "Add <meta property=og:title> with the page title."
   html/og-title/length:
@@ -273,6 +331,8 @@ rules:
     severity: warning
     score: 4.0
     message: "og:title should be 10–90 characters"
+    title: "The og:title is shorter than 10 or longer than 90 characters"
+    rationale: "A very long title is cut off in link previews and a very short one says little, so fewer people click a shared link. Only pages that set og:title are checked."
     docs: https://ogp.me/#metadata
     fix: "Set og:title to 10–90 characters."
   html/og-description/missing:
@@ -281,6 +341,8 @@ rules:
     severity: warning
     score: 3.9
     message: "no og:description"
+    title: "The page has no og:description"
+    rationale: "Shared links show no summary, or a guessed one, so fewer people click them. Only HTML pages that answer 2xx are checked."
     docs: https://ogp.me/#optional
     fix: "Add <meta property=og:description> with a summary of the page."
   html/og-description/length:
@@ -290,6 +352,8 @@ rules:
     severity: warning
     score: 3.9
     message: "og:description should be 50–200 characters"
+    title: "The og:description is shorter than 50 or longer than 200 characters"
+    rationale: "A long description is cut off in link previews and a very short one gives no reason to click. Only pages that set og:description are checked."
     docs: https://ogp.me/#optional
     fix: "Set og:description to 50–200 characters."
   html/og-image/missing:
@@ -298,6 +362,8 @@ rules:
     severity: warning
     score: 4.6
     message: "no og:image"
+    title: "The page has no og:image"
+    rationale: "Shared links appear without a preview picture, which draws far less attention in feeds and chats. Only HTML pages that answer 2xx are checked."
     docs: https://ogp.me/#metadata
     fix: "Add <meta property=og:image> with the absolute URL of a preview image."
   html/og-image/invalid:
@@ -307,6 +373,8 @@ rules:
     severity: warning
     score: 4.6
     message: "og:image should be an absolute http(s) URL"
+    title: "The og:image is not an absolute http(s) URL"
+    rationale: "Social networks and chat apps cannot fetch a relative or malformed image address, so the shared link shows no picture. Only pages that set og:image are checked."
     docs: https://ogp.me/#metadata
     fix: "Make og:image an absolute URL."
   html/og-type/missing:
@@ -315,6 +383,8 @@ rules:
     severity: info
     score: 1.1
     message: "no og:type"
+    title: "The page has no og:type"
+    rationale: "Link previews cannot tell whether the page is an article, a profile or a plain website, so they may render it generically. Only HTML pages that answer 2xx are checked."
     docs: https://ogp.me/#types
     fix: "Set og:type to website, or article on a post."
   html/og-type/invalid:
@@ -324,6 +394,8 @@ rules:
     severity: info
     score: 1.1
     message: "og:type should be an Open Graph type or namespace:type"
+    title: "The og:type is not a known Open Graph type"
+    rationale: "Link previews do not recognise the value and fall back to a generic type. Only pages that set og:type are checked."
     docs: https://ogp.me/#types
     fix: "Set og:type to website, or article on a post."
   html/og-url/missing:
@@ -332,6 +404,8 @@ rules:
     severity: info
     score: 2.5
     message: "no og:url"
+    title: "The page has no og:url"
+    rationale: "Social networks cannot tell which URL to credit for a shared page, so likes and shares may be split across variants of the address. Only HTML pages that answer 2xx are checked."
     docs: https://ogp.me/#metadata
     fix: "Add <meta property=og:url> with this page’s absolute URL."
   html/og-url/invalid:
@@ -341,6 +415,8 @@ rules:
     severity: info
     score: 2.5
     message: "og:url should be an absolute http(s) URL"
+    title: "The og:url is not an absolute http(s) URL"
+    rationale: "Social networks may ignore a relative or malformed address, so they do not credit shares to the page. Only pages that set og:url are checked."
     docs: https://ogp.me/#metadata
     fix: "Make og:url an absolute URL of this page."
   html/author/missing:
@@ -350,6 +426,8 @@ rules:
     severity: warning
     score: 3.7
     message: "an article names no author for its link preview"
+    title: "An article names no author for its link preview"
+    rationale: "Link previews, such as Mastodon’s, show the author from these tags, so the article appears with no credited writer. Only pages marked as articles are checked."
     fix: "Add <meta name=author>, article:author, or a JSON-LD author to the article head."
     docs: https://github.com/mastodon/mastodon/blob/423d0ca875fccbcd02ed4201999cec1625dee9e6/app/lib/link_details_extractor.rb#L195-L197
   html/published-date/missing:
@@ -359,6 +437,8 @@ rules:
     severity: warning
     score: 3.6
     message: "an article gives no publication date for its link preview"
+    title: "An article gives no publication date for its link preview"
+    rationale: "Link previews cannot show when the article appeared, and readers cannot judge how fresh it is. Only pages marked as articles are checked."
     fix: "Add <meta property=article:published_time> or a JSON-LD datePublished in ISO 8601."
     docs: https://ogp.me/#type_article
   html/title/duplicate:
@@ -367,6 +447,8 @@ rules:
     severity: warning
     score: 5.9
     message: "pages share one <title>"
+    title: "Pages of the site share one title"
+    rationale: "Identical titles make pages indistinguishable in tabs and search results, and search engines may treat them as duplicates and show only one. The check compares all crawled pages."
     docs: https://developers.google.com/search/docs/appearance/title-link
     fix: "Give each page a distinct <title>."
   html/description/duplicate:
@@ -375,6 +457,8 @@ rules:
     severity: warning
     score: 5.6
     message: "pages share one meta description"
+    title: "Pages of the site share one meta description"
+    rationale: "Identical descriptions give search engines no way to tell the pages apart, and visitors see the same snippet for different results. The check compares all crawled pages."
     docs: https://developers.google.com/search/docs/appearance/snippet
     fix: "Give each page a distinct meta description."
   html/og-title/duplicate:
@@ -383,6 +467,8 @@ rules:
     severity: warning
     score: 4.2
     message: "pages share one og:title"
+    title: "Pages of the site share one og:title"
+    rationale: "Shared links to different pages look identical in feeds and chats, so people cannot tell which one they are about to open. The check compares all crawled pages."
     docs: https://ogp.me/#metadata
     fix: "Give each page a distinct og:title."
   html/og-description/duplicate:
@@ -391,6 +477,8 @@ rules:
     severity: warning
     score: 4.1
     message: "pages share one og:description"
+    title: "Pages of the site share one og:description"
+    rationale: "Shared links to different pages show the same summary, so people cannot tell them apart. The check compares all crawled pages."
     docs: https://ogp.me/#optional
     fix: "Give each page a distinct og:description."
   html/noindex-twin/missing:
@@ -400,6 +488,8 @@ rules:
     severity: info
     score: 3.0
     message: "a page served off the canonical origin is indexable; mark the staging twin noindex"
+    title: "A page served from a non-canonical origin can be indexed"
+    rationale: "If a staging or alternate host serves a copy of the site without noindex, search engines may index the duplicate and compete with the real site. Only pages that mirror a page on the canonical origin are checked."
     fix: "Send X-Robots-Tag: noindex from every origin other than the canonical one."
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
   html/noindex-staging/missing:
@@ -409,6 +499,8 @@ rules:
     severity: warning
     score: 6.2
     message: "a page of a staging or development site is indexable"
+    title: "A page of a staging or development site can be indexed"
+    rationale: "Search engines may index the unfinished copy and show it to searchers instead of, or beside, the real site. Only sites declared as development or staging are checked."
     fix: "Send X-Robots-Tag: noindex from every non-production host."
     docs: https://developers.google.com/search/docs/crawling-indexing/block-indexing
   http/tdm-reservation/invalid:
@@ -418,6 +510,8 @@ rules:
     severity: warning
     score: 3.5
     message: "tdm-reservation should be 0 or 1"
+    title: "The tdm-reservation header is not 0 or 1"
+    rationale: "Text-and-data-mining crawlers cannot read the site’s reservation, so they may mine content the owner meant to reserve. Only responses that send the header are checked."
     fix: "Send tdm-reservation: 1 to reserve text and data mining rights, 0 to waive them."
     docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
   html/tdm-reservation/invalid:
@@ -427,6 +521,8 @@ rules:
     severity: warning
     score: 3.5
     message: "<meta name=tdm-reservation> should be 0 or 1"
+    title: "The tdm-reservation meta tag is not 0 or 1"
+    rationale: "Text-and-data-mining crawlers cannot read the page’s reservation, so they may mine content the owner meant to reserve. Only pages that set the tag are checked."
     fix: "Set <meta name=tdm-reservation content=1> to reserve text and data mining rights, 0 to waive them."
     docs: https://www.w3.org/community/reports/tdmrep/CG-FINAL-tdmrep-20240510/
   url/href/length:
@@ -435,6 +531,8 @@ rules:
     severity: info
     score: 1.8
     message: "the URL is longer than 100 characters"
+    title: "The URL is longer than 100 characters"
+    rationale: "Long URLs are hard to read, share and remember, and are often cut off in search results and messages. Only pages that answer 2xx are checked."
     fix: "Shorten the path to the few words that name the page."
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
   url/uppercase/present:
@@ -443,6 +541,8 @@ rules:
     severity: warning
     score: 5.1
     message: "the path has uppercase letters, which a server may treat as another URL"
+    title: "The URL path has uppercase letters"
+    rationale: "A server may treat /About and /about as different pages, which splits links and ranking and makes the page reachable at several addresses. Only pages that answer 2xx are checked."
     fix: "Use lowercase paths, and redirect each mixed-case path to its lowercase form."
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
   url/session-param/present:
@@ -451,6 +551,8 @@ rules:
     severity: warning
     score: 5.8
     message: "the URL carries a session ID"
+    title: "The URL carries a session ID"
+    rationale: "Every visitor gets a different address for the same page, so search engines see endless duplicates, and a shared link can hand over someone’s session. Only pages that answer 2xx are checked."
     fix: "Keep the session in a cookie, never in the URL."
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
   url/double-slash/present:
@@ -459,6 +561,8 @@ rules:
     severity: warning
     score: 4.9
     message: "the path has an empty segment"
+    title: "The URL path has an empty segment"
+    rationale: "A doubled slash can serve the same page at two addresses, which splits links and ranking between them. Only pages that answer 2xx are checked."
     fix: "Remove the doubled slash from the links, and redirect the doubled path to the single one."
     docs: https://developers.google.com/search/docs/crawling-indexing/url-structure
   url/extension/present:
@@ -467,6 +571,8 @@ rules:
     severity: hint
     score: 0.6
     message: "the path exposes the server technology in its extension"
+    title: "The URL path shows the server technology in its extension"
+    rationale: "Extensions such as .php or .aspx tie the address to one technology, so links break when the site changes its stack, and they tell attackers what it runs. Only pages that answer 2xx are checked. This is a minor hint."
     fix: "Serve the page at an extensionless path, and redirect the old one to it."
     docs: https://www.w3.org/Provider/Style/URI
   url/slug/unreadable: info

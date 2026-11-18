@@ -96,6 +96,8 @@ const longWithoutHash: Make = (severity, expect) => {
             scope: "site",
             facts: ["http.headers.cache-control", "resources"],
             docs: "https://www.rfc-editor.org/rfc/rfc8246",
+            title: "Long-cached files have URLs that never change",
+            rationale: "A file cached for weeks or marked immutable at a URL with no hash or version stays stale in browsers and CDNs after the next publish, so visitors keep seeing the old copy. By default the limit is 30 days.",
             fix: "Put a content hash or version in the file name, as cv.3f9a1c.pdf, or send Cache-Control: no-cache.",
         },
         check(pages: Facts[]) {

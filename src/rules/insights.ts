@@ -110,7 +110,16 @@ function minority(pages: Facts[], path: string, settings: MinoritySettings, seve
 const numericOutlier: Make = (severity, expect) => {
     const settings = { ...NUMERIC, ...(expect as Partial<NumericSettings>) };
     return {
-        meta: { id: "insight/number/outlier", severity, scope: "site", facts: settings.facts, docs: DOCS, fix: "Find what makes the listed pages cost more than the rest, an uncached query or an oversized image, and bring them near the median." },
+        meta: {
+            id: "insight/number/outlier",
+            severity,
+            scope: "site",
+            facts: settings.facts,
+            docs: DOCS,
+            title: "A few pages are far heavier or slower than the rest of the site",
+            rationale: "Pages whose size, request count, load time or CO2 estimate sits far above the median are slow for visitors and costly on mobile data. By default at least 20 pages are needed to compare.",
+            fix: "Find what makes the listed pages cost more than the rest, an uncached query or an oversized image, and bring them near the median.",
+        },
         check: (pages: Facts[]) => settings.facts.map((path) => outliers(served(pages), path, settings, severity)).filter((finding) => finding !== undefined),
     };
 };
@@ -119,7 +128,15 @@ const numericOutlier: Make = (severity, expect) => {
 const minorityValue: Make = (severity, expect) => {
     const settings = { ...MINORITY, ...(expect as Partial<MinoritySettings>) };
     return {
-        meta: { id: "insight/value/inconsistent", severity, scope: "site", facts: settings.facts, fix: "Serve the listed pages the way the rest of the site serves them, or keep the difference only where it is deliberate." },
+        meta: {
+            id: "insight/value/inconsistent",
+            severity,
+            scope: "site",
+            facts: settings.facts,
+            title: "A few pages are served differently from the rest of the site",
+            rationale: "When nearly every page shares an HTTP version, content encoding or cache policy and a few differ, the odd ones are usually a misconfigured route or an overlooked rule, and visitors get them slower or uncached. By default at least 20 pages are needed, with one value on 80% of them.",
+            fix: "Serve the listed pages the way the rest of the site serves them, or keep the difference only where it is deliberate.",
+        },
         check: (pages: Facts[]) => settings.facts.map((path) => minority(served(pages), path, settings, severity)).filter((finding) => finding !== undefined),
     };
 };

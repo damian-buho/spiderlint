@@ -13,6 +13,8 @@ rules:
     severity: warning
     score: 5.4
     message: "listed in the sitemap, yet no crawled page links here"
+    title: "A page is in the sitemap, yet no crawled page links to it"
+    rationale: "Pages only the sitemap reveals are not part of the site’s navigation, so visitors cannot reach them and search engines read them as weakly linked. Only pages found through the sitemap are checked, once the crawl has finished."
     fix: "Add a link to this page from somewhere on the site, or remove it from the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
   sitemap/page/unlisted:
@@ -21,6 +23,8 @@ rules:
     when: {html: {type: object}, robots.noindex: {not: {const: true}}}
     severity: info
     message: "missing from the sitemap"
+    title: "A page is missing from the sitemap"
+    rationale: "Search engines rely on the sitemap to discover pages and learn which exist, so a page left out may be found late or not at all. Only HTML pages not marked noindex are checked."
     fix: "Add this URL to the sitemap."
     docs: https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview
   sitemap/document/unreadable:

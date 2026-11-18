@@ -14,6 +14,8 @@ rules:
     severity: warning
     score: 6.3
     message: "a text response over 1 KB is sent uncompressed"
+    title: "A text response over 1 KB is sent uncompressed"
+    rationale: "Uncompressed HTML, CSS, JavaScript and JSON take several times more bytes to transfer, which slows pages on slow connections and costs visitors mobile data. Only 2xx text responses of at least 1 KB are checked."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
     fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
   http/compression/weak:
@@ -27,6 +29,8 @@ rules:
     severity: warning
     score: 6.3
     message: "a text response over 1 KB is encoded with something other than br, zstd or gzip"
+    title: "A text response over 1 KB uses an unusual compression"
+    rationale: "Browsers support br, zstd and gzip; other encodings may be ignored or decoded slowly, so visitors may get the full uncompressed size or an error. Only 2xx text responses of at least 1 KB that declare a Content-Encoding are checked."
     fix: "Compress text responses with br, zstd or gzip at the edge or in the server."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Compression
   http/vary-accept-encoding/missing:
@@ -36,6 +40,8 @@ rules:
     severity: warning
     score: 5.4
     message: "a compressed response should carry Vary: Accept-Encoding"
+    title: "A compressed response lacks Vary: Accept-Encoding"
+    rationale: "Without it, a shared cache or CDN may store the compressed copy and hand it to a client that cannot decompress it, or the other way round. Only responses that declare a Content-Encoding are checked."
     fix: "Add Vary: Accept-Encoding to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Vary
   http/vary-star/present:
@@ -45,6 +51,8 @@ rules:
     severity: warning
     score: 5.6
     message: "Vary: * makes the response uncacheable"
+    title: "Vary: * makes the response uncacheable"
+    rationale: "A Vary of * tells caches that every request differs, so browsers and CDNs cannot reuse the response and every visit hits the server. Only responses that send a Vary header are checked."
     fix: "Replace Vary: * with the specific header names the response varies by."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Vary
   http/validator/missing:
@@ -54,6 +62,8 @@ rules:
     severity: info
     score: 2.6
     message: "no ETag or Last-Modified to revalidate against"
+    title: "The response has neither ETag nor Last-Modified"
+    rationale: "Without a validator, a browser cannot ask whether its stored copy is still current, so it downloads the whole response again once the copy expires. Only 2xx responses are checked."
     fix: "Add an ETag or Last-Modified header to the response."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Caching#validation
   http/cache-control/missing:
@@ -63,6 +73,8 @@ rules:
     severity: info
     score: 2.7
     message: "no Cache-Control directive on an HTML page"
+    title: "An HTML page sends no Cache-Control directive"
+    rationale: "Without Cache-Control, browsers and CDNs guess how long to keep the page, so visitors may see stale content or reload it needlessly. Only 2xx HTML pages are checked."
     fix: "Add a Cache-Control header, e.g. no-cache to revalidate, or public with a max-age."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control
   http/no-store/present:
@@ -72,6 +84,8 @@ rules:
     severity: info
     score: 2.4
     message: "Cache-Control no-store keeps the page out of the back/forward cache"
+    title: "Cache-Control: no-store keeps the page out of the back/forward cache"
+    rationale: "Browsers will not keep a no-store page for instant back and forward navigation, so those moves reload the page and feel slower. Only HTML pages that send Cache-Control are checked."
     fix: "Remove no-store from Cache-Control, or replace it with no-cache."
     docs: https://web.dev/articles/bfcache#minimize-use-of-cache-control-no-store
   caching/cache-control/excessive:
@@ -83,6 +97,8 @@ rules:
     severity: warning
     score: 5.8
     message: "the server should speak HTTP/2 or HTTP/3"
+    title: "The server answers over HTTP/1.1 instead of HTTP/2 or HTTP/3"
+    rationale: "HTTP/1.1 loads resources less efficiently, so pages take longer to appear, most of all on slow or lossy connections. Only responses that report a protocol version are checked."
     fix: "Enable HTTP/2 or HTTP/3 on the server."
     docs: https://developer.mozilla.org/docs/Glossary/HTTP_2
   http/alt-svc-h3/missing:
@@ -92,6 +108,8 @@ rules:
     severity: warning
     score: 5.2
     message: "Alt-Svc should advertise h3"
+    title: "The server does not advertise HTTP/3 in Alt-Svc"
+    rationale: "Without the advertisement, browsers keep using HTTP/2 and never try the faster, loss-tolerant HTTP/3. Only HTTPS responses that did not already arrive over HTTP/3 are checked."
     fix: "Add h3 to the Alt-Svc header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Alt-Svc
   tls/ec-key/missing:
@@ -101,6 +119,8 @@ rules:
     severity: hint
     score: 0.6
     message: "the certificate carries an RSA key, where an EC key makes a smaller handshake"
+    title: "The certificate uses an RSA key instead of an EC key"
+    rationale: "An EC key gives the same security with a smaller certificate and a faster handshake, which speeds up the first load of every connection. Only HTTPS responses are checked."
     fix: "Issue the certificate for an EC P-256 key."
     docs: https://www.rfc-editor.org/rfc/rfc9325#section-4.5
   http/retry-after/missing:
@@ -110,6 +130,8 @@ rules:
     severity: warning
     score: 4.8
     message: "a 503 should say when to retry with Retry-After"
+    title: "A 503 response does not say when to retry"
+    rationale: "Without Retry-After, clients and crawlers retry at once or give up, which adds load to a server that is already struggling or drops the site from results. Only 503 responses are checked."
     fix: "Send Retry-After with a delay, or an HTTP-date for when to try again."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Retry-After
   http/sunset/invalid:
@@ -119,6 +141,8 @@ rules:
     severity: warning
     score: 3.7
     message: "Sunset should be an HTTP-date"
+    title: "The Sunset header is not an HTTP date"
+    rationale: "Clients that cannot read the date will not warn that the resource is going away. Only responses that send Sunset are checked."
     fix: "Send Sunset as an HTTP-date, e.g. Sun, 01 Jan 2027 00:00:00 GMT."
     docs: https://www.rfc-editor.org/rfc/rfc8594
   http/deprecation/invalid:
@@ -128,6 +152,8 @@ rules:
     severity: warning
     score: 3.6
     message: "Deprecation should be @ and Unix seconds"
+    title: "The Deprecation header is not an @ and Unix seconds"
+    rationale: "Clients that cannot read the value will not warn that the resource is deprecated. Only responses that send Deprecation are checked."
     fix: "Send Deprecation: @1704067200 with the Unix timestamp of the removal."
     docs: https://www.rfc-editor.org/rfc/rfc9745
   html/script/blocking:
@@ -136,6 +162,8 @@ rules:
     severity: info
     score: 3.0
     message: "a script in <head> without async, defer or type=module blocks rendering"
+    title: "A script in the head blocks rendering"
+    rationale: "A classic script in the head without async or defer makes the browser stop and download it before showing anything, so visitors stare at a blank page longer. External scripts are checked, module scripts are fine."
     fix: "Add async, defer, or type=module to the script, or move it to the end of <body>."
     docs: https://developer.mozilla.org/docs/Web/HTML/Element/script#defer
   html/first-image/slow:
@@ -144,6 +172,8 @@ rules:
     severity: info
     score: 2.9
     message: "the first <img> is usually above the fold, and loading=lazy delays it"
+    title: "The first image is lazy-loaded"
+    rationale: "The first image is usually in view at once, and lazy loading delays it, which slows the largest paint and makes the page feel slower to visitors."
     fix: "Remove loading=lazy from the first <img>, or set it to eager."
     docs: https://web.dev/articles/lcp-lazy-loading
   html/img-dimensions/missing:
@@ -152,6 +182,8 @@ rules:
     severity: warning
     score: 6.0
     message: "an <img> without width and height shifts the layout as it loads"
+    title: "An image has no width and height"
+    rationale: "Without dimensions, the browser cannot reserve space before the image loads, so the text jumps when it arrives. That layout shift annoys visitors and hurts Core Web Vitals. Images inside noscript are skipped."
     fix: "Add width and height attributes to the <img>."
     docs: https://web.dev/articles/optimize-cls#images-without-dimensions
   http/early-hints-preload/mismatch:
@@ -173,6 +205,8 @@ rules:
     severity: warning
     score: 4.6
     message: "Link breaks RFC 8288 §3, so clients drop the links they cannot read"
+    title: "The Link header is malformed"
+    rationale: "Clients drop the links they cannot parse, so preloads and other hints in it never take effect. Only responses that send Link are checked."
     fix: "Write each Link entry as <https://example.com/a>; rel=preload, separated by commas."
     docs: https://www.rfc-editor.org/rfc/rfc8288#section-3
   http/use-as-dictionary-match/invalid:
@@ -182,6 +216,8 @@ rules:
     severity: warning
     score: 3.5
     message: "Use-As-Dictionary needs a match=\"<URL pattern>\" member"
+    title: "Use-As-Dictionary has no match pattern"
+    rationale: "A dictionary without a match pattern is never used for later requests, so the compression it was meant to improve does not happen. Only responses that send Use-As-Dictionary are checked."
     fix: "Send Use-As-Dictionary: match=\"/assets/app-*.js\"."
     docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1
   html/stylesheet/blocking:
@@ -190,6 +226,8 @@ rules:
     severity: info
     score: 2.3
     message: "more than one stylesheet in <head> blocks rendering"
+    title: "More than one stylesheet in the head blocks rendering"
+    rationale: "Each stylesheet in the head must download before the page shows, so several of them delay the first paint, most of all on slow connections. Only plain stylesheets for all media or screen are counted."
     fix: "Inline the critical CSS and load the rest with media=print onload, or merge the stylesheets into one."
     docs: https://web.dev/articles/defer-non-critical-css
   http/cache-control/invalid:
@@ -199,6 +237,8 @@ rules:
     severity: warning
     score: 5.0
     message: "Cache-Control breaks RFC 9111 §5.2, and caches ignore what they cannot read"
+    title: "The Cache-Control header is malformed"
+    rationale: "Caches ignore directives they cannot read, so the page may be cached for the wrong time or not at all. Only responses that send Cache-Control are checked."
     fix: "Write Cache-Control with registered directives only, as in public, max-age=3600."
     docs: https://www.rfc-editor.org/rfc/rfc9111#section-5.2
   http/vary/invalid:
@@ -208,6 +248,8 @@ rules:
     severity: warning
     score: 4.2
     message: "Vary breaks RFC 9110 §12.5.5"
+    title: "The Vary header is malformed"
+    rationale: "Caches that cannot read Vary may serve the wrong variant of a page, such as the wrong language or compression, to a visitor. Only responses that send Vary are checked."
     fix: "List the request header names the response varies by, as in Vary: Accept-Encoding."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-12.5.5
   http/content-type/invalid:
@@ -217,6 +259,8 @@ rules:
     severity: warning
     score: 4.0
     message: "Content-Type breaks RFC 9110 §8.3.1"
+    title: "The Content-Type header is malformed"
+    rationale: "Browsers may guess the type or charset of a response they cannot read the header for, which can break rendering or decoding. Only responses that send Content-Type are checked."
     fix: "Send Content-Type as type/subtype with name=value parameters, as in text/html; charset=utf-8."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-8.3.1
   http/use-as-dictionary/invalid:
@@ -226,6 +270,8 @@ rules:
     severity: warning
     score: 3.4
     message: "Use-As-Dictionary breaks its structured-field grammar, so clients ignore it"
+    title: "The Use-As-Dictionary header is malformed"
+    rationale: "Clients ignore a header they cannot parse, so the dictionary is never used and the compression gain is lost. Only responses that send Use-As-Dictionary are checked."
     fix: "Send Use-As-Dictionary: match=\"/assets/app-*.js\"."
     docs: https://www.rfc-editor.org/rfc/rfc9842#section-2.1
   http/accept-ch/invalid:
@@ -235,6 +281,8 @@ rules:
     severity: warning
     score: 3.9
     message: "Accept-CH breaks its structured-field grammar, so browsers ignore it"
+    title: "The Accept-CH header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so the client hints the site asked for are never sent and content adapted to them falls back to the default. Only responses that send Accept-CH are checked."
     fix: "Send Accept-CH as a list of hint names, as in Accept-CH: Sec-CH-UA-Platform."
     docs: https://www.rfc-editor.org/rfc/rfc8942#section-3.1
   http/priority/invalid:
@@ -244,6 +292,8 @@ rules:
     severity: warning
     score: 3.8
     message: "Priority breaks its structured-field grammar, so clients ignore it"
+    title: "The Priority header is malformed"
+    rationale: "Clients ignore a header they cannot parse, so the hint about how urgent the response is has no effect. Only responses that send Priority are checked."
     fix: "Send Priority as a dictionary, as in Priority: u=1, i."
     docs: https://www.rfc-editor.org/rfc/rfc9218#section-5
   http/cache-status/invalid:
@@ -253,6 +303,8 @@ rules:
     severity: warning
     score: 3.3
     message: "Cache-Status breaks its structured-field grammar"
+    title: "The Cache-Status header is malformed"
+    rationale: "Tools that read cache diagnostics cannot parse it, so debugging a slow or stale page gets harder. Only responses that send Cache-Status are checked."
     fix: "Send Cache-Status as a list of caches with parameters, as in Cache-Status: ExampleCache; hit."
     docs: https://www.rfc-editor.org/rfc/rfc9211#section-2
   http/retry-after/weak:
@@ -262,6 +314,8 @@ rules:
     severity: info
     score: [[0, 3.0], [9, 1.2]]
     message: "Retry-After asks clients back too soon, which brings the load straight back to a server that is shedding it"
+    title: "Retry-After asks clients back too soon"
+    rationale: "A delay under 10 seconds brings clients straight back to a server that is already shedding load, which keeps it overloaded. Only 429 and 503 responses with a readable Retry-After are checked."
     fix: "Send Retry-After: 120, or as long as the server needs to recover."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3
   http/retry-after/invalid:
@@ -271,6 +325,8 @@ rules:
     severity: warning
     score: 4.1
     message: "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry"
+    title: "The Retry-After header is malformed"
+    rationale: "Clients cannot tell when to retry, so they retry at once or give up. Only responses that send Retry-After are checked."
     fix: "Send Retry-After as a number of seconds, as in Retry-After: 120, or an IMF-fixdate."
     docs: https://www.rfc-editor.org/rfc/rfc9110#section-10.2.3
   http/alt-svc/invalid:
@@ -280,5 +336,7 @@ rules:
     severity: warning
     score: 4.4
     message: "Alt-Svc breaks RFC 7838 §3, so clients never try the alternative"
+    title: "The Alt-Svc header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so they never switch to the alternative service such as HTTP/3. Only responses that send Alt-Svc are checked."
     fix: "Send Alt-Svc as h3=\":443\"; ma=86400."
     docs: https://www.rfc-editor.org/rfc/rfc7838#section-3

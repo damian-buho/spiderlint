@@ -74,7 +74,12 @@ const generic = pageRule(
         const count = facts.generic.length;
         return count === 0 ? [] : [{ ...said("links say nothing about their targets out of context"), data: { [page.url.href]: { links: count } }, value: facts.generic, locations: facts.generic.map(({ text, href }) => `“${text}” → ${href}`) }];
     },
-    { docs: "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html", fix: "Name the target in the link text itself, or give the link an `aria-label` that does." },
+    {
+        docs: "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html",
+        title: "Links use generic text such as “click here”",
+        rationale: "Screen-reader users often browse a list of links out of context, where “read more” says nothing, and search engines learn little from such anchors. Only pages in English, Spanish or Ukrainian are judged.",
+        fix: "Name the target in the link text itself, or give the link an `aria-label` that does.",
+    },
 );
 
 export default {

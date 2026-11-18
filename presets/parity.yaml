@@ -12,6 +12,8 @@ rules:
     severity: warning
     score: 6.0
     message: "the title exists only after JavaScript runs"
+    title: "The title exists only after JavaScript runs"
+    rationale: "The raw HTML has no title, so crawlers and link previews that do not run scripts see an untitled page. Browser mode compares the raw HTML with the rendered page, and only pages that answer 2xx are checked."
     fix: "Render <title> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/description/mismatch:
@@ -20,6 +22,8 @@ rules:
     severity: info
     score: 2.6
     message: "the meta description exists only after JavaScript runs"
+    title: "The meta description exists only after JavaScript runs"
+    rationale: "The raw HTML has no meta description, so search engines and link previews that do not run scripts show a poorer snippet. Browser mode compares the raw HTML with the rendered page, and only pages that answer 2xx are checked."
     fix: "Render <meta name=\"description\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/canonical/mismatch:
@@ -28,6 +32,8 @@ rules:
     severity: warning
     score: 5.5
     message: "the canonical link exists only after JavaScript runs"
+    title: "The canonical link exists only after JavaScript runs"
+    rationale: "The raw HTML has no canonical link, so crawlers that do not run scripts may index duplicate URLs of the same page. Browser mode compares the raw HTML with the rendered page, and only pages that answer 2xx are checked."
     fix: "Render <link rel=\"canonical\"> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics#properly-inject-canonical-links
   parity/h1/mismatch:
@@ -36,6 +42,8 @@ rules:
     severity: info
     score: 2.4
     message: "the h1 exists only after JavaScript runs"
+    title: "The main heading exists only after JavaScript runs"
+    rationale: "The raw HTML has no h1, so crawlers and readers without scripts get no main heading. Browser mode compares the raw HTML with the rendered page, and only pages that answer 2xx are checked."
     fix: "Render the page heading on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics
   parity/text/mismatch:
@@ -44,6 +52,8 @@ rules:
     severity: warning
     score: 5.2
     message: "the raw HTML carries a share of the text the rendered page shows"
+    title: "Most of the page text appears only after JavaScript runs"
+    rationale: "Less than half of the text a browser shows is in the raw HTML, so crawlers, readers and tools without scripts see a mostly empty page. Browser mode compares the raw HTML with the rendered page, and only pages with at least 200 rendered characters are judged."
     fix: "Render the main content on the server, or give it a <noscript> fallback."
     docs: https://developer.mozilla.org/docs/Glossary/SSR
   parity/links/mismatch:
@@ -52,6 +62,8 @@ rules:
     severity: warning
     score: 5.8
     message: "internal links exist only after JavaScript runs"
+    title: "Internal links exist only after JavaScript runs"
+    rationale: "The raw HTML lacks the site’s internal links, so crawlers that do not run scripts cannot follow them to the other pages. Browser mode compares the raw HTML with the rendered page, and only pages that answer 2xx are checked."
     fix: "Render navigation links as <a href> on the server."
     docs: https://developers.google.com/search/docs/crawling-indexing/links-crawlable
   html/declaration/mismatch:

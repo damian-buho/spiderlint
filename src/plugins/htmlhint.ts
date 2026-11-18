@@ -72,7 +72,7 @@ const SCORES: Record<string, number> = {
     "id-class-ad-disabled": 3.6,
 };
 
-// htmlhint’s rule descriptions, keyed by ID; `fix` is derived from them where present.
+// htmlhint’s rule descriptions, keyed by ID; `title` is derived from them where present.
 const DESCRIPTIONS = new Map<string, string>();
 for (const [id, rule] of Object.entries(HTMLHint.rules)) if (rule?.description) DESCRIPTIONS.set(id, rule.description);
 

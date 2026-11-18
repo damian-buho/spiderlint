@@ -14,6 +14,8 @@ rules:
     severity: warning
     score: 5.8
     message: "the browser console logged errors"
+    title: "The browser console logged errors"
+    rationale: "A JavaScript error in the console usually means a feature of the page did not run. Visitors can lose menus, forms or content, and search engines that render the page may see less. Only pages that answer 2xx are checked, in browser mode."
     docs: https://developer.mozilla.org/docs/Web/API/console/error_static
     fix: "Fix the JavaScript error logged to the console."
   browser/preload/unused:
@@ -22,5 +24,7 @@ rules:
     severity: info
     score: 1.8
     message: "a preloaded resource went unused"
+    title: "A preloaded resource went unused"
+    rationale: "The browser fetched a resource early because of a preload link, then the page never used it. That wastes bandwidth and competes with resources the page does need. Only pages that answer 2xx are checked, in browser mode."
     docs: https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload
     fix: "Remove the preload link, or use the resource it points at."

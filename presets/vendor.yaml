@@ -10,5 +10,7 @@ rules:
     severity: info
     score: 2.4
     message: "Cloudflare’s Email Address Obfuscation rewrites every address into a link only JavaScript decodes, so a visitor without JavaScript sees no address"
+    title: "Cloudflare hides email addresses behind JavaScript"
+    rationale: "Email Address Obfuscation rewrites each address into a link that only JavaScript decodes, so visitors without scripts, readers and crawlers see no address. The check reads the paths Cloudflare adds to the site."
     fix: "Turn off Email Address Obfuscation in the Cloudflare dashboard under Security › Settings, or accept that visitors without JavaScript see no address."
     docs: https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/

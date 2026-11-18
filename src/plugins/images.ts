@@ -8,7 +8,7 @@ import sharp, { type Metadata, type Sharp } from "sharp";
 import { optimize } from "svgo";
 import type { Facts, HtmlFacts, ResourceFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
-import { resourceRule } from "../rules/builtin.ts";
+import { resourceRule, type Guide } from "../rules/builtin.ts";
 import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import type { Plugin } from "./types.ts";
@@ -207,7 +207,16 @@ const modernFormat: Make = (severity, settings) =>
                 ? undefined
                 : { ...said("a {format} image is smaller as {target}", { format: image.format, target: target as Target }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: encoded[target as Target] as number } } } };
         },
-        { facts: FACTS, value: valueOf, guide: { docs: "https://web.dev/articles/choose-the-right-image-format", fix: "Convert the image to WebP or AVIF." } },
+        {
+            facts: FACTS,
+            value: valueOf,
+            guide: {
+                docs: "https://web.dev/articles/choose-the-right-image-format",
+                title: "A JPEG, PNG or GIF image would be smaller as WebP or AVIF",
+                rationale: "Old image formats cost visitors extra bytes on every page view, which slows loading on mobile connections. Only images where a re-encode saves a meaningful share are flagged.",
+                fix: "Convert the image to WebP or AVIF.",
+            },
+        },
     )(severity);
 
 // An image its own format, or SVGO, re-encodes much smaller.
@@ -220,7 +229,16 @@ const recompress: Make = (severity, settings) =>
             const share = saved((settings as ImagesSettings).saving, image.bytes, image.encoded?.same);
             return share === undefined ? undefined : { ...said("a {format} image re-encodes smaller", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, smaller: { fact: "http.size.body", value: image.encoded?.same as number } } } };
         },
-        { facts: FACTS, value: valueOf, guide: { docs: "https://web.dev/articles/use-imagemin-to-compress-images", fix: "Re-encode the image with a modern tool at a lower quality or smaller dimensions." } },
+        {
+            facts: FACTS,
+            value: valueOf,
+            guide: {
+                docs: "https://web.dev/articles/use-imagemin-to-compress-images",
+                title: "An image can be re-encoded much smaller in its own format",
+                rationale: "Unoptimised images make pages heavier than they need to be, so visitors on slow connections wait longer. Only images where a re-encode saves a meaningful share are flagged.",
+                fix: "Re-encode the image with a modern tool at a lower quality or smaller dimensions.",
+            },
+        },
     )(severity);
 
 // An image heavier than `weight`.
@@ -233,7 +251,16 @@ const weight: Make = (severity, settings) =>
             const limit = (settings as ImagesSettings).weight;
             return image.bytes > limit ? { ...said("a {format} image is above the weight limit", { format: image.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: image.bytes }, limit: { fact: "http.size.body", value: limit } } } } : undefined;
         },
-        { facts: FACTS, value: valueOf, guide: { docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia", fix: "Resize or re-compress the image so the file is below the weight limit." } },
+        {
+            facts: FACTS,
+            value: valueOf,
+            guide: {
+                docs: "https://developer.mozilla.org/docs/Learn_web_development/Extensions/Performance/Multimedia",
+                title: "An image is heavier than the weight limit",
+                rationale: "A very large image file slows the page for every visitor and eats mobile data. The limit is a setting, 200 kB by default.",
+                fix: "Resize or re-compress the image so the file is below the weight limit.",
+            },
+        },
     )(severity);
 
 // A stylesheet or script minification shrinks by both `saving` bounds.
@@ -246,7 +273,16 @@ const minify: Make = (severity, settings) =>
             const share = saved((settings as ImagesSettings).saving, text.bytes, text.minified);
             return share === undefined ? undefined : { ...said("a {kind} minifies smaller", { kind: resource.kind }), data: { [resource.url]: { size: { fact: "http.size.body", value: text.bytes }, smaller: { fact: "http.size.body", value: text.minified } } } };
         },
-        { facts: [`resources.${TEXT}`], value: textOf, guide: { docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression", fix: "Minify the stylesheet or script in the build." } },
+        {
+            facts: [`resources.${TEXT}`],
+            value: textOf,
+            guide: {
+                docs: "https://web.dev/articles/reduce-network-payloads-using-text-compression",
+                title: "A stylesheet or script is served without minification",
+                rationale: "Whitespace and long names in CSS and JavaScript add bytes that every visitor downloads before the page can render. Only files where minifying saves a meaningful share are flagged.",
+                fix: "Minify the stylesheet or script in the build.",
+            },
+        },
     )(severity);
 
 // A font served in any format but WOFF2.
@@ -257,7 +293,11 @@ const fontFormat = resourceRule(
         const font = fontOf(resource) as { format: string; bytes: number };
         return font.format === "woff2" ? undefined : { ...said("a {format} font is not WOFF2", { format: font.format }), data: { [resource.url]: { size: { fact: "http.size.body", value: font.bytes } } } };
     },
-    { facts: [`resources.${FONTS}`], value: fontOf, guide: { docs: "https://web.dev/articles/reduce-webfont-size", fix: "Convert the font to WOFF2." } },
+    {
+        facts: [`resources.${FONTS}`],
+        value: fontOf,
+        guide: { docs: "https://web.dev/articles/reduce-webfont-size", title: "A web font is served in a format other than WOFF2", rationale: "WOFF2 compresses fonts best and every current browser supports it, so other formats make visitors download more for the same text.", fix: "Convert the font to WOFF2." },
+    },
 );
 
 // A stylesheet whose `@font-face` rules hide text while their font loads.
@@ -268,7 +308,16 @@ const fontDisplay = resourceRule(
         const invisible = (textOf(resource)?.["font-faces"] ?? []).filter((face) => INVISIBLE.has(face.display ?? "auto")).map((face) => face.family);
         return invisible.length === 0 ? undefined : { ...said("@font-face rules without font-display: swap, fallback or optional"), data: { [resource.url]: { faces: invisible.length, families: [...new Set(invisible)].join(", ") } } };
     },
-    { facts: [`resources.${TEXT}`], value: (resource) => textOf(resource)?.["font-faces"], guide: { docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display", fix: "Add font-display: swap (or fallback or optional) to each @font-face." } },
+    {
+        facts: [`resources.${TEXT}`],
+        value: (resource) => textOf(resource)?.["font-faces"],
+        guide: {
+            docs: "https://developer.mozilla.org/docs/Web/CSS/@font-face/font-display",
+            title: "Web fonts hide text while they load",
+            rationale: "An @font-face without font-display: swap, fallback or optional leaves text invisible until the font arrives, so visitors on slow connections stare at a blank page.",
+            fix: "Add font-display: swap (or fallback or optional) to each @font-face.",
+        },
+    },
 );
 
 type Img = HtmlFacts["images"][number];
@@ -277,9 +326,9 @@ type Img = HtmlFacts["images"][number];
 type Sentence = ReturnType<typeof said>;
 
 // A page rule over its `<img>` elements: one finding listing each offender as a location.
-function imgRule(id: string, facts: string[], documentation: string, sentence: Sentence, offends: (page: Facts, img: Img) => string | undefined, fix?: string): Make {
+function imgRule(id: string, facts: string[], documentation: string, sentence: Sentence, offends: (page: Facts, img: Img) => string | undefined, guide: Guide = {}): Make {
     return (severity) => ({
-        meta: { id, severity, scope: "page", facts, docs: documentation, ...(fix && { fix }) },
+        meta: { id, severity, scope: "page", facts, docs: documentation, ...guide },
         check(page: Facts) {
             if (!page.html) return;
             const locations = page.html.images.filter((img) => !img.noscript).flatMap((img) => offends(page, img) ?? []);
@@ -292,9 +341,9 @@ function imgRule(id: string, facts: string[], documentation: string, sentence: S
 type Box = LayoutFacts["images"][number];
 
 // A page rule over its rendered `<img>` boxes, skipped on a page the layout extractor did not sample; hidden images are never judged.
-function layoutRule(id: string, documentation: string, sentence: Sentence, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings, page: Facts) => string | undefined, fix?: string, facts: string[] = []): Make {
+function layoutRule(id: string, documentation: string, sentence: Sentence, offends: (layout: LayoutFacts, box: Box, settings: ImagesSettings, page: Facts) => string | undefined, guide: Guide = {}, facts: string[] = []): Make {
     return (severity, settings) => ({
-        meta: { id, severity, scope: "page", facts: [LAYOUT, ...facts], docs: documentation, ...(fix && { fix }) },
+        meta: { id, severity, scope: "page", facts: [LAYOUT, ...facts], docs: documentation, ...guide },
         check(page: Facts) {
             const layout = page[LAYOUT] as LayoutFacts | undefined;
             if (!layout) return;
@@ -314,14 +363,11 @@ function loaded(page: Facts, source: string): ImageFacts | undefined {
     return resource && imageOf(resource);
 }
 
-const dimensions = imgRule(
-    "images/dimensions/missing",
-    ["html.images"],
-    "https://web.dev/articles/optimize-cls#images-without-dimensions",
-    said("an <img> without width and height shifts the layout as it loads"),
-    (_page, img) => (img.width === undefined || img.height === undefined ? img.src : undefined),
-    "Add width and height attributes to each <img>.",
-);
+const dimensions = imgRule("images/dimensions/missing", ["html.images"], "https://web.dev/articles/optimize-cls#images-without-dimensions", said("an <img> without width and height shifts the layout as it loads"), (_page, img) => (img.width === undefined || img.height === undefined ? img.src : undefined), {
+    title: "Images lack width and height attributes",
+    rationale: "Without them the browser cannot reserve space, so the page jumps as each image loads and visitors lose their place while reading. It also hurts the Cumulative Layout Shift score search engines read.",
+    fix: "Add width and height attributes to each <img>.",
+});
 
 const oversized: Make = (severity, settings) => {
     const { oversize } = settings as ImagesSettings;
@@ -335,7 +381,7 @@ const oversized: Make = (severity, settings) => {
             const intrinsic = img.srcset === undefined && /^\d+$/.test(img.width ?? "") ? loaded(page, img.src)?.width : undefined;
             return intrinsic !== undefined && declared > 0 && intrinsic > declared * oversize ? `${img.src} ${intrinsic} px for width=${declared}` : undefined;
         },
-        "Serve a srcset with a width matching what the page renders.",
+        { title: "Images without srcset are far wider than they display", rationale: "A single large file is sent to every screen, so phones download pixels they never show. Only images with a numeric width attribute and no srcset are compared.", fix: "Serve a srcset with a width matching what the page renders." },
     )(severity);
 };
 
@@ -344,16 +390,14 @@ const lazyBelow = layoutRule(
     "https://web.dev/articles/browser-level-image-lazy-loading",
     said("an <img> below the fold without loading=lazy loads before the reader scrolls"),
     (layout, box) => (box.top >= layout.viewport.height && box.loading !== "lazy" ? `${box.src} at ${box.top} px` : undefined),
-    "Add loading=lazy to off-screen images.",
+    { title: "Images below the fold are not lazy-loaded", rationale: "Images the visitor has not scrolled to still download up front and compete with the content they came to read. Only pages rendered in a browser are judged.", fix: "Add loading=lazy to off-screen images." },
 );
 
-const lazyAbove = layoutRule(
-    "images/lazy-loading/slow",
-    "https://web.dev/articles/lcp-lazy-loading",
-    said("an <img> in the first viewport with loading=lazy waits for layout before loading"),
-    (layout, box) => (box.top < layout.viewport.height && box.loading === "lazy" ? `${box.src} at ${box.top} px` : undefined),
-    "Remove loading=lazy from images in the first viewport.",
-);
+const lazyAbove = layoutRule("images/lazy-loading/slow", "https://web.dev/articles/lcp-lazy-loading", said("an <img> in the first viewport with loading=lazy waits for layout before loading"), (layout, box) => (box.top < layout.viewport.height && box.loading === "lazy" ? `${box.src} at ${box.top} px` : undefined), {
+    title: "Images in the first viewport are lazy-loaded",
+    rationale: "A lazy image visible on arrival starts loading late, which delays the largest content and makes the page feel slow. Only pages rendered in a browser are judged.",
+    fix: "Remove loading=lazy from images in the first viewport.",
+});
 
 const renderedOversize = layoutRule(
     "images/rendered-size/large",
@@ -361,7 +405,11 @@ const renderedOversize = layoutRule(
     said("an <img> ships far more pixels than the page renders"),
     // A vector image scales for free, so its natural width costs nothing.
     (layout, box, settings, page) => (box.natural > box.width * layout.viewport.dpr * settings.oversize && loaded(page, box.src)?.format !== "svg" ? `${box.src} ${box.natural} px shown at ${box.width} px` : undefined),
-    "Serve an image whose natural width matches what the layout renders.",
+    {
+        title: "Images ship far more pixels than the page renders",
+        rationale: "An image much wider than its box wastes bandwidth and slows loading, especially on phones. Vector images are exempt, and only pages rendered in a browser are judged.",
+        fix: "Serve an image whose natural width matches what the layout renders.",
+    },
     FACTS,
 );
 

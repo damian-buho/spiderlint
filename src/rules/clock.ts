@@ -27,7 +27,16 @@ export function isOwnClock(skews: number[]): boolean {
 
 // One finding per host whose `Date` runs off our clock, an error past an hour; none, and one warning, when every host is off alike.
 const clockSkew: Make = (severity) => ({
-    meta: { id: "http/date/mismatch", severity, scope: "site", facts: ["http.date-skew"], docs: "https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1", fix: "Synchronise the server clock with NTP (chrony or systemd-timesyncd)." },
+    meta: {
+        id: "http/date/mismatch",
+        severity,
+        scope: "site",
+        facts: ["http.date-skew"],
+        docs: "https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1",
+        title: "The server’s clock differs from ours",
+        rationale: "A clock that is minutes off can break certificate validity, signed tokens, cache freshness and log correlation; an hour or more is an error. Skipped when every host is off alike, which points at the checking machine instead.",
+        fix: "Synchronise the server clock with NTP (chrony or systemd-timesyncd).",
+    },
     check(pages: Facts[]) {
         const measured = pages.filter((page) => page.http["date-skew"] !== undefined);
         const hosts = Map.groupBy(measured, (page) => page.url.host)

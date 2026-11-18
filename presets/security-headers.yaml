@@ -13,6 +13,8 @@ rules:
     severity: warning
     score: 5.8
     message: "no Strict-Transport-Security"
+    title: "The site does not send Strict-Transport-Security"
+    rationale: "Without HSTS, a visitor’s first request, or one on a hostile network, can be downgraded to plain HTTP and intercepted. Only HTTPS responses with a status from 200 to 499, except 429, are checked."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
     fix: "Send Strict-Transport-Security: max-age=63072000; includeSubDomains."
   http/hsts/weak:
@@ -22,6 +24,8 @@ rules:
     severity: warning
     score: 5.8
     message: "Strict-Transport-Security should carry max-age of 1000000 or more"
+    title: "Strict-Transport-Security has a short max-age"
+    rationale: "A short max-age lets the browser forget the HTTPS-only rule soon, so the protection lapses between visits and a downgrade attack works again. Only HTTPS responses with a valid header are checked."
     fix: "Send Strict-Transport-Security: max-age=63072000; includeSubDomains."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security
   http/csp/missing:
@@ -31,6 +35,8 @@ rules:
     severity: warning
     score: 6.4
     message: "no enforced Content-Security-Policy, in a header or a <meta>"
+    title: "The page has no enforced Content-Security-Policy"
+    rationale: "Without a policy, an injected script runs with the full rights of the page, so a single cross-site scripting hole can steal sessions or data. Only HTML documents are checked, and a policy in a meta tag counts."
     fix: "Send a Content-Security-Policy header that allows only the origins and directives the page needs."
     docs: https://developer.mozilla.org/docs/Web/HTTP/CSP
   http/content-type-options/missing:
@@ -39,6 +45,8 @@ rules:
     severity: warning
     score: 5.7
     message: "no X-Content-Type-Options"
+    title: "The response lacks X-Content-Type-Options"
+    rationale: "Without nosniff, a browser may guess a file’s type and run an uploaded file as a script, which opens the way to attacks on visitors."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
     fix: "Send X-Content-Type-Options: nosniff."
   http/content-type-options/invalid:
@@ -48,6 +56,8 @@ rules:
     severity: warning
     score: 5.7
     message: "X-Content-Type-Options should be nosniff"
+    title: "X-Content-Type-Options is not nosniff"
+    rationale: "Any other value does not switch off type guessing, so the protection is not active. Only responses that send the header are checked."
     fix: "Send X-Content-Type-Options: nosniff."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options
   http/referrer-policy/missing:
@@ -56,6 +66,8 @@ rules:
     severity: warning
     score: 5.1
     message: "no Referrer-Policy"
+    title: "The response sends no Referrer-Policy"
+    rationale: "Without a policy, browsers decide what to send, and full page URLs, which may hold private details, can leak to other sites when visitors follow links."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
   http/referrer-policy/insecure:
@@ -65,6 +77,8 @@ rules:
     severity: warning
     score: 5.1
     message: "Referrer-Policy should not leak full URLs"
+    title: "Referrer-Policy leaks full URLs to other sites"
+    rationale: "The unsafe-url and no-referrer-when-downgrade values send the full address, query string included, to other sites, which can expose private details. Only responses with a valid header are checked."
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin, or no-referrer."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy
   http/frame-options/missing:
@@ -79,6 +93,8 @@ rules:
     severity: info
     score: 2.5
     message: "Strict-Transport-Security should carry includeSubDomains"
+    title: "Strict-Transport-Security omits includeSubDomains"
+    rationale: "Without it, subdomains are not forced onto HTTPS, so an attacker can use an insecure subdomain to capture cookies of the main site. Only HTTPS responses with a valid header are checked."
     fix: "Add includeSubDomains to the Strict-Transport-Security header."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security#includesubdomains
   http/permissions-policy/missing:
@@ -88,6 +104,8 @@ rules:
     severity: info
     score: 1.8
     message: "no Permissions-Policy header naming a feature"
+    title: "The page sends no Permissions-Policy naming a feature"
+    rationale: "Without a policy, the page and every embedded frame may use powerful browser features such as camera, microphone or location unless the browser blocks them. Only HTML documents are checked."
     fix: "Send a Permissions-Policy header listing the features the page uses."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy
   http/coop/missing:
@@ -97,6 +115,8 @@ rules:
     severity: info
     score: 2.2
     message: "no Cross-Origin-Opener-Policy"
+    title: "The page sends no Cross-Origin-Opener-Policy"
+    rationale: "Without it, windows opened from other sites keep a link to the page, which lets them probe it through side channels. Only HTML documents are checked."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
   http/coop/weak:
@@ -106,6 +126,8 @@ rules:
     severity: info
     score: 2.2
     message: "Cross-Origin-Opener-Policy should be same-origin or same-origin-allow-popups"
+    title: "Cross-Origin-Opener-Policy is too permissive"
+    rationale: "Only same-origin and same-origin-allow-popups isolate the page. Other values, such as unsafe-none, leave the page linked to windows from other sites, so the isolation the header promises is absent. Only HTML documents with a valid header are checked."
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy
   http/corp/missing:
@@ -114,6 +136,8 @@ rules:
     severity: info
     score: 2.1
     message: "no Cross-Origin-Resource-Policy"
+    title: "The response lacks Cross-Origin-Resource-Policy"
+    rationale: "Without it, any other site may embed the resource, which can leak its content through side channels or let others use it for free."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
     fix: "Send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared."
   http/corp/invalid:
@@ -123,6 +147,8 @@ rules:
     severity: info
     score: 2.1
     message: "Cross-Origin-Resource-Policy should be same-origin, same-site or cross-origin"
+    title: "Cross-Origin-Resource-Policy is not a valid value"
+    rationale: "Browsers ignore an unknown value, so the resource stays open to other sites. Only responses that send the header are checked."
     fix: "Send Cross-Origin-Resource-Policy: same-origin, or same-site if the resource is shared."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy
   http/csp-upgrade-insecure/missing:
@@ -132,6 +158,8 @@ rules:
     severity: warning
     score: 5.3
     message: "Content-Security-Policy lacks upgrade-insecure-requests"
+    title: "Content-Security-Policy lacks upgrade-insecure-requests"
+    rationale: "Without the directive, a leftover http:// link or resource on an HTTPS page loads insecurely, and attackers on the network can read or alter it. Only HTTPS documents that send a policy are checked."
     fix: "Add upgrade-insecure-requests to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests
   http/csp-trusted-types/missing:
@@ -141,6 +169,8 @@ rules:
     severity: info
     score: 2.4
     message: "Content-Security-Policy lacks require-trusted-types-for 'script'"
+    title: "Content-Security-Policy does not require Trusted Types"
+    rationale: "Without Trusted Types, a script can feed untrusted text into dangerous browser functions and open the page to DOM-based cross-site scripting. Only HTML documents that send a policy are checked."
     fix: "Add require-trusted-types-for 'script' to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/require-trusted-types-for
   http/csp-script-src/missing:
@@ -150,6 +180,8 @@ rules:
     severity: warning
     score: 6.3
     message: "Content-Security-Policy sets neither script-src nor default-src, so any script loads"
+    title: "Content-Security-Policy restricts no scripts"
+    rationale: "With neither script-src nor default-src, any script from any origin may run, so the policy gives no protection against injected scripts. Only HTML documents that send a policy are checked."
     fix: "Set script-src to the origins that may run scripts, or default-src if every directive needs the same."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
   http/csp-unsafe-inline/present:
@@ -162,6 +194,8 @@ rules:
     severity: warning
     score: 6.2
     message: "Content-Security-Policy allows inline scripts with 'unsafe-inline' and no nonce or hash"
+    title: "Content-Security-Policy allows inline scripts"
+    rationale: "With ’unsafe-inline’, any script an attacker injects into the page runs, so the policy no longer stops cross-site scripting. Only HTML documents that send a policy are checked."
     fix: "Replace 'unsafe-inline' with nonces or hashes."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_inline_script
   http/csp-unsafe-eval/present:
@@ -174,6 +208,8 @@ rules:
     severity: warning
     score: 6.0
     message: "Content-Security-Policy allows eval() with 'unsafe-eval'"
+    title: "Content-Security-Policy allows eval()"
+    rationale: "With ’unsafe-eval’, text turned into code at run time executes, which gives an attacker who controls such text a way to run scripts. Only HTML documents that send a policy are checked."
     fix: "Remove 'unsafe-eval' from script-src."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/script-src#unsafe_eval_expressions
   http/csp-script-src/insecure:
@@ -186,6 +222,8 @@ rules:
     severity: warning
     score: 6.1
     message: "Content-Security-Policy loads scripts from any host through a * or scheme-only source"
+    title: "Content-Security-Policy trusts scripts from any host"
+    rationale: "A * or scheme-only source such as https: lets scripts load from any site, so an attacker only has to host a script anywhere to run it. Only HTML documents that send a policy are checked."
     fix: "Replace * and scheme-only sources with specific origins."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/Sources
   http/csp-object-src/weak:
@@ -198,6 +236,8 @@ rules:
     severity: warning
     score: 5.5
     message: "Content-Security-Policy should set object-src 'none'"
+    title: "Content-Security-Policy does not set object-src to none"
+    rationale: "Plugins and embedded objects can still load, which gives attackers an old route to run code on the page. Only HTML documents that send a policy are checked."
     fix: "Set object-src 'none' in the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
   http/csp-base-uri/missing:
@@ -207,6 +247,8 @@ rules:
     severity: info
     score: 2.6
     message: "Content-Security-Policy lacks base-uri, so an injected <base> can redirect relative scripts"
+    title: "Content-Security-Policy lacks base-uri"
+    rationale: "An attacker who can inject a base tag can redirect every relative script and link to their own server. Only HTML documents that send a policy are checked."
     fix: "Add base-uri to the Content-Security-Policy, e.g. the site origin."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
   http/csp-frame-ancestors/missing:
@@ -216,6 +258,8 @@ rules:
     severity: info
     score: 2.9
     message: "Content-Security-Policy lacks frame-ancestors, which only a header can carry"
+    title: "Content-Security-Policy lacks frame-ancestors"
+    rationale: "Any other site may then frame the page, which enables clickjacking, where visitors are tricked into clicking hidden controls. The directive works only in a header, not in a meta tag. Only HTML documents that send a policy are checked."
     fix: "Add frame-ancestors to the Content-Security-Policy."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
   http/reporting-endpoints/missing:
@@ -225,6 +269,8 @@ rules:
     severity: info
     score: 1.5
     message: "no Reporting-Endpoints header naming an endpoint"
+    title: "The response names no Reporting-Endpoints"
+    rationale: "Without an endpoint, browsers cannot report policy violations, crashes or deprecations, so the owner never learns of problems that visitors hit."
     fix: "Send a Reporting-Endpoints header naming your reporting endpoints."
     extra: ["Report Relay https://dbuho.me/project/report-relay/ collects these reports and sends them to your Grafana: open source, self-hosted, free."]
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Reporting-Endpoints
@@ -234,6 +280,8 @@ rules:
     severity: warning
     score: 4.5
     message: "X-XSS-Protection should be absent or 0"
+    title: "X-XSS-Protection is switched on"
+    rationale: "The old browser filter this header enables can itself introduce cross-site scripting holes, so the header should be absent or 0. Only responses that send it are checked."
     fix: "Remove X-XSS-Protection."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/X-XSS-Protection
   http/header/deprecated:
@@ -246,6 +294,8 @@ rules:
     severity: warning
     score: 5.6
     message: "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it"
+    title: "The Strict-Transport-Security header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so the HTTPS-only protection never starts. Only responses that send it are checked."
     fix: "Send Strict-Transport-Security once, as max-age=63072000; includeSubDomains."
     docs: https://www.rfc-editor.org/rfc/rfc6797#section-6.1
   http/csp/invalid:
@@ -255,6 +305,8 @@ rules:
     severity: warning
     score: 5.9
     message: "Content-Security-Policy breaks CSP 3, and browsers drop what they cannot read"
+    title: "The Content-Security-Policy header is malformed"
+    rationale: "Browsers drop the directives they cannot read, so part of the policy, or all of it, may not be enforced. Only HTML documents that send a policy are checked."
     fix: "Spell every directive as CSP 3 names it and quote keywords, as in script-src 'self'."
     docs: https://www.w3.org/TR/CSP3/#framework-directives
   http/permissions-policy/invalid:
@@ -264,6 +316,8 @@ rules:
     severity: warning
     score: 3.7
     message: "Permissions-Policy breaks its structured-field grammar, so browsers ignore it"
+    title: "The Permissions-Policy header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so the features it was meant to restrict stay available to the page and its frames. Only HTML documents that send it are checked."
     fix: "Write Permissions-Policy as a dictionary, as in camera=(), geolocation=(self)."
     docs: https://www.w3.org/TR/permissions-policy/#permissions-policy-http-header-field
   http/referrer-policy/invalid:
@@ -273,6 +327,8 @@ rules:
     severity: warning
     score: 4.0
     message: "Referrer-Policy breaks the Referrer Policy tokens"
+    title: "The Referrer-Policy header holds an unknown value"
+    rationale: "Browsers ignore values they do not know, and may fall back to a policy that leaks more of the URL than intended. Only responses that send it are checked."
     fix: "Send Referrer-Policy: strict-origin-when-cross-origin."
     docs: https://www.w3.org/TR/referrer-policy/#referrer-policy-header
   http/coop/invalid:
@@ -282,6 +338,8 @@ rules:
     severity: warning
     score: 3.9
     message: "Cross-Origin-Opener-Policy breaks its structured-field grammar, so browsers ignore it"
+    title: "The Cross-Origin-Opener-Policy header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so the page gets no isolation from windows of other sites. Only HTML documents that send it are checked."
     fix: "Send Cross-Origin-Opener-Policy: same-origin."
     docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coop-headers
   http/coep/invalid:
@@ -291,6 +349,8 @@ rules:
     severity: warning
     score: 3.8
     message: "Cross-Origin-Embedder-Policy breaks its structured-field grammar, so browsers ignore it"
+    title: "The Cross-Origin-Embedder-Policy header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so the page cannot become cross-origin isolated. Only responses that send it are checked."
     fix: "Send Cross-Origin-Embedder-Policy: credentialless."
     docs: https://html.spec.whatwg.org/multipage/browsers.html#the-coep-headers
   http/reporting-endpoints/invalid:
@@ -300,5 +360,7 @@ rules:
     severity: warning
     score: 3.4
     message: "Reporting-Endpoints breaks its structured-field grammar, so browsers ignore it"
+    title: "The Reporting-Endpoints header is malformed"
+    rationale: "Browsers ignore a header they cannot parse, so no violation or crash reports are ever sent. Only responses that send it are checked."
     fix: "Send Reporting-Endpoints: default=\"/reports\"."
     docs: https://www.w3.org/TR/reporting-1/#header

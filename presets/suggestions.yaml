@@ -13,6 +13,8 @@ rules:
     severity: hint
     score: 0.8
     message: "no Cross-Origin-Embedder-Policy"
+    title: "The page sends no Cross-Origin-Embedder-Policy"
+    rationale: "Without it, the page cannot become cross-origin isolated, which browsers require for features such as high-resolution timers and shared memory. Only HTML pages that answer 2xx are checked. This is an optional hardening."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
     fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."
   http/coep/weak:
@@ -22,6 +24,8 @@ rules:
     severity: hint
     score: 0.8
     message: "Cross-Origin-Embedder-Policy should be require-corp or credentialless"
+    title: "Cross-Origin-Embedder-Policy is not require-corp or credentialless"
+    rationale: "Other values do not isolate the page from cross-origin content, so features that need isolation stay unavailable. Only HTML pages that answer 2xx and send a valid header are checked."
     fix: "Send Cross-Origin-Embedder-Policy: credentialless once every embed loads under it."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy
   http/digest/missing:
@@ -30,6 +34,8 @@ rules:
     severity: hint
     score: 0.6
     message: "no Content-Digest or Repr-Digest lets a client check the body"
+    title: "The response has neither Content-Digest nor Repr-Digest"
+    rationale: "Without a digest, a client or intermediary cannot verify that the body arrived intact and unaltered. This is an optional hardening for HTML pages that answer 2xx."
     fix: "Send Repr-Digest: sha-256=:<base64 digest>: with each response."
     docs: https://www.rfc-editor.org/rfc/rfc9530
   http/server-timing/missing:
@@ -39,6 +45,8 @@ rules:
     severity: hint
     score: 0.2
     message: "no Server-Timing header shows where the server spent its time"
+    title: "A development or staging site sends no Server-Timing"
+    rationale: "Without it, developers and browser tools cannot see where the server spent its time. Only sites declared as development or staging are checked."
     fix: "Send Server-Timing: app;dur=<milliseconds> with durations that name no internals."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/Server-Timing
   http/no-vary-search/missing:
@@ -48,6 +56,8 @@ rules:
     severity: hint
     score: 0.4
     message: "a URL with a query has no No-Vary-Search to say which parameters change the page"
+    title: "A URL with a query has no No-Vary-Search"
+    rationale: "Without it, caches treat every query-string variant as a different page, so tracking parameters cause needless cache misses and reloads. Only HTML pages that answer 2xx and have a query are checked."
     fix: "Send No-Vary-Search: params=(\"utm_source\" \"utm_medium\") naming the parameters that do not change the page."
     docs: https://developer.mozilla.org/docs/Web/HTTP/Headers/No-Vary-Search
   html/speculation-rules/missing:
@@ -57,6 +67,8 @@ rules:
     severity: hint
     score: 0.7
     message: "no Speculation Rules script or header prefetches likely next pages"
+    title: "The page has no Speculation Rules to prefetch likely next pages"
+    rationale: "Without them, a click on a likely next page waits for a fresh load that the browser could have started earlier. This is an optional speed-up for HTML pages that answer 2xx."
     fix: "Add <script type=speculationrules> with a prefetch rule for same-origin links."
     docs: https://developer.mozilla.org/docs/Web/API/Speculation_Rules_API
   html/feed-link/missing:
@@ -66,6 +78,8 @@ rules:
     severity: hint
     score: 0.5
     message: "the home page links no RSS, Atom or JSON feed"
+    title: "The home page links no RSS, Atom or JSON feed"
+    rationale: "Without a feed link, readers and feed apps cannot find the site’s updates, so subscribing means checking it by hand. Only the home page is checked, and this is an optional extra."
     fix: "Add <link rel=alternate type=application/atom+xml href=/feed.xml> to the head."
     docs: https://www.rssboard.org/rss-autodiscovery
   html/alternate-format/missing:
@@ -75,6 +89,8 @@ rules:
     severity: hint
     score: 0.5
     message: "the home page links no machine-readable alternate (feed, JSON, Markdown)"
+    title: "The home page links no machine-readable alternate version"
+    rationale: "Without one, tools and AI agents have only the HTML to read, and no feed, JSON or Markdown version to consume. Only the home page is checked, and this is an optional extra."
     fix: "Add <link rel=alternate type=text/markdown href=/index.md> or a feed to the head."
     docs: https://html.spec.whatwg.org/multipage/links.html#rel-alternate
   html/nlweb/missing:
@@ -84,6 +100,8 @@ rules:
     severity: hint
     score: 0.3
     message: "the home page links no NLWeb endpoint with rel=nlweb"
+    title: "The home page links no NLWeb endpoint"
+    rationale: "Without the link, AI agents cannot discover that the site answers natural-language questions. Only the home page is checked, and this is an optional extra."
     fix: "Add <link rel=nlweb href=/ask> pointing at the site’s NLWeb endpoint."
     docs: https://github.com/nlweb-ai/NLWeb
   html/fediverse-creator/missing:
@@ -93,6 +111,8 @@ rules:
     severity: hint
     score: 0.3
     message: "an article names no fediverse:creator account for Mastodon previews"
+    title: "An article names no fediverse:creator account"
+    rationale: "Mastodon shows a link preview’s author from this tag, so without it the article appears with no credited author there. Only pages marked as articles are checked, and this is an optional extra."
     docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
     fix: "Add <meta name=fediverse:creator content=\"@user@instance.example\"> to the article head."
   html/fediverse-creator/invalid:
@@ -102,6 +122,8 @@ rules:
     severity: hint
     score: 0.3
     message: "fediverse:creator should name an account as @user@instance"
+    title: "fediverse:creator is not in the @user@instance form"
+    rationale: "Mastodon cannot resolve a value in another form, so the article shows no credited author. Only articles that set fediverse:creator are checked."
     fix: "Set fediverse:creator to an account, as @user@instance.example."
     docs: https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/
   redirects/redirect-by/missing:
@@ -110,5 +132,7 @@ rules:
     severity: hint
     score: 0.1
     message: "a redirect does not say which component sent it with Redirect-By"
+    title: "A redirect does not say which component sent it"
+    rationale: "Without Redirect-By, tracking down which server, plugin or rule issued an unexpected redirect means guessing. This is an optional aid for people debugging the site."
     fix: "Send Redirect-By: <component> with every redirect."
     docs: https://specification.website/spec/

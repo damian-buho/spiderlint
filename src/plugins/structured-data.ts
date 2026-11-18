@@ -161,7 +161,12 @@ const parse = pageRule(
         const errors = page.html.jsonld.filter((block): block is { "@error": string } => isNode(block) && typeof block["@error"] === "string").map((block) => block["@error"]);
         return errors.length === 0 ? [] : [{ ...said("JSON-LD blocks do not parse"), data: { [page.url.href]: { blocks: errors.length } }, locations: errors, value: errors }];
     },
-    { docs: "https://json-ld.org/spec/latest/json-ld/", fix: "Serialise the JSON-LD with a JSON encoder instead of a text template, so quotes and newlines in values are escaped." },
+    {
+        docs: "https://json-ld.org/spec/latest/json-ld/",
+        title: "JSON-LD blocks on the page do not parse",
+        rationale: "Search engines skip a JSON-LD block that is not valid JSON, so the page loses its rich results. A stray quote or newline in a templated value is the usual cause.",
+        fix: "Serialise the JSON-LD with a JSON encoder instead of a text template, so quotes and newlines in values are escaped.",
+    },
 );
 
 const required = pageRule(
@@ -177,7 +182,12 @@ const required = pageRule(
         );
         return locations.length === 0 ? [] : [{ ...said("structured data nodes lack properties their rich result requires"), data: { [page.url.href]: { nodes: locations.length } }, value: locations, locations }];
     },
-    { docs: GALLERY, fix: "Add the missing properties to each named node, or drop a type the page does not really describe." },
+    {
+        docs: GALLERY,
+        title: "Structured data lacks properties its rich result requires",
+        rationale: "Google shows a rich result such as a product or recipe card only when the required properties are present, so the page is ineligible without them.",
+        fix: "Add the missing properties to each named node, or drop a type the page does not really describe.",
+    },
 );
 
 // The URL a `ListItem.item` names: a string, or a node’s `@id` or `url`.
@@ -216,7 +226,12 @@ const consistent = pageRule(
         });
         return locations.length === 0 ? [] : [{ ...said("structured data claims disagree with the page’s own tags"), data: { [page.url.href]: { claims: locations.length } }, value: locations, locations }];
     },
-    { docs: "https://developers.google.com/search/docs/appearance/structured-data/sd-policies", fix: "Point `url` and `mainEntityOfPage` at the canonical URL, and use the page title as the entity’s `name` or `headline`." },
+    {
+        docs: "https://developers.google.com/search/docs/appearance/structured-data/sd-policies",
+        title: "Structured data claims disagree with the page’s own tags",
+        rationale: "When the url or name in the markup differs from the canonical URL and the title, search engines distrust it and may ignore the structured data.",
+        fix: "Point `url` and `mainEntityOfPage` at the canonical URL, and use the page title as the entity’s `name` or `headline`.",
+    },
 );
 
 // The document an `@id` points into: everything before its fragment.
@@ -230,6 +245,8 @@ const references: Make = (severity) => ({
         scope: "site",
         facts: ["html.jsonld", ID],
         docs: "https://www.w3.org/TR/json-ld11/#node-identifiers",
+        title: "Structured data refers to a node that is never defined",
+        rationale: "A reference to an @id that no crawled page defines points at nothing, so search engines cannot connect the entities and the link adds no information.",
         fix: "Define each referenced `@id` on the page it points into, or on the referring page itself; a reference into a page that never defines it names nothing.",
     },
     check(pages: Facts[]) {
@@ -281,7 +298,16 @@ function crumbsOf(page: Facts): string[] {
 
 // Every breadcrumb target the crawl found answering outside 2xx or redirecting, once per target, with the pages naming it.
 const breadcrumbs: Make = (severity) => ({
-    meta: { id: "structured-data/breadcrumb/unreachable", severity, scope: "site", facts: ["html.jsonld", ID, "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/appearance/structured-data/breadcrumb", fix: "Point each breadcrumb `item` at the final URL of a page that answers 200." },
+    meta: {
+        id: "structured-data/breadcrumb/unreachable",
+        severity,
+        scope: "site",
+        facts: ["html.jsonld", ID, "http.status", "site.redirects"],
+        docs: "https://developers.google.com/search/docs/appearance/structured-data/breadcrumb",
+        title: "A breadcrumb in structured data leads to a missing page",
+        rationale: "Search engines show the breadcrumb trail in results, so an item that redirects or answers an error sends visitors to the wrong place.",
+        fix: "Point each breadcrumb `item` at the final URL of a page that answers 200.",
+    },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const status = new Map(pages.map((page) => [page.url.href, page.http.status]));
         const redirects = site?.redirects ?? {};
@@ -319,7 +345,16 @@ function conflict(url: string, values: Map<string, Set<string>>, sentence: Retur
 
 // One `@id` typed differently on different pages, and one named site-wide entity carried under several `@id`s.
 const entities: Make = (severity) => ({
-    meta: { id: "structured-data/entity/inconsistent", severity, scope: "site", facts: ["html.jsonld", ID], docs: "https://www.w3.org/TR/json-ld11/#node-identifiers", fix: "Give each real-world entity one absolute `@id` and the same `@type` on every page that describes it." },
+    meta: {
+        id: "structured-data/entity/inconsistent",
+        severity,
+        scope: "site",
+        facts: ["html.jsonld", ID],
+        docs: "https://www.w3.org/TR/json-ld11/#node-identifiers",
+        title: "The same entity is described inconsistently across pages",
+        rationale: "One @id typed differently, or one organisation or person under several @ids, splits what search engines know about it into separate entities.",
+        fix: "Give each real-world entity one absolute `@id` and the same `@type` on every page that describes it.",
+    },
     check(pages: Facts[]) {
         const typings: Sightings = new Map();
         const identities: Sightings = new Map();
@@ -378,7 +413,7 @@ const deprecated = pageRule(
         log.debug({ url: page.url.href, superseded: locations.size }, "vocabulary judged");
         return locations.size === 0 ? [] : [{ ...said("schema.org terms are superseded"), data: { [page.url.href]: { terms: locations.size } }, value: [...locations], locations: [...locations] }];
     },
-    { docs: "https://schema.org/docs/attic.home.html", fix: "Rename each term to the one schema.org supersedes it with." },
+    { docs: "https://schema.org/docs/attic.home.html", title: "Structured data uses superseded schema.org terms", rationale: "Search engines may stop reading terms that schema.org has replaced, so the data they carried silently falls out of results.", fix: "Rename each term to the one schema.org supersedes it with." },
 );
 
 // A date-valued property by name.
@@ -409,7 +444,12 @@ const dates = pageRule(
         log.debug({ url: page.url.href, invalid: locations.length }, "dates judged");
         return locations.length === 0 ? [] : [{ ...said("structured data dates are malformed or contradictory"), data: { [page.url.href]: { dates: locations.length } }, value: locations, locations }];
     },
-    { docs: "https://developers.google.com/search/docs/appearance/structured-data/article", fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`." },
+    {
+        docs: "https://developers.google.com/search/docs/appearance/structured-data/article",
+        title: "Structured data dates are malformed or contradictory",
+        rationale: "Dates that are not ISO 8601, a modified date before the published date, or a published date that differs from article:published_time make search engines show wrong dates or ignore them.",
+        fix: "Write each date as ISO 8601 with a time zone, from the same source that fills `article:published_time`.",
+    },
 );
 
 export default {

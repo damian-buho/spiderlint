@@ -76,6 +76,8 @@ const serverDisclosure: Make = (severity) => ({
         scope: "site",
         facts: ["http.headers", "html.meta.generator", "resources"],
         docs: "https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Server",
+        title: "The server reveals the software behind it",
+        rationale: "Headers such as Server and X-Powered-By, and the generator meta tag, name the product and often its version, which tells attackers which known flaws to try. Names a CDN or host sets and the owner cannot remove are not reported, and a name without a version is only a hint.",
         fix: "Remove the version from the Server header and drop X-Powered-By and debug headers at the server or proxy.",
     },
     check(pages: Facts[]) {

@@ -38,7 +38,16 @@ function primary(tag: string): string {
 
 // Every crawled 2xx alternate that does not name back the 2xx pages listing it, once per alternate.
 const hreflangReciprocal: Make = (severity) => ({
-    meta: { id: "i18n/hreflang-return/missing", severity, scope: "site", facts: ["html.hreflang", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "List every language version, itself included, in the hreflang links of each version." },
+    meta: {
+        id: "i18n/hreflang-return/missing",
+        severity,
+        scope: "site",
+        facts: ["html.hreflang", "site.redirects"],
+        docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html",
+        title: "A language version does not link back",
+        rationale: "Hreflang works only when versions name each other, so without the return link search engines may ignore the annotation and visitors land on the wrong language. Only crawled pages that answer 2xx are judged.",
+        fix: "List every language version, itself included, in the hreflang links of each version.",
+    },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const find = pageIndex(pages, site);
         const unanswered = new Map<string, string[]>();
@@ -60,7 +69,16 @@ const hreflangReciprocal: Make = (severity) => ({
 
 // Every crawled hreflang target answering outside 2xx or redirecting, once per target, with the pages naming it.
 const hreflangStatus: Make = (severity) => ({
-    meta: { id: "i18n/hreflang/unreachable", severity, scope: "site", facts: ["html.hreflang", "http.status", "site.redirects"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html", fix: "Point each hreflang link at the final URL of a page that answers 200." },
+    meta: {
+        id: "i18n/hreflang/unreachable",
+        severity,
+        scope: "site",
+        facts: ["html.hreflang", "http.status", "site.redirects"],
+        docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#html",
+        title: "An hreflang link points at a page that fails or redirects",
+        rationale: "Search engines ignore hreflang targets that answer with an error or a redirect, so that language version is never offered to its readers. Targets answering outside 2xx, or redirecting, are reported.",
+        fix: "Point each hreflang link at the final URL of a page that answers 200.",
+    },
     check(pages: Facts[], _group?: string, site?: SiteFacts) {
         const status = new Map(pages.flatMap((page) => [...selves(page)].map((href) => [href, page.http.status] as const)));
         const naming = new Map<string, string[]>();
@@ -78,7 +96,16 @@ const hreflangStatus: Make = (severity) => ({
 
 // A page whose `lang` names a language its `Content-Language` header leaves out; a page lacking either is skipped.
 const contentLanguage: Make = (severity) => ({
-    meta: { id: "i18n/content-language/mismatch", severity, scope: "page", facts: ["html.lang", "http.headers.content-language"], docs: "https://www.w3.org/International/questions/qa-http-and-lang", fix: "Make the Content-Language header name the language the html lang attribute declares, or drop the header." },
+    meta: {
+        id: "i18n/content-language/mismatch",
+        severity,
+        scope: "page",
+        facts: ["html.lang", "http.headers.content-language"],
+        docs: "https://www.w3.org/International/questions/qa-http-and-lang",
+        title: "Content-Language and lang name different languages",
+        rationale: "The header and the html lang attribute disagree about the page’s language, so browsers, translation tools and search engines may pick the wrong one. Pages lacking either are skipped.",
+        fix: "Make the Content-Language header name the language the html lang attribute declares, or drop the header.",
+    },
     check(page: Facts) {
         const [lang, header] = [page.html?.lang, [page.http.headers["content-language"] ?? []].flat().join(",")];
         if (!lang || header === "") return;
@@ -96,7 +123,16 @@ function pairs(alternates: { lang: string; href: string }[], base: string): Set<
 
 // A page whose sitemap alternates and hreflang links both exist and disagree.
 const sitemapHreflang: Make = (severity) => ({
-    meta: { id: "sitemap/hreflang/mismatch", severity, scope: "page", facts: ["sitemap.alternates", "html.hreflang"], docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap", fix: "Generate the sitemap alternates and the page’s hreflang links from one list." },
+    meta: {
+        id: "sitemap/hreflang/mismatch",
+        severity,
+        scope: "page",
+        facts: ["sitemap.alternates", "html.hreflang"],
+        docs: "https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap",
+        title: "Sitemap alternates and hreflang links disagree",
+        rationale: "When the sitemap and the page list different language versions, search engines get contradictory signals and may ignore both, so visitors can land on the wrong language. Only pages that have both are compared.",
+        fix: "Generate the sitemap alternates and the page’s hreflang links from one list.",
+    },
     check(page: Facts) {
         const [listed, linked] = [page.sitemap?.alternates ?? [], page.html?.hreflang ?? []];
         if (listed.length === 0 || linked.length === 0) return;
@@ -111,7 +147,16 @@ const sitemapHreflang: Make = (severity) => ({
 
 // A title or description confidently identified as a language other than the primary subtag of `lang`.
 const metadataLanguage: Make = (severity) => ({
-    meta: { id: "i18n/metadata-language/mismatch", severity, scope: "page", facts: ["html.detected", "html.lang"], docs: "https://www.w3.org/International/questions/qa-html-language-declarations", fix: "Translate the title and meta description into the language lang declares, or correct lang." },
+    meta: {
+        id: "i18n/metadata-language/mismatch",
+        severity,
+        scope: "page",
+        facts: ["html.detected", "html.lang"],
+        docs: "https://www.w3.org/International/questions/qa-html-language-declarations",
+        title: "The title or description is in another language than the page declares",
+        rationale: "Screen readers pronounce text by the lang attribute and search engines use it to pick the audience, so a mismatch garbles speech and can show the page to the wrong readers. Judged only when language detection is confident.",
+        fix: "Translate the title and meta description into the language lang declares, or correct lang.",
+    },
     check(page: Facts) {
         const [lang, detected] = [page.html?.lang, page.html?.detected];
         if (!lang || !detected) return;

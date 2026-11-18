@@ -253,23 +253,29 @@ async function extractInline(page: Facts, body: string): Promise<CssFacts | unde
 }
 
 // What each kind of message costs the page, its docs and its fix.
-const KINDS: Record<Kind, { name: string; inline?: string; says: Record<"sheet" | "inline", string>; docs: string; fix: string }> = {
+const KINDS: Record<Kind, { name: string; inline?: string; says: Record<"sheet" | "inline", string>; titles: Record<"sheet" | "inline", string>; rationale: string; docs: string; fix: string }> = {
     parse: {
         name: "stylesheet/invalid",
         inline: "style/invalid",
         says: { sheet: "the style sheet has syntax errors, so browsers drop the rule or block each sits in", inline: "inline CSS has syntax errors, so browsers drop the rule or block each sits in" },
+        titles: { sheet: "A style sheet has syntax errors", inline: "Inline CSS has syntax errors" },
+        rationale: "Browsers drop the rule or block around a syntax error, so part of the page loses its styling for every visitor.",
         docs: "https://www.w3.org/TR/css-syntax-3/#error-handling",
         fix: 'Close every block and string, and write selectors browsers accept, as in a::before { content: "" }.',
     },
     property: {
         name: "property/unknown",
         says: { sheet: "the style sheet names properties browsers do not know, so they drop those declarations", inline: "inline CSS names properties browsers do not know, so they drop those declarations" },
+        titles: { sheet: "A style sheet names unknown properties", inline: "Inline CSS names unknown properties" },
+        rationale: "Browsers silently drop a declaration whose property they do not know, usually a typo, so the intended styling never applies.",
         docs: "https://developer.mozilla.org/docs/Web/CSS/Reference",
         fix: "Correct the property name, as in color: red for colr: red, or remove the declaration.",
     },
     value: {
         name: "value/invalid",
         says: { sheet: "the style sheet carries values outside a property’s grammar, so browsers drop those declarations", inline: "inline CSS carries values outside a property’s grammar, so browsers drop those declarations" },
+        titles: { sheet: "A style sheet carries invalid property values", inline: "Inline CSS carries invalid property values" },
+        rationale: "Browsers drop a declaration whose value breaks the property’s grammar, so the intended styling never applies.",
         docs: "https://developer.mozilla.org/docs/Web/CSS/CSS_values_and_units/Value_definition_syntax",
         fix: "Give the property a value its grammar accepts, as in margin: calc(-1 * var(--gap)) for margin: -var(--gap).",
     },
@@ -283,7 +289,7 @@ const located = (message: CssMessage) => [`${message.line}:${message.column}`, m
 
 // A style sheet rule, keyed by its URL, and its inline twin per page, over the messages of one kind.
 function kindRules(kind: Kind): Record<string, Make> {
-    const { name, inline: inlineName = name, says, docs, fix } = KINDS[kind];
+    const { name, inline: inlineName = name, says, titles, rationale, docs, fix } = KINDS[kind];
     const of = (facts: CssFacts | undefined) => facts?.messages.filter((message) => message.kind === kind) ?? [];
     const sheet = resourceRule(
         `css/${name}`,
@@ -292,7 +298,7 @@ function kindRules(kind: Kind): Record<string, Make> {
             const hits = of(cssOf(resource));
             return hits.length === 0 ? undefined : { ...said(says.sheet), data: { [resource.url]: { messages: hits.length } }, locations: hits.map((hit) => located(hit)) };
         },
-        { facts: [`resources.${ID}`], value: (resource) => of(cssOf(resource)), guide: { docs, fix } },
+        { facts: [`resources.${ID}`], value: (resource) => of(cssOf(resource)), guide: { title: titles.sheet, rationale, docs, fix } },
     );
     const inline = pageRule(
         `css/inline-${inlineName}`,
@@ -302,7 +308,7 @@ function kindRules(kind: Kind): Record<string, Make> {
             const hits = of(facts);
             return facts && (hits.length === 0 ? [] : [{ ...said(says.inline), data: { [page.url.href]: { messages: hits.length } }, value: hits, locations: hits.map((hit) => located(hit)) }]);
         },
-        { docs, fix },
+        { title: titles.inline, rationale, docs, fix },
     );
     return { [`css/${name}`]: sheet, [`css/inline-${inlineName}`]: inline };
 }
@@ -359,7 +365,11 @@ function unsupportedIn(facts: CssFacts, targets: Targets): { features: number; l
     return lacks.length === 0 ? undefined : { features: lacks.length, locations };
 }
 
-const UNSUPPORTED = { docs: "https://developer.mozilla.org/docs/Web/CSS/@supports", fix: "Give the feature a fallback declaration before it, or guard it with @supports (display: grid) { … }." };
+const UNSUPPORTED = {
+    rationale: "Visitors on a browser from the declared targets get a broken or missing style where a feature is unsupported, unless a fallback declaration precedes it. Only judged when browser targets are set.",
+    docs: "https://developer.mozilla.org/docs/Web/CSS/@supports",
+    fix: "Give the feature a fallback declaration before it, or guard it with @supports (display: grid) { … }.",
+};
 
 // A rule that runs only once browser targets are declared.
 function targeted(rule: Rule, settings: CssSettings): Rule {
@@ -377,7 +387,7 @@ const unsupported: Make = (severity, settings) =>
                 const judged = unsupportedIn(cssOf(resource) as CssFacts, targets);
                 return judged && { ...said("the style sheet uses features the browser targets “{query}” lack", { query: targets.query }), data: { [resource.url]: { features: judged.features } }, locations: judged.locations };
             },
-            { facts: [`resources.${ID}`], value: (resource) => cssOf(resource)?.features, guide: UNSUPPORTED },
+            { facts: [`resources.${ID}`], value: (resource) => cssOf(resource)?.features, guide: { ...UNSUPPORTED, title: "A style sheet uses features the browser targets lack" } },
         )(severity),
         settings as CssSettings,
     );
@@ -394,7 +404,7 @@ const inlineUnsupported: Make = (severity, settings) =>
                 const judged = facts && unsupportedIn(facts, targets);
                 return facts && (judged ? [{ ...said("inline CSS uses features the browser targets “{query}” lack", { query: targets.query }), data: { [page.url.href]: { features: judged.features } }, value: facts.features.length, locations: judged.locations }] : []);
             },
-            UNSUPPORTED,
+            { ...UNSUPPORTED, title: "Inline CSS uses features the browser targets lack" },
         )(severity),
         settings as CssSettings,
     );
