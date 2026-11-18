@@ -108,6 +108,44 @@ jobs:
           name: mdbook-build-${{ matrix.M6E_ARCH }}-${{ github.run_id }}
           path: dist/site
           overwrite: true
+  book-is-printed:
+    runs-on: docker
+    needs: ["book-is-built"]
+    if: ${{ !cancelled() && needs.book-is-built.result == 'success' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)) }}
+    strategy:
+      matrix:
+        M6E_ARCH: ["amd64"]
+    env:
+      M6E_ARCH: ${{ matrix.M6E_ARCH }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: true
+          persist-credentials: false
+      # A withheld pin leaves this node nowhere to run; failing here keeps its gate from passing green
+      - name: refuse a withheld M6E_ARCH
+        if: vars.CI_ONLY_M6E_ARCH != '' && !contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), ',amd64,') && vars.CI_SKIP_BOOK_IS_PRINTED != 'true'
+        run: echo "CI_ONLY_M6E_ARCH withholds M6E_ARCH=amd64, the one value this node runs on" >&2; exit 1
+      - uses: forgejo/download-artifact@d8d0a99033603453ad2255e58720b460a0555e1e # v4
+        if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_BOOK_IS_BUILT != 'true' && vars.CI_SKIP_MDBOOK_BUILD != 'true'
+        with:
+          name: mdbook-build-${{ matrix.M6E_ARCH }}-${{ github.run_id }}
+          path: dist/site
+      - name: book-pdf
+        if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_BOOK_IS_PRINTED != 'true' && vars.CI_SKIP_BOOK_PDF != 'true'
+        uses: projectfile/actions/run-tool@e66aa32ef07dc2e4a8e18dfdc92fa49e0f71baea # v1
+        with:
+          image: ${{ vars.D9T_JS_TOOLS_IMAGE || format('{0}/d9t/js-tools', vars.SOURCE_DOCKER_REGISTRY || 'kiota.ch') }}
+          version: ${{ env.M6E_TAG }}
+          run: .makefile/container/scripts/book-pdf.sh dist/site dist/pdf spiderlint
+          env: |-
+            M6E_ARCH=${{ matrix.M6E_ARCH }}
+      - uses: forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e # v4
+        if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_BOOK_IS_PRINTED != 'true' && vars.CI_SKIP_BOOK_PDF != 'true'
+        with:
+          name: book-pdf-${{ matrix.M6E_ARCH }}-${{ github.run_id }}
+          path: dist/pdf
+          overwrite: true
   container-is-verified:
     runs-on: docker
     needs: ["image-is-built"]
@@ -120,6 +158,8 @@ jobs:
       M6E_IMAGE_FULLNAME: damian-buho/spiderlint:${{ vars.BASE_IMAGE_DEFAULT_VERSION || 'latest' }}-${{ github.run_id }}-${{ matrix.M6E_ARCH }}
       M6E_COMPOSE_PROJECT_NAME: ci-damian-buho-spiderlint-${{ matrix.M6E_ARCH }}-${{ github.run_id }}-${{ github.run_attempt }}
       M6E_CONTAINER_INSTANCE: ci-damian-buho-spiderlint-${{ matrix.M6E_ARCH }}-${{ github.run_id }}-${{ github.run_attempt }}
+      PAGES_DEFAULT_LANG: ''
+      PAGES_LANGUAGES: es uk
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -178,7 +218,7 @@ jobs:
         run: docker compose --project-name "$M6E_COMPOSE_PROJECT_NAME" --file .compose/pipeline.yaml down --volumes </dev/null
       - name: pages-render
         if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_PAGES_ARE_RENDERED != 'true' && vars.CI_SKIP_PAGES_RENDER != 'true'
-        run: .makefile/container/scripts/pages-capture.sh --render=dist/pages --image --default-lang= es uk
+        run: .makefile/container/scripts/pages-capture.sh --render=dist/pages --image
       - uses: forgejo/upload-artifact@16871d9e8cfcf27ff31822cac382bbb5450f1e1e # v4
         if: (vars.CI_ONLY_M6E_ARCH == '' || contains(format(',{0},', vars.CI_ONLY_M6E_ARCH), format(',{0},', matrix.M6E_ARCH))) && vars.CI_SKIP_PAGES_ARE_RENDERED != 'true' && vars.CI_SKIP_PAGES_RENDER != 'true'
         with:
@@ -519,7 +559,7 @@ jobs:
           run: pf-cli validate
   published:
     runs-on: docker
-    needs: ["book-is-built", "container-is-verified", "documentation-passes-lint", "image-has-sbom", "image-is-built", "image-is-published", "image-is-secure", "projectfile-is-ok", "projectfile-is-valid", "release-is-published", "release-notes-are-published", "release-tag", "runner-is-ready", "signing-is-ready", "source-is-compliant", "source-is-secure", "source-passes-lint"]
+    needs: ["book-is-built", "book-is-printed", "container-is-verified", "documentation-passes-lint", "image-has-sbom", "image-is-built", "image-is-published", "image-is-secure", "projectfile-is-ok", "projectfile-is-valid", "release-is-published", "release-notes-are-published", "release-tag", "runner-is-ready", "signing-is-ready", "source-is-compliant", "source-is-secure", "source-passes-lint"]
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository) }}
     steps:
       - name: published verdict
@@ -528,6 +568,7 @@ jobs:
           goal: published
           needs: |-
             book-is-built=${{ needs.book-is-built.result }}
+            book-is-printed=${{ needs.book-is-printed.result }}
             container-is-verified=${{ needs.container-is-verified.result }}
             documentation-passes-lint=${{ needs.documentation-passes-lint.result }}
             image-has-sbom=${{ needs.image-has-sbom.result }}
