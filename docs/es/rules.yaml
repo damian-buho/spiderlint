@@ -5811,7 +5811,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md031.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md031.md
           - id: markdownlint/blanks-around-headings
             title: Headings should be surrounded by blank lines
             severity: info
@@ -5820,7 +5820,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md022.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md022.md
           - id: markdownlint/blanks-around-lists
             title: Lists should be surrounded by blank lines
             severity: info
@@ -5829,7 +5829,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md032.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md032.md
           - id: markdownlint/blanks-around-tables
             title: Tables should be surrounded by blank lines
             severity: info
@@ -5838,7 +5838,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md058.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md058.md
           - id: markdownlint/code-block-style
             title: Code block style
             severity: info
@@ -5847,7 +5847,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md046.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md046.md
           - id: markdownlint/code-fence-style
             title: Code fence style
             severity: info
@@ -5856,7 +5856,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md048.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md048.md
           - id: markdownlint/commands-show-output
             title: Dollar signs used before commands without showing output
             severity: info
@@ -5865,7 +5865,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md014.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md014.md
           - id: markdownlint/descriptive-link-text
             title: Link text should be descriptive
             severity: info
@@ -5874,7 +5874,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md059.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md059.md
           - id: markdownlint/emphasis-style
             title: Emphasis style
             severity: info
@@ -5883,7 +5883,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md049.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md049.md
           - id: markdownlint/fenced-code-language
             title: Fenced code blocks should have a language specified
             severity: info
@@ -5892,7 +5892,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md040.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md040.md
           - id: markdownlint/first-line-heading
             title: First line in a file should be a top-level heading
             severity: info
@@ -5901,7 +5901,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md041.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md041.md
           - id: markdownlint/heading-increment
             title: Heading levels should only increment by one level at a time
             severity: info
@@ -5910,7 +5910,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md001.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md001.md
           - id: markdownlint/heading-start-left
             title: Headings must start at the beginning of the line
             severity: info
@@ -5919,7 +5919,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md023.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md023.md
           - id: markdownlint/heading-style
             title: Heading style
             severity: info
@@ -5928,7 +5928,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md003.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md003.md
           - id: markdownlint/hr-style
             title: Horizontal rule style
             severity: info
@@ -5937,7 +5937,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md035.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md035.md
           - id: markdownlint/line-length
             title: Line length
             severity: info
@@ -5946,7 +5946,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md013.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md013.md
           - id: markdownlint/link-fragments
             title: Link fragments should be valid
             severity: warning
@@ -5955,7 +5955,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md051.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md051.md
           - id: markdownlint/link-image-reference-definitions
             title: Link and image reference definitions should be needed
             severity: warning
@@ -5964,7 +5964,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md053.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md053.md
           - id: markdownlint/link-image-style
             title: Link and image style
             severity: info
@@ -5973,7 +5973,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md054.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md054.md
           - id: markdownlint/list-indent
             title: Inconsistent indentation for list items at the same level
             severity: info
@@ -5982,7 +5982,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md005.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md005.md
           - id: markdownlint/list-marker-space
             title: Spaces after list markers
             severity: info
@@ -5991,7 +5991,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md030.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md030.md
           - id: markdownlint/no-alt-text
             title: Images should have alternate text (alt text)
             severity: warning
@@ -6000,7 +6000,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md045.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md045.md
           - id: markdownlint/no-bare-urls
             title: Bare URL used
             severity: info
@@ -6009,7 +6009,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md034.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md034.md
           - id: markdownlint/no-blanks-blockquote
             title: Blank line inside blockquote
             severity: info
@@ -6018,7 +6018,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md028.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md028.md
           - id: markdownlint/no-duplicate-heading
             title: Multiple headings with the same content
             severity: info
@@ -6027,7 +6027,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md024.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md024.md
           - id: markdownlint/no-emphasis-as-heading
             title: Emphasis used instead of a heading
             severity: info
@@ -6036,7 +6036,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md036.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md036.md
           - id: markdownlint/no-empty-links
             title: No empty links
             severity: warning
@@ -6045,7 +6045,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md042.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md042.md
           - id: markdownlint/no-hard-tabs
             title: Hard tabs
             severity: info
@@ -6054,7 +6054,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md010.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md010.md
           - id: markdownlint/no-inline-html
             title: Inline HTML
             severity: info
@@ -6063,7 +6063,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md033.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md033.md
           - id: markdownlint/no-missing-space-atx
             title: No space after hash on atx style heading
             severity: warning
@@ -6072,7 +6072,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md018.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md018.md
           - id: markdownlint/no-missing-space-closed-atx
             title: No space inside hashes on closed atx style heading
             severity: info
@@ -6081,7 +6081,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md020.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md020.md
           - id: markdownlint/no-multiple-blanks
             title: Multiple consecutive blank lines
             severity: info
@@ -6090,7 +6090,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md012.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md012.md
           - id: markdownlint/no-multiple-space-atx
             title: Multiple spaces after hash on atx style heading
             severity: warning
@@ -6099,7 +6099,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md019.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md019.md
           - id: markdownlint/no-multiple-space-blockquote
             title: Multiple spaces after blockquote symbol
             severity: info
@@ -6108,7 +6108,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md027.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md027.md
           - id: markdownlint/no-multiple-space-closed-atx
             title: Multiple spaces inside hashes on closed atx style heading
             severity: info
@@ -6117,7 +6117,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md021.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md021.md
           - id: markdownlint/no-reversed-links
             title: Reversed link syntax
             severity: warning
@@ -6126,7 +6126,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md011.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md011.md
           - id: markdownlint/no-space-in-code
             title: Spaces inside code span elements
             severity: info
@@ -6135,7 +6135,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md038.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md038.md
           - id: markdownlint/no-space-in-emphasis
             title: Spaces inside emphasis markers
             severity: info
@@ -6144,7 +6144,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md037.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md037.md
           - id: markdownlint/no-space-in-links
             title: Spaces inside link text
             severity: warning
@@ -6153,7 +6153,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md039.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md039.md
           - id: markdownlint/no-trailing-punctuation
             title: Trailing punctuation in heading
             severity: info
@@ -6162,7 +6162,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md026.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md026.md
           - id: markdownlint/no-trailing-spaces
             title: Trailing spaces
             severity: info
@@ -6171,7 +6171,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md009.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md009.md
           - id: markdownlint/ol-prefix
             title: Ordered list item prefix
             severity: info
@@ -6180,7 +6180,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md029.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md029.md
           - id: markdownlint/proper-names
             title: Proper names should have the correct capitalization
             severity: info
@@ -6189,7 +6189,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md044.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md044.md
           - id: markdownlint/reference-links-images
             title: Reference links and images should use a label that is defined
             severity: warning
@@ -6198,7 +6198,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md052.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md052.md
           - id: markdownlint/required-headings
             title: Required heading structure
             severity: info
@@ -6207,7 +6207,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md043.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md043.md
           - id: markdownlint/single-title
             title: Multiple top-level headings in the same document
             severity: info
@@ -6216,7 +6216,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md025.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md025.md
           - id: markdownlint/single-trailing-newline
             title: Files should end with a single newline character
             severity: info
@@ -6225,7 +6225,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md047.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md047.md
           - id: markdownlint/strong-style
             title: Strong style
             severity: info
@@ -6234,7 +6234,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md050.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md050.md
           - id: markdownlint/table-column-count
             title: Table column count
             severity: warning
@@ -6243,7 +6243,7 @@ org:
             rulesets:
               - markdownlint
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md056.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md056.md
           - id: markdownlint/table-column-style
             title: Table column style
             severity: info
@@ -6252,7 +6252,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md060.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md060.md
           - id: markdownlint/table-pipe-style
             title: Table pipe style
             severity: info
@@ -6261,7 +6261,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md055.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md055.md
           - id: markdownlint/ul-indent
             title: Unordered list indentation
             severity: info
@@ -6270,7 +6270,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md007.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md007.md
           - id: markdownlint/ul-style
             title: Unordered list style
             severity: info
@@ -6279,7 +6279,7 @@ org:
             rulesets:
               - markdownlint:extra
             references:
-              - https://github.com/DavidAnson/markdownlint/blob/v0.42.1/doc/md004.md
+              - https://github.com/DavidAnson/markdownlint/blob/v0.42.2/doc/md004.md
           - id: markup/captions/missing
             title: Un vídeo no tiene subtítulos
             severity: warning
