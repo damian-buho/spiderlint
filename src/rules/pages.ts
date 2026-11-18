@@ -18,6 +18,10 @@ export const PAGE_FORMATS = ["yaml", "markdown"];
 // The ruleset a group runs when its config names none.
 const DEFAULT_RULESET = "recommended";
 
+// The collections rule and ruleset pages belong to, rendered side by side as `<dir>/rules/` and `<dir>/rulesets/`.
+export const RULES = "rules";
+export const RULESETS = "rulesets";
+
 // Every shipped rule, read with no user config so the catalog is the same on every machine.
 export function shippedCatalog(): RuleExplanation[] {
     return listRules(layered([]), []);
@@ -28,7 +32,12 @@ function fixes(rule: RuleExplanation): string[] {
     return [rule.fix, ...(rule.extra ?? [])].filter((fix): fix is string => fix !== undefined && fix !== rule.title).map((fix) => fixFor(fix));
 }
 
-// The catalog as a projectfile document: `org.projectfile.pages.rules.items[]`, one entry per rule.
+// Collection `name`'s catalog as a projectfile document: `org.projectfile.pages.<name>.items[]`.
+function catalogDocument(name: string, items: object[]): string {
+    return stringify({ org: { projectfile: { pages: { [name]: { items } } } } }, { lineWidth: 0 }).trimEnd();
+}
+
+// The rule catalog, one entry per rule.
 export function catalogYaml(rules: RuleExplanation[], t: Translator): string {
     const items = rules.map((rule) => ({
         id: rule.id,
@@ -42,7 +51,19 @@ export function catalogYaml(rules: RuleExplanation[], t: Translator): string {
         ...(rule.message && { message: t._(rule.message) }),
     }));
     log.debug({ lang: t.lang, items: items.length }, "rule catalog rendered");
-    return stringify({ org: { projectfile: { pages: { rules: { items } } } } }, { lineWidth: 0 }).trimEnd();
+    return catalogDocument(RULES, items);
+}
+
+// The ruleset catalog, one entry per shipped ruleset with the rules it resolves to.
+export function rulesetCatalogYaml(t: Translator): string {
+    const items = listPresets(layered([])).map((preset) => ({ id: preset.name, ...(preset.description && { description: t._(preset.description) }), rules: presetRules(preset.name).map((rule) => rule.id) }));
+    log.debug({ lang: t.lang, items: items.length }, "ruleset catalog rendered");
+    return catalogDocument(RULESETS, items);
+}
+
+// The rules shipped ruleset `name` resolves to.
+function presetRules(name: string): RuleExplanation[] {
+    return listRules(layered([]), [`spiderlint:${name}`]);
 }
 
 // Markdown text with every `<` and `>` outside code spans escaped, so a `<host>` placeholder is no HTML tag.
@@ -70,14 +91,19 @@ function section(id: string): string | undefined {
     return parts.length > 2 ? parts.slice(0, -1).join("/") : undefined;
 }
 
-// A family’s page in the collection, `dns` as `dns.md`.
+// A family’s page, `dns` as `rules/dns.md`.
 function familyFile(name: string): string {
-    return `${name}.md`;
+    return `${RULES}/${name}.md`;
 }
 
-// A ruleset’s page in the collection, `dns:core` as `rulesets/dns-core.md`.
+// A ruleset’s page, `dns:core` as `rulesets/dns-core.md`.
 function rulesetFile(name: string): string {
-    return `rulesets/${name.replaceAll(":", "-")}.md`;
+    return `${RULESETS}/${name.replaceAll(":", "-")}.md`;
+}
+
+// Collection `name`’s own index page.
+function indexFile(name: string): string {
+    return `${name}/index.md`;
 }
 
 // The path from page `from` to the collection-relative `to`.
@@ -135,7 +161,8 @@ function authorDetails(rule: RuleExplanation, t: Translator): string[] {
 
 // One rule’s section at heading `level`: title, facts line, rationale, report message, fixes, availability, references.
 export function ruleSection(rule: RuleExplanation, from: string, level: number, defaults: Set<string>, t: Translator): string {
-    const facts = [`\`${rule.id}\``, `[${rule.preset}](${relative(from, "index.md")}#severity)`, `${t._("score")} [${scoreRange(rule.score)}](${relative(from, "index.md")}#score)`, `[${rule.scope}](${relative(from, "index.md")}#scope)`];
+    const index = relative(from, indexFile(RULES));
+    const facts = [`\`${rule.id}\``, `[${rule.preset}](${index}#severity)`, `${t._("score")} [${scoreRange(rule.score)}](${index}#score)`, `[${rule.scope}](${index}#scope)`];
     const all = fixes(rule);
     return [
         `${"#".repeat(level)} ${escaped(rule.title ? t._(rule.title) : rule.id)} {#${rule.id}}`,
@@ -167,8 +194,14 @@ function rulesetPage(name: string, description: string, rules: RuleExplanation[]
     return [`# ${name}`, ...(description ? [escaped(t._(description))] : []), t._("Rules: {count}", { count: rules.length }), items.join("\n")].join("\n\n");
 }
 
-// The index: what severity, score, scope and rulesets mean, how to turn a rule on or off, then every family and ruleset.
-function indexPage(rules: RuleExplanation[], presets: { name: string; description: string }[], families: string[], t: Translator): string {
+// What a ruleset is and which one a group runs by default, linked from `from`.
+function rulesetsText(from: string, t: Translator): string {
+    return t._("A ruleset names the rules a URL group runs; the command line calls the shipped ones presets (`spiderlint list-presets`). A group with no rulesets of its own runs {ruleset}.", { ruleset: `[${DEFAULT_RULESET}](${relative(from, rulesetFile(DEFAULT_RULESET))})` });
+}
+
+// The rules index: what severity, score, scope and rulesets mean, how to turn a rule on or off, then every family.
+function indexPage(rules: RuleExplanation[], families: string[], t: Translator): string {
+    const from = indexFile(RULES);
     const grades = FLOORS.map(([tenths, grade]) => `${grade} ≥ ${tenths * 10} %`).join(", ");
     const example = ["```yaml", "org:", "  spiderlint:", "    groups:", "      default:", "        rules: [recommended, tls-probe]", "    exclude-rules: [dns/ns/single]", "    override:", "      error: [http/hsts/missing]", "```"].join("\n");
     return [
@@ -181,35 +214,64 @@ function indexPage(rules: RuleExplanation[], presets: { name: string; descriptio
         t._("The report grades a run S to F by the share of checks that passed, a failed check costing more as its score rises: {grades}. S means no check failed; an error caps the grade at B.", { grades }),
         `## ${t._("Scope")} {#scope}`,
         t._("A page rule judges one page at a time. A group rule judges every page of a URL group together, such as every page of one template. A site rule judges the site once, such as its DNS or TLS."),
-        `## ${t._("Rulesets")} {#rulesets}`,
-        t._("A ruleset names the rules a URL group runs; the command line calls the shipped ones presets (`spiderlint list-presets`). A group with no rulesets of its own runs {ruleset}.", { ruleset: `[${DEFAULT_RULESET}](${rulesetFile(DEFAULT_RULESET)})` }),
+        `## [${t._("Rulesets")}](${relative(from, indexFile(RULESETS))}) {#rulesets}`,
+        rulesetsText(from, t),
         `## ${t._("Turning rules on and off")} {#configure}`,
         t._("In the projectfile, `rules` adds rulesets to a group, `exclude-rules` drops rules, and `override` moves rules to another severity:"),
         example,
         `## ${t._("Families")}`,
-        families.map((name) => `- [${name}](${familyFile(name)})`).join("\n"),
-        `## ${t._("Rulesets")}`,
-        presets.map((preset) => `- [${preset.name}](${rulesetFile(preset.name)}): ${escaped(t._(preset.description))}`).join("\n"),
+        families.map((name) => `- [${name}](${relative(from, familyFile(name))})`).join("\n"),
     ].join("\n\n");
 }
 
-// Every page under `directory`: one per rule family, one per shipped ruleset and an `index.md`; returns the page count.
-export function writeRulePages(directory: string, rules: RuleExplanation[], t: Translator): number {
-    const write = (file: string, body: string) => {
-        const target = path.join(directory, file);
+// The rulesets index: what a ruleset is, then every shipped ruleset.
+function rulesetsIndexPage(presets: { name: string; description: string }[], t: Translator): string {
+    const from = indexFile(RULESETS);
+    return [`# ${t._("Rulesets")}`, rulesetsText(from, t), presets.map((preset) => `- [${preset.name}](${relative(from, rulesetFile(preset.name))}): ${escaped(t._(preset.description))}`).join("\n")].join("\n\n");
+}
+
+// A writer of collection-relative pages, `rules/dns.md`, into `directory`, which holds collection `name` alone.
+function pageWriter(directory: string, name: string): (file: string, body: string) => void {
+    return (file, body) => {
+        const target = path.join(directory, path.posix.relative(name, file));
         mkdirSync(path.dirname(target), { recursive: true });
         writeFileSync(target, `${body}\n`);
     };
-    const byId = new Map(rules.map((rule) => [rule.id, rule]));
-    const defaults = new Set(listRules(layered([]), [`spiderlint:${DEFAULT_RULESET}`]).map((rule) => rule.id));
+}
+
+// Every rule page under `directory`: one per rule family and an `index.md`; returns the page count.
+export function writeRulePages(directory: string, rules: RuleExplanation[], t: Translator): number {
+    const write = pageWriter(directory, RULES);
+    const defaults = new Set(presetRules(DEFAULT_RULESET).map((rule) => rule.id));
     const families = Map.groupBy(rules, (rule) => family(rule.id));
     for (const [name, members] of families) write(familyFile(name), familyPage(name, members, defaults, t));
-    const presets = listPresets(layered([]));
-    for (const preset of presets) {
-        const members = listRules(layered([]), [`spiderlint:${preset.name}`]).map((rule) => byId.get(rule.id) ?? rule);
-        write(rulesetFile(preset.name), rulesetPage(preset.name, preset.description, members, t));
-    }
-    write("index.md", indexPage(rules, presets, families.keys().toArray(), t));
-    log.info({ directory, lang: t.lang, rules: rules.length, families: families.size, rulesets: presets.length, defaults: defaults.size }, "rule pages written");
-    return families.size + presets.length + 1;
+    write(indexFile(RULES), indexPage(rules, families.keys().toArray(), t));
+    log.info({ directory, lang: t.lang, rules: rules.length, families: families.size, defaults: defaults.size }, "rule pages written");
+    return families.size + 1;
 }
+
+// Every ruleset page under `directory`: one per shipped ruleset and an `index.md`; returns the page count.
+export function writeRulesetPages(directory: string, rules: RuleExplanation[], t: Translator): number {
+    const write = pageWriter(directory, RULESETS);
+    const byId = new Map(rules.map((rule) => [rule.id, rule]));
+    const presets = listPresets(layered([]));
+    for (const preset of presets)
+        write(
+            rulesetFile(preset.name),
+            rulesetPage(
+                preset.name,
+                preset.description,
+                presetRules(preset.name).map((rule) => byId.get(rule.id) ?? rule),
+                t,
+            ),
+        );
+    write(indexFile(RULESETS), rulesetsIndexPage(presets, t));
+    log.info({ directory, lang: t.lang, rulesets: presets.length }, "ruleset pages written");
+    return presets.length + 1;
+}
+
+// The page collections the `rules` and `rulesets` commands print and render.
+export const PAGE_COLLECTIONS: Record<string, { catalog: (t: Translator) => string; write: (directory: string, t: Translator) => number }> = {
+    [RULES]: { catalog: (t) => catalogYaml(shippedCatalog(), t), write: (directory, t) => writeRulePages(directory, shippedCatalog(), t) },
+    [RULESETS]: { catalog: (t) => rulesetCatalogYaml(t), write: (directory, t) => writeRulesetPages(directory, shippedCatalog(), t) },
+};

@@ -158,7 +158,7 @@ org:
         command: ${identity.name}
         executable: bin/spiderlint.js
         operating-system: [linux, darwin]
-        subcommands: [audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, rules, show-cache, purge-cache, warm-cache]
+        subcommands: [audit, crawl, lint, show-report, show-facts, export-facts, list-groups, list-rules, list-presets, explain-rule, rules, rulesets, show-cache, purge-cache, warm-cache]
     build:
       args:
         B19_NODE_SERIES: 26
@@ -192,6 +192,12 @@ org:
           - '*.tmp.*'
     operating-system:
       - linux
+    pages:
+      rulesets:
+        title:
+          en: Rulesets
+          es: Conjuntos de reglas
+          uk: Набори правил
     status: experimental
   spiderlint: {}
 repositories:
