@@ -25,6 +25,8 @@ const ruleSpec = {
         severity,
         score: { oneOf: [score, { type: "array", minItems: 2, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "number" } } }] },
         docs: { type: "string" },
+        title: { type: "string" },
+        rationale: { type: "string" },
         fix: { type: "string" },
         extra: { type: "array", items: { type: "string" } },
         hints: { type: "object", additionalProperties: { type: "string" } },

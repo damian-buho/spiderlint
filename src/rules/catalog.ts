@@ -29,6 +29,8 @@ export interface RuleInfo {
 }
 
 export interface RuleExplanation extends RuleInfo {
+    title?: string;
+    rationale?: string;
     kind: "declarative" | "unique" | "built-in";
     expect?: Record<string, unknown>;
     when?: Record<string, unknown>;
@@ -97,7 +99,24 @@ function describeRule(id: string, spec: RuleSpec, severities: Map<string, Set<st
     const preset = spec.severity ?? "warning";
     const { meta } = compileRule(id, { ...spec, severity: preset === "off" ? "warning" : preset });
     const kind = spec.unique ? "unique" : spec.fact ? "declarative" : "built-in";
-    return { id, severity: [...(severities.get(id) ?? ["off"])].join("/"), preset, score: scoreText(meta), scope: meta.scope, rulesets, facts: meta.facts, docs: meta.docs, kind, expect: spec.expect, when: spec.when, message: spec.message, fix: meta.fix, extra: meta.extra };
+    return {
+        id,
+        severity: [...(severities.get(id) ?? ["off"])].join("/"),
+        preset,
+        score: scoreText(meta),
+        scope: meta.scope,
+        rulesets,
+        facts: meta.facts,
+        docs: meta.docs,
+        title: spec.title ?? meta.title,
+        rationale: spec.rationale ?? meta.rationale,
+        kind,
+        expect: spec.expect,
+        when: spec.when,
+        message: spec.message,
+        fix: meta.fix,
+        extra: meta.extra,
+    };
 }
 
 // Everything known about one rule; a rule no ruleset carries and no plugin makes is a config error.
@@ -163,6 +182,7 @@ export function formatRules(rules: RuleInfo[], paint: Paint): string {
 export function formatExplanation(rule: RuleExplanation, paint: Paint): string {
     const fixes = [rule.fix, ...(rule.extra ?? [])].filter((fix): fix is string => fix !== undefined);
     const rows: [string, string | undefined][] = [
+        ["title", rule.title],
         ["severity", `${rule.severity} (preset ${rule.preset})`],
         ["score", rule.score],
         ["scope", rule.scope],
@@ -171,6 +191,7 @@ export function formatExplanation(rule: RuleExplanation, paint: Paint): string {
         ["reads", rule.facts.join(", ")],
         ["expect", rule.expect && JSON.stringify(rule.expect)],
         ["when", rule.when && JSON.stringify(rule.when)],
+        ["why", rule.rationale],
         ["message", rule.message],
         ...fixes.map((fix, index): [string, string] => [`fix${fixes.length > 1 ? ` ${index + 1}` : ""}`, plainFix(fixFor(fix)).join(`\n${" ".repeat(9)}`)]),
         ["docs", rule.docs],

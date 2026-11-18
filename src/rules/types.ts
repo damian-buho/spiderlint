@@ -57,6 +57,10 @@ export interface Finding {
 
 export interface RuleMeta {
     id: string;
+    // What the rule finds, as a page heading reads it.
+    title?: string;
+    // Why a reader should care: what breaks, and for whom.
+    rationale?: string;
     severity: Severity;
     scope: Scope;
     facts: string[];
@@ -112,6 +116,8 @@ export interface RuleSpec {
     // Set when a level was written by hand, so a computed score stays inside its band.
     pinned?: true;
     docs?: string;
+    title?: string;
+    rationale?: string;
     fix?: string;
     // Ordered extra notes beyond `fix`, rendered after it in every format.
     extra?: string[];

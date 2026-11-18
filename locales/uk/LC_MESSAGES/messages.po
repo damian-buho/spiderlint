@@ -451,7 +451,6 @@ msgstr "ще {count}"
 msgid "{passed} of {total}"
 msgstr "{passed} з {total}"
 
-
 msgid "{phase}: {done} of {total}"
 msgstr "{phase}: {done} з {total}"
 
@@ -584,7 +583,6 @@ msgstr "мова справа наліво має задавати <html dir=rtl
 msgid "a script in <head> without async, defer or type=module blocks rendering"
 msgstr "скрипт у <head> без async, defer чи type=module блокує відображення"
 
-
 msgid "a URL with a query has no No-Vary-Search to say which parameters change the page"
 msgstr "URL із запитом не має No-Vary-Search, що вказував би, які параметри змінюють сторінку"
 
@@ -602,7 +600,6 @@ msgstr "канонічне посилання має бути абсолютни
 
 msgid "certificate expires within 14 days"
 msgstr "сертифікат спливає менш ніж за 14 днів"
-
 
 msgid "certificate has expired"
 msgstr "сертифікат прострочено"
@@ -801,7 +798,6 @@ msgstr "Retry-After просить клієнтів повернутися за�
 
 msgid "Retry-After breaks RFC 9110 §10.2.3, so clients cannot tell when to retry"
 msgstr "Retry-After порушує RFC 9110 §10.2.3, тому клієнти не знають, коли повторити запит"
-
 
 msgid "Strict-Transport-Security breaks RFC 6797 §6.1, so browsers ignore it"
 msgstr "Strict-Transport-Security порушує RFC 6797 §6.1, тому браузери його ігнорують"
@@ -1052,7 +1048,6 @@ msgstr "TTL запису лежить поза діапазоном від 300 �
 msgid "an authoritative name server answers recursive queries for any name, which lends it to amplification attacks and cache poisoning"
 msgstr "авторитетний сервер імен відповідає на рекурсивні запити для будь-якого імені, що відкриває його для атак підсилення та отруєння кешу"
 
-
 msgid "the domain registration expires in {got} days, and the site and its mail stop resolving when it lapses"
 msgstr "реєстрація домену спливає через {got} днів, і сайт та його пошта перестануть розв’язуватися, коли вона мине"
 
@@ -1082,7 +1077,6 @@ msgstr "ім’я, що приймає чи надсилає пошту, пот�
 
 msgid "SPF does not end in -all or ~all, so receivers let any server send as this name (got {got})"
 msgstr "SPF не закінчується на -all чи ~all, тому одержувачі дозволяють будь-якому серверу надсилати від цього імені ({got})"
-
 
 msgid "the favicon is missing or broken: {got}"
 msgstr "favicon відсутній або пошкоджений: {got}"
@@ -2254,17 +2248,11 @@ msgstr "значення"
 msgid "videos"
 msgstr "відео"
 
-msgid "Kind"
-msgstr "Вид"
-
 msgid "Rulesets"
 msgstr "Набори правил"
 
 msgid "Reads"
 msgstr "Читає"
-
-msgid "Message"
-msgstr "Повідомлення"
 
 msgid "Fix"
 msgstr "Виправлення"
@@ -2286,3 +2274,51 @@ msgstr "Правила"
 
 msgid "Rules: {count}"
 msgstr "Правил: {count}"
+
+msgid "the value found"
+msgstr "знайдене значення"
+
+msgid "score"
+msgstr "оцінка"
+
+msgid "Reported as"
+msgstr "У звіті"
+
+msgid "For rule authors"
+msgstr "Для авторів правил"
+
+msgid "Families"
+msgstr "Родини"
+
+msgid "Turning rules on and off"
+msgstr "Як вмикати й вимикати правила"
+
+msgid "Off in every shipped ruleset; an override turns it on."
+msgstr "Вимкнене в усіх вбудованих наборах; його вмикає `override`."
+
+msgid "Runs by default, in the {ruleset} ruleset."
+msgstr "Працює типово, у наборі {ruleset}."
+
+msgid "Off by default; a group that runs {rulesets} turns it on."
+msgstr "Типово вимкнене; його вмикає група, що запускає {rulesets}."
+
+msgid "Off by default; name it in a ruleset of your own to turn it on."
+msgstr "Типово вимкнене; щоб увімкнути, назвіть його у власному наборі."
+
+msgid "Each finding has a severity: error, warning, info or hint. `--fail-on` sets the lowest severity, or score, that fails the run."
+msgstr "Кожна знахідка має рівень: error, warning, info або hint. `--fail-on` задає найнижчий рівень чи оцінку, за якої запуск завершується невдачею."
+
+msgid "Each finding scores 0.0 to 9.9, and the score sets its severity: error {error}, warning {warning}, info {info}, hint {hint}. Some rules score by what they measured, so their page shows a range."
+msgstr "Кожна знахідка отримує оцінку від 0.0 до 9.9, і оцінка визначає її рівень: error {error}, warning {warning}, info {info}, hint {hint}. Деякі правила оцінюють за виміряним значенням, тож їхня сторінка показує діапазон."
+
+msgid "The report grades a run S to F by the share of checks that passed, a failed check costing more as its score rises: {grades}. S means no check failed; an error caps the grade at B."
+msgstr "Звіт оцінює запуск від S до F за часткою успішних перевірок, і невдала перевірка важить тим більше, чим вища її оцінка: {grades}. S означає, що жодна перевірка не впала; помилка обмежує оцінку до B."
+
+msgid "A page rule judges one page at a time. A group rule judges every page of a URL group together, such as every page of one template. A site rule judges the site once, such as its DNS or TLS."
+msgstr "Правило сторінки оцінює одну сторінку за раз. Правило групи оцінює разом усі сторінки групи URL, наприклад усі сторінки одного шаблону. Правило сайту оцінює сайт один раз, наприклад його DNS чи TLS."
+
+msgid "A ruleset names the rules a URL group runs; the command line calls the shipped ones presets (`spiderlint list-presets`). A group with no rulesets of its own runs {ruleset}."
+msgstr "Набір правил називає правила, які запускає група URL; командний рядок називає вбудовані набори пресетами (`spiderlint list-presets`). Група без власних наборів запускає {ruleset}."
+
+msgid "In the projectfile, `rules` adds rulesets to a group, `exclude-rules` drops rules, and `override` moves rules to another severity:"
+msgstr "У projectfile `rules` додає набори до групи, `exclude-rules` прибирає правила, а `override` змінює рівень правил:"

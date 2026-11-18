@@ -9,7 +9,7 @@ export type Level = Exclude<Severity, "off">;
 export type Scale = [value: number, score: number][];
 
 // Each level’s lowest and highest score in tenths, and the score a level alone stands for.
-const BANDS: Record<Level, { min: number; max: number; base: number }> = {
+export const BANDS: Record<Level, { min: number; max: number; base: number }> = {
     hint: { min: 0, max: 0.9, base: 0.5 },
     info: { min: 1, max: 3.2, base: 2 },
     warning: { min: 3.3, max: 6.5, base: 5 },

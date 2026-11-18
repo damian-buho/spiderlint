@@ -34,7 +34,7 @@ export interface Rating {
 }
 
 // Lowest score in tenths each grade still reaches, best first; F takes the rest.
-const FLOORS: [number, Grade][] = [
+export const FLOORS: [number, Grade][] = [
     [9, "A"],
     [7, "B"],
     [6, "C"],
