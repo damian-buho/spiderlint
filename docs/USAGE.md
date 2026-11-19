@@ -35,7 +35,9 @@ Rules:
   list-presets                    list the shipped rulesets and their groups
   explain-rule <rule>             show a rule’s facts, expectation and fix
   rules                           print the shipped rule catalog, or write one
-                                  page per rule
+                                  page per rule family
+  rulesets                        print the shipped ruleset catalog, or write
+                                  one page per ruleset
 
 Cache:
   show-cache [domain…]            show the entries, bytes and age of each bucket
@@ -567,10 +569,10 @@ Examples:
 ```console
 $ spiderlint rules --help
 Usage: spiderlint rules [options]
-Print the shipped rule catalog, or write one page per rule.
+Print the shipped rule catalog, or write one page per rule family.
 
 The catalog is YAML at org.projectfile.pages.rules.items; markdown writes one
-page per rule, one per ruleset and index.md into --output.
+page per rule family and index.md into --output.
 
 Output:
   --format <format>  yaml or markdown (default: yaml)
@@ -585,6 +587,32 @@ Examples:
     spiderlint rules --lang es
   Write the rule pages of a documentation book:
     spiderlint rules --format markdown --output book/rules
+```
+
+## spiderlint rulesets
+
+```console
+$ spiderlint rulesets --help
+Usage: spiderlint rulesets [options]
+Print the shipped ruleset catalog, or write one page per ruleset.
+
+The catalog is YAML at org.projectfile.pages.rulesets.items; markdown writes one
+page per ruleset and index.md into --output, linking each rule to its page in
+the sibling rules directory.
+
+Output:
+  --format <format>  yaml or markdown (default: yaml)
+  --lang <tag>       en, es, uk (default: from LC_ALL, LC_MESSAGES or LANG)
+  --output <dir>     with --format markdown, the directory to write pages in
+
+Options for every command, see spiderlint --help:
+  --config, --site, --[no-]color, --[no-]progress, --log-level
+
+Examples:
+  Print the ruleset catalog:
+    spiderlint rulesets
+  Write the ruleset pages of a documentation book:
+    spiderlint rulesets --format markdown --output book/rulesets
 ```
 
 ## spiderlint show-cache
