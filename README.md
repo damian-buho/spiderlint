@@ -160,7 +160,9 @@ Rules:
   list-presets                    list the shipped rulesets and their groups
   explain-rule <rule>             show a rule’s facts, expectation and fix
   rules                           print the shipped rule catalog, or write one
-                                  page per rule
+                                  page per rule family
+  rulesets                        print the shipped ruleset catalog, or write
+                                  one page per ruleset
 
 Cache:
   show-cache [domain…]            show the entries, bytes and age of each bucket
