@@ -29,8 +29,11 @@ import { width } from "./resources.ts";
 import type { CrawlStorage, Frontier, Logged, OnPage } from "./frontier.ts";
 import type { Router } from "./route.ts";
 import { chromiumArguments } from "./resolve.ts";
+import { setDebuggingPort, setLoadedDigest } from "./browser-state.ts";
 import { TlsProber } from "./tls-probe.ts";
 import { admit, charge } from "./network.ts";
+
+export { debuggingPort, loadedDigest } from "./browser-state.ts";
 
 const SETTLE_MS = 5000;
 // Pages a browser renders before a fresh one replaces it.
@@ -39,19 +42,6 @@ const LAUNCHERS: Record<BrowserName, BrowserType> = { chromium, firefox, webkit 
 const PORT_ARGUMENT = "--remote-debugging-port=";
 // Chromium past Crawlee’s loopback proxy, so it reports the server it reached.
 const DIRECT = "--proxy-server=direct://";
-// Each rendered page’s browser DevTools port, when an extractor asked for one.
-const ports = new WeakMap<Page, number>();
-const loaded = new WeakMap<Page, string>();
-
-// The DevTools port of the browser rendering `page`; undefined unless an active extractor is `debugging`.
-export function debuggingPort(page: Page): number | undefined {
-    return ports.get(page);
-}
-
-// The digest of every sub-resource body `page` loaded; undefined when one failed, was not read, or a frame navigated.
-export function loadedDigest(page: Page): string | undefined {
-    return loaded.get(page);
-}
 
 // The DevTools port Chromium chose under `--remote-debugging-port=0`, from the file it writes into its profile.
 async function activePort(profile: string): Promise<number | undefined> {
@@ -516,13 +506,13 @@ export async function browserCrawler(config: Config, onPage: OnPage, frontier: F
                     facts.browser = { timing: await milestones(page), console: observation.console, weight: await weightFacts(observation.requests), cookies: await scriptCookies(page) };
                     await logResponses(observation.requests, responses, config.maxBodySize, isKeptType);
                     const digest = resourcesDigest(observation.requests, responses);
-                    if (digest) loaded.set(page, digest);
+                    if (digest) setLoadedDigest(page, digest);
                 }
                 log.debug({ url: url.href, status: facts.http.status, type, bytes: size.body, depth: facts.crawl.depth, settled, isDownload: observation.isDownload === true, requests: observation.requests.length }, "page rendered");
                 if (router.isDetecting(url.href)) router.detected(url.href, served?.html, facts.html);
                 pages += 1;
                 const port = isPortOpen ? await activePort(browserController.launchContext.userDataDir) : undefined;
-                if (port) ports.set(page, port);
+                if (port) setDebuggingPort(page, port);
                 await onPage(facts, body, isHtml ? page : undefined);
                 if (!isHtml && !facts.feed) return;
                 log.debug({ url: url.href, enqueued: await frontier.enqueue(enqueueLinks, facts, "browser") }, "links enqueued");

@@ -16,6 +16,7 @@ const PREFIX = "spiderlint:";
 const ALL = "all";
 const SERVER = "server";
 const presetCache = new Map<string, RulesetConfig>();
+const pureResolvedCache = new Map<string, Record<string, RuleSpec>>();
 
 // A plugin’s preset, else presets/<name>.yaml read once; undefined when no such preset ships.
 function preset(name: string): RulesetConfig | undefined {
@@ -77,6 +78,18 @@ function entryOf(entry: RuleEntry, isUser: boolean): RuleSpec {
 // Flattens `extends` depth-first; later entries override earlier ones per rule ID, `expect` keyword by keyword.
 export function resolveRuleset(name: string, rulesets: Record<string, RulesetConfig>, seen: string[] = []): Record<string, RuleSpec> {
     if (seen.includes(name)) throw new ConfigError(`ruleset ${name}: extends itself through ${seen.join(" → ")}`);
+    if (Object.keys(rulesets).length === 0) {
+        const cacheKey = `${pluginPresetNames().length}\t${name}`;
+        const cached = pureResolvedCache.get(cacheKey);
+        if (cached) return { ...cached };
+        const computed = resolveRulesetUncached(name, rulesets, seen);
+        pureResolvedCache.set(cacheKey, computed);
+        return { ...computed };
+    }
+    return resolveRulesetUncached(name, rulesets, seen);
+}
+
+function resolveRulesetUncached(name: string, rulesets: Record<string, RulesetConfig>, seen: string[]): Record<string, RuleSpec> {
     const config = lookup(name, rulesets);
     if (!config) return selectRules(name, rulesets, seen);
     const merged: Record<string, RuleSpec> = {};

@@ -192,11 +192,16 @@ async function isValidating(client: DnsClient, resolver: string): Promise<boolea
 // A resolver over the configured servers, caching every answer for its record TTL.
 export function dnsClient(resolver: string, bucket: Bucket<StoredReply>, canQueryDirectly: boolean, directPort = 53): DnsClient {
     const configured = servers(resolver);
+    const inflight = new Map<string, Promise<Reply>>();
+    const timedOutDirect = new Set<string>();
     let validation: Promise<boolean> | undefined;
     const client: DnsClient = {
         canQueryDirectly,
         async query(name, type, options = {}) {
             if (!canQueryDirectly && options.server !== undefined) throw new Error(`direct query to ${options.server} refused`);
+            if (options.server !== undefined && (timedOutDirect.has(options.server) || timedOutDirect.size >= 2)) {
+                throw new Error(`direct port-${directPort} query to ${options.server} skipped after outbound port-${directPort} timeouts`);
+            }
             const targets = options.server === undefined ? configured : [{ address: options.server, port: directPort }];
             if (targets.length === 0) throw new Error("no resolver configured");
             const signal = options.signal ?? new AbortController().signal;
@@ -204,24 +209,37 @@ export function dnsClient(resolver: string, bucket: Bucket<StoredReply>, canQuer
             const key = `${targets.map((target) => label(target)).join(",")}\t${name}\t${type}\t${options.checkingDisabled ? "cd" : ""}${options.recursion ? "rd" : ""}`;
             const entry = await bucket.get(key);
             if (entry && Date.parse(entry.value.expires) > Date.now()) return decode(targets[0] ? label(targets[0]) : "", Buffer.from(entry.value.packet, "base64"));
-            let failure: unknown;
-            for (const target of targets) {
-                for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-                    try {
-                        const wire = await exchange(target, name, type, options, signal);
-                        const reply = decode(label(target), wire);
-                        log.debug({ name, type, server: label(target), rcode: reply.rcode, answers: reply.answers.length, ad: reply.ad, attempt }, "dns answered");
-                        await bucket.set(key, { expires: new Date(Date.now() + lifetime(reply, bucket.ttlSeconds) * 1000).toISOString(), packet: wire.toString("base64") });
-                        return reply;
-                    } catch (error) {
-                        failure = error;
-                        log.debug({ name, type, server: label(target), attempt, error: reason(error) }, "dns query failed");
-                        if (signal.aborted) throw error;
-                        await sleep(100 * 2 ** attempt + Math.random() * 100);
+            if (options.signal === undefined) {
+                const pending = inflight.get(key);
+                if (pending) return pending;
+            }
+            const work = (async (): Promise<Reply> => {
+                let failure: unknown;
+                for (const target of targets) {
+                    for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+                        try {
+                            const wire = await exchange(target, name, type, options, signal);
+                            const reply = decode(label(target), wire);
+                            log.debug({ name, type, server: label(target), rcode: reply.rcode, answers: reply.answers.length, ad: reply.ad, attempt }, "dns answered");
+                            await bucket.set(key, { expires: new Date(Date.now() + lifetime(reply, bucket.ttlSeconds) * 1000).toISOString(), packet: wire.toString("base64") });
+                            return reply;
+                        } catch (error) {
+                            failure = error;
+                            log.debug({ name, type, server: label(target), attempt, error: reason(error) }, "dns query failed");
+                            if (signal.aborted) throw error;
+                            await sleep(100 * 2 ** attempt + Math.random() * 100);
+                        }
                     }
                 }
+                if (options.server !== undefined && reason(failure).includes("no answer from")) timedOutDirect.add(options.server);
+                throw failure instanceof Error ? failure : new Error(String(failure));
+            })();
+            if (options.signal === undefined) inflight.set(key, work);
+            try {
+                return await work;
+            } finally {
+                if (options.signal === undefined) inflight.delete(key);
             }
-            throw failure instanceof Error ? failure : new Error(String(failure));
         },
         // The root zone is signed, so a validating resolver sets `AD` on its SOA; warns once when it does not.
         validating() {

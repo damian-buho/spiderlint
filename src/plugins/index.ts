@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { Page } from "playwright";
-import { loadedDigest } from "../crawl/browser.ts";
+import { loadedDigest } from "../crawl/browser-state.ts";
 import { VERSION } from "../agent.ts";
 import { ExtractorCache } from "../cache/extractors.ts";
 import { ConfigError, type Config } from "../config/index.ts";
@@ -57,6 +57,7 @@ const loaded = new Set(plugins.map((plugin) => plugin.name));
 const bundled = plugins.flatMap((plugin) => [...(plugin.extractors ?? []), ...(plugin.resources ?? []), ...(plugin.sites ?? [])]);
 for (const extractor of bundled) extractor.version ??= VERSION;
 const ajv = new Ajv2020({ strictTypes: false, allErrors: true, useDefaults: true });
+const pluginSchemaCache = new WeakMap<object, ReturnType<typeof ajv.compile>>();
 // Each plugin’s validated settings, by plugin name.
 const settings = new Map<string, unknown>();
 
@@ -64,7 +65,11 @@ const settings = new Map<string, unknown>();
 function settle(plugin: Plugin, raw: unknown = {}): unknown {
     if (!plugin.settings) return undefined;
     const value = structuredClone(raw);
-    const validate = ajv.compile(plugin.settings);
+    let validate = pluginSchemaCache.get(plugin.settings);
+    if (!validate) {
+        validate = ajv.compile(plugin.settings);
+        pluginSchemaCache.set(plugin.settings, validate);
+    }
     if (!validate(value)) throw new ConfigError((validate.errors ?? []).map((error) => describe(error, `org.spiderlint/${plugin.name}`)).join("; "));
     return value;
 }

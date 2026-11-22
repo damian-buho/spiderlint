@@ -116,9 +116,9 @@ describe("domain budgets", () => {
         for (let request = 0; request < 3; request += 1) assert.equal(await isHeld("https://example.com/", 0, 404), false);
     });
 
-    it("never holds a request to this machine", async () => {
+    it("never holds a request to this machine, a private address, or a tailnet host", async () => {
         const network = await openNetwork({ ...NETWORK, misses: 1 });
-        for (const host of ["127.0.0.1", "127.255.255.255", "[::1]", "localhost", "app.localhost"]) {
+        for (const host of ["127.0.0.1", "127.255.255.255", "[::1]", "localhost", "app.localhost", "10.0.0.1", "100.64.0.42", "192.168.1.1", "node.example-tailnet.ts.net", "svc.internal"]) {
             for (let request = 0; request < 3; request += 1) assert.equal(await isHeld(`http://${host}/`, 0, 404), false, host);
         }
         assert.equal(await isHeld("http://128.0.0.1/", 0, 404), false);

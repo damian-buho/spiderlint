@@ -37,11 +37,6 @@ function sourceAt(body: string, offset: number): string | undefined {
 // Same-origin scripts need no SRI, as `resources/integrity/missing` already judges; the HTML standard bars only empty and whitespace ids.
 const RULES: RuleConfig = { "require-sri": ["error", { target: "crossorigin" }], "valid-id": ["error", { relaxed: true }] };
 const presetNames = (names: string[]) => names.map((name) => `html-validate:${name}`);
-// A rendered DOM is Chromium’s serialisation, so the serialisation-style rules are off for it.
-const validators = {
-    http: new HtmlValidate(new StaticConfigLoader({ extends: presetNames(BASE), rules: RULES })),
-    browser: new HtmlValidate(new StaticConfigLoader({ extends: presetNames([...BASE, "browser"]), rules: RULES })),
-};
 
 // html-validate’s severity as spiderlint’s: 2 or error, 1 or warn, else off.
 function severityOf(entry: unknown): Severity {
@@ -57,31 +52,75 @@ function severities(presets: Upstream[]): Record<string, Exclude<Severity, "off"
     return Object.fromEntries(Object.entries(merged).filter(([id, severity]) => severity !== "off" && !IGNORED.has(id))) as Record<string, Exclude<Severity, "off">>;
 }
 
-// The first line of each html-validate rule description; a rule with none without an element context is exempt.
-export const exempt: Set<string> = new Set();
+const validators: { http?: HtmlValidate; browser?: HtmlValidate } = {};
+
+// A rendered DOM is Chromium’s serialisation, so the serialisation-style rules are off for it.
+function validatorFor(mode: "http" | "browser"): HtmlValidate {
+    return mode === "http" ? (validators.http ??= new HtmlValidate(new StaticConfigLoader({ extends: presetNames(BASE), rules: RULES }))) : (validators.browser ??= new HtmlValidate(new StaticConfigLoader({ extends: presetNames([...BASE, "browser"]), rules: RULES })));
+}
+
 const DESCRIPTIONS = new Map<string, string>();
 const htmlValidateIds = Object.keys(severities(BASE));
-for (const id of htmlValidateIds) {
-    try {
-        const documentation = validators.http.getContextualDocumentationSync({ ruleId: id, context: undefined });
-        const summary = documentation?.description
-            ?.split("\n")
-            .map((line) => line.trim())
-            .find(Boolean);
-        if (summary) DESCRIPTIONS.set(id, summary);
-        else {
-            log.debug({ id }, "html-validate rule has no description");
-            exempt.add(`${PREFIX}${id}`);
+const catalogState = { isLoaded: false };
+const exemptIds = new Set<string>();
+
+function ensureDescriptions(): void {
+    if (catalogState.isLoaded) return;
+    catalogState.isLoaded = true;
+    const httpValidator = validatorFor("http");
+    for (const id of htmlValidateIds) {
+        try {
+            const documentation = httpValidator.getContextualDocumentationSync({ ruleId: id, context: undefined });
+            const summary = documentation?.description
+                ?.split("\n")
+                .map((line) => line.trim())
+                .find(Boolean);
+            if (summary) DESCRIPTIONS.set(id, summary);
+            else {
+                log.debug({ id }, "html-validate rule has no description");
+                exemptIds.add(`${PREFIX}${id}`);
+            }
+        } catch {
+            log.debug({ id }, "html-validate rule has no context-free description");
+            exemptIds.add(`${PREFIX}${id}`);
         }
-    } catch {
-        log.debug({ id }, "html-validate rule has no context-free description");
-        exempt.add(`${PREFIX}${id}`);
     }
 }
 
+class LazyExemptSet extends Set<string> {
+    #sync(): void {
+        if (catalogState.isLoaded) return;
+        ensureDescriptions();
+        for (const id of exemptIds) super.add(id);
+    }
+
+    override get size(): number {
+        this.#sync();
+        return super.size;
+    }
+
+    override has(value: string): boolean {
+        this.#sync();
+        return super.has(value);
+    }
+
+    override [Symbol.iterator](): SetIterator<string> {
+        this.#sync();
+        return super[Symbol.iterator]();
+    }
+}
+
+// The first line of each html-validate rule description; a rule with none without an element context is exempt.
+export const exempt: Set<string> = new LazyExemptSet();
+
 // The page rule of html-validate rule `id`; `title` is the upstream description when present.
 function rule(id: string): Make {
-    return messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`, DESCRIPTIONS.get(id));
+    let compiled: Make | undefined;
+    return (severity) => {
+        ensureDescriptions();
+        compiled ??= messageRule(ID, PREFIX, id, `https://html-validate.org/rules/${id}.html`, DESCRIPTIONS.get(id));
+        return compiled(severity);
+    };
 }
 
 // How much each rule matters, inside the error band: broken parsing first,
@@ -183,7 +222,7 @@ async function extract(page: Facts, body: string): Promise<HtmlValidateFacts | u
         return;
     }
     const mode = page.browser ? "browser" : "http";
-    const report = await validators[mode].validateString(body, page.url.href);
+    const report = await validatorFor(mode).validateString(body, page.url.href);
     const messages = report.results
         .flatMap((result) => result.messages)
         .map(({ ruleId, message, severity, line, column, offset, size, selector, context }) => {

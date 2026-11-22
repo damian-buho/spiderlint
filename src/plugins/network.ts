@@ -6,6 +6,7 @@ import { isIP } from "node:net";
 import type { MxData } from "dns-packet";
 import type { DnsClient } from "../crawl/dns.ts";
 import { reason } from "../crawl/fetch.ts";
+import { isPrivate } from "../crawl/guard.ts";
 import { log } from "../logger.ts";
 import { anycastProvider } from "../facts/vendors.ts";
 import { said } from "../rules/message.ts";
@@ -139,6 +140,7 @@ function identifier(context: SiteContext): { identify(address: string, name?: st
     };
     return {
         async identify(address, name) {
+            if (isPrivate(address)) return { address, ...(name && { name }), ptr: [], fcrdns: false };
             const [origin, names] = await Promise.all([route(address), reverse(address, context.dns)]);
             const state = await valid(origin.asn, origin.prefix);
             return { address, ...(name && { name }), ...origin, ...names, ...(state && { rpki: state }) };

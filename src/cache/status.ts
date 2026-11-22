@@ -6,6 +6,7 @@ import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { log } from "../logger.ts";
 import { TTL_DEFAULTS, bucketDirectory, type BucketName } from "./index.ts";
+import { SQLITE_BUCKET_FILE, sqliteStatus } from "./sqlite.ts";
 
 export interface BucketStatus {
     bucket: string;
@@ -55,11 +56,15 @@ export async function cacheStatus(root: string | undefined): Promise<BucketStatu
         const primary = await files(first);
         const counted = primary.filter((file) => file.name.endsWith(entryExtension) && !file.name.startsWith("__"));
         const others = await Promise.all(rest.map((directory) => files(directory)));
-        const all = [...counted, ...others.flat()];
-        const times = all.map((file) => file.mtime.getTime()).toSorted((a, b) => a - b);
-        log.debug({ root, bucket, entries: counted.length, files: all.length }, "bucket measured");
-        if (all.length === 0) continue;
-        out.push({ bucket, entries: counted.length, bytes: all.reduce((sum, file) => sum + file.size, 0), oldest: new Date(times[0] as number).toISOString(), newest: new Date(times.at(-1) as number).toISOString() });
+        const nonSqliteOthers = others.flat().filter((file) => !file.name.startsWith(SQLITE_BUCKET_FILE));
+        const sqlite = first ? sqliteStatus(first) : undefined;
+        const all = [...counted, ...nonSqliteOthers];
+        const totalEntries = counted.length + (sqlite?.entries ?? 0);
+        const totalBytes = all.reduce((sum, file) => sum + file.size, 0) + (sqlite?.bytes ?? 0);
+        const times = [...all.map((file) => file.mtime.getTime()), ...(sqlite ? [sqlite.oldestMs, sqlite.newestMs] : [])].toSorted((a, b) => a - b);
+        log.debug({ root, bucket, entries: totalEntries, files: all.length, sqliteEntries: sqlite?.entries ?? 0 }, "bucket measured");
+        if (!sqlite && all.length === 0) continue;
+        out.push({ bucket, entries: totalEntries, bytes: totalBytes, oldest: new Date(times[0] as number).toISOString(), newest: new Date(times.at(-1) as number).toISOString() });
     }
     return out;
 }

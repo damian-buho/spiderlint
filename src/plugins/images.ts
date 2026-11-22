@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { createHash } from "node:crypto";
-import { transform } from "esbuild";
-import sharp, { type Metadata, type Sharp } from "sharp";
-import { optimize } from "svgo";
+import type { Metadata, Sharp } from "sharp";
 import type { Facts, HtmlFacts, ResourceFacts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import { resourceRule, type Guide } from "../rules/builtin.ts";
@@ -93,9 +91,37 @@ function targetsOf(format: string, isAnimated: boolean): [Target, string][] {
     return [...own, ...modern];
 }
 
+type SharpLibrary = (typeof import("sharp"))["default"];
+type SvgoOptimize = (typeof import("svgo"))["optimize"];
+type EsbuildTransform = (typeof import("esbuild"))["transform"];
+
+const lazy: { sharp?: SharpLibrary; svgo?: SvgoOptimize; esbuild?: EsbuildTransform } = {};
+async function loadSharp(): Promise<SharpLibrary> {
+    if (!lazy.sharp) {
+        const module = await import("sharp");
+        lazy.sharp = module.default;
+    }
+    return lazy.sharp;
+}
+async function loadSvgo(): Promise<SvgoOptimize> {
+    if (!lazy.svgo) {
+        const module = await import("svgo");
+        lazy.svgo = module.optimize;
+    }
+    return lazy.svgo;
+}
+async function loadEsbuild(): Promise<EsbuildTransform> {
+    if (!lazy.esbuild) {
+        const module = await import("esbuild");
+        lazy.esbuild = module.transform;
+    }
+    return lazy.esbuild;
+}
+
 // An SVG’s size, and its size after SVGO when SVGO can parse it.
-function measureSvg(url: string, body: Uint8Array): ImageFacts {
+async function measureSvg(url: string, body: Uint8Array): Promise<ImageFacts> {
     const text = Buffer.from(body).toString("utf8");
+    const optimize = await loadSvgo();
     try {
         return { format: "svg", bytes: body.byteLength, encoded: { same: Buffer.byteLength(optimize(text).data) } };
     } catch (error) {
@@ -107,6 +133,7 @@ function measureSvg(url: string, body: Uint8Array): ImageFacts {
 // Format, size and the bytes each re-encoding would take, on one libvips thread; SVG goes through SVGO, never rasterised.
 async function measure(url: string, contentType: string, body: Uint8Array): Promise<ImageFacts> {
     if (contentType === "image/svg+xml") return measureSvg(url, body);
+    const sharp = await loadSharp();
     sharp.concurrency(1);
     sharp.cache(false);
     const input = () => sharp(body, { animated: true, limitInputPixels: MAX_PIXELS }).timeout({ seconds: TIMEOUT_SECONDS });
@@ -158,6 +185,7 @@ function fontFaces(css: string): NonNullable<TextFacts["font-faces"]> {
 // A stylesheet’s or script’s bytes before and after esbuild minifies it.
 async function extractText(url: string, contentType: string, body: Uint8Array): Promise<TextFacts> {
     const loader = contentType === "text/css" ? "css" : "js";
+    const transform = await loadEsbuild();
     const { code } = await transform(Buffer.from(body).toString("utf8"), { loader, minify: true, logLevel: "silent" });
     const faces = loader === "css" ? fontFaces(code) : [];
     log.debug({ url, loader, bytes: body.byteLength, minified: Buffer.byteLength(code), fontFaces: faces.length }, "text asset minified");
