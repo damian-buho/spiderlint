@@ -13,8 +13,11 @@ because a json report for a large crawl is routinely tens of megabytes.
     python3 contrib/fleet/spiderlint_fleet.py https://a.example https://b.example
     python3 contrib/fleet/spiderlint_fleet.py --jobs 4 --rules recommended $(cat targets.txt)
 
-Exit status is 0 when every target produced a report, 1 when any child failed, so
-it is usable as a CI step directly.
+Exit status is 0 when every target produced a parseable report and 1 when a child
+produced none, so it is usable as a CI step directly. Each target's own spiderlint
+exit code is reported per row rather than folded into the fleet status, because a
+non-zero child exit can mean findings were present, or that the site was never
+reached; `pages` in the row tells those apart.
 """
 
 from __future__ import annotations
@@ -173,9 +176,16 @@ def main() -> int:
     if not args.full_reports:
         for row in rows:
             report = row.pop("report", None)
-            if isinstance(report, dict):
-                findings = report.get("findings") or report.get("results") or []
-                row["findings"] = len(findings) if isinstance(findings, list) else None
+            if not isinstance(report, dict):
+                continue
+            findings = report.get("findings")
+            row["findings"] = len(findings) if isinstance(findings, list) else None
+            # `pages` distinguishes "audited and found nothing" from "never
+            # reached the site": an unreachable target still writes a parseable
+            # report, with zero findings and zero pages.
+            summary = report.get("summary")
+            if isinstance(summary, dict) and "pages" in summary:
+                row["pages"] = summary["pages"]
 
     failed = [row for row in rows if not row["ok"]]
     aggregate = {

@@ -15,6 +15,19 @@ failed, with the failures named on stderr, so it works as a CI step as it stands
 `--jobs` defaults to `min(4, cpu_count)` rather than the number of targets,
 because each child is a browser.
 
+## Reading the output
+
+Each row carries `exit_code`, `findings` and `pages`. The fleet status is `1` only
+when a child produced no parseable report at all — a target's own non-zero exit is
+reported rather than folded in, because it can mean findings were present or that
+the site was never reached. `pages` tells those apart: an unreachable target still
+writes a valid report, with zero findings and zero pages.
+
+```json
+{ "target": "http://unreachable.example", "ok": true, "exit_code": 3,
+  "findings": 0, "pages": 0 }
+```
+
 ## Why a file rather than a pipe
 
 Each child writes to a temporary file instead of a pipe. A json report for a large
