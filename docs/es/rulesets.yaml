@@ -689,12 +689,18 @@ org:
               - sshfp/record/missing
               - sshfp/zone/unsigned
               - structured-data/breadcrumb/unreachable
+              - structured-data/context/invalid
+              - structured-data/context/missing
               - structured-data/date/invalid
               - structured-data/entity/inconsistent
               - structured-data/json-ld/invalid
               - structured-data/property/missing
+              - structured-data/property/unknown
               - structured-data/reference/broken
+              - structured-data/rich-result/invalid
               - structured-data/term/deprecated
+              - structured-data/type/missing
+              - structured-data/type/unknown
               - structured-data/url/mismatch
               - tls-probe/cipher-order/missing
               - tls-probe/cipher/insecure
@@ -2082,15 +2088,21 @@ org:
               - sshfp/record/missing
               - sshfp/zone/unsigned
           - id: structured-data
-            description: JSON-LD, Microdata and RDFa that parse, carry what their rich result requires, agree with the page and each other, use current schema.org terms and valid dates, and whose breadcrumbs lead to live pages
+            description: JSON-LD, Microdata and RDFa that parse, validate against the schema.org vocabulary and Google’s rich result requirements, carry what their rich result requires, agree with the page and each other, use current schema.org terms and valid dates, and whose breadcrumbs lead to live pages
             rules:
               - structured-data/breadcrumb/unreachable
+              - structured-data/context/invalid
+              - structured-data/context/missing
               - structured-data/date/invalid
               - structured-data/entity/inconsistent
               - structured-data/json-ld/invalid
               - structured-data/property/missing
+              - structured-data/property/unknown
               - structured-data/reference/broken
+              - structured-data/rich-result/invalid
               - structured-data/term/deprecated
+              - structured-data/type/missing
+              - structured-data/type/unknown
               - structured-data/url/mismatch
           - id: suggestions
             description: Optional headers and head links a site may adopt, all hints, outside recommended
@@ -2397,12 +2409,18 @@ org:
               - sshfp/record/missing
               - sshfp/zone/unsigned
               - structured-data/breadcrumb/unreachable
+              - structured-data/context/invalid
+              - structured-data/context/missing
               - structured-data/date/invalid
               - structured-data/entity/inconsistent
               - structured-data/json-ld/invalid
               - structured-data/property/missing
+              - structured-data/property/unknown
               - structured-data/reference/broken
+              - structured-data/rich-result/invalid
               - structured-data/term/deprecated
+              - structured-data/type/missing
+              - structured-data/type/unknown
               - structured-data/url/mismatch
               - tls/certificate/expired
               - tls/certificate/expiring

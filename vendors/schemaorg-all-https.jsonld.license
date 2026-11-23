@@ -1,0 +1,9 @@
+SPDX-FileCopyrightText: 2011-2026 schema.org contributors
+
+SPDX-License-Identifier: CC-BY-SA-4.0
+
+The schema.org vocabulary, release 30.1 as of 2026-09-25, from
+https://schema.org/version/latest/schemaorg-all-https.jsonld (current, pending
+and attic terms). Refresh by hand: re-download that URL over this file. The
+@adobe/structured-data-validator reads it to check that a type exists in
+schema.org and a property is supported by the type it sits on.

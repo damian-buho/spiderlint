@@ -23,7 +23,7 @@ const FILES: Record<string, [string, string]> = {
 <link rel="alternate" hreflang="en" href="/good"><link rel="alternate" hreflang="es-ES" href="/es/">
 <link rel="alternate" type="application/rss+xml" href="/feed.xml"><link rel="alternate" type="application/atom+xml" href="/atom.xml"><link rel="alternate" type="application/feed+json" href="/feed.json">
 <link rel="manifest" href="/good.webmanifest">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","name":"Widget"},{"@type":"WebPage","@id":"ORIGIN/good#page","url":"ORIGIN/good","name":"Good"},{"@type":"Organization","@id":"ORIGIN/#org","name":"Acme"},{"@type":"BlogPosting","headline":"Good","datePublished":"2026-09-01T10:00:00Z","dateModified":"2026-09-02T10:00:00Z","publisher":{"@id":"ORIGIN/#org"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"ORIGIN/good"}]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"ORIGIN/good#page","url":"ORIGIN/good","name":"Good"},{"@type":"Organization","@id":"ORIGIN/#org","name":"Acme"},{"@type":"BlogPosting","headline":"Good","datePublished":"2026-09-01T10:00:00Z","dateModified":"2026-09-02T10:00:00Z","publisher":{"@id":"ORIGIN/#org"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"ORIGIN/"},{"@type":"ListItem","position":2,"name":"Good","item":"ORIGIN/good"}]}]}</script>
 </head><body><h1>Good</h1>
 <div itemscope itemtype="https://schema.org/Person" itemid="ORIGIN/#me"><span itemprop="name">Ana</span></div>
 <div vocab="https://schema.org/" typeof="Event"><span property="name">Talk</span> <time property="startDate" datetime="2026-10-01">1 October</time> <span property="location" typeof="Place"><span property="name">Hall</span></span></div>
@@ -41,9 +41,13 @@ const FILES: Record<string, [string, string]> = {
 <script type="application/ld+json">{"@type": "Event", "name": "Launch"}</script>
 <script type="application/ld+json">{"@type": "Event", "name": "Oops",}</script>
 <script type="application/ld+json">{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "item": {"@id": "/gone"}}, {"@type": "ListItem", "position": 2, "item": "/moved"}]}</script>
-<script type="application/ld+json">[{"@type": "WebPage", "url": "/elsewhere", "name": "Something else", "isPartOf": {"@id": "ORIGIN/good#page"}}, {"@type": "Article", "headline": "Bad", "author": {"@id": "#nobody"}, "datePublished": "2026-09-02", "dateModified": "2026-09-01", "dateCreated": "yesterday"}, {"@type": "Corporation", "@id": "ORIGIN/#org", "name": "Acme"}, {"@type": "Person", "@id": "ORIGIN/bad#me", "name": "Ana"}]</script>
+<script type="application/ld+json">[{"@type": "WebPage", "url": "/elsewhere", "name": "Something else", "colour": "blue", "isPartOf": {"@id": "ORIGIN/good#page"}}, {"@type": "Article", "headline": "Bad", "author": {"@id": "#nobody"}, "datePublished": "2026-09-02", "dateModified": "2026-09-01", "dateCreated": "yesterday"}, {"@type": "Corporation", "@id": "ORIGIN/#org", "name": "Acme"}, {"@type": "Person", "@id": "ORIGIN/bad#me", "name": "Ana"}]</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPagee", "name": "Typo"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "name": "Mystery"}</script>
+<script type="application/ld+json">{"@graph":[{"@type":"WebPage","name":"Bad"}]}</script>
 </head><body><h1>Bad</h1>
 <div itemscope itemtype="https://schema.org/Recipe"><span itemprop="name">Soup</span> <span itemprop="ingredients">Water</span></div>
+<div itemscope itemtype="Thing"><span itemprop="name">Vendor</span></div>
 <div vocab="https://schema.org/" typeof="Taxi"><span property="name">Cab</span></div>
 <a href="/es/">Español</a> <a href="/gone">Click here!</a> <a href="/moved">The moved page</a>
 <a href="/bad.xml">Broken feed</a> <a href="/noid.xml">Feed without ids</a> <a href="/hub.json">Hub feed</a> <a href="/elsewhere.xml">Feed of another URL</a>

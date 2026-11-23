@@ -9,6 +9,7 @@ import { pageRule, resolve } from "../rules/builtin.ts";
 import { said } from "../rules/message.ts";
 import type { Finding, Make } from "../rules/types.ts";
 import { SUPERSEDED } from "./schema-registry.ts";
+import structuredValidation from "./structured-validation.ts";
 import type { Plugin } from "./types.ts";
 
 type Node = Record<string, unknown>;
@@ -454,7 +455,7 @@ const dates = pageRule(
 
 export default {
     name: "structured-data",
-    extractors: [{ id: ID, extract }],
+    extractors: [{ id: ID, extract }, ...structuredValidation.extractors],
     rules: {
         "structured-data/json-ld/invalid": parse,
         "structured-data/property/missing": required,
@@ -464,10 +465,11 @@ export default {
         "structured-data/entity/inconsistent": entities,
         "structured-data/term/deprecated": deprecated,
         "structured-data/date/invalid": dates,
+        ...structuredValidation.rules,
     },
     presets: {
         "structured-data": {
-            description: "JSON-LD, Microdata and RDFa that parse, carry what their rich result requires, agree with the page and each other, use current schema.org terms and valid dates, and whose breadcrumbs lead to live pages",
+            description: "JSON-LD, Microdata and RDFa that parse, validate against the schema.org vocabulary and Google’s rich result requirements, carry what their rich result requires, agree with the page and each other, use current schema.org terms and valid dates, and whose breadcrumbs lead to live pages",
             rules: {
                 "structured-data/json-ld/invalid": { severity: "error", score: 7.8 },
                 "structured-data/property/missing": { severity: "warning", score: 5.8 },
@@ -477,6 +479,7 @@ export default {
                 "structured-data/entity/inconsistent": { severity: "warning", score: 5 },
                 "structured-data/term/deprecated": { severity: "warning", score: 4 },
                 "structured-data/date/invalid": { severity: "warning", score: 4.6 },
+                ...structuredValidation.levels,
             },
         },
     },

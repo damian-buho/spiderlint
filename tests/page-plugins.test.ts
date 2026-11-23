@@ -8,6 +8,7 @@ import { audit, type Report } from "../src/index.ts";
 import trackers from "../src/plugins/trackers.ts";
 import markup from "../src/plugins/markup.ts";
 import type { MarkupFacts } from "../src/plugins/markup.ts";
+import type { StructuredValidationFacts } from "../src/plugins/structured-validation.ts";
 import type { Facts } from "../src/facts/types.ts";
 import type { AggregateRule, PageRule } from "../src/rules/types.ts";
 import { serveSpec, type SpecSite } from "./fixtures/spec.ts";
@@ -15,12 +16,9 @@ import { serveSpec, type SpecSite } from "./fixtures/spec.ts";
 // The locations of every finding of `rule`.
 const everyLocation = (report: Report, rule: string) => report.findings.filter((finding) => finding.rule === rule).flatMap((finding) => finding.locations ?? []);
 
-// Rule and path of each plugin finding, sorted.
+// Rule and path of each plugin finding, sorted; a rule that reports several defects on one page reads once.
 function found(report: Report, origin: string): string[] {
-    return report.findings
-        .filter((finding) => !finding.rule.startsWith("groups/"))
-        .map((finding) => `${finding.rule} ${finding.url.replace(origin, "")}`)
-        .toSorted((a, b) => a.localeCompare(b));
+    return [...new Set(report.findings.filter((finding) => !finding.rule.startsWith("groups/")).map((finding) => `${finding.rule} ${finding.url.replace(origin, "")}`))].toSorted((a, b) => a.localeCompare(b));
 }
 
 describe("page plugins", () => {
@@ -54,13 +52,19 @@ describe("page plugins", () => {
             "markup/lang-switcher/mismatch /bad",
             "structured-data/breadcrumb/unreachable /gone",
             "structured-data/breadcrumb/unreachable /moved",
+            "structured-data/context/invalid /bad",
+            "structured-data/context/missing /bad",
             "structured-data/date/invalid /bad",
             "structured-data/entity/inconsistent /#me",
             "structured-data/entity/inconsistent /#org",
             "structured-data/json-ld/invalid /bad",
             "structured-data/property/missing /bad",
+            "structured-data/property/unknown /bad",
             "structured-data/reference/broken /bad#nobody",
+            "structured-data/rich-result/invalid /bad",
             "structured-data/term/deprecated /bad",
+            "structured-data/type/missing /bad",
+            "structured-data/type/unknown /bad",
             "structured-data/url/mismatch /bad",
         ]);
     });
@@ -108,6 +112,42 @@ describe("page plugins", () => {
             microdata: [{ "@type": ["Person"], "@id": `${site.origin}/#me`, name: "Ana" }],
             rdfa: [{ "@type": ["Event"], name: "Talk", startDate: "2026-10-01", location: { "@type": ["Place"], name: "Hall" } }],
         });
+    });
+
+    it("validates every page’s structured data against the vocabulary and the rich result requirements", () => {
+        const of = (rule: string) => report.findings.filter((finding) => finding.rule === rule);
+        // The good page carries valid data, so its check counts as passed: its facts hold no message.
+        const good = report.pages.find((page) => page.url.href === `${site.origin}/good`)?.structureddatavalidator as StructuredValidationFacts | undefined;
+        assert.deepEqual(good?.messages ?? ["no facts stored"], []);
+        assert.deepEqual(
+            of("structured-data/rich-result/invalid")
+                .map((finding) => finding.severity)
+                .toSorted((a, b) => a.localeCompare(b)),
+            ["error", "error", "info", "info", "info", "info", "info", "info", "info", "info", "info", "info", "info", "info", "info", "warning", "warning"],
+        );
+        assert.deepEqual(of("structured-data/rich-result/invalid").find((finding) => finding.message === 'Required attribute "image" is missing')?.locations, ["12:1 microdata Recipe[0]: image"]);
+        assert.deepEqual(
+            of("structured-data/type/unknown").map((finding) => finding.locations),
+            [["8:36 jsonld WebPagee[0]: @type"]],
+        );
+        assert.deepEqual(
+            of("structured-data/property/unknown").map((finding) => finding.locations),
+            [["7:36 jsonld WebPage[0]: colour"]],
+        );
+        assert.deepEqual(
+            of("structured-data/type/missing").map((finding) => finding.locations),
+            [["9:36 jsonld"]],
+        );
+        assert.deepEqual(
+            of("structured-data/context/missing").map((finding) => finding.locations),
+            [["10:36 jsonld"]],
+        );
+        assert.deepEqual(
+            of("structured-data/context/invalid").map((finding) => finding.locations),
+            [["13:1 microdata"]],
+        );
+        // The unparsable block is the wrapped extractor’s finding to drop: the house rule already reports it.
+        assert.ok(report.findings.every((finding) => finding.message !== "Could not parse JSON-LD"));
     });
 
     it("judges link text only in a language it has phrases for", () => {

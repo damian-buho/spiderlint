@@ -6861,6 +6861,26 @@ org:
             references:
               - https://developers.google.com/search/docs/appearance/structured-data/breadcrumb
             rationale: Пошукові системи показують ланцюжок хлібних крихт у результатах, тож елемент, що перенаправляє або віддає помилку, відправляє відвідувачів не туди.
+          - id: structured-data/context/invalid
+            title: Embedded structured data names no schema.org type
+            severity: error
+            score: "6.6"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://schema.org/docs/gs.html
+            rationale: Search engines read embedded markup against schema.org only, so an `itemtype` or `typeof` pointing elsewhere leaves the item invisible to them.
+          - id: structured-data/context/missing
+            title: A JSON-LD block declares no vocabulary
+            severity: error
+            score: "6.6"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
+            rationale: Without an `@context` the block’s terms are undefined, so a reader cannot tell `name` is schema.org’s and skips the block.
           - id: structured-data/date/invalid
             title: Дати в структурованих даних некоректні або суперечливі
             severity: warning
@@ -6901,6 +6921,16 @@ org:
             references:
               - https://developers.google.com/search/docs/appearance/structured-data/search-gallery
             rationale: Google показує розширений результат, як-от картку товару чи рецепта, лише за наявності обов’язкових властивостей, тож без них сторінка не підходить.
+          - id: structured-data/property/unknown
+            title: A structured data property is not defined for its type
+            severity: warning
+            score: "4.2"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://schema.org/docs/developers.html
+            rationale: A property its type does not support carries nothing a consumer can read, so search engines drop the value and may distrust the rest of the node.
           - id: structured-data/reference/broken
             title: Структуровані дані посилаються на вузол, який ніде не визначено
             severity: warning
@@ -6911,6 +6941,16 @@ org:
             references:
               - https://www.w3.org/TR/json-ld11/#node-identifiers
             rationale: Посилання на @id, якого не визначає жодна просканована сторінка, нікуди не веде, тож пошукові системи не можуть пов’язати сутності, і таке посилання нічого не дає.
+          - id: structured-data/rich-result/invalid
+            title: Structured data does not meet its rich result requirements
+            severity: warning
+            score: "5.6"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://developers.google.com/search/docs/appearance/structured-data/search-gallery
+            rationale: "Google shows a rich result only when the node meets the feature’s requirements: required properties present and of the right type, or the page is ineligible for the appearance."
           - id: structured-data/term/deprecated
             title: Структуровані дані використовують застарілі терміни schema.org
             severity: warning
@@ -6921,6 +6961,26 @@ org:
             references:
               - https://schema.org/docs/attic.home.html
             rationale: Пошукові системи можуть перестати читати терміни, які schema.org замінила, тож дані в них непомітно випадають із результатів.
+          - id: structured-data/type/missing
+            title: A JSON-LD block describes nothing
+            severity: error
+            score: "6.8"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
+            rationale: A block without a type names no entity, so search engines skip it silently and whatever it carries is lost.
+          - id: structured-data/type/unknown
+            title: Structured data names a type schema.org does not define
+            severity: error
+            score: "6.8"
+            scope: page
+            rulesets:
+              - structured-data
+            references:
+              - https://schema.org/docs/schemas.html
+            rationale: A type outside the vocabulary leaves the node unreadable, so search engines drop the whole block and the page loses whatever the node described.
           - id: structured-data/url/mismatch
             title: Твердження структурованих даних суперечать власним тегам сторінки
             severity: warning
