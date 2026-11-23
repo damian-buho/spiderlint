@@ -57,7 +57,7 @@ const entry: SiteExtractor = {
     per: "origin",
     async extract(origin, context) {
         const { protocol, hostname, host } = new URL(origin);
-        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p")) return;
+        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p") || hostname.endsWith(".ts.net")) return;
         const url = `http://${protocol === "http:" ? host : hostname}/`;
         try {
             const answer = await context.fetch(url, { redirect: "manual" });
@@ -172,7 +172,7 @@ const variants: SiteExtractor = {
     per: "origin",
     async extract(origin, context) {
         const { protocol, hostname, port } = new URL(origin);
-        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p")) return;
+        if (hostname.endsWith(".onion") || hostname.endsWith(".i2p") || hostname.endsWith(".ts.net")) return;
         const hosts = [hostname, swapped(hostname) ?? []].flat();
         const schemes = port ? [protocol] : ["http:", "https:"];
         const seed = context.pages.find((page) => page.crawl["discovered-via"] === "seed") ?? context.pages[0];

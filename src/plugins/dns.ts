@@ -17,8 +17,8 @@ import { recordFix } from "../rules/fix.ts";
 import type { RuleSpec } from "../rules/types.ts";
 import { type SiteContext, type SiteExtractor, type Plugin } from "./types.ts";
 
-// Suffixes of special-use names, never queried.
-const SPECIAL_USE = ["localhost", "test", "invalid", "example", "local", "onion", "i2p", "alt", "internal", "home.arpa"];
+// Suffixes of special-use and overlay names (RFC 6761, 6762, 7686, 8375, 9476, ICANN `internal`, I2P, Tailscale `ts.net`), never queried against public DNS/RDAP/RPKI.
+const SPECIAL_USE = ["localhost", "test", "invalid", "example", "local", "onion", "i2p", "alt", "internal", "home.arpa", "ts.net"];
 
 // RFC 8624 §3.1: DNSKEY algorithms that MUST NOT sign, and DS digests that MUST NOT be used.
 const WEAK_ALGORITHMS = [1, 3, 5, 6, 7, 12];

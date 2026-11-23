@@ -4,12 +4,14 @@
 
 import { once } from "node:events";
 import { setGlobalProxyFromEnv } from "node:http";
+import { isIP } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Server } from "proxy-chain";
 import { getDomain } from "tldts";
 import { ConfigError, defaults, type Config } from "../config/index.ts";
 import { log } from "../logger.ts";
-import { refuseLiteral } from "./guard.ts";
+import { isSpecialUse } from "../plugins/dns.ts";
+import { isPrivate, refuseLiteral } from "./guard.ts";
 import { openResolution } from "./resolve.ts";
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
@@ -103,10 +105,10 @@ export class Deadline {
     }
 }
 
-// Whether `host` is this machine, where no firewall stands between the request and the site.
-function isLoopback(host: string): boolean {
-    const literal = host.replaceAll(/^\[|\]$/g, "");
-    return literal === "localhost" || literal.endsWith(".localhost") || literal === "::1" || literal.startsWith("127.");
+// Whether `host` sits on loopback, a private/link-local/CGNAT address, a Tailscale tailnet (`.ts.net`), or an RFC special-use name where no public CrowdSec firewall stands in front.
+function isUnbudgetedHost(host: string): boolean {
+    const literal = host.replaceAll(/^\[|\]$/g, "").toLowerCase();
+    return literal === "localhost" || literal === "::1" || literal === "ts.net" || literal.endsWith(".localhost") || literal.startsWith("127.") || literal.endsWith(".ts.net") || isSpecialUse(literal) || (isIP(literal) !== 0 && isPrivate(literal));
 }
 
 // A leaky bucket per registrable domain holding at most `burst`, leaking `perMinute`; 0 per minute is unlimited.
@@ -161,10 +163,10 @@ function isStatic(pathname: string): boolean {
     return extension !== undefined && STATIC.has(extension.toLowerCase());
 }
 
-// The registrable domain `href` is budgeted under; undefined for a static file, loopback or anything but http(s).
+// The registrable domain `href` is budgeted under; undefined for a static file, loopback/private/tailnet host or anything but http(s).
 function budgeted(href: string): string | undefined {
     const url = URL.canParse(href) ? new URL(href) : undefined;
-    const isBudgeted = url !== undefined && ["http:", "https:"].includes(url.protocol) && !isLoopback(url.hostname) && !isStatic(url.pathname);
+    const isBudgeted = url !== undefined && ["http:", "https:"].includes(url.protocol) && !isUnbudgetedHost(url.hostname) && !isStatic(url.pathname);
     return isBudgeted ? (getDomain(url.hostname, { allowPrivateDomains: true }) ?? url.hostname) : undefined;
 }
 

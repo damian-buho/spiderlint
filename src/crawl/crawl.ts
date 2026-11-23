@@ -6,7 +6,6 @@ import { ConfigError, type Config } from "../config/index.ts";
 import type { CrawlEnd } from "../facts/types.ts";
 import { interrupted } from "../interrupt.ts";
 import { log } from "../logger.ts";
-import { browserCrawler } from "./browser.ts";
 import { Frontier, type CrawlCache, type CrawlResult, type CrawlStorage, type OnPage, type Runnable } from "./frontier.ts";
 import { httpCrawler } from "./http.ts";
 import { wallOf } from "./probe.ts";
@@ -43,7 +42,8 @@ export async function crawlSite(config: Config, onPage: OnPage, cache: CrawlCach
         halt("walled", `${edge} bot wall answered ${facts.url.href}`);
     };
     const http = modes.includes("http") ? httpCrawler(config, walling, frontier, storage, proxy) : undefined;
-    const browser = modes.includes("browser") ? await browserCrawler(config, walling, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
+    const browserModule = modes.includes("browser") ? await import("./browser.ts") : undefined;
+    const browser = browserModule ? await browserModule.browserCrawler(config, walling, frontier, router, storage, proxy, isKeptType, isDebugged, isExpensive) : undefined;
     log.debug({ crawlers: modes, groups: router.modes }, "crawlers chosen");
     const crawlers: Partial<Record<CrawlerMode, Runnable>> = { ...(http && { http: http.crawler }), ...(browser && { browser: browser.crawler }) };
     run.emit({ type: "phase.started", phase: "crawl", origin: singleOrigin(config.seeds) });

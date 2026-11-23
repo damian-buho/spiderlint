@@ -15,15 +15,42 @@ import { isPageRule, type AggregateRule, type Finding, type PageRule, type Rule,
 
 // strictTypes off so `{ minItems: 1 }` needs no `type: array` beside it; `format: uri` is an absolute URL a browser parses.
 const ajv = new Ajv2020({ strictTypes: false, formats: { uri: (text: string) => URL.canParse(text) } });
+const schemaCache = new WeakMap<object, ValidateFunction>();
+const getterCache = new Map<string, (facts: unknown) => unknown>();
+
+function compileSchema(schema: object): ValidateFunction {
+    let validate = schemaCache.get(schema);
+    if (!validate) {
+        validate = ajv.compile(schema);
+        schemaCache.set(schema, validate);
+    }
+    return validate;
+}
+
+// Pre-compiled dotted path reader so page and guard loops never split path strings per check.
+function compileGetter(path: string): (facts: unknown) => unknown {
+    let getter = getterCache.get(path);
+    if (!getter) {
+        const keys = path.split(".");
+        getter =
+            keys.length === 1
+                ? (facts: unknown) => (facts !== null && typeof facts === "object" ? (facts as Record<string, unknown>)[keys[0] as string] : undefined)
+                : (facts: unknown) => {
+                      let value: unknown = facts;
+                      for (const key of keys) {
+                          if (value === null || typeof value !== "object") return;
+                          value = (value as Record<string, unknown>)[key];
+                      }
+                      return value;
+                  };
+        getterCache.set(path, getter);
+    }
+    return getter;
+}
 
 // Dotted path into a facts document; absent stays undefined.
 export function get(facts: unknown, path: string): unknown {
-    let value: unknown = facts;
-    for (const key of path.split(".")) {
-        if (value === null || typeof value !== "object") return undefined;
-        value = (value as Record<string, unknown>)[key];
-    }
-    return value;
+    return compileGetter(path)(facts);
 }
 
 // JSON pointer walk for the value an AJV error points at.
@@ -96,12 +123,15 @@ function siteWhen(when: Record<string, unknown> | undefined): Record<string, unk
 // A `when` entry is a constant to equal, or a schema object the fact must satisfy.
 function guard(id: string, when: Record<string, unknown> | undefined): Guard {
     const tests = Object.entries(when ?? {}).map(([path, expected]) => {
-        const test = typeof expected === "object" && expected !== null ? ajv.compile(expected) : (actual: unknown) => actual === expected;
-        return { path, expected, test };
+        const test = typeof expected === "object" && expected !== null ? compileSchema(expected) : (actual: unknown) => actual === expected;
+        const isFromSite = isSitePath(path);
+        const read = compileGetter(isFromSite ? path.slice("site.".length) : path);
+        return { path, expected, test, isFromSite, read };
     });
+    if (tests.length === 0) return () => false;
     return (facts, subject, site) => {
-        for (const { path, expected, test } of tests) {
-            const actual = get(isSitePath(path) ? { site } : facts, path);
+        for (const { path, expected, test, isFromSite, read } of tests) {
+            const actual = read(isFromSite ? site : facts);
             if (test(actual)) continue;
             log.debug({ rule: id, url: subject, when: path, expected, actual }, "rule skipped");
             return true;
@@ -114,16 +144,18 @@ function guard(id: string, when: Record<string, unknown> | undefined): Guard {
 function compilePage(id: string, spec: RuleSpec, fact: string, validate: ValidateFunction): PageRule {
     const severity = severityOf(id, spec);
     const root = fact.split(".", 1)[0] as string;
+    const readRoot = compileGetter(root);
+    const readFact = compileGetter(fact);
     const isSkipped = guard(id, spec.when);
     return {
         meta: { id, severity, scope: "page", facts: [fact], docs: spec.docs, fix: spec.fix, extra: spec.extra, expect: spec.expect },
         check(page, site) {
             if (isSkipped(page, page.url.href, site)) return;
-            if (get(page, root) === undefined) {
+            if (readRoot(page) === undefined) {
                 log.debug({ rule: id, url: page.url.href, extractor: root }, "rule skipped");
                 return;
             }
-            const value = get(page, fact);
+            const value = readFact(page);
             if (validate(value)) return [];
             const error = validate.errors?.[0] as ErrorObject;
             const finding: Finding = { rule: id, severity, scope: "page", url: page.url.href, group: page.group, ...message(fact, value, error, spec.message), value, data: { [page.url.href]: { got: offendingGot(value, error) } } };
@@ -136,6 +168,7 @@ function compilePage(id: string, spec: RuleSpec, fact: string, validate: Validat
 function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule {
     const severity = severityOf(id, spec);
     const scope = spec.scope === "group" ? "group" : "site";
+    const readFact = compileGetter(fact);
     const isSkipped = guard(id, spec.when);
     return {
         meta: { id, severity, scope, facts: [fact], docs: spec.docs, fix: spec.fix, extra: spec.extra },
@@ -143,9 +176,11 @@ function compileUnique(id: string, spec: RuleSpec, fact: string): AggregateRule 
             const byValue = new Map<string, string[]>();
             for (const page of pages) {
                 if (isSkipped(page, page.url.href, site)) continue;
-                const value = get(page, fact);
+                const value = readFact(page);
                 if (typeof value !== "string") continue;
-                byValue.set(value, [...(byValue.get(value) ?? []), page.url.href]);
+                const urls = byValue.get(value);
+                if (urls) urls.push(page.url.href);
+                else byValue.set(value, [page.url.href]);
             }
             const findings: Finding[] = [];
             for (const [value, urls] of byValue) {
@@ -262,7 +297,8 @@ function compileUnscored(id: string, spec: RuleSpec): Rule {
     if (!spec.fact || !spec.expect) throw new ConfigError(`rule ${id}: needs both fact and expect`);
     try {
         const subject = subjectPath(spec.fact);
-        return subject ? compileSubject(id, spec, spec.fact, subject, ajv.compile(spec.expect)) : compilePage(id, spec, spec.fact, ajv.compile(spec.expect));
+        const validate = compileSchema(spec.expect);
+        return subject ? compileSubject(id, spec, spec.fact, subject, validate) : compilePage(id, spec, spec.fact, validate);
     } catch (error) {
         throw new ConfigError(`rule ${id}: expect ${error instanceof Error ? error.message : String(error)}`);
     }

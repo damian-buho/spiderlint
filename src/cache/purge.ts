@@ -8,6 +8,7 @@ import path from "node:path";
 import { lockStore } from "../store/disk.ts";
 import { log } from "../logger.ts";
 import { bucketDirectory, type BucketName } from "./index.ts";
+import { closeSqliteBucket, sqlitePurge } from "./sqlite.ts";
 import { FILE_BUCKETS, files } from "./status.ts";
 
 // Store directories that together make up the `pages` bucket.
@@ -18,10 +19,11 @@ export const PURGEABLE = new Set<string>(["pages", ...FILE_BUCKETS]);
 // Deletes entries older than `olderThanSeconds` (all when 0) and returns how many went.
 async function purgeFiles(directory: string, olderThanSeconds: number): Promise<number> {
     const cutoff = Date.now() - olderThanSeconds * 1000;
+    const sqliteRemoved = sqlitePurge(directory, cutoff, olderThanSeconds === 0);
     const present = await files(directory);
-    const stale = present.filter((file) => file.name.endsWith(".json") && file.mtime.getTime() <= cutoff);
+    const stale = present.filter((file) => file.name.endsWith(".json") && !file.name.startsWith("__") && file.mtime.getTime() <= cutoff);
     await Promise.all(stale.map((file) => rm(path.join(directory, file.name), { force: true })));
-    return stale.length;
+    return sqliteRemoved + stale.length;
 }
 
 // The store manifest’s start, absent when there is no manifest.
@@ -41,6 +43,7 @@ async function purgePages(root: string, olderThanSeconds: number): Promise<numbe
     if (!isOld) return 0;
     const facts = await files(path.join(root, "datasets/facts"));
     const pages = facts.filter((file) => file.name.endsWith(".json")).length;
+    closeSqliteBucket(path.join(root, "cache/pages"));
     await Promise.all(PAGES.map((entry) => rm(path.join(root, entry), { recursive: true, force: true })));
     return pages;
 }

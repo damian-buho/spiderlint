@@ -8,9 +8,11 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { Config } from "../config/index.ts";
 import { log } from "../logger.ts";
+import { sqliteGet, sqliteSet } from "./sqlite.ts";
 
 export type BucketName = "pages" | "probes" | "profiles" | "lists" | "resources" | "robots" | "sitemaps" | "origins" | "dns" | "extractors";
 export type CacheMode = "use" | "off" | "refresh" | "offline";
+export type CacheBackend = "files" | "sqlite";
 
 // Seconds each bucket stays fresh when the origin says nothing; `pages` 0 lets origin headers alone decide, `extractors` 0 keeps an entry until its body changes.
 export const TTL_DEFAULTS: Record<BucketName, number> = { pages: 0, probes: 7 * 86_400, profiles: 3600, lists: 7 * 86_400, resources: 86_400, robots: 86_400, sitemaps: 86_400, origins: 86_400, dns: 60, extractors: 0 };
@@ -56,27 +58,47 @@ export function bucketDirectory(name: BucketName, store: string | undefined): st
     return store === undefined ? undefined : path.join(store, "cache", name);
 }
 
-// One JSON file per key, named by the key's hash; `off` neither reads nor writes, `refresh` only writes.
+function defaultBackend(): CacheBackend {
+    return process.env.SPIDERLINT_CACHE_BACKEND === "sqlite" ? "sqlite" : "files";
+}
+
+// One JSON file per key (or one SQLite WAL bucket under `SPIDERLINT_CACHE_BACKEND=sqlite`), backed by an L1 in-memory map; `off` neither reads nor writes, `refresh` only writes.
 export class Bucket<T> {
+    readonly #entries = new Map<string, Entry<T>>();
+    readonly #inflight = new Map<string, Promise<Entry<T> | undefined>>();
+    #directoryReady?: Promise<string | undefined>;
     readonly name: BucketName;
     readonly directory: string | undefined;
     readonly ttlSeconds: number;
     readonly mode: CacheMode;
+    readonly backend: CacheBackend;
 
-    constructor(name: BucketName, directory: string | undefined, ttlSeconds: number, mode: CacheMode) {
+    constructor(name: BucketName, directory: string | undefined, ttlSeconds: number, mode: CacheMode, backend: CacheBackend = defaultBackend()) {
         this.name = name;
         this.directory = directory;
         this.ttlSeconds = ttlSeconds;
         this.mode = mode;
+        this.backend = backend;
     }
 
     #file(key: string): string {
         return path.join(this.directory as string, `${createHash("sha256").update(key).digest("hex")}.json`);
     }
 
-    // The stored entry for `key`, however old.
-    async get(key: string): Promise<Entry<T> | undefined> {
-        if (this.directory === undefined || this.mode === "off" || this.mode === "refresh") return undefined;
+    async #readDisk(key: string): Promise<Entry<T> | undefined> {
+        const directory = this.directory as string;
+        if (this.backend === "sqlite") {
+            try {
+                const hit = sqliteGet<T>(directory, key);
+                if (hit) {
+                    this.#entries.set(key, hit);
+                    log.debug({ bucket: this.name, key, stored: hit.stored, backend: "sqlite" }, "cache hit");
+                    return hit;
+                }
+            } catch (error) {
+                log.warn({ bucket: this.name, key, error: error instanceof Error ? error.message : String(error) }, `${this.name} sqlite cache entry unreadable and ignored:`);
+            }
+        }
         let entry: Entry<T>;
         try {
             entry = JSON.parse(await readFile(this.#file(key), "utf8")) as Entry<T>;
@@ -86,8 +108,28 @@ export class Bucket<T> {
             return undefined;
         }
         if (entry.key !== key) return undefined;
+        this.#entries.set(key, entry);
         log.debug({ bucket: this.name, key, stored: entry.stored }, "cache hit");
         return entry;
+    }
+
+    // The stored entry for `key`, however old.
+    async get(key: string): Promise<Entry<T> | undefined> {
+        if (this.directory === undefined || this.mode === "off" || this.mode === "refresh") return undefined;
+        const cached = this.#entries.get(key);
+        if (cached !== undefined) {
+            log.debug({ bucket: this.name, key, stored: cached.stored, tier: "memory" }, "cache hit");
+            return cached;
+        }
+        const pending = this.#inflight.get(key);
+        if (pending) return pending;
+        const reading = this.#readDisk(key);
+        this.#inflight.set(key, reading);
+        try {
+            return await reading;
+        } finally {
+            this.#inflight.delete(key);
+        }
     }
 
     // Younger than the bucket TTL.
@@ -97,8 +139,16 @@ export class Bucket<T> {
 
     async set(key: string, value: T): Promise<void> {
         if (this.directory === undefined || this.mode === "off" || this.mode === "offline") return;
-        await mkdir(this.directory, { recursive: true });
-        const entry: Entry<T> = { key, stored: new Date().toISOString(), value };
+        const stored = new Date().toISOString();
+        const entry: Entry<T> = { key, stored, value };
+        if (this.mode === "use") this.#entries.set(key, entry);
+        if (this.backend === "sqlite") {
+            sqliteSet(this.directory, key, stored, JSON.stringify(value));
+            log.debug({ bucket: this.name, key, backend: "sqlite" }, "cache stored");
+            return;
+        }
+        this.#directoryReady ??= mkdir(this.directory, { recursive: true });
+        await this.#directoryReady;
         await writeAtomic(this.#file(key), JSON.stringify(entry));
         log.debug({ bucket: this.name, key }, "cache stored");
     }

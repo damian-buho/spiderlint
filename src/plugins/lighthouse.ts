@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type { Page } from "playwright";
-import { debuggingPort } from "../crawl/browser.ts";
+import { debuggingPort } from "../crawl/browser-state.ts";
 import type { Facts } from "../facts/types.ts";
 import { log } from "../logger.ts";
 import type { RuleSpec } from "../rules/types.ts";

@@ -83,8 +83,9 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
     const run: RuleRun = { findings: [], applicable: new Map(), perRule: new Map(), checks: { total: 0, failed: 0, errored: 0, cost: 0 }, verdicts: new Map() };
     const site = new Map<string, AggregateRule>();
     const siteGroups = new Map<string, string[]>();
+    const pagesByGroup = Map.groupBy(pages, (page) => page.group);
     for (const [group, rules] of rulesByGroup) {
-        const members = pages.filter((page) => page.group === group);
+        const members = pagesByGroup.get(group) ?? [];
         for (const rule of rules) {
             const before = run.findings.length;
             if (isPageRule(rule)) runPageRule(rule, members, group, run, facts, results);
@@ -95,7 +96,9 @@ export function runRules(pages: Facts[], rulesByGroup: Map<string, Rule[]>, fact
                 run.verdicts.set(cell(group, rule.meta.id), verdictOf(found, members.length));
             } else {
                 if (!site.has(rule.meta.id)) site.set(rule.meta.id, rule);
-                siteGroups.set(rule.meta.id, [...(siteGroups.get(rule.meta.id) ?? []), group]);
+                const groups = siteGroups.get(rule.meta.id);
+                if (groups) groups.push(group);
+                else siteGroups.set(rule.meta.id, [group]);
             }
             log.debug({ rule: rule.meta.id, group, pages: members.length, findings: run.findings.length - before }, "rule ran");
         }

@@ -105,6 +105,24 @@ describe("cache", () => {
         assert.equal(purged.probes, 1);
     });
 
+    it("stores, measures and purges entries in the SQLite WAL bucket backend", async () => {
+        const store = path.join(root, "sqlite-store");
+        const writer = new Bucket<{ ok: boolean }>("resources", bucketDirectory("resources", store), 60, "use", "sqlite");
+        await writer.set("https://a.test/one.js", { ok: true });
+        await writer.set("https://a.test/two.js", { ok: false });
+        const reader = new Bucket<{ ok: boolean }>("resources", bucketDirectory("resources", store), 60, "use", "sqlite");
+        const entry = await reader.get("https://a.test/one.js");
+        assert.deepEqual(entry?.value, { ok: true });
+        const status = await cacheStatus(store);
+        assert.equal(status.find((item) => item.bucket === "resources")?.entries, 2);
+        assert.deepEqual(await purgeCache(store, "resources", 0), { resources: 2 });
+        const afterPurge = await cacheStatus(store);
+        assert.equal(
+            afterPurge.find((item) => item.bucket === "resources"),
+            undefined,
+        );
+    });
+
     it("serves a fresh entry without a request and revalidates a stale one to 304", async () => {
         const directory = path.join(root, "http");
         const url = `${site.origin}/feed.xml`;
